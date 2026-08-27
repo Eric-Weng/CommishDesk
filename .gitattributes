@@ -1,0 +1,13 @@
+# Normalize line endings: text files are LF in the repo, checked out native.
+* text=auto eol=lf
+
+# Explicitly binary
+*.png binary
+*.jpg binary
+*.woff binary
+*.woff2 binary
+*.ico binary
+
+# Keep committed lockfile / fixtures diffable but not language-classified noise
+uv.lock linguist-generated=true
+tests/fixtures/**/*.json linguist-generated=true
