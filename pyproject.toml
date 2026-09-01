@@ -1,0 +1,27 @@
+[project]
+name = "commishdesk"
+version = "0.0.1"
+description = "An automated weekly newspaper for a Sleeper fantasy football league — open-source, zero-credential engine."
+readme = "README.md"
+requires-python = ">=3.12"
+license = "AGPL-3.0-only"
+dependencies = [
+    "httpx",
+    "pydantic>=2",
+    "typer",
+]
+
+[project.scripts]
+commishdesk = "commishdesk.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest",
+]
+
+[build-system]
+requires = ["uv_build>=0.12.6,<0.13.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-root = ""
