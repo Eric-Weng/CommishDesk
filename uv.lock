@@ -68,9 +68,9 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "httpx" },
+    { name = "httpx", specifier = ">=0.27" },
     { name = "pydantic", specifier = ">=2" },
-    { name = "typer" },
+    { name = "typer", specifier = ">=0.12" },
 ]
 
 [package.metadata.requires-dev]

@@ -3,14 +3,27 @@
 from __future__ import annotations
 
 import importlib
+import importlib.metadata
+import re
+import subprocess
+import sys
+import tomllib
+from pathlib import Path
 
 from typer.testing import CliRunner
 
+import commishdesk
 from commishdesk.cli import app
 
 runner = CliRunner()
 
 STAGES = ("ingest", "stats", "facts", "narrate", "render", "deliver")
+
+PYPROJECT = Path(__file__).resolve().parent.parent / "pyproject.toml"
+
+
+def _pyproject() -> dict:
+    return tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))
 
 
 def test_all_stage_packages_import() -> None:
@@ -24,6 +37,14 @@ def test_help_lists_every_option() -> None:
     assert result.exit_code == 0
     for option in ("--league", "--week", "--draft-recap", "--verbose"):
         assert option in result.output
+    # "with descriptions": a distinctive fragment of each option's help text is shown.
+    for fragment in (
+        "Sleeper league id",
+        "NFL week",
+        "draft recap instead",
+        "output verbosity",
+    ):
+        assert fragment in result.output
 
 
 def test_draft_recap_reports_not_yet_implemented() -> None:
@@ -51,3 +72,43 @@ def test_unknown_option_is_a_usage_error() -> None:
     result = runner.invoke(app, ["--bogus"])
     assert result.exit_code == 2
     assert "Traceback" not in result.output
+
+
+def test_week_out_of_range_is_rejected() -> None:
+    for bad in ("0", "99"):
+        result = runner.invoke(app, ["--league", "123", "--week", bad])
+        assert result.exit_code == 2
+        assert "Traceback" not in result.output
+
+
+def test_version_is_consistent() -> None:
+    assert commishdesk.__version__ == importlib.metadata.version("commishdesk")
+
+
+def test_console_script_entry_point_runs_out_of_process() -> None:
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import sys; sys.argv=['commishdesk','--help']; "
+            "from commishdesk.cli import main; main()",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    assert "--league" in result.stdout
+
+
+def test_console_script_entry_point_is_registered() -> None:
+    scripts = importlib.metadata.entry_points(group="console_scripts")
+    match = {ep.name: ep.value for ep in scripts}
+    assert match.get("commishdesk") == "commishdesk.cli:main"
+
+
+def test_runtime_dependency_allowlist() -> None:
+    deps = _pyproject()["project"]["dependencies"]
+    names = {
+        re.split(r"[<>=!~ \[]", spec, maxsplit=1)[0].strip().lower() for spec in deps
+    }
+    assert names == {"httpx", "pydantic", "typer"}

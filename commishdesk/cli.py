@@ -19,13 +19,17 @@ def run(
         None, "--league", help="Sleeper league id to build a recap for."
     ),
     week: Optional[int] = typer.Option(
-        None, "--week", help="NFL week (1-18) for a weekly recap; omit for a draft recap."
+        None,
+        "--week",
+        min=1,
+        max=18,
+        help="NFL week (1-18) for a weekly recap; omit for a draft recap.",
     ),
     draft_recap: bool = typer.Option(
         False, "--draft-recap", help="Build the draft recap instead of a weekly recap."
     ),
     verbose: bool = typer.Option(
-        False, "--verbose", help="Emit DEBUG-level logs."
+        False, "--verbose", help="Increase output verbosity."
     ),
 ) -> None:
     """Print a not-yet-implemented notice and exit 0 (Story 1.2 scaffold)."""
