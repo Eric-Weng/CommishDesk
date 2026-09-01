@@ -8,6 +8,10 @@
 *.woff2 binary
 *.ico binary
 
-# Keep committed lockfile / fixtures diffable but not language-classified noise
+# Keep the lockfile out of language stats (it's fine if GitHub collapses its diff —
+# nobody hand-reviews a lockfile line by line). Fixtures are different: they are the
+# #1 contribution vector (CONTRIBUTING.md) and the exact place an un-anonymized name,
+# user_id, or avatar URL would hide. Exclude them from language stats WITHOUT marking
+# them "generated" — that keeps every line of a fixture PR visible in review.
 uv.lock linguist-generated=true
-tests/fixtures/**/*.json linguist-generated=true
+tests/fixtures/**/*.json linguist-detectable=false

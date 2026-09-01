@@ -12,14 +12,16 @@ credentials** — no API keys, no account, no network beyond Sleeper's public AP
 uv run commishdesk --league <sleeper_league_id> --draft-recap
 ```
 
-That command ingests the league's draft, computes the board metrics and grades, writes
-the recap with the zero-credential template narrator, and prints it to stdout plus a
-local HTML file. No keys. No config. Add an `LLM_API_KEY` later and the same command
-produces voiced prose instead.
+That command will ingest the league's draft, compute the board metrics and grades,
+write the recap with the zero-credential template narrator, and print it to stdout
+plus a local HTML file. No keys. No config. Add an `LLM_API_KEY` later and the same
+command will produce voiced prose instead.
 
-> **Status:** early build. The MVP (`v0.5`, a draft recap for a single league, Discord
-> delivery) is under construction — see [`docs/`](docs/) and the milestone notes. The
-> command above is the target of Epic 2; today the package scaffold is landing.
+> **Status:** early build — this is the target shape, not yet the shipped behavior. The
+> MVP (`v0.5`, a draft recap for a single league, Discord delivery) is under
+> construction — see the milestone notes. The command above is Epic 2's deliverable;
+> today the repo carries its governance docs (Epic 1 Story 1.1) with the package
+> scaffold landing next.
 
 ---
 
@@ -49,7 +51,7 @@ uv run pytest -q
 | facts | `commishdesk/facts/` | Emit a versioned, self-validated **Facts JSON** — the single contract every narrator and renderer reads. |
 | narrate | `commishdesk/narrate/` | Turn the Facts JSON into prose. The **template narrator** (zero credentials, deterministic) is the floor; the **LLM narrator** (one model call, a voice) is an opt-in layer. Content safety runs on both. |
 | render | `commishdesk/render/` | One content model, three surfaces — a self-contained interactive web page, a dark-mode-safe email with a plain-text alternative, a Discord post with a rendered image. |
-| deliver | `commishdesk/deliver/` | Idempotent delivery via a Send Ledger. Each recipient gets each Issue exactly once. |
+| deliver | `commishdesk/deliver/` | Idempotent delivery via a Send Ledger — each recipient gets each Issue exactly once. **At MVP this is Discord-webhook delivery only.** Email delivery (double opt-in, claims, unsubscribe) is a hosted-service concern that lives in the private app repo from Epic 6 onward, not in this engine. |
 
 Everything downstream of `facts/` reads the Facts JSON and nothing else.
 
@@ -75,8 +77,12 @@ of it and carries none of its concerns — no secrets, no accounts, no billing.
 
 ## License
 
-[GNU AGPL-3.0](LICENSE). If you run a modified version as a network service, you must
-offer its source to your users.
+[GNU AGPL-3.0](LICENSE). If you run a modified version of *this engine* as a network
+service, you must offer its source to your users. The private hosted app is a separate
+codebase that depends on a pinned, published release of this engine rather than
+including engine source directly; how that boundary interacts with AGPL §13 has not
+been reviewed by a lawyer and isn't a question this README resolves — treat it as open
+if the business model ever depends on the answer.
 
 ## Legal / attribution
 
