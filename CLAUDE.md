@@ -34,8 +34,11 @@ not in git history, not "temporarily":
 - **Cloudflare (or any hosted-infra) SDKs** — the engine defines a `Store` ABC and
   ships only `FileStore`. `HostedStore` (D1 + R2) is supplied by the app. Engine code
   never imports a Cloudflare SDK.
-- **Anything pulled from `../brief/`** — the planning artifacts are not part of this
-  repo and are `.gitignore`d. Do not copy PRD/spec/epic text into the repo.
+- **Anything pulled from `../brief/`** — the planning artifacts live in a sibling
+  directory and are not part of this repo. Do not copy PRD/spec/epic text into the
+  repo. (If a `brief/` directory is ever copied in by mistake, `.gitignore`'s `brief/`
+  entry excludes it from being committed — but the rule is "don't copy it in," not
+  "the gitignore will catch it.")
 
 If a feature needs any of the above, it belongs in **`../commishdesk-app`** (the
 private repo), which is created at **Epic 6** — not before.
@@ -51,41 +54,64 @@ explicit `pytest.skip("pending Epic N")` with a docstring quoting the invariant 
 skip is the only acceptable non-passing state, and it is removed (not weakened) when the
 epic implements it.
 
+Per AD-22, every one of these seven gets a real, passing test in *this* engine repo —
+not a placeholder that only the app can ever satisfy. Where an invariant's production
+code is app-side (claim emails, engagement tracking, mail infrastructure — all Epic 6+),
+the engine test proves the invariant's **logic**, provable with fakes over the `Store`
+port, and is honest that it does not exercise the real infrastructure. That distinction
+is called out per-invariant below.
+
 - **I1 — No paid operation executes for a league with zero verified channels.**
   The Generation Set is *derived* from verified-channel state by exactly one
-  constructor. No other code path may add a league to a run. A test asserts no other
-  write path exists. Mass-registering harvested league ids produces zero work and zero
-  spend. Activation requires all three: ≥1 confirmed email claim, an active validated
-  delivery destination, and headroom under the activation budget.
+  constructor. No other code path may add a league to a run. **Engine-testable
+  directly:** a test asserts no other write path exists, and that a fake `Store` with
+  zero confirmed claims / no validated destination / no budget headroom yields an empty
+  set. Mass-registering harvested league ids produces zero work and zero spend.
+  Activation requires all three: ≥1 confirmed email claim, an active validated delivery
+  destination, and headroom under the activation budget — the *real* claim/destination
+  data is app-side, but the constructor's derivation logic lives and is tested here.
 
 - **I2 — An address receives at most one unsolicited message, ever.**
-  One pending confirmation per address, globally, for its lifetime. A second request
-  for the same address is a silent no-op with a byte-identical response. This is
-  idempotency, not rate limiting.
+  One pending confirmation per address, globally, for its lifetime; a second request
+  for the same address is a silent no-op with a byte-identical response. **Engine-
+  testable as logic, not infrastructure:** the idempotency check ("does this address
+  already have a pending confirmation") is a pure decision over `Store`-read claim
+  state, tested here with a fake store. The actual sending of a confirmation email is
+  an app/Epic-6 concern and is not exercised by this test.
 
 - **I3 — LLM cost per league-week is exactly one call.**
   Regardless of member count. The Recap is generated once per league and reused for
   every recipient. The local Layer-4 safety classifier is unpaid and does not count.
+  Directly engine-testable against a fake `LLMClient`.
 
 - **I4 — Deterministic output requires no credentials and no paid resources.**
   `ingest → stats → facts → narrate(template) → render` runs with zero credentials and
   no network beyond the Sleeper API. The onboarding sample is stats + templated prose
   only — no LLM. Two runs on one frozen input produce byte-identical output (modulo the
-  generated-at timestamp).
+  generated-at timestamp). Directly engine-testable end to end against a fixture.
 
 - **I5 — Continued delivery requires continued engagement.**
   Zero opens and zero clicks for N consecutive weeks → automatic deactivation until
-  re-engaged. A deactivated league generates no Issues and no spend. I5 status is
-  computed live from engagement history, never stored as a flag.
+  re-engaged; a deactivated league generates no Issues and no spend; status is computed
+  live from engagement history, never stored as a flag. **Engine-testable as logic:**
+  the deactivation decision is a pure function over engagement-event data read through
+  `Store` (`is_deactivated(events, n_weeks) -> bool`), tested here with fake event
+  histories. Real opens/clicks capture is an app/Epic-6 concern (Worker + D1).
 
 - **I6 — Total run cost is computed before any spend.**
   The weekly job derives its complete work list, prices it, then runs fully or not at
   all. Over the configured ceiling → hard abort + operator alert, zero spend. No code
-  path discovers an overrun mid-run.
+  path discovers an overrun mid-run. Directly engine-testable against a fake priced
+  work list.
 
 - **I7 — Transactional and bulk mail use separate sending identities.**
   Confirmations on one subdomain, newsletters on another, so a reputation hit on one
-  cannot take down the other.
+  cannot take down the other. **Engine-testable as a config-shape property, not a real
+  send:** the mail adapter interface takes an explicit sending-identity/subdomain
+  parameter per mail category and never hardcodes a single domain — a test asserts the
+  two categories cannot resolve to the same configured identity. The actual DNS/SPF/
+  DKIM/DMARC setup is deployment configuration, verified operationally, not by a test
+  in any repo.
 
 `CLAUDE.md` in the private app repo restates these too. They are engine-tested because
 self-hosters inherit them and CI enforces them.

@@ -8,8 +8,16 @@ Use GitHub's private vulnerability reporting for this repository:
 **Security → Advisories → Report a vulnerability**
 (<https://github.com/Eric-Weng/CommishDesk/security/advisories/new>).
 
-We aim to acknowledge a report within 7 days and to agree a disclosure timeline with
-you. Please give us a reasonable window to ship a fix before any public disclosure.
+We aim to acknowledge a report within 7 days, give you an initial triage assessment
+(confirmed / not reproduced / needs more information) within 14 days, and agree a
+disclosure timeline with you from there — this is a small project maintained part-time,
+so a fix's timeline depends on severity and complexity rather than a fixed SLA. Please
+give us a reasonable window to ship a fix before any public disclosure.
+
+Good-faith security research under this policy — testing against your own self-hosted
+instance or the fixtures in this repo, not against any production service you don't
+control — will not be treated as a hostile act. This repo has no production service of
+its own; see Scope below.
 
 ## Scope
 
