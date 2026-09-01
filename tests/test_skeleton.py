@@ -38,3 +38,16 @@ def test_weekly_recap_reports_not_yet_implemented() -> None:
     assert result.exit_code == 0
     assert "not yet implemented" in result.output
     assert "Traceback" not in result.output
+
+
+def test_no_args_shows_usage_without_traceback() -> None:
+    result = runner.invoke(app, [])
+    assert result.exit_code in (0, 2)
+    assert "Usage" in result.output
+    assert "Traceback" not in result.output
+
+
+def test_unknown_option_is_a_usage_error() -> None:
+    result = runner.invoke(app, ["--bogus"])
+    assert result.exit_code == 2
+    assert "Traceback" not in result.output
