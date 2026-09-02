@@ -149,10 +149,12 @@ self-hosters inherit them and CI enforces them.
   length-caps `league.name` / `team_name` / `display_name` **before** they enter the
   Facts JSON. Downstream then treats Facts JSON strings as trusted.
 - **Extension zones are contracts, not specs (AD-23).** `adapters/`, `voices/`,
-  `themes/`, `stats/` each carry a documented protocol + an eval-fixture location +
-  **exactly one** reference implementation. **No code, doc, or comment in this repo
-  prescribes how to implement anything behind those protocols.** A test asserts the
-  count behind each protocol never exceeds one.
+  `themes/`, `statmods/` (distinct from the `stats/` pipeline compute package) each carry
+  a documented protocol + an eval-fixture location + **at most one** reference
+  implementation (the test enforces the ceiling; the reference impls land across
+  Epics 2–5). **No code, doc, or comment in this repo prescribes how to implement
+  anything behind those protocols.** A test asserts the count behind each protocol never
+  exceeds one.
 
 ---
 
