@@ -84,9 +84,11 @@ I1–I7 that a change may not weaken. A few consequences for PR authors:
 
 - **The deterministic core stays credential-free.** `ingest → stats → facts →
   narrate(template) → render` must run with no keys and no network beyond Sleeper.
-- **Extension zones stay open.** `adapters/`, `voices/`, `themes/`, `stats/` get an
+- **Extension zones stay open.** `adapters/`, `voices/`, `themes/`, and `statmods/` (the
+  community stat-module zone, kept separate from the `stats/` compute package) get an
   interface and exactly one reference implementation — don't add a second, and don't
-  write code that prescribes how someone else's implementation must work.
+  write code that prescribes how someone else's implementation must work. See
+  [`docs/EXTENDING.md`](docs/EXTENDING.md).
 - **The pipeline flows one way.** A stage consumes only the previous stage's output.
   Nothing downstream of `facts/` reads anything but the Facts JSON.
 - **No bare `except`.** Raise a typed exception under `CommishDeskError`.

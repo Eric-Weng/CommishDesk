@@ -57,9 +57,10 @@ Everything downstream of `facts/` reads the Facts JSON and nothing else.
 
 ## Extending it
 
-Four extension zones, each a documented protocol with exactly one reference
-implementation and **no prescribed way to build another** — add a platform adapter, a
-voice, a theme, or a stat module without touching the core or asking permission. See
+Four extension zones — `adapters/`, `voices/`, `themes/`, `statmods/` — each a documented
+protocol with, across the later epics, a single reference implementation each, and **no
+prescribed way to build another**: add a platform adapter, a voice, a theme, or a stat
+module without touching the core or asking permission. See
 [`docs/EXTENDING.md`](docs/EXTENDING.md) and
 [`docs/unclaimed-territory.md`](docs/unclaimed-territory.md).
 
