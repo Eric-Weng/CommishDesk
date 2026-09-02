@@ -14,6 +14,7 @@ checks the "may not delete or weaken an invariant test" rule.
 
 from __future__ import annotations
 
+import ast
 import inspect
 import re
 import sys
@@ -22,6 +23,104 @@ from pathlib import Path
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+
+# retro A3: names that count as real enforcement even without a literal `assert` -- a
+# graduated invariant test may check its property through one of these.
+_ASSERTION_HELPERS = frozenset(
+    {"raises", "fail", "assert_frame_equal", "assert_series_equal"}
+)
+
+
+class _AssertionFinder(ast.NodeVisitor):
+    """retro A3 / P4: does a function body carry real enforcement? A non-constant
+    ``assert``, a ``raise AssertionError(...)``, a ``pytest.raises`` block, a
+    ``pytest.fail(...)`` call, or a named assertion helper. Nested ``def`` / ``async def``
+    / ``lambda`` scopes are NOT descended into -- a dead inner ``assert`` doesn't count.
+    ``assert True`` / ``assert 1`` (a constant test) doesn't count either."""
+
+    def __init__(self) -> None:
+        self.found = False
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:  # noqa: D102
+        return  # do not descend into a nested function
+
+    visit_AsyncFunctionDef = visit_FunctionDef
+
+    def visit_Lambda(self, node: ast.Lambda) -> None:  # noqa: D102
+        return
+
+    def visit_Assert(self, node: ast.Assert) -> None:  # noqa: D102
+        if not isinstance(node.test, ast.Constant):
+            self.found = True
+
+    def visit_Raise(self, node: ast.Raise) -> None:  # noqa: D102
+        exc = node.exc.func if isinstance(node.exc, ast.Call) else node.exc
+        name = (
+            exc.id
+            if isinstance(exc, ast.Name)
+            else exc.attr
+            if isinstance(exc, ast.Attribute)
+            else ""
+        )
+        if name == "AssertionError":
+            self.found = True
+
+    def visit_Call(self, node: ast.Call) -> None:  # noqa: D102
+        func = node.func
+        name = (
+            func.attr
+            if isinstance(func, ast.Attribute)
+            else func.id
+            if isinstance(func, ast.Name)
+            else ""
+        )
+        if name in _ASSERTION_HELPERS:
+            self.found = True
+        self.generic_visit(node)
+
+
+def _strip_docstring(fn_node: ast.FunctionDef) -> list[ast.stmt]:
+    body = list(fn_node.body)
+    if (
+        body
+        and isinstance(body[0], ast.Expr)
+        and isinstance(body[0].value, ast.Constant)
+        and isinstance(body[0].value.value, str)
+    ):
+        return body[1:]
+    return body
+
+
+def _body_has_assertion(fn_node: ast.FunctionDef) -> bool:
+    """True when the body (docstring excluded) carries real enforcement -- see
+    ``_AssertionFinder``. A bare ``pass`` that kept only its docstring is exactly the
+    "route around it" weakening ``CLAUDE.md`` §2 forbids."""
+    finder = _AssertionFinder()
+    for stmt in _strip_docstring(fn_node):
+        finder.visit(stmt)
+    return finder.found
+
+
+def _ast_skip_message(fn_node: ast.FunctionDef) -> str | None:
+    """The literal message of a ``pytest.skip("...")`` / ``skip("...")`` call in the body,
+    or ``None`` when the body has no such call. retro P4: lets the registry guard classify
+    a ``test_I{n}`` that takes a pytest fixture (and so cannot be called with no args)
+    without executing it."""
+    for stmt in _strip_docstring(fn_node):
+        for sub in ast.walk(stmt):
+            if not isinstance(sub, ast.Call):
+                continue
+            func = sub.func
+            name = (
+                func.attr
+                if isinstance(func, ast.Attribute)
+                else func.id
+                if isinstance(func, ast.Name)
+                else ""
+            )
+            if name == "skip" and sub.args and isinstance(sub.args[0], ast.Constant):
+                return sub.args[0].value
+    return None
 
 
 def test_I1() -> None:
@@ -116,6 +215,15 @@ def test_invariant_registry_is_complete_and_unweakened() -> None:
         if re.fullmatch(r"test_I\d+", name) and callable(obj)
     }
 
+    # retro A3: parse this module once so a graduated (non-skipping) test_I{n} can be
+    # checked for a real assertion in its body.
+    _tree = ast.parse(Path(__file__).read_text(encoding="utf-8"))
+    fn_nodes = {
+        node.name: node
+        for node in _tree.body
+        if isinstance(node, ast.FunctionDef) and re.fullmatch(r"test_I\d+", node.name)
+    }
+
     # exactly test_I1..test_I7, numeric order, no extras / gaps
     assert set(invariant_tests) == {f"test_I{n}" for n in range(1, 8)}
     by_line = sorted(invariant_tests.values(), key=lambda f: f.__code__.co_firstlineno)
@@ -149,6 +257,36 @@ def test_invariant_registry_is_complete_and_unweakened() -> None:
 
         # EITHER a clean pass (epic landed) OR the exact pending-epic skip — nothing else
         expected_skip = f"pending Epic {INVARIANT_EPICS[key]}"
+        node = fn_nodes[f"test_{key}"]
+        args = node.args
+        takes_fixture = bool(
+            args.args
+            or args.posonlyargs
+            or args.kwonlyargs
+            or args.vararg
+            or args.kwarg
+        )
+
+        graduated_msg = (
+            f"test_{key}: graduated (does not skip) but its body carries no assertion "
+            f"- a real `assert`, `raise AssertionError`, `pytest.raises`/`pytest.fail`, "
+            f"or a named assertion helper is required"
+        )
+
+        if takes_fixture:
+            # retro P4: a graduated test_I{n} may take a pytest fixture (e.g. tmp_path),
+            # so it cannot be called with no args. Classify it from the AST instead:
+            # a pytest.skip("...") call in the body => still the pending-epic skip case;
+            # otherwise it is graduated and must carry a real assertion.
+            skip_msg = _ast_skip_message(node)
+            if skip_msg is not None:
+                assert skip_msg == expected_skip, (
+                    f"test_{key}: skip message {skip_msg!r} is not {expected_skip!r}"
+                )
+            else:
+                assert _body_has_assertion(node), graduated_msg
+            continue
+
         try:
             fn()
         except pytest.skip.Exception as exc:
@@ -157,3 +295,43 @@ def test_invariant_registry_is_complete_and_unweakened() -> None:
             )
         except Exception as exc:  # noqa: BLE001 - a failing invariant test is the signal
             raise AssertionError(f"test_{key} raised {exc!r}; expected pass or skip") from exc
+        else:
+            # retro A3: a clean pass means the epic graduated this stub to a real test —
+            # it must then actually assert its invariant. A bodyless `pass` that kept only
+            # its docstring is the precise weakening this guard exists to catch.
+            assert _body_has_assertion(node), graduated_msg
+
+
+def _first_func(src: str) -> ast.FunctionDef:
+    node = ast.parse(src).body[0]
+    assert isinstance(node, ast.FunctionDef)
+    return node
+
+
+def test_body_has_assertion_unit() -> None:
+    """Committed regression test for retro A3 / P4. On a clean tree all seven stubs skip,
+    so ``_body_has_assertion`` is never reached by the registry guard -- this exercises it
+    directly over the cases the parallel review called out."""
+    yes = {
+        "plain assert": "def t():\n    assert x == 1\n",
+        "assert with message": 'def t():\n    assert f(), "boom"\n',
+        "pytest.raises block": "def t():\n    with pytest.raises(ValueError):\n        f()\n",
+        "raise AssertionError": 'def t():\n    raise AssertionError("x")\n',
+        "pytest.fail": 'def t():\n    pytest.fail("x")\n',
+        "named helper": "def t():\n    assert_frame_equal(a, b)\n",
+        "assert after setup": "def t():\n    v = compute()\n    assert v == 3\n",
+    }
+    for label, src in yes.items():
+        assert _body_has_assertion(_first_func(src)) is True, label
+
+    no = {
+        "bare pass": "def t():\n    pass\n",
+        "docstring only": 'def t():\n    """just a docstring"""\n',
+        "assert True": "def t():\n    assert True\n",
+        "assert 1": "def t():\n    assert 1\n",
+        "dead nested def": "def t():\n    def _inner():\n        assert x == 1\n    return None\n",
+        "dead lambda": "def t():\n    g = lambda: (_ for _ in ()).throw(AssertionError())\n",
+        "just a call": "def t():\n    do_something()\n",
+    }
+    for label, src in no.items():
+        assert _body_has_assertion(_first_func(src)) is False, label
