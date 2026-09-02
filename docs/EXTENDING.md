@@ -41,9 +41,9 @@ in Epic 2.
 A `Voice` supplies both `system_prompt: str` and `banned_topics: frozenset[str]` — the two
 members are required. The banned topics merge into the deterministic content-safety check
 (AD-12); a voice that bans no extra topics uses an empty frozenset. Voice eval prompts and
-expected-tone samples go in `tests/eval/voices/`. The public repo ships **exactly one**
-`Voice` file — the mild "beat writer" default (Story 3.3); additional voices are a paid
-feature in the private app repo.
+expected-tone samples go in `tests/eval/voices/`. The public repo ships **at most one**
+`Voice` file — the mild "beat writer" default lands in Story 3.3 (a test enforces the
+ceiling); additional voices are a paid feature in the private app repo.
 
 ### `Renderer` — `commishdesk/themes/`
 
