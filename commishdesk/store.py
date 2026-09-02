@@ -23,26 +23,27 @@ Guarantees every ``Store`` implementation makes:
 ``FileStore`` keeps everything as plain files under a root directory:
 ``leagues/<id>.toml``, ``ledger/<id>.jsonl``, ``storylines/<id>.json``,
 ``claims/<id>.json``. Whole-file writes go through a temp file plus
-``os.replace`` (atomic on POSIX and Windows); ledger appends write one line and
-flush. No locking — there is a single writer per league (AD-6).
+``os.replace``; ledger appends write one line and flush. No locking — there is a
+single writer per league (AD-6).
 """
 
 from __future__ import annotations
 
-import json
 import os
 import tempfile
 import tomllib
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Literal, TypeVar
 
-from pydantic import AfterValidator, BaseModel, PlainSerializer, TypeAdapter
+from pydantic import AfterValidator, BaseModel, Field, PlainSerializer, TypeAdapter
 
 from commishdesk.errors import StoreError
 
 __all__ = ["LedgerEntry", "Storyline", "Claim", "Store", "FileStore"]
+
+_T = TypeVar("_T")
 
 
 # --- shared datetime handling --------------------------------------------------
@@ -67,6 +68,21 @@ UtcDateTime = Annotated[
 ]
 
 
+def _safe_league_id(league_id: str) -> str:
+    """Return *league_id* unchanged, or raise ``StoreError`` if it could escape
+    the store root as a path segment. This is the app-fed seam — a value that is
+    empty, ``.``/``..``, or carries a separator or NUL byte is rejected."""
+    if (
+        not league_id
+        or league_id in (".", "..")
+        or "/" in league_id
+        or "\\" in league_id
+        or "\x00" in league_id
+    ):
+        raise StoreError(f"unsafe league id: {league_id!r}")
+    return league_id
+
+
 # --- record models -----------------------------------------------------------
 #
 # These are internal engine state, evolvable per story. They are deliberately
@@ -77,11 +93,12 @@ class LedgerEntry(BaseModel):
     """One confirmed delivery, appended to the send ledger and never mutated."""
 
     league_id: str
-    week: int
+    week: int = Field(ge=1, le=18)
     channel: str
     recipient: str
     status: Literal["confirmed"] = "confirmed"
     sent_at: UtcDateTime
+    # Why this delivery was a deliberate re-issue; ``None`` for a first send (AD-10).
     reason: str | None = None
 
 
@@ -92,8 +109,8 @@ class Storyline(BaseModel):
     league_id: str
     headline: str
     status: Literal["active", "resolved"]
-    first_week: int
-    last_week: int
+    first_week: int = Field(ge=1, le=18)
+    last_week: int = Field(ge=1, le=18)
     notes: str = ""
 
 
@@ -108,8 +125,8 @@ class Claim(BaseModel):
 
 
 _LEDGER_LINE = TypeAdapter(LedgerEntry)
-_STORYLINE_LIST = TypeAdapter(list[Storyline])
-_CLAIM_LIST = TypeAdapter(list[Claim])
+_STORYLINE_LIST: TypeAdapter[list[Storyline]] = TypeAdapter(list[Storyline])
+_CLAIM_LIST: TypeAdapter[list[Claim]] = TypeAdapter(list[Claim])
 
 
 # --- the port --------------------------------------------------------------
@@ -160,25 +177,34 @@ class FileStore(Store):
         self._root = Path(root)
 
     def _file(self, area: str, league_id: str, suffix: str) -> Path:
-        return self._root / area / f"{league_id}{suffix}"
+        return self._root / area / f"{_safe_league_id(league_id)}{suffix}"
 
     @staticmethod
     def _atomic_write(path: Path, text: str) -> None:
-        """Write *text* to *path* via a temp file in the same directory + ``os.replace``."""
-        path.parent.mkdir(parents=True, exist_ok=True)
-        fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.", suffix=".tmp")
+        """Replace *path*'s contents atomically: write a sibling temp file, then
+        ``os.replace`` it into place so a reader sees either the whole prior file
+        or the whole new one — never a partial write. This guarantees atomic
+        *visibility* of the swap; it is not a durability claim about the rename
+        surviving a crash. An ``OSError`` becomes a ``StoreError``."""
         try:
-            with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as handle:
-                handle.write(text)
-                handle.flush()
-                os.fsync(handle.fileno())
-            os.replace(tmp, path)
-        except BaseException:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            fd, tmp = tempfile.mkstemp(
+                dir=path.parent, prefix=f".{path.name}.", suffix=".tmp"
+            )
             try:
-                os.unlink(tmp)
-            except OSError:
-                pass
-            raise
+                with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as handle:
+                    handle.write(text)
+                    handle.flush()
+                    os.fsync(handle.fileno())
+                os.replace(tmp, path)
+            except BaseException:
+                try:
+                    os.unlink(tmp)
+                except OSError:
+                    pass
+                raise
+        except OSError as exc:
+            raise StoreError(f"cannot write {path.name}") from exc
 
     def read_config(self, league_id: str) -> dict[str, Any]:
         path = self._file("leagues", league_id, ".toml")
@@ -196,45 +222,74 @@ class FileStore(Store):
             return []
         except OSError as exc:
             raise StoreError(f"cannot read ledger for {league_id!r}") from exc
+        # Split only on "\n" — splitlines() also breaks on \x85 / U+2028 / U+2029
+        # / \v / \f, which can occur verbatim inside a JSON string field.
+        segments = raw.split("\n")
+        ends_clean = raw.endswith("\n")
         entries: list[LedgerEntry] = []
-        for line in raw.splitlines():
-            line = line.strip()
+        for index, segment in enumerate(segments):
+            line = segment.strip()
             if not line:
                 continue
             try:
                 entry = _LEDGER_LINE.validate_json(line)
             except ValueError as exc:
+                # Tolerate exactly one unterminated trailing line — a crash
+                # mid-append. A bad line anywhere else is real corruption.
+                if index == len(segments) - 1 and not ends_clean:
+                    continue
                 raise StoreError(f"malformed ledger line for {league_id!r}") from exc
             if entry.week == week:
                 entries.append(entry)
         return entries
 
     def append_ledger_entry(self, entry: LedgerEntry) -> None:
+        _safe_league_id(entry.league_id)
         path = self._file("ledger", entry.league_id, ".jsonl")
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, "a", encoding="utf-8", newline="\n") as handle:
-            handle.write(entry.model_dump_json() + "\n")
-            handle.flush()
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with open(path, "a", encoding="utf-8", newline="\n") as handle:
+                handle.write(entry.model_dump_json() + "\n")
+                handle.flush()
+                os.fsync(handle.fileno())
+        except OSError as exc:
+            raise StoreError(f"cannot append ledger for {entry.league_id!r}") from exc
 
     def read_storylines(self, league_id: str) -> list[Storyline]:
-        return self._read_list(self._file("storylines", league_id, ".json"), _STORYLINE_LIST, league_id)
+        return self._read_list(
+            self._file("storylines", league_id, ".json"), _STORYLINE_LIST, league_id
+        )
 
     def write_storylines(self, league_id: str, storylines: list[Storyline]) -> None:
+        for storyline in storylines:
+            if storyline.league_id != league_id:
+                raise StoreError(
+                    f"storyline {storyline.id!r} is for league "
+                    f"{storyline.league_id!r}, not {league_id!r}"
+                )
         payload = _STORYLINE_LIST.dump_json(list(storylines), indent=2).decode("utf-8")
         self._atomic_write(self._file("storylines", league_id, ".json"), payload + "\n")
 
     def read_claims(self, league_id: str) -> list[Claim]:
-        return self._read_list(self._file("claims", league_id, ".json"), _CLAIM_LIST, league_id)
+        return self._read_list(
+            self._file("claims", league_id, ".json"), _CLAIM_LIST, league_id
+        )
 
     @staticmethod
-    def _read_list(path: Path, adapter: TypeAdapter, league_id: str) -> list:
+    def _read_list(
+        path: Path, adapter: TypeAdapter[list[_T]], league_id: str
+    ) -> list[_T]:
         try:
             raw = path.read_text(encoding="utf-8")
         except FileNotFoundError:
             return []
         except OSError as exc:
             raise StoreError(f"cannot read {path.parent.name} for {league_id!r}") from exc
+        if not raw.strip():  # empty / whitespace-only reads like a missing file
+            return []
         try:
             return adapter.validate_json(raw)
         except ValueError as exc:
-            raise StoreError(f"malformed {path.parent.name} JSON for {league_id!r}") from exc
+            raise StoreError(
+                f"malformed {path.parent.name} JSON for {league_id!r}"
+            ) from exc

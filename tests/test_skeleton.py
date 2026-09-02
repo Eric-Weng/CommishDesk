@@ -6,11 +6,14 @@ import importlib
 import importlib.metadata
 import json
 import re
+import shutil
 import subprocess
 import sys
 import tomllib
+import zipfile
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 import commishdesk
@@ -156,10 +159,37 @@ def test_plain_run_emits_no_log_lines_to_stderr() -> None:
     assert result.stderr.strip() == ""
 
 
-def test_py_typed_marker_present() -> None:
-    """PEP 561: the installed ``commishdesk`` package ships a ``py.typed`` marker."""
+def test_py_typed_marker_in_source_tree() -> None:
+    """PEP 561: the ``commishdesk`` package carries a ``py.typed`` marker."""
     pkg_dir = Path(commishdesk.__file__).resolve().parent
     assert (pkg_dir / "py.typed").is_file()
+
+
+def _find_uv() -> str | None:
+    found = shutil.which("uv")
+    if found:
+        return found
+    fallback = Path.home() / ".local" / "bin" / "uv"
+    return str(fallback) if fallback.exists() else None
+
+
+def test_py_typed_marker_ships_in_the_wheel(tmp_path: Path) -> None:
+    """The built wheel actually contains ``commishdesk/py.typed`` — a source-tree
+    marker is worthless if the build backend drops it."""
+    uv = _find_uv()
+    if uv is None:
+        pytest.skip("uv not available")
+    result = subprocess.run(
+        [uv, "build", "--wheel", "--out-dir", str(tmp_path)],
+        cwd=PYPROJECT.parent,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    wheels = list(tmp_path.glob("*.whl"))
+    assert len(wheels) == 1, wheels
+    with zipfile.ZipFile(wheels[0]) as zf:
+        assert "commishdesk/py.typed" in zf.namelist()
 
 
 def test_runtime_dependency_allowlist() -> None:
