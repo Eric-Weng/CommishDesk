@@ -24,9 +24,9 @@ not in git history, not "temporarily":
 - **Real league configs** — no `leagues/*.toml`, no Sleeper `league_id`s belonging to
   real leagues, no delivery destinations. The engine takes a league id as a CLI
   argument; it does not carry a list of them.
-- **Premium voices** — the public repo contains **exactly one** `Voice` file (the mild
-  "beat writer" default). Additional voices are a paid feature and live in the private
-  app repo.
+- **Premium voices** — the public repo ships **at most one** `Voice` file, the mild
+  "beat writer" default (it lands in Story 3.3; a test enforces the ceiling of one).
+  Additional voices are a paid feature and live in the private app repo.
 - **Auth / accounts / login** — there is no account system anywhere in this product,
   ever. No signup form, no session code, no password/OAuth handling in this repo.
 - **Billing / payments** — no Stripe, no payment links, no entitlement state, no price
@@ -101,8 +101,12 @@ is called out per-invariant below.
 - **I6 — Total run cost is computed before any spend.**
   The weekly job derives its complete work list, prices it, then runs fully or not at
   all. Over the configured ceiling → hard abort + operator alert, zero spend. No code
-  path discovers an overrun mid-run. Directly engine-testable against a fake priced
-  work list.
+  path discovers an overrun mid-run. **Engine-testable as logic:** the abort decision is
+  a pure function over a priced work list and the configured ceiling
+  (`exceeds_budget(items, ceiling) -> bool`), tested here with fake priced work lists.
+  The cost *estimate* itself ships with the CLI in Epic 4 (FR-36); the real ceiling, the
+  operator alert, and the batch hard-abort are wired in Epic 7 with the production run —
+  which is where `test_I6` graduates from skip to pass (FR-49).
 
 - **I7 — Transactional and bulk mail use separate sending identities.**
   Confirmations on one subdomain, newsletters on another, so a reputation hit on one
@@ -190,7 +194,11 @@ self-hosters inherit them and CI enforces them.
 ## 6. ⏸ CHECKPOINT — do not skip Epic 4B
 
 Milestones: **Epics 1–4 are the MVP** (draft-recap v0.5, engine-only). Epic 5 is the
-full weekly newsletter (v1). Epic 6 creates `../commishdesk-app`.
+full weekly newsletter (v1). Epic 6 creates `../commishdesk-app`. Epic 7 is unattended
+production operation at scale (the real cron, derived Generation Set, budget ceilings —
+where `test_I2` / `test_I5` / `test_I6` / `test_I7` graduate); Epics 8–10 are later v1–v3
+passes. Epics 5–10 are stubbed in `../brief/planning-artifacts/epics.md` and storied in
+later planning rounds.
 
 **At the end of Epic 4, and again at the end of Epic 5**, the session must **stop and
 prompt the operator** — it may not silently continue past this point:
