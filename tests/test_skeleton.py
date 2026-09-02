@@ -156,6 +156,12 @@ def test_plain_run_emits_no_log_lines_to_stderr() -> None:
     assert result.stderr.strip() == ""
 
 
+def test_py_typed_marker_present() -> None:
+    """PEP 561: the installed ``commishdesk`` package ships a ``py.typed`` marker."""
+    pkg_dir = Path(commishdesk.__file__).resolve().parent
+    assert (pkg_dir / "py.typed").is_file()
+
+
 def test_runtime_dependency_allowlist() -> None:
     deps = _pyproject()["project"]["dependencies"]
     names = {
