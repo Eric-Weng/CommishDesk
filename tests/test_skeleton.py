@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib
 import importlib.metadata
+import json
 import re
 import subprocess
 import sys
@@ -104,6 +105,55 @@ def test_console_script_entry_point_is_registered() -> None:
     scripts = importlib.metadata.entry_points(group="console_scripts")
     match = {ep.name: ep.value for ep in scripts}
     assert match.get("commishdesk") == "commishdesk.cli:main"
+
+
+def _run_cli(*args: str) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            f"import sys; sys.argv={['commishdesk', *args]!r}; "
+            "from commishdesk.cli import main; main()",
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+
+def _stderr_json(result: subprocess.CompletedProcess) -> list[dict]:
+    return [
+        json.loads(line)
+        for line in result.stderr.splitlines()
+        if line.strip().startswith("{")
+    ]
+
+
+def test_verbose_run_emits_context_stamped_debug_json_to_stderr() -> None:
+    result = _run_cli("--league", "123", "--draft-recap", "--verbose")
+    assert result.returncode == 0
+    assert "not yet implemented" in result.stdout
+    assert "Traceback" not in result.stdout
+    records = _stderr_json(result)
+    assert records, result.stderr
+    debug = [r for r in records if r["level"] == "DEBUG"]
+    assert debug, records
+    assert all(r["league_id"] == "123" for r in debug)
+    assert all("week" not in r for r in debug)  # --draft-recap has no week
+
+
+def test_verbose_weekly_run_stamps_week_on_stderr_json() -> None:
+    result = _run_cli("--league", "123", "--week", "5", "--verbose")
+    assert result.returncode == 0
+    records = _stderr_json(result)
+    assert records, result.stderr
+    assert any(r.get("league_id") == "123" and r.get("week") == 5 for r in records)
+
+
+def test_plain_run_emits_no_log_lines_to_stderr() -> None:
+    result = _run_cli("--league", "123", "--draft-recap")
+    assert result.returncode == 0
+    assert "not yet implemented" in result.stdout
+    assert result.stderr.strip() == ""
 
 
 def test_runtime_dependency_allowlist() -> None:

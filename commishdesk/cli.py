@@ -6,6 +6,8 @@ from typing import Optional
 
 import typer
 
+from commishdesk.logconfig import configure_logging, log_context
+
 app = typer.Typer(
     add_completion=False,
     no_args_is_help=True,
@@ -32,19 +34,24 @@ def run(
         False, "--verbose", help="Increase output verbosity."
     ),
 ) -> None:
-    """Print a not-yet-implemented notice and exit 0 (Story 1.2 scaffold)."""
-    if draft_recap:
-        mode = "draft recap"
-    elif week is not None:
-        mode = f"week {week} recap"
-    else:
-        mode = "recap"
-    league_label = league if league else "<none>"
-    typer.echo(
-        f"CommishDesk: {mode} for league {league_label} is not yet implemented "
-        "(Story 1.2 scaffold)."
-    )
-    raise typer.Exit(code=0)
+    """Configure structured logging, bind a league/week log context, print a
+    not-yet-implemented notice, and exit 0 (Story 1.2 scaffold; logging wiring
+    added in Story 1.3)."""
+    logger = configure_logging(verbose)
+    with log_context(league_id=league, week=week):
+        if draft_recap:
+            mode = "draft recap"
+        elif week is not None:
+            mode = f"week {week} recap"
+        else:
+            mode = "recap"
+        logger.debug("cli invoked: mode=%s", mode)
+        league_label = league if league else "<none>"
+        typer.echo(
+            f"CommishDesk: {mode} for league {league_label} is not yet implemented "
+            "(Story 1.2 scaffold)."
+        )
+        raise typer.Exit(code=0)
 
 
 def main() -> None:
