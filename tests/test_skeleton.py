@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib
 import importlib.metadata
+import json
 import re
 import subprocess
 import sys
@@ -104,6 +105,30 @@ def test_console_script_entry_point_is_registered() -> None:
     scripts = importlib.metadata.entry_points(group="console_scripts")
     match = {ep.name: ep.value for ep in scripts}
     assert match.get("commishdesk") == "commishdesk.cli:main"
+
+
+def test_verbose_run_emits_redactable_json_log_to_stderr() -> None:
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import sys; "
+            "sys.argv=['commishdesk','--league','123','--draft-recap','--verbose']; "
+            "from commishdesk.cli import main; main()",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    assert "not yet implemented" in result.stdout
+    assert "Traceback" not in result.stdout
+    json_lines = [
+        json.loads(line)
+        for line in result.stderr.splitlines()
+        if line.strip().startswith("{")
+    ]
+    assert json_lines, result.stderr
+    assert any(rec.get("league_id") == "123" for rec in json_lines)
 
 
 def test_runtime_dependency_allowlist() -> None:
