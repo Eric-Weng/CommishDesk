@@ -10,6 +10,15 @@ on:
 permissions:
   contents: read
 
+# CI is non-interactive. Rich force-enables terminal rendering when it sees CI=true,
+# which turns Typer's `--help` into an ANSI panel wrapped to an 80-column width and
+# breaks the CLI-surface tests that match literal option strings. Pin a plain,
+# wide, colourless terminal so `--help` is deterministic stdout.
+env:
+  NO_COLOR: "1"
+  TERM: dumb
+  COLUMNS: "200"
+
 concurrency:
   group: test-${{ github.ref }}
   cancel-in-progress: true
