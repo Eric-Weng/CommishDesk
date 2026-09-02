@@ -3,8 +3,8 @@
 Standard-library ``logging`` only. ``configure_logging()`` installs exactly one
 handler on the ``commishdesk`` logger; ``log_context()`` binds ``league_id`` /
 ``week`` onto every record emitted in its scope; a redaction filter keeps secrets
-and email addresses out of the output. A bare numeric league id or week never
-matches a redaction pattern.
+and email addresses out of the output — message, ``%``-args, and exception text
+alike. A bare numeric league id or week never matches a redaction pattern.
 """
 
 from __future__ import annotations
@@ -44,7 +44,7 @@ class log_context:
     """Context manager: bind ``**fields`` onto every in-scope log record.
 
     ``None`` values are dropped. Nesting merges over the current binding and the
-    previous binding is restored on exit.
+    previous binding is restored on exit. A single instance is not reentrant.
     """
 
     def __init__(self, **fields: Any) -> None:
@@ -52,6 +52,8 @@ class log_context:
         self._token: Optional[contextvars.Token] = None
 
     def __enter__(self) -> "log_context":
+        if self._token is not None:
+            raise RuntimeError("log_context instances are not reentrant")
         merged = dict(_log_context.get())
         merged.update(self._fields)
         self._token = _log_context.set(merged)
@@ -60,6 +62,7 @@ class log_context:
     def __exit__(self, *exc: object) -> bool:
         assert self._token is not None
         _log_context.reset(self._token)
+        self._token = None
         return False
 
 
@@ -72,8 +75,14 @@ _REDACTION_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}"),
     # Authorization: Bearer <token>
     re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/=\-]+"),
-    # api_key / apikey / token / secret / password = <value>  (or ": <value>")
-    re.compile(r"(?i)\b(?:api[_-]?key|token|secret|password)\b\s*[=:]\s*\S+"),
+    # KEY=value / TOKEN: value assignment — with an optional NAMESPACE_ prefix
+    # (LLM_API_KEY, X_API_TOKEN, DISCORD_WEBHOOK, MY_SECRET, ...); handles a
+    # quoted value that contains spaces and stops at a comma / closing brace.
+    re.compile(
+        r"(?i)\b\w*(?:api[_-]?key|api[_-]?token|secret|password|token|webhook)\b"
+        r"[\"']?\s*[=:]\s*"
+        r"(?:\"[^\"]*\"|'[^']*'|[^\s\"',}]+)"
+    ),
     # OpenAI / Anthropic-style secret key
     re.compile(r"\bsk-[A-Za-z0-9][A-Za-z0-9\-]{6,}"),
     # AWS access key id
@@ -95,14 +104,14 @@ class RedactionFilter(logging.Filter):
     """Render ``%``-args into the message, redact it, and clear the args.
 
     The formatter never sees an un-redacted value: after this filter runs the
-    record carries only the cleaned string and no args.
+    record carries only the cleaned string and no args. A broken format string
+    must never crash logging.
     """
 
     def filter(self, record: logging.LogRecord) -> bool:
         try:
             message = record.getMessage()
-        except (TypeError, ValueError):
-            # A broken format string must not crash logging.
+        except Exception:  # a bad format string / missing key must not crash logging
             message = str(record.msg)
         record.msg = _redact(message)
         record.args = ()
@@ -123,10 +132,8 @@ class ContextFilter(logging.Filter):
 # --- formatters -----------------------------------------------------------
 
 
-def _utc_iso(created: float) -> str:
-    return datetime.datetime.fromtimestamp(
-        created, tz=datetime.timezone.utc
-    ).isoformat()
+def _utc_dt(created: float) -> datetime.datetime:
+    return datetime.datetime.fromtimestamp(created, tz=datetime.timezone.utc)
 
 
 class JsonFormatter(logging.Formatter):
@@ -134,7 +141,7 @@ class JsonFormatter(logging.Formatter):
 
     def format(self, record: logging.LogRecord) -> str:
         payload: dict[str, Any] = {
-            "ts": _utc_iso(record.created),
+            "ts": _utc_dt(record.created).isoformat(),
             "level": record.levelname,
             "logger": record.name,
             "msg": record.getMessage(),
@@ -143,18 +150,17 @@ class JsonFormatter(logging.Formatter):
             if hasattr(record, key):
                 payload[key] = getattr(record, key)
         if record.exc_info:
-            payload["exc_info"] = self.formatException(record.exc_info)
-        return json.dumps(payload, ensure_ascii=False)
+            payload["exc_info"] = _redact(self.formatException(record.exc_info))
+        return json.dumps(payload, ensure_ascii=False, default=str)
 
 
 class HumanFormatter(logging.Formatter):
     """``HH:MM:SS LEVEL msg [league_id=… week=…]`` — suffix only when bound."""
 
     def format(self, record: logging.LogRecord) -> str:
-        stamp = datetime.datetime.fromtimestamp(
-            record.created, tz=datetime.timezone.utc
-        ).strftime("%H:%M:%S")
-        line = f"{stamp} {record.levelname} {record.getMessage()}"
+        stamp = _utc_dt(record.created).strftime("%H:%M:%S")
+        message = record.getMessage().replace("\n", "\\n").replace("\r", "\\r")
+        line = f"{stamp} {record.levelname} {message}"
         bits = [
             f"{key}={getattr(record, key)}"
             for key in _CONTEXT_KEYS
@@ -163,7 +169,8 @@ class HumanFormatter(logging.Formatter):
         if bits:
             line += f" [{' '.join(bits)}]"
         if record.exc_info:
-            line += "\n" + self.formatException(record.exc_info)
+            exc_text = _redact(self.formatException(record.exc_info))
+            line += "\n" + exc_text
         return line
 
 
@@ -189,7 +196,7 @@ def _use_json(stream: Any) -> bool:
 
 
 def configure_logging(verbose: bool = False, *, stream: Any = None) -> logging.Logger:
-    """Configure the ``commishdesk`` logger. Idempotent.
+    """Configure the ``commishdesk`` logger and return it. Idempotent.
 
     Installs exactly one ``StreamHandler`` (replacing any prior handler), with the
     redaction and context filters, ``propagate=False``, and level
@@ -212,3 +219,11 @@ def configure_logging(verbose: bool = False, *, stream: Any = None) -> logging.L
     logger.propagate = False
     logger.setLevel(logging.DEBUG if verbose else logging.INFO)
     return logger
+
+
+# Engine code may call ``logging.getLogger("commishdesk").<level>(...)`` before
+# ``configure_logging()`` runs (or in a context that never calls it, e.g. a
+# library import). A NullHandler keeps that from falling through to logging's
+# ``lastResort`` handler, which would write unformatted, un-redacted text to
+# stderr. ``configure_logging()`` clears this before adding its own handler.
+logging.getLogger(LOGGER_NAME).addHandler(logging.NullHandler())

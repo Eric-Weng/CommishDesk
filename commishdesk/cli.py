@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 from typing import Optional
 
 import typer
@@ -35,8 +34,10 @@ def run(
         False, "--verbose", help="Increase output verbosity."
     ),
 ) -> None:
-    """Print a not-yet-implemented notice and exit 0 (Story 1.2 scaffold)."""
-    configure_logging(verbose)
+    """Configure structured logging, bind a league/week log context, print a
+    not-yet-implemented notice, and exit 0 (Story 1.2 scaffold; logging wiring
+    added in Story 1.3)."""
+    logger = configure_logging(verbose)
     with log_context(league_id=league, week=week):
         if draft_recap:
             mode = "draft recap"
@@ -44,7 +45,7 @@ def run(
             mode = f"week {week} recap"
         else:
             mode = "recap"
-        logging.getLogger("commishdesk").debug("cli invoked: mode=%s", mode)
+        logger.debug("cli invoked: mode=%s", mode)
         league_label = league if league else "<none>"
         typer.echo(
             f"CommishDesk: {mode} for league {league_label} is not yet implemented "

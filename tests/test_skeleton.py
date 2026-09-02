@@ -107,28 +107,53 @@ def test_console_script_entry_point_is_registered() -> None:
     assert match.get("commishdesk") == "commishdesk.cli:main"
 
 
-def test_verbose_run_emits_redactable_json_log_to_stderr() -> None:
-    result = subprocess.run(
+def _run_cli(*args: str) -> subprocess.CompletedProcess:
+    return subprocess.run(
         [
             sys.executable,
             "-c",
-            "import sys; "
-            "sys.argv=['commishdesk','--league','123','--draft-recap','--verbose']; "
+            f"import sys; sys.argv={['commishdesk', *args]!r}; "
             "from commishdesk.cli import main; main()",
         ],
         capture_output=True,
         text=True,
     )
-    assert result.returncode == 0
-    assert "not yet implemented" in result.stdout
-    assert "Traceback" not in result.stdout
-    json_lines = [
+
+
+def _stderr_json(result: subprocess.CompletedProcess) -> list[dict]:
+    return [
         json.loads(line)
         for line in result.stderr.splitlines()
         if line.strip().startswith("{")
     ]
-    assert json_lines, result.stderr
-    assert any(rec.get("league_id") == "123" for rec in json_lines)
+
+
+def test_verbose_run_emits_context_stamped_debug_json_to_stderr() -> None:
+    result = _run_cli("--league", "123", "--draft-recap", "--verbose")
+    assert result.returncode == 0
+    assert "not yet implemented" in result.stdout
+    assert "Traceback" not in result.stdout
+    records = _stderr_json(result)
+    assert records, result.stderr
+    debug = [r for r in records if r["level"] == "DEBUG"]
+    assert debug, records
+    assert all(r["league_id"] == "123" for r in debug)
+    assert all("week" not in r for r in debug)  # --draft-recap has no week
+
+
+def test_verbose_weekly_run_stamps_week_on_stderr_json() -> None:
+    result = _run_cli("--league", "123", "--week", "5", "--verbose")
+    assert result.returncode == 0
+    records = _stderr_json(result)
+    assert records, result.stderr
+    assert any(r.get("league_id") == "123" and r.get("week") == 5 for r in records)
+
+
+def test_plain_run_emits_no_log_lines_to_stderr() -> None:
+    result = _run_cli("--league", "123", "--draft-recap")
+    assert result.returncode == 0
+    assert "not yet implemented" in result.stdout
+    assert result.stderr.strip() == ""
 
 
 def test_runtime_dependency_allowlist() -> None:
