@@ -1,0 +1,38 @@
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request: {}
+  workflow_dispatch: {}
+
+# Least privilege: the suite only reads the checked-out tree. No job widens this.
+permissions:
+  contents: read
+
+# CI is non-interactive. Rich force-enables terminal rendering when it sees CI=true,
+# which turns Typer's `--help` into an ANSI panel wrapped to an 80-column width and
+# breaks the CLI-surface tests that match literal option strings. Pin a plain,
+# wide, colourless terminal so `--help` is deterministic stdout.
+env:
+  NO_COLOR: "1"
+  TERM: dumb
+  COLUMNS: "200"
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.14"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d  # v10.0.1
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: uv run --frozen --python ${{ matrix.python-version }} pytest -q
