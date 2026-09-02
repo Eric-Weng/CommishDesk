@@ -19,12 +19,26 @@ Facts JSON builder raise or produce a wrong number.
 ## Anonymizing a league
 
 Never commit real display names, real Sleeper `user_id`s, or real avatar URLs. A
-contributed fixture must be run through the anonymizer, which replaces names with
-generated ones and scrambles ids while preserving scoring settings and roster shape:
+contributed fixture must be run through the anonymizer, which strips each section
+to an allowlist, replaces member and team names with generated ones, rewrites
+every Sleeper account / league / draft id to an opaque token, and drops avatar
+hashes and URLs — while preserving `scoring_settings`, `roster_positions`,
+`settings`, and matchup / transaction / draft structure verbatim:
 
 ```bash
-uv run python tools/anonymize.py path/to/your-league-export.json > tests/fixtures/your-case.json
+uv run python tools/anonymize.py path/to/your-league-export.json --seed 0 > tests/fixtures/your-case.json
 ```
+
+`--seed` is optional (default `0`); the same seed gives byte-identical output.
+The input must be one JSON object in the bundle shape documented in
+[`tests/fixtures/README.md`](tests/fixtures/README.md) — the tool rejects an
+unknown top-level key, a missing section, or a wrong-typed section before it
+anonymizes anything. Pass `-` (or nothing) to read from stdin.
+
+Any shaping you want — truncating to a range of weeks, dropping failed waiver
+claims, changing a roster slot to reproduce a bug — is a manual edit to the raw
+bundle *before* you pipe it through the anonymizer; the tool itself only
+anonymizes.
 
 A test asserts that no fixture contains a real-looking name, id, or avatar. CI runs
 entirely against fixtures — no network, no keys.
