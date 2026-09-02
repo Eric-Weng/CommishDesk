@@ -192,6 +192,33 @@ def test_py_typed_marker_ships_in_the_wheel(tmp_path: Path) -> None:
         assert "commishdesk/py.typed" in zf.namelist()
 
 
+def test_tools_and_tests_do_not_ship_in_the_wheel(tmp_path: Path) -> None:
+    """``tools/`` (the anonymizer) and ``tests/`` (the fixtures) are repo-only.
+    A fixture bundle or a helper script in the installed package would be dead
+    weight at best and an anonymization-leak vector at worst."""
+    uv = _find_uv()
+    if uv is None:
+        pytest.skip("uv not available")
+    result = subprocess.run(
+        [uv, "build", "--wheel", "--out-dir", str(tmp_path)],
+        cwd=PYPROJECT.parent,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    wheels = list(tmp_path.glob("*.whl"))
+    assert len(wheels) == 1, wheels
+    with zipfile.ZipFile(wheels[0]) as zf:
+        offenders = [
+            name
+            for name in zf.namelist()
+            if name.startswith(("tools/", "tests/"))
+            or "/tools/" in name
+            or "/tests/" in name
+        ]
+    assert not offenders, offenders
+
+
 def test_runtime_dependency_allowlist() -> None:
     deps = _pyproject()["project"]["dependencies"]
     names = {

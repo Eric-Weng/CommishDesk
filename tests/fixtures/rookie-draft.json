@@ -1,0 +1,7856 @@
+{
+  "draft": {
+    "creators": [
+      "id_s9a3queopr"
+    ],
+    "draft_id": "id_a15hovbuqv",
+    "draft_order": {
+      "id_1ugx9qsbx3": 7,
+      "id_22ay41b2dk": 4,
+      "id_4upj3szyrw": 8,
+      "id_buffkdafoj": 10,
+      "id_c5g5oj0jn6": 11,
+      "id_jdetw9pdax": 6,
+      "id_roh4pg10wg": 2,
+      "id_s9a3queopr": 12,
+      "id_w2l1zlh55w": 1,
+      "id_zean76kf4f": 9,
+      "id_zwi3yzjvgq": 5,
+      "id_zxb3twnxx0": 3
+    },
+    "league_id": "id_rq867j4w7p",
+    "metadata": {
+      "name": "Trench Warfare",
+      "scoring_type": "dynasty_2qb"
+    },
+    "season": "2025",
+    "season_type": "regular",
+    "settings": {
+      "alpha_sort": 0,
+      "autopause_enabled": 1,
+      "autopause_end_time": 900,
+      "autopause_start_time": 180,
+      "autostart": 0,
+      "cpu_autopick": 1,
+      "enforce_position_limits": 1,
+      "nomination_timer": 60,
+      "pick_timer": 3600,
+      "player_type": 1,
+      "reversal_round": 0,
+      "rounds": 6,
+      "slots_bn": 12,
+      "slots_flex": 4,
+      "slots_qb": 2,
+      "slots_rb": 2,
+      "slots_te": 1,
+      "slots_wr": 2,
+      "teams": 12
+    },
+    "slot_to_roster_id": {
+      "1": 11,
+      "10": 3,
+      "11": 7,
+      "12": 1,
+      "2": 8,
+      "3": 6,
+      "4": 5,
+      "5": 12,
+      "6": 2,
+      "7": 9,
+      "8": 10,
+      "9": 4
+    },
+    "sport": "nfl",
+    "status": "complete",
+    "type": "linear"
+  },
+  "draft_picks": [
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 1,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Ashton",
+        "injury_status": "",
+        "last_name": "Jeanty",
+        "number": "2",
+        "player_id": "12527",
+        "position": "RB",
+        "status": "Active",
+        "team": "LV",
+        "years_exp": "0"
+      },
+      "pick_no": 1,
+      "picked_by": "id_jdetw9pdax",
+      "player_id": "12527",
+      "roster_id": 2,
+      "round": 1
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 2,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Omarion",
+        "injury_status": "",
+        "last_name": "Hampton",
+        "number": "8",
+        "player_id": "12507",
+        "position": "RB",
+        "status": "Active",
+        "team": "LAC",
+        "years_exp": "0"
+      },
+      "pick_no": 2,
+      "picked_by": "id_zxb3twnxx0",
+      "player_id": "12507",
+      "roster_id": 6,
+      "round": 1
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 3,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Travis",
+        "injury_status": "",
+        "last_name": "Hunter",
+        "number": "12",
+        "player_id": "12530",
+        "position": "WR",
+        "status": "Active",
+        "team": "JAX",
+        "years_exp": "0"
+      },
+      "pick_no": 3,
+      "picked_by": "id_zxb3twnxx0",
+      "player_id": "12530",
+      "roster_id": 6,
+      "round": 1
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 4,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Tetairoa",
+        "injury_status": "",
+        "last_name": "McMillan",
+        "number": "4",
+        "player_id": "12526",
+        "position": "WR",
+        "status": "Active",
+        "team": "CAR",
+        "years_exp": "0"
+      },
+      "pick_no": 4,
+      "picked_by": "id_22ay41b2dk",
+      "player_id": "12526",
+      "roster_id": 5,
+      "round": 1
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 5,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Cameron",
+        "injury_status": "",
+        "last_name": "Ward",
+        "number": "1",
+        "player_id": "12522",
+        "position": "QB",
+        "status": "Active",
+        "team": "TEN",
+        "years_exp": "0"
+      },
+      "pick_no": 5,
+      "picked_by": "id_zwi3yzjvgq",
+      "player_id": "12522",
+      "roster_id": 12,
+      "round": 1
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 6,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "TreVeyon",
+        "injury_status": "",
+        "last_name": "Henderson",
+        "number": "32",
+        "player_id": "12529",
+        "position": "RB",
+        "status": "Active",
+        "team": "NE",
+        "years_exp": "0"
+      },
+      "pick_no": 6,
+      "picked_by": "id_c5g5oj0jn6",
+      "player_id": "12529",
+      "roster_id": 7,
+      "round": 1
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 7,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Quinshon",
+        "injury_status": "",
+        "last_name": "Judkins",
+        "number": "10",
+        "player_id": "12512",
+        "position": "RB",
+        "status": "Active",
+        "team": "CLE",
+        "years_exp": "0"
+      },
+      "pick_no": 7,
+      "picked_by": "id_roh4pg10wg",
+      "player_id": "12512",
+      "roster_id": 8,
+      "round": 1
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 8,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Emeka",
+        "injury_status": "",
+        "last_name": "Egbuka",
+        "number": "9",
+        "player_id": "12514",
+        "position": "WR",
+        "status": "Active",
+        "team": "TB",
+        "years_exp": "0"
+      },
+      "pick_no": 8,
+      "picked_by": "id_roh4pg10wg",
+      "player_id": "12514",
+      "roster_id": 8,
+      "round": 1
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 9,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Matthew",
+        "injury_status": "",
+        "last_name": "Golden",
+        "number": "22",
+        "player_id": "12501",
+        "position": "WR",
+        "status": "Active",
+        "team": "GB",
+        "years_exp": "0"
+      },
+      "pick_no": 9,
+      "picked_by": "id_zean76kf4f",
+      "player_id": "12501",
+      "roster_id": 4,
+      "round": 1
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 10,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Jaxson",
+        "injury_status": "",
+        "last_name": "Dart",
+        "number": "6",
+        "player_id": "12508",
+        "position": "QB",
+        "status": "Active",
+        "team": "NYG",
+        "years_exp": "0"
+      },
+      "pick_no": 10,
+      "picked_by": "id_buffkdafoj",
+      "player_id": "12508",
+      "roster_id": 3,
+      "round": 1
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 11,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "RJ",
+        "injury_status": "",
+        "last_name": "Harvey",
+        "number": "37",
+        "player_id": "12489",
+        "position": "RB",
+        "status": "Active",
+        "team": "DEN",
+        "years_exp": "0"
+      },
+      "pick_no": 11,
+      "picked_by": "id_c5g5oj0jn6",
+      "player_id": "12489",
+      "roster_id": 7,
+      "round": 1
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 12,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Luther",
+        "injury_status": "",
+        "last_name": "Burden",
+        "number": "87",
+        "player_id": "12519",
+        "position": "WR",
+        "status": "Active",
+        "team": "CHI",
+        "years_exp": "0"
+      },
+      "pick_no": 12,
+      "picked_by": "id_w2l1zlh55w",
+      "player_id": "12519",
+      "roster_id": 11,
+      "round": 1
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 1,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Kaleb",
+        "injury_status": "",
+        "last_name": "Johnson",
+        "number": "20",
+        "player_id": "12504",
+        "position": "RB",
+        "status": "Active",
+        "team": "PIT",
+        "years_exp": "0"
+      },
+      "pick_no": 13,
+      "picked_by": "id_w2l1zlh55w",
+      "player_id": "12504",
+      "roster_id": 11,
+      "round": 2
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 2,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Colston",
+        "injury_status": "Questionable",
+        "last_name": "Loveland",
+        "number": "84",
+        "player_id": "12517",
+        "position": "TE",
+        "status": "Active",
+        "team": "CHI",
+        "years_exp": "0"
+      },
+      "pick_no": 14,
+      "picked_by": "id_roh4pg10wg",
+      "player_id": "12517",
+      "roster_id": 8,
+      "round": 2
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 3,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Jayden",
+        "injury_status": "",
+        "last_name": "Higgins",
+        "number": "81",
+        "player_id": "12484",
+        "position": "WR",
+        "status": "Active",
+        "team": "HOU",
+        "years_exp": "0"
+      },
+      "pick_no": 15,
+      "picked_by": "id_22ay41b2dk",
+      "player_id": "12484",
+      "roster_id": 5,
+      "round": 2
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 4,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Tyler",
+        "injury_status": "",
+        "last_name": "Warren",
+        "number": "84",
+        "player_id": "12518",
+        "position": "TE",
+        "status": "Active",
+        "team": "IND",
+        "years_exp": "0"
+      },
+      "pick_no": 16,
+      "picked_by": "id_s9a3queopr",
+      "player_id": "12518",
+      "roster_id": 1,
+      "round": 2
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 5,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Tre",
+        "injury_status": "",
+        "last_name": "Harris",
+        "number": "9",
+        "player_id": "12509",
+        "position": "WR",
+        "status": "Active",
+        "team": "LAC",
+        "years_exp": "0"
+      },
+      "pick_no": 17,
+      "picked_by": "id_zwi3yzjvgq",
+      "player_id": "12509",
+      "roster_id": 12,
+      "round": 2
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 6,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Jack",
+        "injury_status": "Questionable",
+        "last_name": "Bech",
+        "number": "18",
+        "player_id": "12483",
+        "position": "WR",
+        "status": "Active",
+        "team": "LV",
+        "years_exp": "0"
+      },
+      "pick_no": 18,
+      "picked_by": "id_1ugx9qsbx3",
+      "player_id": "12483",
+      "roster_id": 9,
+      "round": 2
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 7,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Kyle",
+        "injury_status": "",
+        "last_name": "Williams",
+        "number": "18",
+        "player_id": "12547",
+        "position": "WR",
+        "status": "Active",
+        "team": "NE",
+        "years_exp": "0"
+      },
+      "pick_no": 19,
+      "picked_by": "id_1ugx9qsbx3",
+      "player_id": "12547",
+      "roster_id": 9,
+      "round": 2
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 8,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Cam",
+        "injury_status": "",
+        "last_name": "Skattebo",
+        "number": "44",
+        "player_id": "12481",
+        "position": "RB",
+        "status": "Active",
+        "team": "NYG",
+        "years_exp": "0"
+      },
+      "pick_no": 20,
+      "picked_by": "id_4upj3szyrw",
+      "player_id": "12481",
+      "roster_id": 10,
+      "round": 2
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 9,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Jaylin",
+        "injury_status": "",
+        "last_name": "Noel",
+        "number": "82",
+        "player_id": "12536",
+        "position": "WR",
+        "status": "Active",
+        "team": "HOU",
+        "years_exp": "0"
+      },
+      "pick_no": 21,
+      "picked_by": "id_roh4pg10wg",
+      "player_id": "12536",
+      "roster_id": 8,
+      "round": 2
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 10,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Jalen",
+        "injury_status": "",
+        "last_name": "Milroe",
+        "number": "6",
+        "player_id": "12510",
+        "position": "QB",
+        "status": "Active",
+        "team": "SEA",
+        "years_exp": "0"
+      },
+      "pick_no": 22,
+      "picked_by": "id_w2l1zlh55w",
+      "player_id": "12510",
+      "roster_id": 11,
+      "round": 2
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 11,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Jalen",
+        "injury_status": "",
+        "last_name": "Royals",
+        "number": "11",
+        "player_id": "12505",
+        "position": "WR",
+        "status": "Active",
+        "team": "KC",
+        "years_exp": "0"
+      },
+      "pick_no": 23,
+      "picked_by": "id_c5g5oj0jn6",
+      "player_id": "12505",
+      "roster_id": 7,
+      "round": 2
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 12,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Bhayshul",
+        "injury_status": "",
+        "last_name": "Tuten",
+        "number": "33",
+        "player_id": "12490",
+        "position": "RB",
+        "status": "Active",
+        "team": "JAX",
+        "years_exp": "0"
+      },
+      "pick_no": 24,
+      "picked_by": "id_roh4pg10wg",
+      "player_id": "12490",
+      "roster_id": 8,
+      "round": 2
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 1,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Jaydon",
+        "injury_status": "",
+        "last_name": "Blue",
+        "number": "34",
+        "player_id": "12457",
+        "position": "RB",
+        "status": "Active",
+        "team": "DAL",
+        "years_exp": "0"
+      },
+      "pick_no": 25,
+      "picked_by": "id_s9a3queopr",
+      "player_id": "12457",
+      "roster_id": 1,
+      "round": 3
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 2,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Tyler",
+        "injury_status": "",
+        "last_name": "Shough",
+        "number": "6",
+        "player_id": "12545",
+        "position": "QB",
+        "status": "Active",
+        "team": "NO",
+        "years_exp": "0"
+      },
+      "pick_no": 26,
+      "picked_by": "id_roh4pg10wg",
+      "player_id": "12545",
+      "roster_id": 8,
+      "round": 3
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 3,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Mason",
+        "injury_status": "",
+        "last_name": "Taylor",
+        "number": "85",
+        "player_id": "12498",
+        "position": "TE",
+        "status": "Active",
+        "team": "NYJ",
+        "years_exp": "0"
+      },
+      "pick_no": 27,
+      "picked_by": "id_zxb3twnxx0",
+      "player_id": "12498",
+      "roster_id": 6,
+      "round": 3
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 4,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Devin",
+        "injury_status": "",
+        "last_name": "Neal",
+        "number": "30",
+        "player_id": "12476",
+        "position": "RB",
+        "status": "Active",
+        "team": "NO",
+        "years_exp": "0"
+      },
+      "pick_no": 28,
+      "picked_by": "id_22ay41b2dk",
+      "player_id": "12476",
+      "roster_id": 5,
+      "round": 3
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 5,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Shedeur",
+        "injury_status": "",
+        "last_name": "Sanders",
+        "number": "12",
+        "player_id": "12524",
+        "position": "QB",
+        "status": "Active",
+        "team": "CLE",
+        "years_exp": "0"
+      },
+      "pick_no": 29,
+      "picked_by": "id_zwi3yzjvgq",
+      "player_id": "12524",
+      "roster_id": 12,
+      "round": 3
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 6,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Harold",
+        "injury_status": "",
+        "last_name": "Fannin",
+        "number": "88",
+        "player_id": "12506",
+        "position": "TE",
+        "status": "Active",
+        "team": "CLE",
+        "years_exp": "0"
+      },
+      "pick_no": 30,
+      "picked_by": "id_jdetw9pdax",
+      "player_id": "12506",
+      "roster_id": 2,
+      "round": 3
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 7,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Terrance",
+        "injury_status": "",
+        "last_name": "Ferguson",
+        "number": "18",
+        "player_id": "12487",
+        "position": "TE",
+        "status": "Active",
+        "team": "LAR",
+        "years_exp": "0"
+      },
+      "pick_no": 31,
+      "picked_by": "id_1ugx9qsbx3",
+      "player_id": "12487",
+      "roster_id": 9,
+      "round": 3
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 8,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Ollie",
+        "injury_status": "",
+        "last_name": "Gordon",
+        "number": "31",
+        "player_id": "12495",
+        "position": "RB",
+        "status": "Active",
+        "team": "MIA",
+        "years_exp": "0"
+      },
+      "pick_no": 32,
+      "picked_by": "id_s9a3queopr",
+      "player_id": "12495",
+      "roster_id": 1,
+      "round": 3
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 9,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Elijah",
+        "injury_status": "",
+        "last_name": "Arroyo",
+        "number": "18",
+        "player_id": "12521",
+        "position": "TE",
+        "status": "Active",
+        "team": "SEA",
+        "years_exp": "0"
+      },
+      "pick_no": 33,
+      "picked_by": "id_zean76kf4f",
+      "player_id": "12521",
+      "roster_id": 4,
+      "round": 3
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 10,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Dylan",
+        "injury_status": "",
+        "last_name": "Sampson",
+        "number": "22",
+        "player_id": "12469",
+        "position": "RB",
+        "status": "Active",
+        "team": "CLE",
+        "years_exp": "0"
+      },
+      "pick_no": 34,
+      "picked_by": "id_buffkdafoj",
+      "player_id": "12469",
+      "roster_id": 3,
+      "round": 3
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 11,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Will",
+        "injury_status": "",
+        "last_name": "Howard",
+        "number": "18",
+        "player_id": "12511",
+        "position": "QB",
+        "status": "Active",
+        "team": "PIT",
+        "years_exp": "0"
+      },
+      "pick_no": 35,
+      "picked_by": "id_c5g5oj0jn6",
+      "player_id": "12511",
+      "roster_id": 7,
+      "round": 3
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 12,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Trevor",
+        "injury_status": "",
+        "last_name": "Etienne",
+        "number": "23",
+        "player_id": "12531",
+        "position": "RB",
+        "status": "Active",
+        "team": "CAR",
+        "years_exp": "0"
+      },
+      "pick_no": 36,
+      "picked_by": "id_zean76kf4f",
+      "player_id": "12531",
+      "roster_id": 4,
+      "round": 3
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 1,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Pat",
+        "injury_status": "",
+        "last_name": "Bryant",
+        "number": "13",
+        "player_id": "12492",
+        "position": "WR",
+        "status": "Active",
+        "team": "DEN",
+        "years_exp": "0"
+      },
+      "pick_no": 37,
+      "picked_by": "id_jdetw9pdax",
+      "player_id": "12492",
+      "roster_id": 2,
+      "round": 4
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 2,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Elic",
+        "injury_status": "",
+        "last_name": "Ayomanor",
+        "number": "5",
+        "player_id": "12499",
+        "position": "WR",
+        "status": "Active",
+        "team": "TEN",
+        "years_exp": "0"
+      },
+      "pick_no": 38,
+      "picked_by": "id_roh4pg10wg",
+      "player_id": "12499",
+      "roster_id": 8,
+      "round": 4
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 3,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Savion",
+        "injury_status": "",
+        "last_name": "Williams",
+        "number": "83",
+        "player_id": "12482",
+        "position": "WR",
+        "status": "Active",
+        "team": "GB",
+        "years_exp": "0"
+      },
+      "pick_no": 39,
+      "picked_by": "id_zxb3twnxx0",
+      "player_id": "12482",
+      "roster_id": 6,
+      "round": 4
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 4,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Jarquez",
+        "injury_status": "",
+        "last_name": "Hunter",
+        "number": "35",
+        "player_id": "11569",
+        "position": "RB",
+        "status": "Active",
+        "team": "LAR",
+        "years_exp": "0"
+      },
+      "pick_no": 40,
+      "picked_by": "id_22ay41b2dk",
+      "player_id": "11569",
+      "roster_id": 5,
+      "round": 4
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 5,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "DJ",
+        "injury_status": "",
+        "last_name": "Giddens",
+        "number": "21",
+        "player_id": "12471",
+        "position": "RB",
+        "status": "Active",
+        "team": "IND",
+        "years_exp": "0"
+      },
+      "pick_no": 41,
+      "picked_by": "id_zwi3yzjvgq",
+      "player_id": "12471",
+      "roster_id": 12,
+      "round": 4
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 6,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Isaac",
+        "injury_status": "",
+        "last_name": "TeSlaa",
+        "number": "18",
+        "player_id": "12535",
+        "position": "WR",
+        "status": "Active",
+        "team": "DET",
+        "years_exp": "0"
+      },
+      "pick_no": 42,
+      "picked_by": "id_jdetw9pdax",
+      "player_id": "12535",
+      "roster_id": 2,
+      "round": 4
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 7,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Tory",
+        "injury_status": "",
+        "last_name": "Horton",
+        "number": "15",
+        "player_id": "12497",
+        "position": "WR",
+        "status": "Active",
+        "team": "SEA",
+        "years_exp": "0"
+      },
+      "pick_no": 43,
+      "picked_by": "id_jdetw9pdax",
+      "player_id": "12497",
+      "roster_id": 2,
+      "round": 4
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 8,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Brashard",
+        "injury_status": "",
+        "last_name": "Smith",
+        "number": "30",
+        "player_id": "12455",
+        "position": "RB",
+        "status": "Active",
+        "team": "KC",
+        "years_exp": "0"
+      },
+      "pick_no": 44,
+      "picked_by": "id_jdetw9pdax",
+      "player_id": "12455",
+      "roster_id": 2,
+      "round": 4
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 9,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Tahj",
+        "injury_status": "",
+        "last_name": "Brooks",
+        "number": "25",
+        "player_id": "12543",
+        "position": "RB",
+        "status": "Active",
+        "team": "CIN",
+        "years_exp": "0"
+      },
+      "pick_no": 45,
+      "picked_by": "id_jdetw9pdax",
+      "player_id": "12543",
+      "roster_id": 2,
+      "round": 4
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 10,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Dont'e",
+        "injury_status": "",
+        "last_name": "Thornton",
+        "number": "10",
+        "player_id": "12541",
+        "position": "WR",
+        "status": "Active",
+        "team": "LV",
+        "years_exp": "0"
+      },
+      "pick_no": 46,
+      "picked_by": "id_jdetw9pdax",
+      "player_id": "12541",
+      "roster_id": 2,
+      "round": 4
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 11,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Woody",
+        "injury_status": "",
+        "last_name": "Marks",
+        "number": "27",
+        "player_id": "12474",
+        "position": "RB",
+        "status": "Active",
+        "team": "HOU",
+        "years_exp": "0"
+      },
+      "pick_no": 47,
+      "picked_by": "id_jdetw9pdax",
+      "player_id": "12474",
+      "roster_id": 2,
+      "round": 4
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 12,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Jordan",
+        "injury_status": "",
+        "last_name": "James",
+        "number": "29",
+        "player_id": "12467",
+        "position": "RB",
+        "status": "Active",
+        "team": "SF",
+        "years_exp": "0"
+      },
+      "pick_no": 48,
+      "picked_by": "id_roh4pg10wg",
+      "player_id": "12467",
+      "roster_id": 8,
+      "round": 4
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 1,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Xavier",
+        "injury_status": "",
+        "last_name": "Restrepo",
+        "number": "87",
+        "player_id": "12520",
+        "position": "WR",
+        "status": "Active",
+        "team": "TEN",
+        "years_exp": "0"
+      },
+      "pick_no": 49,
+      "picked_by": "id_w2l1zlh55w",
+      "player_id": "12520",
+      "roster_id": 11,
+      "round": 5
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 2,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Kyle",
+        "injury_status": "",
+        "last_name": "Monangai",
+        "number": "25",
+        "player_id": "12534",
+        "position": "RB",
+        "status": "Active",
+        "team": "CHI",
+        "years_exp": "0"
+      },
+      "pick_no": 50,
+      "picked_by": "id_roh4pg10wg",
+      "player_id": "12534",
+      "roster_id": 8,
+      "round": 5
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 3,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Jimmy",
+        "injury_status": "",
+        "last_name": "Horn",
+        "number": "15",
+        "player_id": "12523",
+        "position": "WR",
+        "status": "Active",
+        "team": "CAR",
+        "years_exp": "0"
+      },
+      "pick_no": 51,
+      "picked_by": "id_zxb3twnxx0",
+      "player_id": "12523",
+      "roster_id": 6,
+      "round": 5
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 4,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Jacory",
+        "injury_status": "",
+        "last_name": "Croskey-Merritt",
+        "number": "32",
+        "player_id": "12533",
+        "position": "RB",
+        "status": "Active",
+        "team": "WAS",
+        "years_exp": "0"
+      },
+      "pick_no": 52,
+      "picked_by": "id_roh4pg10wg",
+      "player_id": "12533",
+      "roster_id": 8,
+      "round": 5
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 5,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Damien",
+        "injury_status": "",
+        "last_name": "Martinez",
+        "number": "22",
+        "player_id": "12462",
+        "position": "RB",
+        "status": "Active",
+        "team": "SEA",
+        "years_exp": "0"
+      },
+      "pick_no": 53,
+      "picked_by": "id_zwi3yzjvgq",
+      "player_id": "12462",
+      "roster_id": 12,
+      "round": 5
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 6,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Tai",
+        "injury_status": "",
+        "last_name": "Felton",
+        "number": "13",
+        "player_id": "12496",
+        "position": "WR",
+        "status": "Active",
+        "team": "MIN",
+        "years_exp": "0"
+      },
+      "pick_no": 54,
+      "picked_by": "id_jdetw9pdax",
+      "player_id": "12496",
+      "roster_id": 2,
+      "round": 5
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 7,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Jaylin",
+        "injury_status": "",
+        "last_name": "Lane",
+        "number": "83",
+        "player_id": "12641",
+        "position": "WR",
+        "status": "Active",
+        "team": "WAS",
+        "years_exp": "0"
+      },
+      "pick_no": 55,
+      "picked_by": "id_jdetw9pdax",
+      "player_id": "12641",
+      "roster_id": 2,
+      "round": 5
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 8,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Quinn",
+        "injury_status": "",
+        "last_name": "Ewers",
+        "number": "14",
+        "player_id": "12500",
+        "position": "QB",
+        "status": "Active",
+        "team": "MIA",
+        "years_exp": "0"
+      },
+      "pick_no": 56,
+      "picked_by": "id_4upj3szyrw",
+      "player_id": "12500",
+      "roster_id": 10,
+      "round": 5
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 9,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Dillon",
+        "injury_status": "",
+        "last_name": "Gabriel",
+        "number": "5",
+        "player_id": "12486",
+        "position": "QB",
+        "status": "Active",
+        "team": "CLE",
+        "years_exp": "0"
+      },
+      "pick_no": 57,
+      "picked_by": "id_zean76kf4f",
+      "player_id": "12486",
+      "roster_id": 4,
+      "round": 5
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 10,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Tez",
+        "injury_status": "",
+        "last_name": "Johnson",
+        "number": "83",
+        "player_id": "12485",
+        "position": "WR",
+        "status": "Active",
+        "team": "TB",
+        "years_exp": "0"
+      },
+      "pick_no": 58,
+      "picked_by": "id_buffkdafoj",
+      "player_id": "12485",
+      "roster_id": 3,
+      "round": 5
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 11,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Oronde",
+        "injury_status": "",
+        "last_name": "Gadsden",
+        "number": "86",
+        "player_id": "12493",
+        "position": "TE",
+        "status": "Active",
+        "team": "LAC",
+        "years_exp": "0"
+      },
+      "pick_no": 59,
+      "picked_by": "id_c5g5oj0jn6",
+      "player_id": "12493",
+      "roster_id": 7,
+      "round": 5
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 12,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "LeQuint",
+        "injury_status": "",
+        "last_name": "Allen",
+        "number": "36",
+        "player_id": "12544",
+        "position": "RB",
+        "status": "Active",
+        "team": "JAX",
+        "years_exp": "0"
+      },
+      "pick_no": 60,
+      "picked_by": "id_s9a3queopr",
+      "player_id": "12544",
+      "roster_id": 1,
+      "round": 5
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 1,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Nick",
+        "injury_status": "",
+        "last_name": "Nash",
+        "number": "80",
+        "player_id": "12478",
+        "position": "WR",
+        "status": "Active",
+        "team": "ATL",
+        "years_exp": "0"
+      },
+      "pick_no": 61,
+      "picked_by": "id_w2l1zlh55w",
+      "player_id": "12478",
+      "roster_id": 11,
+      "round": 6
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 2,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Phil",
+        "injury_status": "",
+        "last_name": "Mafah",
+        "number": "37",
+        "player_id": "12738",
+        "position": "RB",
+        "status": "Active",
+        "team": "DAL",
+        "years_exp": "0"
+      },
+      "pick_no": 62,
+      "picked_by": "id_roh4pg10wg",
+      "player_id": "12738",
+      "roster_id": 8,
+      "round": 6
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 3,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Arian",
+        "injury_status": "",
+        "last_name": "Smith",
+        "number": "82",
+        "player_id": "12539",
+        "position": "WR",
+        "status": "Active",
+        "team": "NYJ",
+        "years_exp": "0"
+      },
+      "pick_no": 63,
+      "picked_by": "id_zxb3twnxx0",
+      "player_id": "12539",
+      "roster_id": 6,
+      "round": 6
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 4,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Kyle",
+        "injury_status": "",
+        "last_name": "McCord",
+        "number": "19",
+        "player_id": "12494",
+        "position": "QB",
+        "status": "Active",
+        "team": "PHI",
+        "years_exp": "0"
+      },
+      "pick_no": 64,
+      "picked_by": "id_22ay41b2dk",
+      "player_id": "12494",
+      "roster_id": 5,
+      "round": 6
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 5,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Gunnar",
+        "injury_status": "",
+        "last_name": "Helm",
+        "number": "84",
+        "player_id": "12502",
+        "position": "TE",
+        "status": "Active",
+        "team": "TEN",
+        "years_exp": "0"
+      },
+      "pick_no": 65,
+      "picked_by": "id_zwi3yzjvgq",
+      "player_id": "12502",
+      "roster_id": 12,
+      "round": 6
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 6,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Tommy",
+        "injury_status": "",
+        "last_name": "Mellott",
+        "number": "19",
+        "player_id": "12690",
+        "position": "QB",
+        "status": "Active",
+        "team": "LV",
+        "years_exp": "0"
+      },
+      "pick_no": 66,
+      "picked_by": "id_jdetw9pdax",
+      "player_id": "12690",
+      "roster_id": 2,
+      "round": 6
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 7,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Jalin",
+        "injury_status": "",
+        "last_name": "Conyers",
+        "number": "47",
+        "player_id": "12866",
+        "position": "TE",
+        "status": "Active",
+        "team": "MIA",
+        "years_exp": "0"
+      },
+      "pick_no": 67,
+      "picked_by": "id_1ugx9qsbx3",
+      "player_id": "12866",
+      "roster_id": 9,
+      "round": 6
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 8,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Donovan",
+        "injury_status": "",
+        "last_name": "Edwards",
+        "number": "40",
+        "player_id": "12515",
+        "position": "RB",
+        "status": "Active",
+        "team": "NYJ",
+        "years_exp": "0"
+      },
+      "pick_no": 68,
+      "picked_by": "id_4upj3szyrw",
+      "player_id": "12515",
+      "roster_id": 10,
+      "round": 6
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 9,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Isaiah",
+        "injury_status": "",
+        "last_name": "Bond",
+        "number": "",
+        "player_id": "12503",
+        "position": "WR",
+        "status": "Active",
+        "team": "",
+        "years_exp": "0"
+      },
+      "pick_no": 69,
+      "picked_by": "id_zean76kf4f",
+      "player_id": "12503",
+      "roster_id": 4,
+      "round": 6
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 10,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Mitchell",
+        "injury_status": "",
+        "last_name": "Evans",
+        "number": "84",
+        "player_id": "12473",
+        "position": "TE",
+        "status": "Active",
+        "team": "CAR",
+        "years_exp": "0"
+      },
+      "pick_no": 70,
+      "picked_by": "id_buffkdafoj",
+      "player_id": "12473",
+      "roster_id": 3,
+      "round": 6
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 11,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Lan",
+        "injury_status": "",
+        "last_name": "Larison",
+        "number": "34",
+        "player_id": "12969",
+        "position": "RB",
+        "status": "Active",
+        "team": "NE",
+        "years_exp": "0"
+      },
+      "pick_no": 71,
+      "picked_by": "id_c5g5oj0jn6",
+      "player_id": "12969",
+      "roster_id": 7,
+      "round": 6
+    },
+    {
+      "draft_id": "id_a15hovbuqv",
+      "draft_slot": 12,
+      "is_keeper": null,
+      "metadata": {
+        "first_name": "Antwane",
+        "injury_status": "",
+        "last_name": "Wells",
+        "number": "2",
+        "player_id": "12460",
+        "position": "WR",
+        "status": "Active",
+        "team": "NYG",
+        "years_exp": "0"
+      },
+      "pick_no": 72,
+      "picked_by": "id_s9a3queopr",
+      "player_id": "12460",
+      "roster_id": 1,
+      "round": 6
+    }
+  ],
+  "league": {
+    "draft_id": "id_a15hovbuqv",
+    "league_id": "id_rq867j4w7p",
+    "metadata": {
+      "continued": "yes",
+      "keeper_deadline": "0",
+      "latest_league_winner_roster_id": "1",
+      "trophy_loser": "loser5",
+      "trophy_loser_background": "poop",
+      "trophy_winner": "winner3",
+      "trophy_winner_background": "fireworks"
+    },
+    "name": "Trench Warfare",
+    "previous_league_id": "id_3vgcnydtpw",
+    "roster_positions": [
+      "QB",
+      "QB",
+      "RB",
+      "RB",
+      "WR",
+      "WR",
+      "TE",
+      "FLEX",
+      "FLEX",
+      "FLEX",
+      "FLEX",
+      "BN",
+      "BN",
+      "BN",
+      "BN",
+      "BN",
+      "BN",
+      "BN",
+      "BN",
+      "BN",
+      "BN",
+      "BN",
+      "BN"
+    ],
+    "scoring_settings": {
+      "blk_kick": 0,
+      "bonus_def_fum_td_50p": 3,
+      "bonus_def_int_td_50p": 3,
+      "bonus_pass_yd_300": 2,
+      "bonus_pass_yd_400": 4,
+      "bonus_rec_yd_100": 2,
+      "bonus_rec_yd_200": 4,
+      "bonus_rush_yd_100": 2,
+      "bonus_rush_yd_200": 4,
+      "bonus_sack_2p": 2,
+      "bonus_tkl_10p": 1,
+      "def_kr_yd": 0,
+      "def_pr_yd": 0,
+      "def_st_ff": 0,
+      "def_st_fum_rec": 0,
+      "def_st_td": 0,
+      "def_st_tkl_solo": 0,
+      "def_td": 0,
+      "ff": 0,
+      "fgm_0_19": 3,
+      "fgm_20_29": 3,
+      "fgm_30_39": 3,
+      "fgm_40_49": 4,
+      "fgm_50p": 5,
+      "fgmiss": 0,
+      "fum": 0,
+      "fum_lost": -2,
+      "fum_rec": 0,
+      "fum_rec_td": 6,
+      "idp_pass_def_3p": 2,
+      "int": 0,
+      "kr_yd": 0.04,
+      "pass_2pt": 1,
+      "pass_cmp": 0.1,
+      "pass_cmp_40p": 1,
+      "pass_inc": -0.1,
+      "pass_int": -3,
+      "pass_sack": -0.5,
+      "pass_td": 6,
+      "pass_td_40p": 2,
+      "pass_td_50p": 3,
+      "pass_yd": 0.05,
+      "pr_yd": 0.07692307692307693,
+      "pts_allow_0": 0,
+      "pts_allow_14_20": 0,
+      "pts_allow_1_6": 0,
+      "pts_allow_21_27": 0,
+      "pts_allow_28_34": 0,
+      "pts_allow_35p": 0,
+      "pts_allow_7_13": 0,
+      "rec": 0.5,
+      "rec_20_29": 0.5,
+      "rec_2pt": 2,
+      "rec_30_39": 0.75,
+      "rec_40p": 1,
+      "rec_td": 6,
+      "rec_td_40p": 2,
+      "rec_td_50p": 3,
+      "rec_yd": 0.15384615384615383,
+      "rush_2pt": 2,
+      "rush_40p": 2,
+      "rush_att": 0.1,
+      "rush_td": 6,
+      "rush_td_40p": 3,
+      "rush_td_50p": 4,
+      "rush_yd": 0.1176470588235294,
+      "sack": 0,
+      "safe": 0,
+      "st_ff": 1,
+      "st_fum_rec": 1,
+      "st_td": 6,
+      "st_tkl_solo": 1,
+      "xpm": 0,
+      "xpmiss": 0
+    },
+    "season": "2025",
+    "season_type": "regular",
+    "settings": {
+      "bench_lock": 0,
+      "capacity_override": 0,
+      "commissioner_direct_invite": 0,
+      "daily_waivers": 1,
+      "daily_waivers_days": 5461,
+      "daily_waivers_hour": 0,
+      "daily_waivers_last_ran": 31,
+      "disable_adds": 0,
+      "divisions": 3,
+      "draft_rounds": 6,
+      "last_report": 14,
+      "last_scored_leg": 17,
+      "league_average_match": 0,
+      "leg": 17,
+      "max_keepers": 1,
+      "num_teams": 12,
+      "offseason_adds": 1,
+      "pick_trading": 1,
+      "playoff_round_type": 0,
+      "playoff_seed_type": 0,
+      "playoff_teams": 6,
+      "playoff_type": 0,
+      "playoff_week_start": 15,
+      "reserve_allow_cov": 0,
+      "reserve_allow_dnr": 0,
+      "reserve_allow_doubtful": 0,
+      "reserve_allow_na": 0,
+      "reserve_allow_out": 0,
+      "reserve_allow_sus": 0,
+      "reserve_slots": 4,
+      "start_week": 1,
+      "taxi_allow_vets": 0,
+      "taxi_deadline": 0,
+      "taxi_slots": 6,
+      "taxi_years": 1,
+      "trade_deadline": 99,
+      "trade_review_days": 1,
+      "type": 2,
+      "waiver_bid_min": 0,
+      "waiver_budget": 100,
+      "waiver_clear_days": 1,
+      "waiver_day_of_week": 2,
+      "waiver_type": 2
+    },
+    "sport": "nfl",
+    "status": "complete",
+    "total_rosters": 12
+  },
+  "losers_bracket": [],
+  "matchups": {},
+  "meta": {
+    "case": "rookie-draft",
+    "exercises": "post-draft rosters, keeper/dynasty rookie draft, traded picks",
+    "target_week": null
+  },
+  "players": {
+    "10213": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Tre",
+      "injury_status": null,
+      "last_name": "Tucker",
+      "number": 1,
+      "position": "WR",
+      "status": "Active",
+      "team": "LV",
+      "years_exp": 3
+    },
+    "10219": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Chris",
+      "injury_status": null,
+      "last_name": "Rodriguez",
+      "number": 24,
+      "position": "RB",
+      "status": "Active",
+      "team": "JAX",
+      "years_exp": 3
+    },
+    "10222": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Jayden",
+      "injury_status": null,
+      "last_name": "Reed",
+      "number": 11,
+      "position": "WR",
+      "status": "Active",
+      "team": "GB",
+      "years_exp": 3
+    },
+    "10226": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Andrei",
+      "injury_status": null,
+      "last_name": "Iosivas",
+      "number": 80,
+      "position": "WR",
+      "status": "Active",
+      "team": "CIN",
+      "years_exp": 3
+    },
+    "10229": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Rashee",
+      "injury_status": null,
+      "last_name": "Rice",
+      "number": 4,
+      "position": "WR",
+      "status": "Active",
+      "team": "KC",
+      "years_exp": 3
+    },
+    "10232": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Michael",
+      "injury_status": null,
+      "last_name": "Wilson",
+      "number": 14,
+      "position": "WR",
+      "status": "Active",
+      "team": "ARI",
+      "years_exp": 3
+    },
+    "10236": {
+      "fantasy_positions": [
+        "TE"
+      ],
+      "first_name": "Dalton",
+      "injury_status": null,
+      "last_name": "Kincaid",
+      "number": 86,
+      "position": "TE",
+      "status": "Active",
+      "team": "BUF",
+      "years_exp": 3
+    },
+    "10444": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Cedric",
+      "injury_status": "Questionable",
+      "last_name": "Tillman",
+      "number": 19,
+      "position": "WR",
+      "status": "Active",
+      "team": "CLE",
+      "years_exp": 3
+    },
+    "10859": {
+      "fantasy_positions": [
+        "TE"
+      ],
+      "first_name": "Sam",
+      "injury_status": "Questionable",
+      "last_name": "LaPorta",
+      "number": 87,
+      "position": "TE",
+      "status": "Active",
+      "team": "DET",
+      "years_exp": 3
+    },
+    "10866": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Aidan",
+      "injury_status": null,
+      "last_name": "O'Connell",
+      "number": 12,
+      "position": "QB",
+      "status": "Active",
+      "team": "LV",
+      "years_exp": 3
+    },
+    "11068": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Mitch",
+      "injury_status": null,
+      "last_name": "Tinsley",
+      "number": 82,
+      "position": "WR",
+      "status": "Active",
+      "team": "CIN",
+      "years_exp": 3
+    },
+    "11199": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Emari",
+      "injury_status": null,
+      "last_name": "Demercado",
+      "number": 25,
+      "position": "RB",
+      "status": "Active",
+      "team": "KC",
+      "years_exp": 3
+    },
+    "11435": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Emanuel",
+      "injury_status": "Questionable",
+      "last_name": "Wilson",
+      "number": 27,
+      "position": "RB",
+      "status": "Active",
+      "team": "SEA",
+      "years_exp": 3
+    },
+    "11439": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Jaleel",
+      "injury_status": null,
+      "last_name": "McLaughlin",
+      "number": 38,
+      "position": "RB",
+      "status": "Active",
+      "team": "DEN",
+      "years_exp": 3
+    },
+    "11557": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Joe",
+      "injury_status": null,
+      "last_name": "Milton",
+      "number": 10,
+      "position": "QB",
+      "status": "Active",
+      "team": "DAL",
+      "years_exp": 2
+    },
+    "11559": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Michael",
+      "injury_status": "Questionable",
+      "last_name": "Penix",
+      "number": 9,
+      "position": "QB",
+      "status": "Active",
+      "team": "ATL",
+      "years_exp": 2
+    },
+    "11560": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Caleb",
+      "injury_status": null,
+      "last_name": "Williams",
+      "number": 18,
+      "position": "QB",
+      "status": "Active",
+      "team": "CHI",
+      "years_exp": 2
+    },
+    "11562": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Spencer",
+      "injury_status": null,
+      "last_name": "Rattler",
+      "number": 2,
+      "position": "QB",
+      "status": "Active",
+      "team": "NO",
+      "years_exp": 2
+    },
+    "11563": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Bo",
+      "injury_status": null,
+      "last_name": "Nix",
+      "number": 10,
+      "position": "QB",
+      "status": "Active",
+      "team": "DEN",
+      "years_exp": 2
+    },
+    "11564": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Drake",
+      "injury_status": null,
+      "last_name": "Maye",
+      "number": 10,
+      "position": "QB",
+      "status": "Active",
+      "team": "NE",
+      "years_exp": 2
+    },
+    "11565": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "J.J.",
+      "injury_status": "Questionable",
+      "last_name": "McCarthy",
+      "number": 9,
+      "position": "QB",
+      "status": "Active",
+      "team": "MIN",
+      "years_exp": 2
+    },
+    "11566": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Jayden",
+      "injury_status": null,
+      "last_name": "Daniels",
+      "number": 5,
+      "position": "QB",
+      "status": "Active",
+      "team": "WAS",
+      "years_exp": 2
+    },
+    "11569": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Jarquez",
+      "injury_status": null,
+      "last_name": "Hunter",
+      "number": 27,
+      "position": "RB",
+      "status": "Active",
+      "team": "LAR",
+      "years_exp": 1
+    },
+    "11571": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Isaiah",
+      "injury_status": "Questionable",
+      "last_name": "Davis",
+      "number": 32,
+      "position": "RB",
+      "status": "Active",
+      "team": "NYJ",
+      "years_exp": 2
+    },
+    "11575": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Ray",
+      "injury_status": null,
+      "last_name": "Davis",
+      "number": 7,
+      "position": "RB",
+      "status": "Active",
+      "team": "BUF",
+      "years_exp": 2
+    },
+    "11576": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Braelon",
+      "injury_status": null,
+      "last_name": "Allen",
+      "number": 0,
+      "position": "RB",
+      "status": "Active",
+      "team": "NYJ",
+      "years_exp": 2
+    },
+    "11577": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Will",
+      "injury_status": null,
+      "last_name": "Shipley",
+      "number": 28,
+      "position": "RB",
+      "status": "Active",
+      "team": "PHI",
+      "years_exp": 2
+    },
+    "11579": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Audric",
+      "injury_status": null,
+      "last_name": "Estime",
+      "number": 30,
+      "position": "RB",
+      "status": "Active",
+      "team": "NO",
+      "years_exp": 2
+    },
+    "11581": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "MarShawn",
+      "injury_status": null,
+      "last_name": "Lloyd",
+      "number": 32,
+      "position": "RB",
+      "status": "Active",
+      "team": "GB",
+      "years_exp": 2
+    },
+    "11583": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Jonathon",
+      "injury_status": null,
+      "last_name": "Brooks",
+      "number": 25,
+      "position": "RB",
+      "status": "Active",
+      "team": "CAR",
+      "years_exp": 2
+    },
+    "11584": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Bucky",
+      "injury_status": null,
+      "last_name": "Irving",
+      "number": 7,
+      "position": "RB",
+      "status": "Active",
+      "team": "TB",
+      "years_exp": 2
+    },
+    "11586": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Blake",
+      "injury_status": null,
+      "last_name": "Corum",
+      "number": 24,
+      "position": "RB",
+      "status": "Active",
+      "team": "LAR",
+      "years_exp": 2
+    },
+    "11588": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Jawhar",
+      "injury_status": "Questionable",
+      "last_name": "Jordan",
+      "number": 25,
+      "position": "RB",
+      "status": "Active",
+      "team": "HOU",
+      "years_exp": 2
+    },
+    "11589": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Trey",
+      "injury_status": "IR",
+      "last_name": "Benson",
+      "number": 33,
+      "position": "RB",
+      "status": "Active",
+      "team": null,
+      "years_exp": 2
+    },
+    "11592": {
+      "fantasy_positions": [
+        "TE"
+      ],
+      "first_name": "Erick",
+      "injury_status": null,
+      "last_name": "All",
+      "number": 83,
+      "position": "TE",
+      "status": "Active",
+      "team": "CIN",
+      "years_exp": 2
+    },
+    "11595": {
+      "fantasy_positions": [
+        "TE"
+      ],
+      "first_name": "Jared",
+      "injury_status": null,
+      "last_name": "Wiley",
+      "number": 12,
+      "position": "TE",
+      "status": "Active",
+      "team": "KC",
+      "years_exp": 2
+    },
+    "11596": {
+      "fantasy_positions": [
+        "TE"
+      ],
+      "first_name": "Ben",
+      "injury_status": "Questionable",
+      "last_name": "Sinnott",
+      "number": 82,
+      "position": "TE",
+      "status": "Active",
+      "team": "WAS",
+      "years_exp": 2
+    },
+    "11597": {
+      "fantasy_positions": [
+        "TE"
+      ],
+      "first_name": "Theo",
+      "injury_status": "Questionable",
+      "last_name": "Johnson",
+      "number": 84,
+      "position": "TE",
+      "status": "Active",
+      "team": "NYG",
+      "years_exp": 2
+    },
+    "11600": {
+      "fantasy_positions": [
+        "TE"
+      ],
+      "first_name": "Ja'Tavion",
+      "injury_status": null,
+      "last_name": "Sanders",
+      "number": 0,
+      "position": "TE",
+      "status": "Active",
+      "team": "CAR",
+      "years_exp": 2
+    },
+    "11603": {
+      "fantasy_positions": [
+        "TE"
+      ],
+      "first_name": "AJ",
+      "injury_status": null,
+      "last_name": "Barner",
+      "number": 88,
+      "position": "TE",
+      "status": "Active",
+      "team": "SEA",
+      "years_exp": 2
+    },
+    "11604": {
+      "fantasy_positions": [
+        "TE"
+      ],
+      "first_name": "Brock",
+      "injury_status": null,
+      "last_name": "Bowers",
+      "number": 89,
+      "position": "TE",
+      "status": "Active",
+      "team": "LV",
+      "years_exp": 2
+    },
+    "11605": {
+      "fantasy_positions": [
+        "TE"
+      ],
+      "first_name": "Jaheim",
+      "injury_status": null,
+      "last_name": "Bell",
+      "number": 82,
+      "position": "TE",
+      "status": "Active",
+      "team": "PIT",
+      "years_exp": 2
+    },
+    "11610": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Malik",
+      "injury_status": null,
+      "last_name": "Washington",
+      "number": 6,
+      "position": "WR",
+      "status": "Active",
+      "team": "MIA",
+      "years_exp": 2
+    },
+    "11616": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Jacob",
+      "injury_status": "Questionable",
+      "last_name": "Cowing",
+      "number": 6,
+      "position": "WR",
+      "status": "Active",
+      "team": "SF",
+      "years_exp": 2
+    },
+    "11617": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Malachi",
+      "injury_status": null,
+      "last_name": "Corley",
+      "number": 83,
+      "position": "WR",
+      "status": "Active",
+      "team": "CLE",
+      "years_exp": 2
+    },
+    "11618": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Jalen",
+      "injury_status": "Questionable",
+      "last_name": "McMillan",
+      "number": 11,
+      "position": "WR",
+      "status": "Active",
+      "team": "TB",
+      "years_exp": 2
+    },
+    "11619": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Ja'Lynn",
+      "injury_status": "NA",
+      "last_name": "Polk",
+      "number": 13,
+      "position": "WR",
+      "status": "Active",
+      "team": null,
+      "years_exp": 2
+    },
+    "11620": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Rome",
+      "injury_status": null,
+      "last_name": "Odunze",
+      "number": 15,
+      "position": "WR",
+      "status": "Active",
+      "team": "CHI",
+      "years_exp": 2
+    },
+    "11623": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Jordan",
+      "injury_status": null,
+      "last_name": "Whittington",
+      "number": 88,
+      "position": "WR",
+      "status": "Active",
+      "team": "LAR",
+      "years_exp": 2
+    },
+    "11624": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Xavier",
+      "injury_status": "Questionable",
+      "last_name": "Worthy",
+      "number": 1,
+      "position": "WR",
+      "status": "Active",
+      "team": "KC",
+      "years_exp": 2
+    },
+    "11625": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Adonai",
+      "injury_status": null,
+      "last_name": "Mitchell",
+      "number": 15,
+      "position": "WR",
+      "status": "Active",
+      "team": "NYJ",
+      "years_exp": 2
+    },
+    "11626": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Xavier",
+      "injury_status": "Questionable",
+      "last_name": "Legette",
+      "number": 17,
+      "position": "WR",
+      "status": "Active",
+      "team": "CAR",
+      "years_exp": 2
+    },
+    "11627": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Troy",
+      "injury_status": null,
+      "last_name": "Franklin",
+      "number": 11,
+      "position": "WR",
+      "status": "Active",
+      "team": "DEN",
+      "years_exp": 2
+    },
+    "11628": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Marvin",
+      "injury_status": null,
+      "last_name": "Harrison",
+      "number": 18,
+      "position": "WR",
+      "status": "Active",
+      "team": "ARI",
+      "years_exp": 2
+    },
+    "11629": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Devontez",
+      "injury_status": null,
+      "last_name": "Walker",
+      "number": 81,
+      "position": "WR",
+      "status": "Active",
+      "team": "BAL",
+      "years_exp": 2
+    },
+    "11630": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Roman",
+      "injury_status": null,
+      "last_name": "Wilson",
+      "number": 14,
+      "position": "WR",
+      "status": "Active",
+      "team": "PIT",
+      "years_exp": 2
+    },
+    "11631": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Brian",
+      "injury_status": "Questionable",
+      "last_name": "Thomas",
+      "number": 7,
+      "position": "WR",
+      "status": "Active",
+      "team": "JAX",
+      "years_exp": 2
+    },
+    "11632": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Malik",
+      "injury_status": "Questionable",
+      "last_name": "Nabers",
+      "number": 1,
+      "position": "WR",
+      "status": "Active",
+      "team": "NYG",
+      "years_exp": 2
+    },
+    "11635": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Ladd",
+      "injury_status": null,
+      "last_name": "McConkey",
+      "number": 15,
+      "position": "WR",
+      "status": "Active",
+      "team": "LAC",
+      "years_exp": 2
+    },
+    "11637": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Keon",
+      "injury_status": "Questionable",
+      "last_name": "Coleman",
+      "number": 0,
+      "position": "WR",
+      "status": "Active",
+      "team": "BUF",
+      "years_exp": 2
+    },
+    "11638": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Ricky",
+      "injury_status": "IR",
+      "last_name": "Pearsall",
+      "number": 1,
+      "position": "WR",
+      "status": "Inactive",
+      "team": "SF",
+      "years_exp": 2
+    },
+    "11643": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Jaylen",
+      "injury_status": null,
+      "last_name": "Wright",
+      "number": 5,
+      "position": "RB",
+      "status": "Active",
+      "team": "MIA",
+      "years_exp": 2
+    },
+    "11645": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Javon",
+      "injury_status": null,
+      "last_name": "Baker",
+      "number": 83,
+      "position": "WR",
+      "status": "Active",
+      "team": null,
+      "years_exp": 2
+    },
+    "11646": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Jalen",
+      "injury_status": null,
+      "last_name": "Coker",
+      "number": 18,
+      "position": "WR",
+      "status": "Active",
+      "team": "CAR",
+      "years_exp": 2
+    },
+    "11647": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Kimani",
+      "injury_status": null,
+      "last_name": "Vidal",
+      "number": 28,
+      "position": "RB",
+      "status": "Active",
+      "team": "LAC",
+      "years_exp": 2
+    },
+    "11650": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Luke",
+      "injury_status": null,
+      "last_name": "McCaffrey",
+      "number": 11,
+      "position": "WR",
+      "status": "Active",
+      "team": "WAS",
+      "years_exp": 2
+    },
+    "11651": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Isaac",
+      "injury_status": "PUP",
+      "last_name": "Guerendo",
+      "number": 31,
+      "position": "RB",
+      "status": "Active",
+      "team": "SF",
+      "years_exp": 2
+    },
+    "11655": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Tyrone",
+      "injury_status": null,
+      "last_name": "Tracy",
+      "number": 29,
+      "position": "RB",
+      "status": "Active",
+      "team": "NYG",
+      "years_exp": 2
+    },
+    "1166": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Kirk",
+      "injury_status": null,
+      "last_name": "Cousins",
+      "number": 8,
+      "position": "QB",
+      "status": "Active",
+      "team": "LV",
+      "years_exp": 14
+    },
+    "11729": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Sione",
+      "injury_status": "Questionable",
+      "last_name": "Vaki",
+      "number": 33,
+      "position": "RB",
+      "status": "Active",
+      "team": "DET",
+      "years_exp": 2
+    },
+    "11783": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Ryan",
+      "injury_status": null,
+      "last_name": "Flournoy",
+      "number": 19,
+      "position": "WR",
+      "status": "Active",
+      "team": "DAL",
+      "years_exp": 2
+    },
+    "11834": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Devaughn",
+      "injury_status": null,
+      "last_name": "Vele",
+      "number": 14,
+      "position": "WR",
+      "status": "Active",
+      "team": "NO",
+      "years_exp": 2
+    },
+    "1234": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Russell",
+      "injury_status": null,
+      "last_name": "Wilson",
+      "number": 3,
+      "position": "QB",
+      "status": "Active",
+      "team": null,
+      "years_exp": 14
+    },
+    "12455": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Brashard",
+      "injury_status": null,
+      "last_name": "Smith",
+      "number": 24,
+      "position": "RB",
+      "status": "Active",
+      "team": "KC",
+      "years_exp": 1
+    },
+    "12457": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Jaydon",
+      "injury_status": null,
+      "last_name": "Blue",
+      "number": 23,
+      "position": "RB",
+      "status": "Active",
+      "team": "DAL",
+      "years_exp": 1
+    },
+    "12462": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Damien",
+      "injury_status": null,
+      "last_name": "Martinez",
+      "number": 26,
+      "position": "RB",
+      "status": "Active",
+      "team": "GB",
+      "years_exp": 1
+    },
+    "12467": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Jordan",
+      "injury_status": "Questionable",
+      "last_name": "James",
+      "number": 29,
+      "position": "RB",
+      "status": "Active",
+      "team": "SF",
+      "years_exp": 1
+    },
+    "12469": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Dylan",
+      "injury_status": null,
+      "last_name": "Sampson",
+      "number": 22,
+      "position": "RB",
+      "status": "Active",
+      "team": "CLE",
+      "years_exp": 1
+    },
+    "12471": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "DJ",
+      "injury_status": null,
+      "last_name": "Giddens",
+      "number": 21,
+      "position": "RB",
+      "status": "Active",
+      "team": "IND",
+      "years_exp": 1
+    },
+    "12473": {
+      "fantasy_positions": [
+        "TE"
+      ],
+      "first_name": "Mitchell",
+      "injury_status": null,
+      "last_name": "Evans",
+      "number": 84,
+      "position": "TE",
+      "status": "Active",
+      "team": "CAR",
+      "years_exp": 1
+    },
+    "12474": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Woody",
+      "injury_status": null,
+      "last_name": "Marks",
+      "number": 4,
+      "position": "RB",
+      "status": "Active",
+      "team": "HOU",
+      "years_exp": 1
+    },
+    "12476": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Devin",
+      "injury_status": "Questionable",
+      "last_name": "Neal",
+      "number": 24,
+      "position": "RB",
+      "status": "Active",
+      "team": "NO",
+      "years_exp": 1
+    },
+    "12478": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Nick",
+      "injury_status": null,
+      "last_name": "Nash",
+      "number": 19,
+      "position": "WR",
+      "status": "Active",
+      "team": "WAS",
+      "years_exp": 1
+    },
+    "12481": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Cam",
+      "injury_status": null,
+      "last_name": "Skattebo",
+      "number": 44,
+      "position": "RB",
+      "status": "Active",
+      "team": "NYG",
+      "years_exp": 1
+    },
+    "12482": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Savion",
+      "injury_status": null,
+      "last_name": "Williams",
+      "number": 83,
+      "position": "WR",
+      "status": "Active",
+      "team": "GB",
+      "years_exp": 1
+    },
+    "12483": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Jack",
+      "injury_status": null,
+      "last_name": "Bech",
+      "number": 18,
+      "position": "WR",
+      "status": "Active",
+      "team": "LV",
+      "years_exp": 1
+    },
+    "12484": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Jayden",
+      "injury_status": "IR",
+      "last_name": "Higgins",
+      "number": 81,
+      "position": "WR",
+      "status": "Inactive",
+      "team": "HOU",
+      "years_exp": 1
+    },
+    "12485": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Tez",
+      "injury_status": "Questionable",
+      "last_name": "Johnson",
+      "number": 15,
+      "position": "WR",
+      "status": "Active",
+      "team": "TB",
+      "years_exp": 1
+    },
+    "12486": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Dillon",
+      "injury_status": null,
+      "last_name": "Gabriel",
+      "number": 6,
+      "position": "QB",
+      "status": "Active",
+      "team": "CLE",
+      "years_exp": 1
+    },
+    "12487": {
+      "fantasy_positions": [
+        "TE"
+      ],
+      "first_name": "Terrance",
+      "injury_status": "Questionable",
+      "last_name": "Ferguson",
+      "number": 18,
+      "position": "TE",
+      "status": "Active",
+      "team": "LAR",
+      "years_exp": 1
+    },
+    "12489": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "RJ",
+      "injury_status": null,
+      "last_name": "Harvey",
+      "number": 12,
+      "position": "RB",
+      "status": "Active",
+      "team": "DEN",
+      "years_exp": 1
+    },
+    "12490": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Bhayshul",
+      "injury_status": null,
+      "last_name": "Tuten",
+      "number": 33,
+      "position": "RB",
+      "status": "Active",
+      "team": "JAX",
+      "years_exp": 1
+    },
+    "12492": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Pat",
+      "injury_status": null,
+      "last_name": "Bryant",
+      "number": 13,
+      "position": "WR",
+      "status": "Active",
+      "team": "DEN",
+      "years_exp": 1
+    },
+    "12493": {
+      "fantasy_positions": [
+        "TE"
+      ],
+      "first_name": "Oronde",
+      "injury_status": null,
+      "last_name": "Gadsden",
+      "number": 86,
+      "position": "TE",
+      "status": "Active",
+      "team": "LAC",
+      "years_exp": 1
+    },
+    "12494": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Kyle",
+      "injury_status": null,
+      "last_name": "McCord",
+      "number": 18,
+      "position": "QB",
+      "status": "Active",
+      "team": "GB",
+      "years_exp": 1
+    },
+    "12495": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Ollie",
+      "injury_status": "Questionable",
+      "last_name": "Gordon",
+      "number": 0,
+      "position": "RB",
+      "status": "Active",
+      "team": "MIA",
+      "years_exp": 1
+    },
+    "12496": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Tai",
+      "injury_status": null,
+      "last_name": "Felton",
+      "number": 13,
+      "position": "WR",
+      "status": "Active",
+      "team": "MIN",
+      "years_exp": 1
+    },
+    "12497": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Tory",
+      "injury_status": "Questionable",
+      "last_name": "Horton",
+      "number": 15,
+      "position": "WR",
+      "status": "Active",
+      "team": "SEA",
+      "years_exp": 1
+    },
+    "12498": {
+      "fantasy_positions": [
+        "TE"
+      ],
+      "first_name": "Mason",
+      "injury_status": null,
+      "last_name": "Taylor",
+      "number": 85,
+      "position": "TE",
+      "status": "Active",
+      "team": "NYJ",
+      "years_exp": 1
+    },
+    "12499": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Elic",
+      "injury_status": null,
+      "last_name": "Ayomanor",
+      "number": 5,
+      "position": "WR",
+      "status": "Active",
+      "team": "TEN",
+      "years_exp": 1
+    },
+    "12500": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Quinn",
+      "injury_status": null,
+      "last_name": "Ewers",
+      "number": 14,
+      "position": "QB",
+      "status": "Active",
+      "team": "MIA",
+      "years_exp": 1
+    },
+    "12501": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Matthew",
+      "injury_status": null,
+      "last_name": "Golden",
+      "number": 0,
+      "position": "WR",
+      "status": "Active",
+      "team": "GB",
+      "years_exp": 1
+    },
+    "12502": {
+      "fantasy_positions": [
+        "TE"
+      ],
+      "first_name": "Gunnar",
+      "injury_status": null,
+      "last_name": "Helm",
+      "number": 84,
+      "position": "TE",
+      "status": "Active",
+      "team": "TEN",
+      "years_exp": 1
+    },
+    "12503": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Isaiah",
+      "injury_status": null,
+      "last_name": "Bond",
+      "number": 0,
+      "position": "WR",
+      "status": "Active",
+      "team": "CLE",
+      "years_exp": 1
+    },
+    "12504": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Kaleb",
+      "injury_status": null,
+      "last_name": "Johnson",
+      "number": 20,
+      "position": "RB",
+      "status": "Active",
+      "team": "PIT",
+      "years_exp": 1
+    },
+    "12505": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Jalen",
+      "injury_status": null,
+      "last_name": "Royals",
+      "number": 11,
+      "position": "WR",
+      "status": "Active",
+      "team": "KC",
+      "years_exp": 1
+    },
+    "12506": {
+      "fantasy_positions": [
+        "TE"
+      ],
+      "first_name": "Harold",
+      "injury_status": null,
+      "last_name": "Fannin",
+      "number": 44,
+      "position": "TE",
+      "status": "Active",
+      "team": "CLE",
+      "years_exp": 1
+    },
+    "12507": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Omarion",
+      "injury_status": null,
+      "last_name": "Hampton",
+      "number": 8,
+      "position": "RB",
+      "status": "Active",
+      "team": "LAC",
+      "years_exp": 1
+    },
+    "12508": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Jaxson",
+      "injury_status": null,
+      "last_name": "Dart",
+      "number": 6,
+      "position": "QB",
+      "status": "Active",
+      "team": "NYG",
+      "years_exp": 1
+    },
+    "12509": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Tre'",
+      "injury_status": "Questionable",
+      "last_name": "Harris",
+      "number": 9,
+      "position": "WR",
+      "status": "Active",
+      "team": "LAC",
+      "years_exp": 1
+    },
+    "12510": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Jalen",
+      "injury_status": null,
+      "last_name": "Milroe",
+      "number": 6,
+      "position": "QB",
+      "status": "Active",
+      "team": "SEA",
+      "years_exp": 1
+    },
+    "12511": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Will",
+      "injury_status": null,
+      "last_name": "Howard",
+      "number": 18,
+      "position": "QB",
+      "status": "Active",
+      "team": "PIT",
+      "years_exp": 1
+    },
+    "12512": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Quinshon",
+      "injury_status": null,
+      "last_name": "Judkins",
+      "number": 10,
+      "position": "RB",
+      "status": "Active",
+      "team": "CLE",
+      "years_exp": 1
+    },
+    "12514": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Emeka",
+      "injury_status": "Questionable",
+      "last_name": "Egbuka",
+      "number": 2,
+      "position": "WR",
+      "status": "Active",
+      "team": "TB",
+      "years_exp": 1
+    },
+    "12515": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Donovan",
+      "injury_status": null,
+      "last_name": "Edwards",
+      "number": 36,
+      "position": "RB",
+      "status": "Active",
+      "team": "MIA",
+      "years_exp": 1
+    },
+    "12516": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Kalel",
+      "injury_status": "Questionable",
+      "last_name": "Mullings",
+      "number": 31,
+      "position": "RB",
+      "status": "Active",
+      "team": "TEN",
+      "years_exp": 1
+    },
+    "12517": {
+      "fantasy_positions": [
+        "TE"
+      ],
+      "first_name": "Colston",
+      "injury_status": null,
+      "last_name": "Loveland",
+      "number": 84,
+      "position": "TE",
+      "status": "Active",
+      "team": "CHI",
+      "years_exp": 1
+    },
+    "12518": {
+      "fantasy_positions": [
+        "TE"
+      ],
+      "first_name": "Tyler",
+      "injury_status": "Questionable",
+      "last_name": "Warren",
+      "number": 84,
+      "position": "TE",
+      "status": "Active",
+      "team": "IND",
+      "years_exp": 1
+    },
+    "12519": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Luther",
+      "injury_status": "Questionable",
+      "last_name": "Burden",
+      "number": 10,
+      "position": "WR",
+      "status": "Active",
+      "team": "CHI",
+      "years_exp": 1
+    },
+    "12520": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Xavier",
+      "injury_status": null,
+      "last_name": "Restrepo",
+      "number": 87,
+      "position": "WR",
+      "status": "Active",
+      "team": "TEN",
+      "years_exp": 1
+    },
+    "12521": {
+      "fantasy_positions": [
+        "TE"
+      ],
+      "first_name": "Elijah",
+      "injury_status": null,
+      "last_name": "Arroyo",
+      "number": 18,
+      "position": "TE",
+      "status": "Active",
+      "team": "SEA",
+      "years_exp": 1
+    },
+    "12522": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Cam",
+      "injury_status": null,
+      "last_name": "Ward",
+      "number": 1,
+      "position": "QB",
+      "status": "Active",
+      "team": "TEN",
+      "years_exp": 1
+    },
+    "12523": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Jimmy",
+      "injury_status": null,
+      "last_name": "Horn",
+      "number": 15,
+      "position": "WR",
+      "status": "Active",
+      "team": "CAR",
+      "years_exp": 1
+    },
+    "12524": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Shedeur",
+      "injury_status": null,
+      "last_name": "Sanders",
+      "number": 2,
+      "position": "QB",
+      "status": "Active",
+      "team": "CLE",
+      "years_exp": 1
+    },
+    "12526": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Tetairoa",
+      "injury_status": null,
+      "last_name": "McMillan",
+      "number": 4,
+      "position": "WR",
+      "status": "Active",
+      "team": "CAR",
+      "years_exp": 1
+    },
+    "12527": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Ashton",
+      "injury_status": "Questionable",
+      "last_name": "Jeanty",
+      "number": 2,
+      "position": "RB",
+      "status": "Active",
+      "team": "LV",
+      "years_exp": 1
+    },
+    "12529": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "TreVeyon",
+      "injury_status": "Questionable",
+      "last_name": "Henderson",
+      "number": 32,
+      "position": "RB",
+      "status": "Active",
+      "team": "NE",
+      "years_exp": 1
+    },
+    "12530": {
+      "fantasy_positions": [
+        "DB",
+        "WR"
+      ],
+      "first_name": "Travis",
+      "injury_status": null,
+      "last_name": "Hunter",
+      "number": 12,
+      "position": "WR",
+      "status": "Active",
+      "team": "JAX",
+      "years_exp": 1
+    },
+    "12531": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Trevor",
+      "injury_status": null,
+      "last_name": "Etienne",
+      "number": 23,
+      "position": "RB",
+      "status": "Active",
+      "team": "CAR",
+      "years_exp": 1
+    },
+    "12533": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Jacory",
+      "injury_status": "Questionable",
+      "last_name": "Croskey-Merritt",
+      "number": 22,
+      "position": "RB",
+      "status": "Active",
+      "team": "WAS",
+      "years_exp": 1
+    },
+    "12534": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Kyle",
+      "injury_status": "Questionable",
+      "last_name": "Monangai",
+      "number": 25,
+      "position": "RB",
+      "status": "Active",
+      "team": "CHI",
+      "years_exp": 1
+    },
+    "12535": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Isaac",
+      "injury_status": null,
+      "last_name": "TeSlaa",
+      "number": 18,
+      "position": "WR",
+      "status": "Active",
+      "team": "DET",
+      "years_exp": 1
+    },
+    "12536": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Jaylin",
+      "injury_status": "Questionable",
+      "last_name": "Noel",
+      "number": 13,
+      "position": "WR",
+      "status": "Active",
+      "team": "HOU",
+      "years_exp": 1
+    },
+    "12538": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Brady",
+      "injury_status": null,
+      "last_name": "Cook",
+      "number": 4,
+      "position": "QB",
+      "status": "Active",
+      "team": "NYJ",
+      "years_exp": 1
+    },
+    "12539": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Arian",
+      "injury_status": null,
+      "last_name": "Smith",
+      "number": 82,
+      "position": "WR",
+      "status": "Active",
+      "team": "NYJ",
+      "years_exp": 1
+    },
+    "12540": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Chimere",
+      "injury_status": null,
+      "last_name": "Dike",
+      "number": 17,
+      "position": "WR",
+      "status": "Active",
+      "team": "TEN",
+      "years_exp": 1
+    },
+    "12541": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Dont'e",
+      "injury_status": "Questionable",
+      "last_name": "Thornton",
+      "number": 10,
+      "position": "WR",
+      "status": "Active",
+      "team": "LV",
+      "years_exp": 1
+    },
+    "12542": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Efton",
+      "injury_status": null,
+      "last_name": "Chism",
+      "number": 86,
+      "position": "WR",
+      "status": "Active",
+      "team": "NE",
+      "years_exp": 1
+    },
+    "12543": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Tahj",
+      "injury_status": null,
+      "last_name": "Brooks",
+      "number": 25,
+      "position": "RB",
+      "status": "Active",
+      "team": "CIN",
+      "years_exp": 1
+    },
+    "12544": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "LeQuint",
+      "injury_status": "Questionable",
+      "last_name": "Allen",
+      "number": 5,
+      "position": "RB",
+      "status": "Active",
+      "team": "JAX",
+      "years_exp": 1
+    },
+    "12545": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Tyler",
+      "injury_status": null,
+      "last_name": "Shough",
+      "number": 6,
+      "position": "QB",
+      "status": "Active",
+      "team": "NO",
+      "years_exp": 1
+    },
+    "12547": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Kyle",
+      "injury_status": null,
+      "last_name": "Williams",
+      "number": 18,
+      "position": "WR",
+      "status": "Active",
+      "team": "NE",
+      "years_exp": 1
+    },
+    "12641": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Jaylin",
+      "injury_status": null,
+      "last_name": "Lane",
+      "number": 83,
+      "position": "WR",
+      "status": "Active",
+      "team": "WAS",
+      "years_exp": 1
+    },
+    "12670": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "KeAndre",
+      "injury_status": null,
+      "last_name": "Lambert-Smith",
+      "number": 84,
+      "position": "WR",
+      "status": "Active",
+      "team": "LAC",
+      "years_exp": 1
+    },
+    "12738": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Phil",
+      "injury_status": null,
+      "last_name": "Mafah",
+      "number": 37,
+      "position": "RB",
+      "status": "Active",
+      "team": "DAL",
+      "years_exp": 1
+    },
+    "12866": {
+      "fantasy_positions": [
+        "TE"
+      ],
+      "first_name": "Jalin",
+      "injury_status": null,
+      "last_name": "Conyers",
+      "number": 80,
+      "position": "TE",
+      "status": "Active",
+      "team": null,
+      "years_exp": 1
+    },
+    "12969": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Lan",
+      "injury_status": "Questionable",
+      "last_name": "Larison",
+      "number": 34,
+      "position": "RB",
+      "status": "Active",
+      "team": "NE",
+      "years_exp": 1
+    },
+    "1339": {
+      "fantasy_positions": [
+        "TE"
+      ],
+      "first_name": "Zach",
+      "injury_status": null,
+      "last_name": "Ertz",
+      "number": 86,
+      "position": "TE",
+      "status": "Active",
+      "team": null,
+      "years_exp": 13
+    },
+    "1373": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Geno",
+      "injury_status": null,
+      "last_name": "Smith",
+      "number": 7,
+      "position": "QB",
+      "status": "Active",
+      "team": "NYJ",
+      "years_exp": 13
+    },
+    "1426": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "DeAndre",
+      "injury_status": null,
+      "last_name": "Hopkins",
+      "number": 10,
+      "position": "WR",
+      "status": "Active",
+      "team": null,
+      "years_exp": 13
+    },
+    "1466": {
+      "fantasy_positions": [
+        "TE"
+      ],
+      "first_name": "Travis",
+      "injury_status": null,
+      "last_name": "Kelce",
+      "number": 87,
+      "position": "TE",
+      "status": "Active",
+      "team": "KC",
+      "years_exp": 13
+    },
+    "1479": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Keenan",
+      "injury_status": null,
+      "last_name": "Allen",
+      "number": 10,
+      "position": "WR",
+      "status": "Active",
+      "team": "IND",
+      "years_exp": 13
+    },
+    "1689": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Adam",
+      "injury_status": "NA",
+      "last_name": "Thielen",
+      "number": 16,
+      "position": "WR",
+      "status": "Active",
+      "team": null,
+      "years_exp": 13
+    },
+    "1837": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Jimmy",
+      "injury_status": null,
+      "last_name": "Garoppolo",
+      "number": 11,
+      "position": "QB",
+      "status": "Active",
+      "team": null,
+      "years_exp": 12
+    },
+    "19": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Joe",
+      "injury_status": null,
+      "last_name": "Flacco",
+      "number": 16,
+      "position": "QB",
+      "status": "Active",
+      "team": "CIN",
+      "years_exp": 18
+    },
+    "2133": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Davante",
+      "injury_status": null,
+      "last_name": "Adams",
+      "number": 17,
+      "position": "WR",
+      "status": "Active",
+      "team": "LAR",
+      "years_exp": 12
+    },
+    "2197": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Brandin",
+      "injury_status": null,
+      "last_name": "Cooks",
+      "number": 18,
+      "position": "WR",
+      "status": "Active",
+      "team": null,
+      "years_exp": 12
+    },
+    "2216": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Mike",
+      "injury_status": "Questionable",
+      "last_name": "Evans",
+      "number": 5,
+      "position": "WR",
+      "status": "Active",
+      "team": "SF",
+      "years_exp": 12
+    },
+    "2306": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Jameis",
+      "injury_status": null,
+      "last_name": "Winston",
+      "number": 19,
+      "position": "QB",
+      "status": "Active",
+      "team": "NYG",
+      "years_exp": 11
+    },
+    "2307": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Marcus",
+      "injury_status": "Questionable",
+      "last_name": "Mariota",
+      "number": 8,
+      "position": "QB",
+      "status": "Active",
+      "team": "WAS",
+      "years_exp": 11
+    },
+    "2374": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Tyler",
+      "injury_status": null,
+      "last_name": "Lockett",
+      "number": 17,
+      "position": "WR",
+      "status": "Active",
+      "team": null,
+      "years_exp": 11
+    },
+    "2449": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Stefon",
+      "injury_status": null,
+      "last_name": "Diggs",
+      "number": 3,
+      "position": "WR",
+      "status": "Active",
+      "team": "WAS",
+      "years_exp": 11
+    },
+    "2505": {
+      "fantasy_positions": [
+        "TE"
+      ],
+      "first_name": "Darren",
+      "injury_status": null,
+      "last_name": "Waller",
+      "number": 35,
+      "position": "TE",
+      "status": "Active",
+      "team": "CAR",
+      "years_exp": 11
+    },
+    "2749": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Raheem",
+      "injury_status": "Questionable",
+      "last_name": "Mostert",
+      "number": 31,
+      "position": "RB",
+      "status": "Active",
+      "team": null,
+      "years_exp": 11
+    },
+    "3161": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Carson",
+      "injury_status": null,
+      "last_name": "Wentz",
+      "number": 11,
+      "position": "QB",
+      "status": "Active",
+      "team": "MIN",
+      "years_exp": 10
+    },
+    "3163": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Jared",
+      "injury_status": null,
+      "last_name": "Goff",
+      "number": 16,
+      "position": "QB",
+      "status": "Active",
+      "team": "DET",
+      "years_exp": 10
+    },
+    "3198": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Derrick",
+      "injury_status": null,
+      "last_name": "Henry",
+      "number": 22,
+      "position": "RB",
+      "status": "Active",
+      "team": "BAL",
+      "years_exp": 10
+    },
+    "3214": {
+      "fantasy_positions": [
+        "TE"
+      ],
+      "first_name": "Hunter",
+      "injury_status": null,
+      "last_name": "Henry",
+      "number": 85,
+      "position": "TE",
+      "status": "Active",
+      "team": "NE",
+      "years_exp": 10
+    },
+    "3257": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Jacoby",
+      "injury_status": null,
+      "last_name": "Brissett",
+      "number": 7,
+      "position": "QB",
+      "status": "Active",
+      "team": "ARI",
+      "years_exp": 10
+    },
+    "3271": {
+      "fantasy_positions": [
+        "TE"
+      ],
+      "first_name": "Tyler",
+      "injury_status": null,
+      "last_name": "Higbee",
+      "number": 89,
+      "position": "TE",
+      "status": "Active",
+      "team": "LAR",
+      "years_exp": 10
+    },
+    "3286": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Demarcus",
+      "injury_status": null,
+      "last_name": "Robinson",
+      "number": 5,
+      "position": "WR",
+      "status": "Active",
+      "team": "SF",
+      "years_exp": 10
+    },
+    "3294": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Dak",
+      "injury_status": null,
+      "last_name": "Prescott",
+      "number": 4,
+      "position": "QB",
+      "status": "Active",
+      "team": "DAL",
+      "years_exp": 10
+    },
+    "331": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Philip",
+      "injury_status": null,
+      "last_name": "Rivers",
+      "number": 17,
+      "position": "QB",
+      "status": "Active",
+      "team": null,
+      "years_exp": 22
+    },
+    "3321": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Tyreek",
+      "injury_status": "Questionable",
+      "last_name": "Hill",
+      "number": 10,
+      "position": "WR",
+      "status": "Active",
+      "team": null,
+      "years_exp": 10
+    },
+    "4017": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Deshaun",
+      "injury_status": null,
+      "last_name": "Watson",
+      "number": 4,
+      "position": "QB",
+      "status": "Active",
+      "team": "CLE",
+      "years_exp": 9
+    },
+    "4018": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Joe",
+      "injury_status": "Questionable",
+      "last_name": "Mixon",
+      "number": 28,
+      "position": "RB",
+      "status": "Active",
+      "team": null,
+      "years_exp": 9
+    },
+    "4033": {
+      "fantasy_positions": [
+        "TE"
+      ],
+      "first_name": "David",
+      "injury_status": null,
+      "last_name": "Njoku",
+      "number": 83,
+      "position": "TE",
+      "status": "Active",
+      "team": "LAC",
+      "years_exp": 9
+    },
+    "4034": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Christian",
+      "injury_status": "Questionable",
+      "last_name": "McCaffrey",
+      "number": 23,
+      "position": "RB",
+      "status": "Active",
+      "team": "SF",
+      "years_exp": 9
+    },
+    "4035": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Alvin",
+      "injury_status": "Questionable",
+      "last_name": "Kamara",
+      "number": 41,
+      "position": "RB",
+      "status": "Active",
+      "team": "NO",
+      "years_exp": 9
+    },
+    "4037": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Chris",
+      "injury_status": null,
+      "last_name": "Godwin",
+      "number": 14,
+      "position": "WR",
+      "status": "Active",
+      "team": "TB",
+      "years_exp": 9
+    },
+    "4039": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Cooper",
+      "injury_status": null,
+      "last_name": "Kupp",
+      "number": 10,
+      "position": "WR",
+      "status": "Active",
+      "team": "SEA",
+      "years_exp": 9
+    },
+    "4040": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "JuJu",
+      "injury_status": "Questionable",
+      "last_name": "Smith-Schuster",
+      "number": 8,
+      "position": "WR",
+      "status": "Active",
+      "team": null,
+      "years_exp": 9
+    },
+    "4046": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Patrick",
+      "injury_status": "Questionable",
+      "last_name": "Mahomes",
+      "number": 15,
+      "position": "QB",
+      "status": "Active",
+      "team": "KC",
+      "years_exp": 9
+    },
+    "4066": {
+      "fantasy_positions": [
+        "TE"
+      ],
+      "first_name": "Evan",
+      "injury_status": null,
+      "last_name": "Engram",
+      "number": 1,
+      "position": "TE",
+      "status": "Active",
+      "team": "DEN",
+      "years_exp": 9
+    },
+    "4098": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Kareem",
+      "injury_status": null,
+      "last_name": "Hunt",
+      "number": 29,
+      "position": "RB",
+      "status": "Active",
+      "team": null,
+      "years_exp": 9
+    },
+    "4137": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "James",
+      "injury_status": "Questionable",
+      "last_name": "Conner",
+      "number": 6,
+      "position": "RB",
+      "status": "Active",
+      "team": "ARI",
+      "years_exp": 9
+    },
+    "4144": {
+      "fantasy_positions": [
+        "TE"
+      ],
+      "first_name": "Jonnu",
+      "injury_status": null,
+      "last_name": "Smith",
+      "number": 81,
+      "position": "TE",
+      "status": "Active",
+      "team": null,
+      "years_exp": 9
+    },
+    "4147": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Samaje",
+      "injury_status": null,
+      "last_name": "Perine",
+      "number": 34,
+      "position": "RB",
+      "status": "Active",
+      "team": "CIN",
+      "years_exp": 9
+    },
+    "4177": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Mack",
+      "injury_status": null,
+      "last_name": "Hollins",
+      "number": 13,
+      "position": "WR",
+      "status": "Active",
+      "team": "NE",
+      "years_exp": 9
+    },
+    "4199": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Aaron",
+      "injury_status": null,
+      "last_name": "Jones",
+      "number": 33,
+      "position": "RB",
+      "status": "Active",
+      "team": "MIN",
+      "years_exp": 9
+    },
+    "421": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Matthew",
+      "injury_status": null,
+      "last_name": "Stafford",
+      "number": 9,
+      "position": "QB",
+      "status": "Active",
+      "team": "LAR",
+      "years_exp": 17
+    },
+    "4217": {
+      "fantasy_positions": [
+        "TE"
+      ],
+      "first_name": "George",
+      "injury_status": "Questionable",
+      "last_name": "Kittle",
+      "number": 85,
+      "position": "TE",
+      "status": "Active",
+      "team": "SF",
+      "years_exp": 9
+    },
+    "4219": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Jeremy",
+      "injury_status": "Questionable",
+      "last_name": "McNichols",
+      "number": 26,
+      "position": "RB",
+      "status": "Active",
+      "team": "WAS",
+      "years_exp": 9
+    },
+    "4234": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Noah",
+      "injury_status": null,
+      "last_name": "Brown",
+      "number": 33,
+      "position": "WR",
+      "status": "Active",
+      "team": null,
+      "years_exp": 9
+    },
+    "4381": {
+      "fantasy_positions": [
+        "TE"
+      ],
+      "first_name": "Taysom",
+      "injury_status": null,
+      "last_name": "Hill",
+      "number": 7,
+      "position": "TE",
+      "status": "Active",
+      "team": null,
+      "years_exp": 9
+    },
+    "4454": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Kendrick",
+      "injury_status": null,
+      "last_name": "Bourne",
+      "number": 17,
+      "position": "WR",
+      "status": "Active",
+      "team": "ARI",
+      "years_exp": 9
+    },
+    "4663": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Austin",
+      "injury_status": null,
+      "last_name": "Ekeler",
+      "number": 30,
+      "position": "RB",
+      "status": "Active",
+      "team": null,
+      "years_exp": 9
+    },
+    "4866": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Saquon",
+      "injury_status": null,
+      "last_name": "Barkley",
+      "number": 26,
+      "position": "RB",
+      "status": "Active",
+      "team": "PHI",
+      "years_exp": 8
+    },
+    "4881": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Lamar",
+      "injury_status": null,
+      "last_name": "Jackson",
+      "number": 8,
+      "position": "QB",
+      "status": "Active",
+      "team": "BAL",
+      "years_exp": 8
+    },
+    "4892": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Baker",
+      "injury_status": null,
+      "last_name": "Mayfield",
+      "number": 6,
+      "position": "QB",
+      "status": "Active",
+      "team": "TB",
+      "years_exp": 8
+    },
+    "4943": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Sam",
+      "injury_status": null,
+      "last_name": "Darnold",
+      "number": 14,
+      "position": "QB",
+      "status": "Active",
+      "team": "SEA",
+      "years_exp": 8
+    },
+    "4950": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Christian",
+      "injury_status": "Questionable",
+      "last_name": "Kirk",
+      "number": 3,
+      "position": "WR",
+      "status": "Active",
+      "team": "SF",
+      "years_exp": 8
+    },
+    "4981": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Calvin",
+      "injury_status": null,
+      "last_name": "Ridley",
+      "number": 0,
+      "position": "WR",
+      "status": "Active",
+      "team": "TEN",
+      "years_exp": 8
+    },
+    "4983": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "DJ",
+      "injury_status": null,
+      "last_name": "Moore",
+      "number": 2,
+      "position": "WR",
+      "status": "Active",
+      "team": "BUF",
+      "years_exp": 8
+    },
+    "4984": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Josh",
+      "injury_status": null,
+      "last_name": "Allen",
+      "number": 17,
+      "position": "QB",
+      "status": "Active",
+      "team": "BUF",
+      "years_exp": 8
+    },
+    "4988": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Nick",
+      "injury_status": null,
+      "last_name": "Chubb",
+      "number": 21,
+      "position": "RB",
+      "status": "Active",
+      "team": null,
+      "years_exp": 8
+    },
+    "4993": {
+      "fantasy_positions": [
+        "TE"
+      ],
+      "first_name": "Mike",
+      "injury_status": null,
+      "last_name": "Gesicki",
+      "number": 88,
+      "position": "TE",
+      "status": "Active",
+      "team": "CIN",
+      "years_exp": 8
+    },
+    "5001": {
+      "fantasy_positions": [
+        "TE"
+      ],
+      "first_name": "Dalton",
+      "injury_status": null,
+      "last_name": "Schultz",
+      "number": 86,
+      "position": "TE",
+      "status": "Active",
+      "team": "HOU",
+      "years_exp": 8
+    },
+    "5012": {
+      "fantasy_positions": [
+        "TE"
+      ],
+      "first_name": "Mark",
+      "injury_status": null,
+      "last_name": "Andrews",
+      "number": 89,
+      "position": "TE",
+      "status": "Active",
+      "team": "BAL",
+      "years_exp": 8
+    },
+    "5022": {
+      "fantasy_positions": [
+        "TE"
+      ],
+      "first_name": "Dallas",
+      "injury_status": null,
+      "last_name": "Goedert",
+      "number": 88,
+      "position": "TE",
+      "status": "Active",
+      "team": "PHI",
+      "years_exp": 8
+    },
+    "5045": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Courtland",
+      "injury_status": null,
+      "last_name": "Sutton",
+      "number": 14,
+      "position": "WR",
+      "status": "Active",
+      "team": "DEN",
+      "years_exp": 8
+    },
+    "5185": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Allen",
+      "injury_status": null,
+      "last_name": "Lazard",
+      "number": 10,
+      "position": "WR",
+      "status": "Active",
+      "team": null,
+      "years_exp": 7
+    },
+    "5844": {
+      "fantasy_positions": [
+        "TE"
+      ],
+      "first_name": "T.J.",
+      "injury_status": null,
+      "last_name": "Hockenson",
+      "number": 87,
+      "position": "TE",
+      "status": "Active",
+      "team": "MIN",
+      "years_exp": 7
+    },
+    "5846": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "DK",
+      "injury_status": "Questionable",
+      "last_name": "Metcalf",
+      "number": 4,
+      "position": "WR",
+      "status": "Active",
+      "team": "PIT",
+      "years_exp": 7
+    },
+    "5848": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Marquise",
+      "injury_status": null,
+      "last_name": "Brown",
+      "number": 0,
+      "position": "WR",
+      "status": "Active",
+      "team": "PHI",
+      "years_exp": 7
+    },
+    "5849": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Kyler",
+      "injury_status": null,
+      "last_name": "Murray",
+      "number": 1,
+      "position": "QB",
+      "status": "Active",
+      "team": "MIN",
+      "years_exp": 7
+    },
+    "5850": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Josh",
+      "injury_status": "Questionable",
+      "last_name": "Jacobs",
+      "number": 8,
+      "position": "RB",
+      "status": "Active",
+      "team": "GB",
+      "years_exp": 7
+    },
+    "5857": {
+      "fantasy_positions": [
+        "TE"
+      ],
+      "first_name": "Noah",
+      "injury_status": null,
+      "last_name": "Fant",
+      "number": 87,
+      "position": "TE",
+      "status": "Active",
+      "team": "NO",
+      "years_exp": 7
+    },
+    "5859": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "A.J.",
+      "injury_status": null,
+      "last_name": "Brown",
+      "number": 1,
+      "position": "WR",
+      "status": "Active",
+      "team": "NE",
+      "years_exp": 7
+    },
+    "5870": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Daniel",
+      "injury_status": null,
+      "last_name": "Jones",
+      "number": 17,
+      "position": "QB",
+      "status": "Active",
+      "team": "IND",
+      "years_exp": 7
+    },
+    "5872": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Deebo",
+      "injury_status": null,
+      "last_name": "Samuel",
+      "number": 19,
+      "position": "WR",
+      "status": "Active",
+      "team": "SF",
+      "years_exp": 7
+    },
+    "5892": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "David",
+      "injury_status": null,
+      "last_name": "Montgomery",
+      "number": 32,
+      "position": "RB",
+      "status": "Active",
+      "team": "HOU",
+      "years_exp": 7
+    },
+    "5906": {
+      "fantasy_positions": [
+        "TE"
+      ],
+      "first_name": "Dawson",
+      "injury_status": null,
+      "last_name": "Knox",
+      "number": 88,
+      "position": "TE",
+      "status": "Active",
+      "team": "BUF",
+      "years_exp": 7
+    },
+    "5927": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Terry",
+      "injury_status": null,
+      "last_name": "McLaurin",
+      "number": 17,
+      "position": "WR",
+      "status": "Active",
+      "team": "WAS",
+      "years_exp": 7
+    },
+    "5947": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Jakobi",
+      "injury_status": "Questionable",
+      "last_name": "Meyers",
+      "number": 3,
+      "position": "WR",
+      "status": "Active",
+      "team": "JAX",
+      "years_exp": 7
+    },
+    "5967": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Tony",
+      "injury_status": null,
+      "last_name": "Pollard",
+      "number": 20,
+      "position": "RB",
+      "status": "Active",
+      "team": "TEN",
+      "years_exp": 7
+    },
+    "5995": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Justice",
+      "injury_status": null,
+      "last_name": "Hill",
+      "number": 43,
+      "position": "RB",
+      "status": "Active",
+      "team": "BAL",
+      "years_exp": 7
+    },
+    "6011": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Gardner",
+      "injury_status": null,
+      "last_name": "Minshew",
+      "number": 15,
+      "position": "QB",
+      "status": "Active",
+      "team": "ARI",
+      "years_exp": 7
+    },
+    "6039": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Ty",
+      "injury_status": "Questionable",
+      "last_name": "Johnson",
+      "number": 26,
+      "position": "RB",
+      "status": "Active",
+      "team": "BUF",
+      "years_exp": 7
+    },
+    "6111": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Jake",
+      "injury_status": null,
+      "last_name": "Browning",
+      "number": 5,
+      "position": "QB",
+      "status": "Active",
+      "team": "TB",
+      "years_exp": 7
+    },
+    "6130": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Devin",
+      "injury_status": null,
+      "last_name": "Singletary",
+      "number": 26,
+      "position": "RB",
+      "status": "Active",
+      "team": "NYG",
+      "years_exp": 7
+    },
+    "6149": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Darius",
+      "injury_status": null,
+      "last_name": "Slayton",
+      "number": 18,
+      "position": "WR",
+      "status": "Active",
+      "team": "NYG",
+      "years_exp": 7
+    },
+    "6151": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Miles",
+      "injury_status": null,
+      "last_name": "Sanders",
+      "number": 24,
+      "position": "RB",
+      "status": "Active",
+      "team": null,
+      "years_exp": 7
+    },
+    "6271": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Olamide",
+      "injury_status": null,
+      "last_name": "Zaccheaus",
+      "number": 14,
+      "position": "WR",
+      "status": "Active",
+      "team": "ATL",
+      "years_exp": 7
+    },
+    "6768": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Tua",
+      "injury_status": null,
+      "last_name": "Tagovailoa",
+      "number": 1,
+      "position": "QB",
+      "status": "Active",
+      "team": "ATL",
+      "years_exp": 6
+    },
+    "6770": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Joe",
+      "injury_status": null,
+      "last_name": "Burrow",
+      "number": 9,
+      "position": "QB",
+      "status": "Active",
+      "team": "CIN",
+      "years_exp": 6
+    },
+    "6783": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Jerry",
+      "injury_status": null,
+      "last_name": "Jeudy",
+      "number": 3,
+      "position": "WR",
+      "status": "Active",
+      "team": "CLE",
+      "years_exp": 6
+    },
+    "6786": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "CeeDee",
+      "injury_status": null,
+      "last_name": "Lamb",
+      "number": 88,
+      "position": "WR",
+      "status": "Active",
+      "team": "DAL",
+      "years_exp": 6
+    },
+    "6790": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "D'Andre",
+      "injury_status": null,
+      "last_name": "Swift",
+      "number": 4,
+      "position": "RB",
+      "status": "Active",
+      "team": "CHI",
+      "years_exp": 6
+    },
+    "6794": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Justin",
+      "injury_status": null,
+      "last_name": "Jefferson",
+      "number": 18,
+      "position": "WR",
+      "status": "Active",
+      "team": "MIN",
+      "years_exp": 6
+    },
+    "6797": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Justin",
+      "injury_status": null,
+      "last_name": "Herbert",
+      "number": 10,
+      "position": "QB",
+      "status": "Active",
+      "team": "LAC",
+      "years_exp": 6
+    },
+    "6801": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Tee",
+      "injury_status": null,
+      "last_name": "Higgins",
+      "number": 5,
+      "position": "WR",
+      "status": "Active",
+      "team": "CIN",
+      "years_exp": 6
+    },
+    "6803": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Brandon",
+      "injury_status": "DNR",
+      "last_name": "Aiyuk",
+      "number": 11,
+      "position": "WR",
+      "status": "Active",
+      "team": "SF",
+      "years_exp": 6
+    },
+    "6804": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Jordan",
+      "injury_status": null,
+      "last_name": "Love",
+      "number": 10,
+      "position": "QB",
+      "status": "Active",
+      "team": "GB",
+      "years_exp": 6
+    },
+    "6806": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "J.K.",
+      "injury_status": null,
+      "last_name": "Dobbins",
+      "number": 27,
+      "position": "RB",
+      "status": "Active",
+      "team": "DEN",
+      "years_exp": 6
+    },
+    "6813": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Jonathan",
+      "injury_status": null,
+      "last_name": "Taylor",
+      "number": 28,
+      "position": "RB",
+      "status": "Active",
+      "team": "IND",
+      "years_exp": 6
+    },
+    "6819": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Michael",
+      "injury_status": "Questionable",
+      "last_name": "Pittman",
+      "number": 11,
+      "position": "WR",
+      "status": "Active",
+      "team": "PIT",
+      "years_exp": 6
+    },
+    "6826": {
+      "fantasy_positions": [
+        "TE"
+      ],
+      "first_name": "Cole",
+      "injury_status": null,
+      "last_name": "Kmet",
+      "number": 85,
+      "position": "TE",
+      "status": "Active",
+      "team": "CHI",
+      "years_exp": 6
+    },
+    "6865": {
+      "fantasy_positions": [
+        "TE"
+      ],
+      "first_name": "Colby",
+      "injury_status": null,
+      "last_name": "Parkinson",
+      "number": 84,
+      "position": "TE",
+      "status": "Active",
+      "team": "LAR",
+      "years_exp": 6
+    },
+    "6904": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Jalen",
+      "injury_status": null,
+      "last_name": "Hurts",
+      "number": 1,
+      "position": "QB",
+      "status": "Active",
+      "team": "PHI",
+      "years_exp": 6
+    },
+    "7002": {
+      "fantasy_positions": [
+        "TE"
+      ],
+      "first_name": "Juwan",
+      "injury_status": null,
+      "last_name": "Johnson",
+      "number": 83,
+      "position": "TE",
+      "status": "Active",
+      "team": "NO",
+      "years_exp": 6
+    },
+    "7021": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Rico",
+      "injury_status": null,
+      "last_name": "Dowdle",
+      "number": 13,
+      "position": "RB",
+      "status": "Active",
+      "team": "PIT",
+      "years_exp": 6
+    },
+    "7049": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Jauan",
+      "injury_status": null,
+      "last_name": "Jennings",
+      "number": 14,
+      "position": "WR",
+      "status": "Active",
+      "team": "MIN",
+      "years_exp": 6
+    },
+    "7090": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Darnell",
+      "injury_status": null,
+      "last_name": "Mooney",
+      "number": 17,
+      "position": "WR",
+      "status": "Active",
+      "team": "NYG",
+      "years_exp": 6
+    },
+    "7523": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Trevor",
+      "injury_status": null,
+      "last_name": "Lawrence",
+      "number": 16,
+      "position": "QB",
+      "status": "Active",
+      "team": "JAX",
+      "years_exp": 5
+    },
+    "7525": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "DeVonta",
+      "injury_status": null,
+      "last_name": "Smith",
+      "number": 6,
+      "position": "WR",
+      "status": "Active",
+      "team": "PHI",
+      "years_exp": 5
+    },
+    "7526": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Jaylen",
+      "injury_status": null,
+      "last_name": "Waddle",
+      "number": 17,
+      "position": "WR",
+      "status": "Active",
+      "team": "DEN",
+      "years_exp": 5
+    },
+    "7527": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Mac",
+      "injury_status": null,
+      "last_name": "Jones",
+      "number": 10,
+      "position": "QB",
+      "status": "Active",
+      "team": "SF",
+      "years_exp": 5
+    },
+    "7528": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Najee",
+      "injury_status": null,
+      "last_name": "Harris",
+      "number": 22,
+      "position": "RB",
+      "status": "Active",
+      "team": "NYG",
+      "years_exp": 5
+    },
+    "7538": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Zach",
+      "injury_status": null,
+      "last_name": "Wilson",
+      "number": 4,
+      "position": "QB",
+      "status": "Active",
+      "team": "NO",
+      "years_exp": 5
+    },
+    "7543": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Travis",
+      "injury_status": null,
+      "last_name": "Etienne",
+      "number": 3,
+      "position": "RB",
+      "status": "Active",
+      "team": "NO",
+      "years_exp": 5
+    },
+    "7547": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Amon-Ra",
+      "injury_status": null,
+      "last_name": "St. Brown",
+      "number": 14,
+      "position": "WR",
+      "status": "Active",
+      "team": "DET",
+      "years_exp": 5
+    },
+    "7553": {
+      "fantasy_positions": [
+        "TE"
+      ],
+      "first_name": "Kyle",
+      "injury_status": null,
+      "last_name": "Pitts",
+      "number": 8,
+      "position": "TE",
+      "status": "Active",
+      "team": "ATL",
+      "years_exp": 5
+    },
+    "7562": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Tutu",
+      "injury_status": null,
+      "last_name": "Atwell",
+      "number": 4,
+      "position": "WR",
+      "status": "Active",
+      "team": "MIA",
+      "years_exp": 5
+    },
+    "7564": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Ja'Marr",
+      "injury_status": "Questionable",
+      "last_name": "Chase",
+      "number": 1,
+      "position": "WR",
+      "status": "Active",
+      "team": "CIN",
+      "years_exp": 5
+    },
+    "7567": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Kenny",
+      "injury_status": null,
+      "last_name": "Gainwell",
+      "number": 1,
+      "position": "RB",
+      "status": "Active",
+      "team": "TB",
+      "years_exp": 5
+    },
+    "7569": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Nico",
+      "injury_status": null,
+      "last_name": "Collins",
+      "number": 12,
+      "position": "WR",
+      "status": "Active",
+      "team": "HOU",
+      "years_exp": 5
+    },
+    "7571": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Rashod",
+      "injury_status": null,
+      "last_name": "Bateman",
+      "number": 7,
+      "position": "WR",
+      "status": "Active",
+      "team": "BAL",
+      "years_exp": 5
+    },
+    "7587": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Dyami",
+      "injury_status": null,
+      "last_name": "Brown",
+      "number": 6,
+      "position": "WR",
+      "status": "Active",
+      "team": "WAS",
+      "years_exp": 5
+    },
+    "7588": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Javonte",
+      "injury_status": null,
+      "last_name": "Williams",
+      "number": 33,
+      "position": "RB",
+      "status": "Active",
+      "team": "DAL",
+      "years_exp": 5
+    },
+    "7591": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Justin",
+      "injury_status": null,
+      "last_name": "Fields",
+      "number": 6,
+      "position": "QB",
+      "status": "Active",
+      "team": "KC",
+      "years_exp": 5
+    },
+    "7594": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Chuba",
+      "injury_status": "Questionable",
+      "last_name": "Hubbard",
+      "number": 30,
+      "position": "RB",
+      "status": "Active",
+      "team": "CAR",
+      "years_exp": 5
+    },
+    "7600": {
+      "fantasy_positions": [
+        "TE"
+      ],
+      "first_name": "Pat",
+      "injury_status": null,
+      "last_name": "Freiermuth",
+      "number": 88,
+      "position": "TE",
+      "status": "Active",
+      "team": "PIT",
+      "years_exp": 5
+    },
+    "7607": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Michael",
+      "injury_status": null,
+      "last_name": "Carter",
+      "number": 35,
+      "position": "RB",
+      "status": "Active",
+      "team": "TEN",
+      "years_exp": 5
+    },
+    "7610": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Trey",
+      "injury_status": null,
+      "last_name": "Lance",
+      "number": 5,
+      "position": "QB",
+      "status": "Active",
+      "team": "LAC",
+      "years_exp": 5
+    },
+    "7611": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Rhamondre",
+      "injury_status": null,
+      "last_name": "Stevenson",
+      "number": 38,
+      "position": "RB",
+      "status": "Active",
+      "team": "NE",
+      "years_exp": 5
+    },
+    "7670": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Joshua",
+      "injury_status": null,
+      "last_name": "Palmer",
+      "number": 5,
+      "position": "WR",
+      "status": "Active",
+      "team": "BUF",
+      "years_exp": 5
+    },
+    "7694": {
+      "fantasy_positions": [
+        "TE"
+      ],
+      "first_name": "Tommy",
+      "injury_status": null,
+      "last_name": "Tremble",
+      "number": 82,
+      "position": "TE",
+      "status": "Active",
+      "team": "CAR",
+      "years_exp": 5
+    },
+    "7828": {
+      "fantasy_positions": [
+        "TE"
+      ],
+      "first_name": "Noah",
+      "injury_status": null,
+      "last_name": "Gray",
+      "number": 83,
+      "position": "TE",
+      "status": "Active",
+      "team": "KC",
+      "years_exp": 5
+    },
+    "8110": {
+      "fantasy_positions": [
+        "TE"
+      ],
+      "first_name": "Jake",
+      "injury_status": null,
+      "last_name": "Ferguson",
+      "number": 87,
+      "position": "TE",
+      "status": "Active",
+      "team": "DAL",
+      "years_exp": 4
+    },
+    "8111": {
+      "fantasy_positions": [
+        "TE"
+      ],
+      "first_name": "Cade",
+      "injury_status": null,
+      "last_name": "Otton",
+      "number": 88,
+      "position": "TE",
+      "status": "Active",
+      "team": "TB",
+      "years_exp": 4
+    },
+    "8112": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Drake",
+      "injury_status": null,
+      "last_name": "London",
+      "number": 5,
+      "position": "WR",
+      "status": "Active",
+      "team": "ATL",
+      "years_exp": 4
+    },
+    "8121": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Romeo",
+      "injury_status": null,
+      "last_name": "Doubs",
+      "number": 87,
+      "position": "WR",
+      "status": "Active",
+      "team": "NE",
+      "years_exp": 4
+    },
+    "8123": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Hassan",
+      "injury_status": null,
+      "last_name": "Haskins",
+      "number": 26,
+      "position": "RB",
+      "status": "Active",
+      "team": "NE",
+      "years_exp": 4
+    },
+    "8125": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Calvin",
+      "injury_status": "Questionable",
+      "last_name": "Austin",
+      "number": 82,
+      "position": "WR",
+      "status": "Active",
+      "team": "NYG",
+      "years_exp": 4
+    },
+    "8126": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Wan'Dale",
+      "injury_status": null,
+      "last_name": "Robinson",
+      "number": 4,
+      "position": "WR",
+      "status": "Active",
+      "team": "TEN",
+      "years_exp": 4
+    },
+    "8129": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Dameon",
+      "injury_status": null,
+      "last_name": "Pierce",
+      "number": 39,
+      "position": "RB",
+      "status": "Active",
+      "team": "PHI",
+      "years_exp": 4
+    },
+    "8130": {
+      "fantasy_positions": [
+        "TE"
+      ],
+      "first_name": "Trey",
+      "injury_status": null,
+      "last_name": "McBride",
+      "number": 85,
+      "position": "TE",
+      "status": "Active",
+      "team": "ARI",
+      "years_exp": 4
+    },
+    "8131": {
+      "fantasy_positions": [
+        "TE"
+      ],
+      "first_name": "Isaiah",
+      "injury_status": null,
+      "last_name": "Likely",
+      "number": 9,
+      "position": "TE",
+      "status": "Active",
+      "team": "NYG",
+      "years_exp": 4
+    },
+    "8132": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Tyler",
+      "injury_status": null,
+      "last_name": "Allgeier",
+      "number": 22,
+      "position": "RB",
+      "status": "Active",
+      "team": "ARI",
+      "years_exp": 4
+    },
+    "8134": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Khalil",
+      "injury_status": "Questionable",
+      "last_name": "Shakir",
+      "number": 10,
+      "position": "WR",
+      "status": "Active",
+      "team": "BUF",
+      "years_exp": 4
+    },
+    "8136": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Rachaad",
+      "injury_status": "Questionable",
+      "last_name": "White",
+      "number": 1,
+      "position": "RB",
+      "status": "Active",
+      "team": "WAS",
+      "years_exp": 4
+    },
+    "8137": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "George",
+      "injury_status": null,
+      "last_name": "Pickens",
+      "number": 3,
+      "position": "WR",
+      "status": "Active",
+      "team": "DAL",
+      "years_exp": 4
+    },
+    "8138": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "James",
+      "injury_status": null,
+      "last_name": "Cook",
+      "number": 4,
+      "position": "RB",
+      "status": "Active",
+      "team": "BUF",
+      "years_exp": 4
+    },
+    "8142": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Alec",
+      "injury_status": "PUP",
+      "last_name": "Pierce",
+      "number": 14,
+      "position": "WR",
+      "status": "Active",
+      "team": "IND",
+      "years_exp": 4
+    },
+    "8143": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Jerome",
+      "injury_status": "Questionable",
+      "last_name": "Ford",
+      "number": 34,
+      "position": "RB",
+      "status": "Inactive",
+      "team": "WAS",
+      "years_exp": 4
+    },
+    "8144": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Chris",
+      "injury_status": "Questionable",
+      "last_name": "Olave",
+      "number": 12,
+      "position": "WR",
+      "status": "Active",
+      "team": "NO",
+      "years_exp": 4
+    },
+    "8146": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Garrett",
+      "injury_status": null,
+      "last_name": "Wilson",
+      "number": 5,
+      "position": "WR",
+      "status": "Active",
+      "team": "NYJ",
+      "years_exp": 4
+    },
+    "8147": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "John",
+      "injury_status": null,
+      "last_name": "Metchie",
+      "number": 13,
+      "position": "WR",
+      "status": "Active",
+      "team": "CAR",
+      "years_exp": 4
+    },
+    "8148": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Jameson",
+      "injury_status": null,
+      "last_name": "Williams",
+      "number": 1,
+      "position": "WR",
+      "status": "Active",
+      "team": "DET",
+      "years_exp": 4
+    },
+    "8150": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Kyren",
+      "injury_status": null,
+      "last_name": "Williams",
+      "number": 23,
+      "position": "RB",
+      "status": "Active",
+      "team": "LAR",
+      "years_exp": 4
+    },
+    "8151": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Kenneth",
+      "injury_status": "Questionable",
+      "last_name": "Walker",
+      "number": 9,
+      "position": "RB",
+      "status": "Active",
+      "team": "KC",
+      "years_exp": 4
+    },
+    "8154": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Brian",
+      "injury_status": null,
+      "last_name": "Robinson",
+      "number": 15,
+      "position": "RB",
+      "status": "Active",
+      "team": "ATL",
+      "years_exp": 4
+    },
+    "8155": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Breece",
+      "injury_status": "Questionable",
+      "last_name": "Hall",
+      "number": 20,
+      "position": "RB",
+      "status": "Active",
+      "team": "NYJ",
+      "years_exp": 4
+    },
+    "8160": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Kenny",
+      "injury_status": null,
+      "last_name": "Pickett",
+      "number": 12,
+      "position": "QB",
+      "status": "Active",
+      "team": "CAR",
+      "years_exp": 4
+    },
+    "8161": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Malik",
+      "injury_status": null,
+      "last_name": "Willis",
+      "number": 2,
+      "position": "QB",
+      "status": "Active",
+      "team": "MIA",
+      "years_exp": 4
+    },
+    "8162": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Sam",
+      "injury_status": null,
+      "last_name": "Howell",
+      "number": 16,
+      "position": "QB",
+      "status": "Active",
+      "team": "DAL",
+      "years_exp": 4
+    },
+    "8167": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Christian",
+      "injury_status": null,
+      "last_name": "Watson",
+      "number": 9,
+      "position": "WR",
+      "status": "Active",
+      "team": "GB",
+      "years_exp": 4
+    },
+    "8180": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Jalen",
+      "injury_status": null,
+      "last_name": "Nailor",
+      "number": 9,
+      "position": "WR",
+      "status": "Active",
+      "team": "LV",
+      "years_exp": 4
+    },
+    "8183": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Brock",
+      "injury_status": null,
+      "last_name": "Purdy",
+      "number": 13,
+      "position": "QB",
+      "status": "Active",
+      "team": "SF",
+      "years_exp": 4
+    },
+    "8188": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Tyquan",
+      "injury_status": null,
+      "last_name": "Thornton",
+      "number": 2,
+      "position": "WR",
+      "status": "Active",
+      "team": "KC",
+      "years_exp": 4
+    },
+    "8205": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Isiah",
+      "injury_status": "Questionable",
+      "last_name": "Pacheco",
+      "number": 10,
+      "position": "RB",
+      "status": "Active",
+      "team": "DET",
+      "years_exp": 4
+    },
+    "8210": {
+      "fantasy_positions": [
+        "TE"
+      ],
+      "first_name": "Chig",
+      "injury_status": null,
+      "last_name": "Okonkwo",
+      "number": 85,
+      "position": "TE",
+      "status": "Active",
+      "team": "WAS",
+      "years_exp": 4
+    },
+    "8228": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Jaylen",
+      "injury_status": null,
+      "last_name": "Warren",
+      "number": 30,
+      "position": "RB",
+      "status": "Active",
+      "team": "PIT",
+      "years_exp": 4
+    },
+    "8230": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Ty",
+      "injury_status": "IR",
+      "last_name": "Chandler",
+      "number": 32,
+      "position": "RB",
+      "status": "Active",
+      "team": "NO",
+      "years_exp": 4
+    },
+    "829": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Andy",
+      "injury_status": null,
+      "last_name": "Dalton",
+      "number": 14,
+      "position": "QB",
+      "status": "Active",
+      "team": "PHI",
+      "years_exp": 15
+    },
+    "8408": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Jordan",
+      "injury_status": null,
+      "last_name": "Mason",
+      "number": 27,
+      "position": "RB",
+      "status": "Active",
+      "team": "MIN",
+      "years_exp": 4
+    },
+    "8413": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Chris",
+      "injury_status": null,
+      "last_name": "Oladokun",
+      "number": 19,
+      "position": "QB",
+      "status": "Active",
+      "team": "KC",
+      "years_exp": 4
+    },
+    "8676": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Rashid",
+      "injury_status": null,
+      "last_name": "Shaheed",
+      "number": 22,
+      "position": "WR",
+      "status": "Active",
+      "team": "SEA",
+      "years_exp": 4
+    },
+    "8698": {
+      "fantasy_positions": [
+        "TE"
+      ],
+      "first_name": "Jake",
+      "injury_status": null,
+      "last_name": "Tonges",
+      "number": 88,
+      "position": "TE",
+      "status": "Active",
+      "team": "SF",
+      "years_exp": 4
+    },
+    "8800": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Malik",
+      "injury_status": null,
+      "last_name": "Davis",
+      "number": 20,
+      "position": "RB",
+      "status": "Active",
+      "team": "DAL",
+      "years_exp": 4
+    },
+    "8917": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "KaVontae",
+      "injury_status": null,
+      "last_name": "Turpin",
+      "number": 9,
+      "position": "WR",
+      "status": "Active",
+      "team": "DAL",
+      "years_exp": 4
+    },
+    "9221": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Jahmyr",
+      "injury_status": null,
+      "last_name": "Gibbs",
+      "number": 0,
+      "position": "RB",
+      "status": "Active",
+      "team": "DET",
+      "years_exp": 3
+    },
+    "9224": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Chase",
+      "injury_status": null,
+      "last_name": "Brown",
+      "number": 30,
+      "position": "RB",
+      "status": "Active",
+      "team": "CIN",
+      "years_exp": 3
+    },
+    "9225": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Tank",
+      "injury_status": null,
+      "last_name": "Bigsby",
+      "number": 8,
+      "position": "RB",
+      "status": "Active",
+      "team": "PHI",
+      "years_exp": 3
+    },
+    "9226": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "De'Von",
+      "injury_status": null,
+      "last_name": "Achane",
+      "number": 28,
+      "position": "RB",
+      "status": "Active",
+      "team": "MIA",
+      "years_exp": 3
+    },
+    "9228": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Bryce",
+      "injury_status": null,
+      "last_name": "Young",
+      "number": 9,
+      "position": "QB",
+      "status": "Active",
+      "team": "CAR",
+      "years_exp": 3
+    },
+    "9229": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Anthony",
+      "injury_status": null,
+      "last_name": "Richardson",
+      "number": 5,
+      "position": "QB",
+      "status": "Active",
+      "team": "IND",
+      "years_exp": 3
+    },
+    "9480": {
+      "fantasy_positions": [
+        "TE"
+      ],
+      "first_name": "Brenton",
+      "injury_status": null,
+      "last_name": "Strange",
+      "number": 85,
+      "position": "TE",
+      "status": "Active",
+      "team": "JAX",
+      "years_exp": 3
+    },
+    "9481": {
+      "fantasy_positions": [
+        "TE"
+      ],
+      "first_name": "Luke",
+      "injury_status": "PUP",
+      "last_name": "Musgrave",
+      "number": 88,
+      "position": "TE",
+      "status": "Active",
+      "team": "GB",
+      "years_exp": 3
+    },
+    "9482": {
+      "fantasy_positions": [
+        "TE"
+      ],
+      "first_name": "Michael",
+      "injury_status": null,
+      "last_name": "Mayer",
+      "number": 87,
+      "position": "TE",
+      "status": "Active",
+      "team": "LV",
+      "years_exp": 3
+    },
+    "9484": {
+      "fantasy_positions": [
+        "TE"
+      ],
+      "first_name": "Tucker",
+      "injury_status": "Questionable",
+      "last_name": "Kraft",
+      "number": 85,
+      "position": "TE",
+      "status": "Active",
+      "team": "GB",
+      "years_exp": 3
+    },
+    "9486": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Dontayvion",
+      "injury_status": null,
+      "last_name": "Wicks",
+      "number": 13,
+      "position": "WR",
+      "status": "Active",
+      "team": "PHI",
+      "years_exp": 3
+    },
+    "9487": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Parker",
+      "injury_status": null,
+      "last_name": "Washington",
+      "number": 11,
+      "position": "WR",
+      "status": "Active",
+      "team": "JAX",
+      "years_exp": 3
+    },
+    "9488": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Jaxon",
+      "injury_status": null,
+      "last_name": "Smith-Njigba",
+      "number": 11,
+      "position": "WR",
+      "status": "Active",
+      "team": "SEA",
+      "years_exp": 3
+    },
+    "9493": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Puka",
+      "injury_status": "Questionable",
+      "last_name": "Nacua",
+      "number": 12,
+      "position": "WR",
+      "status": "Active",
+      "team": "LAR",
+      "years_exp": 3
+    },
+    "9494": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Marvin",
+      "injury_status": null,
+      "last_name": "Mims",
+      "number": 19,
+      "position": "WR",
+      "status": "Active",
+      "team": "DEN",
+      "years_exp": 3
+    },
+    "9500": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Josh",
+      "injury_status": "Questionable",
+      "last_name": "Downs",
+      "number": 2,
+      "position": "WR",
+      "status": "Active",
+      "team": "IND",
+      "years_exp": 3
+    },
+    "9501": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "DeMario",
+      "injury_status": null,
+      "last_name": "Douglas",
+      "number": 3,
+      "position": "WR",
+      "status": "Active",
+      "team": "NE",
+      "years_exp": 3
+    },
+    "9502": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Tank",
+      "injury_status": "Questionable",
+      "last_name": "Dell",
+      "number": 1,
+      "position": "WR",
+      "status": "Active",
+      "team": "HOU",
+      "years_exp": 3
+    },
+    "9504": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Kayshon",
+      "injury_status": null,
+      "last_name": "Boutte",
+      "number": 88,
+      "position": "WR",
+      "status": "Active",
+      "team": "HOU",
+      "years_exp": 3
+    },
+    "9505": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Deuce",
+      "injury_status": null,
+      "last_name": "Vaughn",
+      "number": 31,
+      "position": "RB",
+      "status": "Active",
+      "team": "HOU",
+      "years_exp": 3
+    },
+    "9506": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Sean",
+      "injury_status": null,
+      "last_name": "Tucker",
+      "number": 44,
+      "position": "RB",
+      "status": "Active",
+      "team": "TB",
+      "years_exp": 3
+    },
+    "9508": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Tyjae",
+      "injury_status": null,
+      "last_name": "Spears",
+      "number": 2,
+      "position": "RB",
+      "status": "Active",
+      "team": "TEN",
+      "years_exp": 3
+    },
+    "9509": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Bijan",
+      "injury_status": null,
+      "last_name": "Robinson",
+      "number": 7,
+      "position": "RB",
+      "status": "Active",
+      "team": "ATL",
+      "years_exp": 3
+    },
+    "9511": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Keaton",
+      "injury_status": "Questionable",
+      "last_name": "Mitchell",
+      "number": 34,
+      "position": "RB",
+      "status": "Active",
+      "team": "LAC",
+      "years_exp": 3
+    },
+    "96": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Aaron",
+      "injury_status": null,
+      "last_name": "Rodgers",
+      "number": 8,
+      "position": "QB",
+      "status": "Active",
+      "team": "PIT",
+      "years_exp": 21
+    },
+    "9753": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Zach",
+      "injury_status": "PUP",
+      "last_name": "Charbonnet",
+      "number": 26,
+      "position": "RB",
+      "status": "Active",
+      "team": "SEA",
+      "years_exp": 3
+    },
+    "9754": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Quentin",
+      "injury_status": "Questionable",
+      "last_name": "Johnston",
+      "number": 1,
+      "position": "WR",
+      "status": "Active",
+      "team": "LAC",
+      "years_exp": 3
+    },
+    "9756": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Jordan",
+      "injury_status": null,
+      "last_name": "Addison",
+      "number": 3,
+      "position": "WR",
+      "status": "Active",
+      "team": "MIN",
+      "years_exp": 3
+    },
+    "9757": {
+      "fantasy_positions": [
+        "RB"
+      ],
+      "first_name": "Kendre",
+      "injury_status": null,
+      "last_name": "Miller",
+      "number": 5,
+      "position": "RB",
+      "status": "Active",
+      "team": "NO",
+      "years_exp": 3
+    },
+    "9758": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "C.J.",
+      "injury_status": null,
+      "last_name": "Stroud",
+      "number": 7,
+      "position": "QB",
+      "status": "Active",
+      "team": "HOU",
+      "years_exp": 3
+    },
+    "9997": {
+      "fantasy_positions": [
+        "WR"
+      ],
+      "first_name": "Zay",
+      "injury_status": null,
+      "last_name": "Flowers",
+      "number": 4,
+      "position": "WR",
+      "status": "Active",
+      "team": "BAL",
+      "years_exp": 3
+    },
+    "9999": {
+      "fantasy_positions": [
+        "QB"
+      ],
+      "first_name": "Will",
+      "injury_status": null,
+      "last_name": "Levis",
+      "number": 8,
+      "position": "QB",
+      "status": "Active",
+      "team": "TEN",
+      "years_exp": 3
+    }
+  },
+  "rosters": [
+    {
+      "co_owners": null,
+      "keepers": null,
+      "league_id": "id_rq867j4w7p",
+      "metadata": {
+        "record": "WLWWLWWLWWLWWW",
+        "streak": "3W"
+      },
+      "owner_id": "id_s9a3queopr",
+      "player_map": null,
+      "players": [
+        "11564",
+        "11565",
+        "11576",
+        "11596",
+        "11630",
+        "11783",
+        "12457",
+        "12495",
+        "12518",
+        "12534",
+        "12542",
+        "12544",
+        "12670",
+        "2306",
+        "2307",
+        "3198",
+        "4993",
+        "6904",
+        "7526",
+        "8112",
+        "8138",
+        "8917",
+        "9226",
+        "9480",
+        "9488",
+        "9511",
+        "9753",
+        "9754",
+        "9756",
+        "9997"
+      ],
+      "reserve": [
+        "11576"
+      ],
+      "roster_id": 1,
+      "settings": {
+        "division": 3,
+        "fpts": 2766,
+        "fpts_against": 2235,
+        "fpts_against_decimal": 65,
+        "fpts_decimal": 12,
+        "losses": 4,
+        "ppts": 3051,
+        "ppts_decimal": 1,
+        "ties": 0,
+        "total_moves": 0,
+        "waiver_budget_used": 49,
+        "waiver_position": 9,
+        "wins": 10
+      },
+      "starters": [
+        "6904",
+        "11564",
+        "3198",
+        "8138",
+        "9488",
+        "9997",
+        "9480",
+        "9754",
+        "7526",
+        "8112",
+        "9226"
+      ],
+      "taxi": [
+        "11596",
+        "12457",
+        "12495",
+        "12542",
+        "12544",
+        "12670"
+      ]
+    },
+    {
+      "co_owners": null,
+      "keepers": null,
+      "league_id": "id_rq867j4w7p",
+      "metadata": {
+        "record": "WWWWWWWLWWWWWW",
+        "streak": "6W"
+      },
+      "owner_id": "id_jdetw9pdax",
+      "player_map": null,
+      "players": [
+        "11068",
+        "11560",
+        "11588",
+        "11603",
+        "11616",
+        "11623",
+        "11632",
+        "11643",
+        "12506",
+        "12527",
+        "12535",
+        "12541",
+        "12543",
+        "1837",
+        "2216",
+        "331",
+        "4035",
+        "421",
+        "5859",
+        "6865",
+        "7553",
+        "7564",
+        "7607",
+        "8132",
+        "8137",
+        "8148",
+        "8698",
+        "9221",
+        "9229",
+        "9493"
+      ],
+      "reserve": [
+        "11616",
+        "11632",
+        "9229"
+      ],
+      "roster_id": 2,
+      "settings": {
+        "division": 2,
+        "fpts": 2869,
+        "fpts_against": 2285,
+        "fpts_against_decimal": 54,
+        "fpts_decimal": 88,
+        "losses": 1,
+        "ppts": 3302,
+        "ppts_decimal": 99,
+        "ties": 0,
+        "total_moves": 0,
+        "waiver_budget_used": 100,
+        "waiver_position": 12,
+        "wins": 13
+      },
+      "starters": [
+        "11560",
+        "421",
+        "9221",
+        "12527",
+        "7564",
+        "9493",
+        "7553",
+        "8137",
+        "8148",
+        "5859",
+        "2216"
+      ],
+      "taxi": [
+        "11623",
+        "11643",
+        "12535",
+        "12543"
+      ]
+    },
+    {
+      "co_owners": null,
+      "keepers": null,
+      "league_id": "id_rq867j4w7p",
+      "metadata": {
+        "record": "WLWWWLWWLWWLLW",
+        "streak": "1W"
+      },
+      "owner_id": "id_buffkdafoj",
+      "player_map": null,
+      "players": [
+        "10232",
+        "11581",
+        "11592",
+        "11629",
+        "11637",
+        "11650",
+        "12469",
+        "12473",
+        "12485",
+        "12508",
+        "2749",
+        "4098",
+        "4177",
+        "4217",
+        "4881",
+        "4943",
+        "5012",
+        "5045",
+        "5872",
+        "5906",
+        "6039",
+        "6149",
+        "6790",
+        "6813",
+        "7569",
+        "9481",
+        "96",
+        "9757"
+      ],
+      "reserve": [
+        "11650"
+      ],
+      "roster_id": 3,
+      "settings": {
+        "division": 1,
+        "fpts": 2479,
+        "fpts_against": 2251,
+        "fpts_against_decimal": 85,
+        "fpts_decimal": 21,
+        "losses": 5,
+        "ppts": 3027,
+        "ppts_decimal": 58,
+        "ties": 0,
+        "total_moves": 0,
+        "waiver_budget_used": 0,
+        "waiver_position": 3,
+        "wins": 9
+      },
+      "starters": [
+        "4943",
+        "4881",
+        "4098",
+        "6813",
+        "5045",
+        "10232",
+        "4217",
+        "6039",
+        "9481",
+        "5872",
+        "7569"
+      ],
+      "taxi": [
+        "11592",
+        "11629",
+        "12473",
+        "12485"
+      ]
+    },
+    {
+      "co_owners": null,
+      "keepers": null,
+      "league_id": "id_rq867j4w7p",
+      "metadata": {
+        "record": "LLLWLLLWWWWWWL",
+        "streak": "1L"
+      },
+      "owner_id": "id_zean76kf4f",
+      "player_map": null,
+      "players": [
+        "10229",
+        "11435",
+        "11597",
+        "11610",
+        "11645",
+        "12486",
+        "12496",
+        "12501",
+        "12521",
+        "12531",
+        "12538",
+        "2133",
+        "4040",
+        "4066",
+        "4950",
+        "5850",
+        "5995",
+        "6768",
+        "6770",
+        "6804",
+        "6806",
+        "7049",
+        "7547",
+        "7562",
+        "7670",
+        "8126",
+        "8408",
+        "8413",
+        "9224",
+        "9501"
+      ],
+      "reserve": [
+        "10229",
+        "5995",
+        "6806"
+      ],
+      "roster_id": 4,
+      "settings": {
+        "division": 1,
+        "fpts": 2384,
+        "fpts_against": 2185,
+        "fpts_against_decimal": 18,
+        "fpts_decimal": 73,
+        "losses": 7,
+        "ppts": 2769,
+        "ppts_decimal": 24,
+        "ties": 0,
+        "total_moves": 0,
+        "waiver_budget_used": 0,
+        "waiver_position": 11,
+        "wins": 7
+      },
+      "starters": [
+        "6770",
+        "12538",
+        "9224",
+        "5850",
+        "7049",
+        "7547",
+        "11597",
+        "4066",
+        "11435",
+        "8126",
+        "11610"
+      ],
+      "taxi": [
+        "11645",
+        "12496",
+        "12501",
+        "12521",
+        "12531"
+      ]
+    },
+    {
+      "co_owners": null,
+      "keepers": null,
+      "league_id": "id_rq867j4w7p",
+      "metadata": {
+        "record": "WWWLLWLWWLWLWW",
+        "streak": "2W"
+      },
+      "owner_id": "id_22ay41b2dk",
+      "player_map": null,
+      "players": [
+        "10222",
+        "11199",
+        "11557",
+        "11569",
+        "11583",
+        "11617",
+        "12455",
+        "12474",
+        "12476",
+        "12494",
+        "12526",
+        "1373",
+        "1426",
+        "2374",
+        "3294",
+        "4199",
+        "5844",
+        "5848",
+        "6786",
+        "6801",
+        "6803",
+        "7523",
+        "8131",
+        "8136",
+        "8146",
+        "8228",
+        "829",
+        "9225",
+        "9484",
+        "9508"
+      ],
+      "reserve": [
+        "11583",
+        "6803",
+        "8146",
+        "9484"
+      ],
+      "roster_id": 5,
+      "settings": {
+        "division": 1,
+        "fpts": 2228,
+        "fpts_against": 2298,
+        "fpts_against_decimal": 85,
+        "fpts_decimal": 85,
+        "losses": 5,
+        "ppts": 2515,
+        "ppts_decimal": 71,
+        "ties": 0,
+        "total_moves": 0,
+        "waiver_budget_used": 100,
+        "waiver_position": 6,
+        "wins": 9
+      },
+      "starters": [
+        "3294",
+        "7523",
+        "12474",
+        "8228",
+        "6786",
+        "6801",
+        "8131",
+        "12526",
+        "10222",
+        "4199",
+        "5848"
+      ],
+      "taxi": [
+        "11569",
+        "11617",
+        "12455",
+        "12494"
+      ]
+    },
+    {
+      "co_owners": null,
+      "keepers": null,
+      "league_id": "id_rq867j4w7p",
+      "metadata": {
+        "record": "LLLWWLWWWLLLLL",
+        "streak": "5L"
+      },
+      "owner_id": "id_zxb3twnxx0",
+      "player_map": null,
+      "players": [
+        "10444",
+        "11563",
+        "11571",
+        "11595",
+        "11604",
+        "11625",
+        "11628",
+        "11646",
+        "12482",
+        "12497",
+        "12498",
+        "12507",
+        "12523",
+        "12530",
+        "12539",
+        "4219",
+        "4983",
+        "4988",
+        "6111",
+        "6819",
+        "7528",
+        "7538",
+        "7587",
+        "7591",
+        "8121",
+        "8144",
+        "8147",
+        "8155",
+        "8230",
+        "9482",
+        "9758"
+      ],
+      "reserve": [
+        "12497",
+        "12530",
+        "7528",
+        "8230"
+      ],
+      "roster_id": 6,
+      "settings": {
+        "division": 2,
+        "fpts": 2112,
+        "fpts_against": 2506,
+        "fpts_against_decimal": 41,
+        "fpts_decimal": 20,
+        "losses": 9,
+        "ppts": 2444,
+        "ppts_decimal": 64,
+        "ties": 0,
+        "total_moves": 0,
+        "waiver_budget_used": 100,
+        "waiver_position": 7,
+        "wins": 5
+      },
+      "starters": [
+        "9758",
+        "11563",
+        "8155",
+        "12507",
+        "4983",
+        "11625",
+        "11604",
+        "6819",
+        "11628",
+        "8144",
+        "8121"
+      ],
+      "taxi": [
+        "11595",
+        "11646",
+        "12482",
+        "12523",
+        "12539"
+      ]
+    },
+    {
+      "co_owners": null,
+      "keepers": null,
+      "league_id": "id_rq867j4w7p",
+      "metadata": {
+        "record": "LWLLLLWLLLWLWW",
+        "streak": "2W"
+      },
+      "owner_id": "id_c5g5oj0jn6",
+      "player_map": null,
+      "players": [
+        "10226",
+        "11439",
+        "11575",
+        "11605",
+        "11620",
+        "11624",
+        "12489",
+        "12493",
+        "12505",
+        "12511",
+        "12529",
+        "12641",
+        "12969",
+        "1339",
+        "2449",
+        "3161",
+        "3257",
+        "3286",
+        "4037",
+        "4137",
+        "4381",
+        "4984",
+        "5849",
+        "5870",
+        "5947",
+        "5967",
+        "6271",
+        "6783",
+        "7090",
+        "7611",
+        "8130",
+        "8188"
+      ],
+      "reserve": [
+        "12969",
+        "3161",
+        "4137",
+        "5849"
+      ],
+      "roster_id": 7,
+      "settings": {
+        "division": 2,
+        "fpts": 2122,
+        "fpts_against": 2387,
+        "fpts_against_decimal": 78,
+        "fpts_decimal": 57,
+        "losses": 9,
+        "ppts": 2838,
+        "ppts_decimal": 1,
+        "ties": 0,
+        "total_moves": 0,
+        "waiver_budget_used": 32,
+        "waiver_position": 5,
+        "wins": 5
+      },
+      "starters": [
+        "4984",
+        "3257",
+        "5967",
+        "12489",
+        "11620",
+        "2449",
+        "8130",
+        "5947",
+        "7090",
+        "12493",
+        "11624"
+      ],
+      "taxi": [
+        "11575",
+        "11605",
+        "12505",
+        "12529",
+        "12641"
+      ]
+    },
+    {
+      "co_owners": null,
+      "keepers": null,
+      "league_id": "id_rq867j4w7p",
+      "metadata": {
+        "record": "LLWLWWLLLWLLWL",
+        "streak": "1L"
+      },
+      "owner_id": "id_roh4pg10wg",
+      "player_map": null,
+      "players": [
+        "10859",
+        "11559",
+        "11566",
+        "11600",
+        "11638",
+        "11647",
+        "1166",
+        "12467",
+        "12490",
+        "12499",
+        "12512",
+        "12514",
+        "12516",
+        "12517",
+        "12533",
+        "12536",
+        "12738",
+        "2197",
+        "8134",
+        "8143",
+        "8151",
+        "8162",
+        "8180",
+        "8210",
+        "8676",
+        "8800",
+        "9506",
+        "9999"
+      ],
+      "reserve": [
+        "10859",
+        "11559",
+        "8143",
+        "9999"
+      ],
+      "roster_id": 8,
+      "settings": {
+        "division": 3,
+        "fpts": 2268,
+        "fpts_against": 2479,
+        "fpts_against_decimal": 58,
+        "fpts_decimal": 16,
+        "losses": 9,
+        "ppts": 2698,
+        "ppts_decimal": 77,
+        "ties": 0,
+        "total_moves": 0,
+        "waiver_budget_used": 60,
+        "waiver_position": 10,
+        "wins": 5
+      },
+      "starters": [
+        "8162",
+        "1166",
+        "8151",
+        "12533",
+        "8134",
+        "12514",
+        "12517",
+        "8676",
+        "11638",
+        "12499",
+        "11600"
+      ],
+      "taxi": [
+        "12467",
+        "12490",
+        "12516",
+        "12536",
+        "12738"
+      ]
+    },
+    {
+      "co_owners": null,
+      "keepers": null,
+      "league_id": "id_rq867j4w7p",
+      "metadata": {
+        "record": "WLWLWWWWLLLWLL",
+        "streak": "2L"
+      },
+      "owner_id": "id_1ugx9qsbx3",
+      "player_map": null,
+      "players": [
+        "10213",
+        "11577",
+        "11635",
+        "11655",
+        "12483",
+        "12487",
+        "12492",
+        "12540",
+        "12547",
+        "12866",
+        "2505",
+        "3214",
+        "3271",
+        "4017",
+        "4034",
+        "4046",
+        "4866",
+        "5001",
+        "5846",
+        "5892",
+        "6011",
+        "6151",
+        "6797",
+        "7021",
+        "7588",
+        "7610",
+        "7828",
+        "8160",
+        "8161",
+        "8167",
+        "9500",
+        "9502"
+      ],
+      "reserve": [
+        "3271",
+        "4017",
+        "6151",
+        "9502"
+      ],
+      "roster_id": 9,
+      "settings": {
+        "division": 2,
+        "fpts": 2655,
+        "fpts_against": 2370,
+        "fpts_against_decimal": 7,
+        "fpts_decimal": 72,
+        "losses": 7,
+        "ppts": 3119,
+        "ppts_decimal": 99,
+        "ties": 0,
+        "total_moves": 0,
+        "waiver_budget_used": 44,
+        "waiver_position": 2,
+        "wins": 7
+      },
+      "starters": [
+        "6011",
+        "6797",
+        "4034",
+        "4866",
+        "11635",
+        "5846",
+        "3214",
+        "7588",
+        "7021",
+        "11655",
+        "8167"
+      ],
+      "taxi": [
+        "12483",
+        "12487",
+        "12492",
+        "12547",
+        "12866"
+      ]
+    },
+    {
+      "co_owners": null,
+      "keepers": null,
+      "league_id": "id_rq867j4w7p",
+      "metadata": {
+        "record": "WWLLLLLWLLLWLL",
+        "streak": "2L"
+      },
+      "owner_id": "id_4upj3szyrw",
+      "player_map": null,
+      "players": [
+        "10219",
+        "11579",
+        "11619",
+        "11626",
+        "1234",
+        "12481",
+        "12500",
+        "12515",
+        "12545",
+        "19",
+        "4033",
+        "4144",
+        "4234",
+        "4892",
+        "4981",
+        "5185",
+        "5857",
+        "5927",
+        "6794",
+        "7594",
+        "7600",
+        "8142",
+        "9494",
+        "9504",
+        "9505",
+        "9509"
+      ],
+      "reserve": [
+        "11619",
+        "12481"
+      ],
+      "roster_id": 10,
+      "settings": {
+        "division": 3,
+        "fpts": 2165,
+        "fpts_against": 2387,
+        "fpts_against_decimal": 89,
+        "fpts_decimal": 80,
+        "losses": 10,
+        "ppts": 2502,
+        "ppts_decimal": 74,
+        "ties": 0,
+        "total_moves": 0,
+        "waiver_budget_used": -30,
+        "waiver_position": 1,
+        "wins": 4
+      },
+      "starters": [
+        "12545",
+        "4892",
+        "9509",
+        "7594",
+        "6794",
+        "5927",
+        "7600",
+        "8142",
+        "9494",
+        "11579",
+        "11626"
+      ],
+      "taxi": [
+        "12500",
+        "12515"
+      ]
+    },
+    {
+      "co_owners": null,
+      "keepers": null,
+      "league_id": "id_rq867j4w7p",
+      "metadata": {
+        "record": "LWLWLLLLLLWWLL",
+        "streak": "2L"
+      },
+      "owner_id": "id_w2l1zlh55w",
+      "player_map": null,
+      "players": [
+        "10236",
+        "10866",
+        "11562",
+        "11584",
+        "11586",
+        "11631",
+        "11729",
+        "11834",
+        "12478",
+        "12503",
+        "12504",
+        "12510",
+        "12519",
+        "12520",
+        "6826",
+        "7525",
+        "7527",
+        "7543",
+        "7567",
+        "8110",
+        "8111",
+        "8129",
+        "8154",
+        "8183",
+        "9228",
+        "9486",
+        "9487"
+      ],
+      "reserve": null,
+      "roster_id": 11,
+      "settings": {
+        "division": 1,
+        "fpts": 2075,
+        "fpts_against": 2534,
+        "fpts_against_decimal": 55,
+        "fpts_decimal": 90,
+        "losses": 10,
+        "ppts": 2383,
+        "ppts_decimal": 60,
+        "ties": 0,
+        "total_moves": 0,
+        "waiver_budget_used": 12,
+        "waiver_position": 4,
+        "wins": 4
+      },
+      "starters": [
+        "9228",
+        "8183",
+        "7567",
+        "7543",
+        "11631",
+        "7525",
+        "8110",
+        "9487",
+        "11586",
+        "11584",
+        "12519"
+      ],
+      "taxi": [
+        "12478",
+        "12504",
+        "12510",
+        "12520"
+      ]
+    },
+    {
+      "co_owners": null,
+      "keepers": null,
+      "league_id": "id_rq867j4w7p",
+      "metadata": {
+        "record": "LWLLWWLLWWLLLW",
+        "streak": "1W"
+      },
+      "owner_id": "id_zwi3yzjvgq",
+      "player_map": null,
+      "players": [
+        "11589",
+        "11618",
+        "11627",
+        "11651",
+        "12471",
+        "12484",
+        "12502",
+        "12509",
+        "12522",
+        "12524",
+        "1466",
+        "1479",
+        "1689",
+        "3163",
+        "3321",
+        "4018",
+        "4039",
+        "4147",
+        "4454",
+        "4663",
+        "5022",
+        "6130",
+        "7002",
+        "7571",
+        "7694",
+        "8123",
+        "8125",
+        "8150",
+        "8205"
+      ],
+      "reserve": [
+        "11589",
+        "3321",
+        "4018",
+        "4663"
+      ],
+      "roster_id": 12,
+      "settings": {
+        "division": 3,
+        "fpts": 1888,
+        "fpts_against": 2094,
+        "fpts_against_decimal": 53,
+        "fpts_decimal": 74,
+        "losses": 8,
+        "ppts": 2219,
+        "ppts_decimal": 30,
+        "ties": 0,
+        "total_moves": 0,
+        "waiver_budget_used": 42,
+        "waiver_position": 8,
+        "wins": 6
+      },
+      "starters": [
+        "12522",
+        "3163",
+        "8150",
+        "4147",
+        "4039",
+        "1479",
+        "1466",
+        "7002",
+        "12484",
+        "5022",
+        "11627"
+      ],
+      "taxi": [
+        "12471",
+        "12502",
+        "12509",
+        "12524"
+      ]
+    }
+  ],
+  "traded_picks": [
+    {
+      "owner_id": 11,
+      "previous_owner_id": 1,
+      "roster_id": 1,
+      "round": 1,
+      "season": "2025"
+    },
+    {
+      "owner_id": 8,
+      "previous_owner_id": 1,
+      "roster_id": 1,
+      "round": 2,
+      "season": "2025"
+    },
+    {
+      "owner_id": 4,
+      "previous_owner_id": 1,
+      "roster_id": 1,
+      "round": 3,
+      "season": "2025"
+    },
+    {
+      "owner_id": 8,
+      "previous_owner_id": 1,
+      "roster_id": 1,
+      "round": 4,
+      "season": "2025"
+    },
+    {
+      "owner_id": 8,
+      "previous_owner_id": 1,
+      "roster_id": 1,
+      "round": 1,
+      "season": "2026"
+    },
+    {
+      "owner_id": 10,
+      "previous_owner_id": 1,
+      "roster_id": 1,
+      "round": 2,
+      "season": "2026"
+    },
+    {
+      "owner_id": 8,
+      "previous_owner_id": 10,
+      "roster_id": 1,
+      "round": 3,
+      "season": "2026"
+    },
+    {
+      "owner_id": 10,
+      "previous_owner_id": 1,
+      "roster_id": 1,
+      "round": 5,
+      "season": "2026"
+    },
+    {
+      "owner_id": 8,
+      "previous_owner_id": 1,
+      "roster_id": 1,
+      "round": 1,
+      "season": "2027"
+    },
+    {
+      "owner_id": 10,
+      "previous_owner_id": 1,
+      "roster_id": 1,
+      "round": 2,
+      "season": "2027"
+    },
+    {
+      "owner_id": 7,
+      "previous_owner_id": 2,
+      "roster_id": 2,
+      "round": 1,
+      "season": "2025"
+    },
+    {
+      "owner_id": 9,
+      "previous_owner_id": 2,
+      "roster_id": 2,
+      "round": 2,
+      "season": "2025"
+    },
+    {
+      "owner_id": 11,
+      "previous_owner_id": 2,
+      "roster_id": 2,
+      "round": 1,
+      "season": "2026"
+    },
+    {
+      "owner_id": 7,
+      "previous_owner_id": 2,
+      "roster_id": 2,
+      "round": 2,
+      "season": "2026"
+    },
+    {
+      "owner_id": 11,
+      "previous_owner_id": 2,
+      "roster_id": 2,
+      "round": 3,
+      "season": "2026"
+    },
+    {
+      "owner_id": 11,
+      "previous_owner_id": 2,
+      "roster_id": 2,
+      "round": 4,
+      "season": "2026"
+    },
+    {
+      "owner_id": 7,
+      "previous_owner_id": 2,
+      "roster_id": 2,
+      "round": 1,
+      "season": "2027"
+    },
+    {
+      "owner_id": 8,
+      "previous_owner_id": 1,
+      "roster_id": 2,
+      "round": 2,
+      "season": "2027"
+    },
+    {
+      "owner_id": 4,
+      "previous_owner_id": 2,
+      "roster_id": 2,
+      "round": 3,
+      "season": "2027"
+    },
+    {
+      "owner_id": 11,
+      "previous_owner_id": 2,
+      "roster_id": 2,
+      "round": 4,
+      "season": "2027"
+    },
+    {
+      "owner_id": 11,
+      "previous_owner_id": 2,
+      "roster_id": 2,
+      "round": 1,
+      "season": "2028"
+    },
+    {
+      "owner_id": 11,
+      "previous_owner_id": 1,
+      "roster_id": 3,
+      "round": 2,
+      "season": "2025"
+    },
+    {
+      "owner_id": 2,
+      "previous_owner_id": 3,
+      "roster_id": 3,
+      "round": 4,
+      "season": "2025"
+    },
+    {
+      "owner_id": 8,
+      "previous_owner_id": 1,
+      "roster_id": 4,
+      "round": 2,
+      "season": "2025"
+    },
+    {
+      "owner_id": 2,
+      "previous_owner_id": 4,
+      "roster_id": 4,
+      "round": 4,
+      "season": "2025"
+    },
+    {
+      "owner_id": 10,
+      "previous_owner_id": 2,
+      "roster_id": 4,
+      "round": 4,
+      "season": "2026"
+    },
+    {
+      "owner_id": 8,
+      "previous_owner_id": 1,
+      "roster_id": 4,
+      "round": 1,
+      "season": "2027"
+    },
+    {
+      "owner_id": 1,
+      "previous_owner_id": 5,
+      "roster_id": 5,
+      "round": 2,
+      "season": "2025"
+    },
+    {
+      "owner_id": 8,
+      "previous_owner_id": 5,
+      "roster_id": 5,
+      "round": 5,
+      "season": "2025"
+    },
+    {
+      "owner_id": 12,
+      "previous_owner_id": 5,
+      "roster_id": 5,
+      "round": 1,
+      "season": "2026"
+    },
+    {
+      "owner_id": 7,
+      "previous_owner_id": 5,
+      "roster_id": 5,
+      "round": 2,
+      "season": "2026"
+    },
+    {
+      "owner_id": 12,
+      "previous_owner_id": 5,
+      "roster_id": 5,
+      "round": 3,
+      "season": "2026"
+    },
+    {
+      "owner_id": 9,
+      "previous_owner_id": 2,
+      "roster_id": 5,
+      "round": 3,
+      "season": "2027"
+    },
+    {
+      "owner_id": 5,
+      "previous_owner_id": 6,
+      "roster_id": 6,
+      "round": 2,
+      "season": "2025"
+    },
+    {
+      "owner_id": 7,
+      "previous_owner_id": 2,
+      "roster_id": 6,
+      "round": 3,
+      "season": "2026"
+    },
+    {
+      "owner_id": 2,
+      "previous_owner_id": 7,
+      "roster_id": 7,
+      "round": 4,
+      "season": "2025"
+    },
+    {
+      "owner_id": 7,
+      "previous_owner_id": 2,
+      "roster_id": 7,
+      "round": 3,
+      "season": "2027"
+    },
+    {
+      "owner_id": 6,
+      "previous_owner_id": 8,
+      "roster_id": 8,
+      "round": 1,
+      "season": "2025"
+    },
+    {
+      "owner_id": 5,
+      "previous_owner_id": 8,
+      "roster_id": 8,
+      "round": 4,
+      "season": "2026"
+    },
+    {
+      "owner_id": 8,
+      "previous_owner_id": 9,
+      "roster_id": 9,
+      "round": 1,
+      "season": "2025"
+    },
+    {
+      "owner_id": 2,
+      "previous_owner_id": 9,
+      "roster_id": 9,
+      "round": 4,
+      "season": "2025"
+    },
+    {
+      "owner_id": 2,
+      "previous_owner_id": 9,
+      "roster_id": 9,
+      "round": 5,
+      "season": "2025"
+    },
+    {
+      "owner_id": 2,
+      "previous_owner_id": 9,
+      "roster_id": 9,
+      "round": 5,
+      "season": "2026"
+    },
+    {
+      "owner_id": 10,
+      "previous_owner_id": 1,
+      "roster_id": 9,
+      "round": 1,
+      "season": "2027"
+    },
+    {
+      "owner_id": 8,
+      "previous_owner_id": 10,
+      "roster_id": 10,
+      "round": 1,
+      "season": "2025"
+    },
+    {
+      "owner_id": 1,
+      "previous_owner_id": 10,
+      "roster_id": 10,
+      "round": 3,
+      "season": "2025"
+    },
+    {
+      "owner_id": 2,
+      "previous_owner_id": 10,
+      "roster_id": 10,
+      "round": 4,
+      "season": "2025"
+    },
+    {
+      "owner_id": 8,
+      "previous_owner_id": 10,
+      "roster_id": 10,
+      "round": 2,
+      "season": "2026"
+    },
+    {
+      "owner_id": 10,
+      "previous_owner_id": 2,
+      "roster_id": 10,
+      "round": 3,
+      "season": "2026"
+    },
+    {
+      "owner_id": 8,
+      "previous_owner_id": 10,
+      "roster_id": 10,
+      "round": 4,
+      "season": "2026"
+    },
+    {
+      "owner_id": 2,
+      "previous_owner_id": 11,
+      "roster_id": 11,
+      "round": 1,
+      "season": "2025"
+    },
+    {
+      "owner_id": 1,
+      "previous_owner_id": 11,
+      "roster_id": 11,
+      "round": 3,
+      "season": "2025"
+    },
+    {
+      "owner_id": 2,
+      "previous_owner_id": 11,
+      "roster_id": 11,
+      "round": 4,
+      "season": "2025"
+    },
+    {
+      "owner_id": 5,
+      "previous_owner_id": 2,
+      "roster_id": 11,
+      "round": 3,
+      "season": "2026"
+    }
+  ],
+  "transactions": {},
+  "users": [
+    {
+      "display_name": "Pull-Guard Pumas",
+      "is_bot": false,
+      "is_owner": false,
+      "league_id": "id_rq867j4w7p",
+      "metadata": {
+        "team_name": "Two Minute Drill"
+      },
+      "user_id": "id_jdetw9pdax"
+    },
+    {
+      "display_name": "Blitz Alpacas",
+      "is_bot": false,
+      "is_owner": false,
+      "league_id": "id_rq867j4w7p",
+      "metadata": {
+        "team_name": "Kneel-Down Koalas"
+      },
+      "user_id": "id_c5g5oj0jn6"
+    },
+    {
+      "display_name": "Fair-Catch Ferrets",
+      "is_bot": false,
+      "is_owner": false,
+      "league_id": "id_rq867j4w7p",
+      "metadata": {
+        "team_name": "Bubble-Screen Bobcats"
+      },
+      "user_id": "id_w2l1zlh55w"
+    },
+    {
+      "display_name": "Long-Snap Lynx",
+      "is_bot": false,
+      "is_owner": false,
+      "league_id": "id_rq867j4w7p",
+      "metadata": {
+        "team_name": "No-Huddle Narwhals"
+      },
+      "user_id": "id_1ugx9qsbx3"
+    },
+    {
+      "display_name": "Field-Goal Foxes",
+      "is_bot": false,
+      "is_owner": false,
+      "league_id": "id_rq867j4w7p",
+      "metadata": {
+        "team_name": "Overtime Otters"
+      },
+      "user_id": "id_zxb3twnxx0"
+    },
+    {
+      "display_name": "Goal-Line Gazelles",
+      "is_bot": false,
+      "is_owner": true,
+      "league_id": "id_rq867j4w7p",
+      "metadata": {
+        "team_name": "Flea Flicker Union"
+      },
+      "user_id": "id_s9a3queopr"
+    },
+    {
+      "display_name": "Coverage Capybaras",
+      "is_bot": false,
+      "is_owner": false,
+      "league_id": "id_rq867j4w7p",
+      "metadata": {
+        "team_name": "Backpedal Buffalo"
+      },
+      "user_id": "id_buffkdafoj"
+    },
+    {
+      "display_name": "Iron-Range Ibex",
+      "is_bot": false,
+      "is_owner": null,
+      "league_id": "id_rq867j4w7p",
+      "metadata": {
+        "team_name": "Nickel Newts"
+      },
+      "user_id": "id_22ay41b2dk"
+    },
+    {
+      "display_name": "End-Around Egrets",
+      "is_bot": false,
+      "is_owner": false,
+      "league_id": "id_rq867j4w7p",
+      "metadata": {
+        "team_name": "Chip-Block Chinchillas"
+      },
+      "user_id": "id_zean76kf4f"
+    },
+    {
+      "display_name": "Gridiron Gophers",
+      "is_bot": false,
+      "is_owner": false,
+      "league_id": "id_rq867j4w7p",
+      "metadata": {
+        "team_name": "Screen Pass Syndicate"
+      },
+      "user_id": "id_roh4pg10wg"
+    },
+    {
+      "display_name": "Man-Coverage Meerkats",
+      "is_bot": false,
+      "is_owner": false,
+      "league_id": "id_rq867j4w7p",
+      "metadata": {
+        "team_name": "Stiff-Arm Stags"
+      },
+      "user_id": "id_4upj3szyrw"
+    },
+    {
+      "display_name": "Play-Action Pandas",
+      "is_bot": false,
+      "is_owner": false,
+      "league_id": "id_rq867j4w7p",
+      "metadata": {
+        "team_name": "Yardage Yaks"
+      },
+      "user_id": "id_zwi3yzjvgq"
+    }
+  ],
+  "winners_bracket": []
+}
