@@ -107,6 +107,85 @@ def _top_level_permissions(text: str) -> tuple[bool, str]:
     return False, ""
 
 
+def _permissions_blocks(text: str) -> list[tuple[str, str]]:
+    """``(label, body)`` for **every** ``permissions:`` key at any indent -- ``label`` is
+    ``"top-level"`` (column 0) or ``"job-level"`` (indented, e.g. under ``jobs.<id>:``).
+    ``body`` is the inline value or the space-joined nested entries.
+
+    retro A1(a): ``_top_level_permissions`` anchors ``^permissions:`` at column 0, so a
+    job-level block was literally unmatchable -- yet GitHub merges top-level and job-level
+    ``permissions:`` and a job block overrides. This closes that bypass by scanning both.
+    """
+    lines = text.splitlines()
+    blocks: list[tuple[str, str]] = []
+    for i, ln in enumerate(lines):
+        m = re.match(r"^(\s*)permissions:\s*(.*?)\s*(?:#.*)?$", ln)
+        if not m:
+            continue
+        indent = len(m.group(1))
+        label = "top-level" if indent == 0 else "job-level"
+        inline = m.group(2).strip()
+        # P1: an inline value that is a block scalar (``|`` / ``>``), a YAML ``&anchor``,
+        # or an unclosed flow map (``{`` without its ``}``) continues onto the indented
+        # lines below -- take BOTH so a ``contents: write`` on the next line is not missed.
+        continues_below = bool(inline) and (
+            inline[0] in "|>&" or inline.count("{") > inline.count("}")
+        )
+        if inline and not continues_below:
+            blocks.append((label, inline))
+            continue
+        body: list[str] = [inline] if inline else []
+        for sub in lines[i + 1:]:
+            if not sub.strip() or sub.lstrip().startswith("#"):
+                continue
+            if len(sub) - len(sub.lstrip()) <= indent:  # dedent to <= key indent ends it
+                break
+            body.append(sub.strip())
+        blocks.append((label, " ".join(body)))
+    return blocks
+
+
+def _least_privilege_violations(text: str) -> list[str]:
+    """Every way a workflow's ``permissions:`` blocks break least privilege -- shared by
+    the over-every-workflow guard and its committed tripwire so the two cannot drift.
+    retro A1(a) + P1: scans top-level AND job-level blocks; catches ``write-all``, a bare
+    ``<scope>: write``, and a *quoted* ``<scope>: "write"`` / ``'write'``."""
+    out: list[str] = []
+    blocks = _permissions_blocks(text)
+    if not any(label == "top-level" for label, _ in blocks):
+        out.append("no top-level permissions: block")
+    for label, body in blocks:
+        if "write-all" in body:
+            out.append(f"{label} permissions: write-all")
+        for scope, mode in re.findall(
+            r"([A-Za-z-]+):\s*['\"]?(read|write|none)['\"]?\b", body
+        ):
+            if mode == "write":
+                out.append(f"{label} permissions grants {scope}: write")
+    return out
+
+
+def _secret_violations(text: str) -> list[str]:
+    """Every repository-secret reference beyond the auto-provisioned ``GITHUB_TOKEN``
+    (dot or index form, any inner whitespace). retro A1(b) + P2: also rejects
+    ``toJSON(secrets)`` (serializes every secret), ``secrets: inherit`` (reusable-workflow
+    passthrough), and a bare ``${{ secrets }}``. Shared by the guard and its tripwire."""
+    leftover = re.sub(r"secrets\s*\.\s*GITHUB_TOKEN\b", "", text)
+    leftover = re.sub(r"secrets\s*\[\s*['\"]GITHUB_TOKEN['\"]\s*\]", "", leftover)
+    out: list[str] = []
+    if re.search(r"secrets\s*\.", leftover):
+        out.append("references a repository secret (dot form)")
+    if re.search(r"secrets\s*\[", leftover):
+        out.append("references a repository secret (index form)")
+    if re.search(r"toJSON\(\s*secrets\b", leftover):
+        out.append("toJSON(secrets) serializes every repository secret")
+    if re.search(r"secrets\s*:\s*inherit\b", leftover):
+        out.append("secrets: inherit passes every secret to a reusable workflow")
+    if re.search(r"\bsecrets\s*}}", leftover):
+        out.append("bare ${{ secrets }} expression")
+    return out
+
+
 def _on_block_top_keys(text: str) -> set[str]:
     """Top-level keys of the block-form ``on:`` mapping."""
     lines = text.splitlines()
@@ -177,13 +256,52 @@ def test_every_uses_line_carries_a_version_comment() -> None:
 
 def test_every_workflow_has_a_least_privilege_top_level_permissions_block() -> None:
     """Row: Least privilege, over every workflow. Each declares a top-level
-    ``permissions:`` block, and none grants ``write-all`` or any ``<scope>: write``."""
+    ``permissions:`` block, and no block -- top-level OR job-level -- grants
+    ``write-all`` or any ``<scope>: write``.
+
+    retro A1(a): the least-privilege check now inspects every job-level ``permissions:``
+    block too (any indent), not just the column-0 one. GitHub honours a job-level block
+    and it overrides the top-level grant, so a hostile contributed workflow with a benign
+    top-level block and a ``contents: write`` job block previously passed clean.
+    """
     for name, text in _all_workflows():
-        present, body = _top_level_permissions(text)
-        assert present, f"{name}: no top-level permissions: block"
-        assert "write-all" not in body, f"{name}: permissions: write-all"
-        for scope, mode in re.findall(r"([A-Za-z-]+):\s*(read|write|none)\b", body):
-            assert mode != "write", f"{name}: permissions grants {scope}: write"
+        violations = _least_privilege_violations(text)
+        assert not violations, f"{name}: {violations}"
+
+
+def test_least_privilege_permissions_tripwire() -> None:
+    """Committed regression test for retro A1(a) / P1. The over-every-workflow guard sees
+    no hostile ``permissions:`` on a clean tree, so feed hand-written workflow text
+    straight to ``_least_privilege_violations`` -- mirrors ``test_count_impls_helper_tripwire``."""
+    top = "on: push\npermissions:\n  contents: read\n"
+
+    # a clean top-level-only shape (today's test.yml) is accepted
+    assert _least_privilege_violations(top + "jobs:\n  test:\n    runs-on: x\n    steps: []\n") == []
+
+    # job-level bare write
+    v = _least_privilege_violations(top + "jobs:\n  b:\n    permissions:\n      contents: write\n")
+    assert any("job-level" in x and "contents: write" in x for x in v), v
+
+    # job-level write-all
+    v = _least_privilege_violations(top + "jobs:\n  b:\n    permissions: write-all\n")
+    assert any("write-all" in x for x in v), v
+
+    # job-level QUOTED write (block form and inline flow form)
+    v = _least_privilege_violations(top + 'jobs:\n  b:\n    permissions:\n      contents: "write"\n')
+    assert any("contents: write" in x for x in v), v
+    v = _least_privilege_violations(top + "jobs:\n  b:\n    permissions: {contents: 'write'}\n")
+    assert any("contents: write" in x for x in v), v
+
+    # multi-line flow map continues onto indented lines
+    v = _least_privilege_violations(
+        top + "jobs:\n  b:\n    permissions: {\n      contents: write,\n    }\n"
+    )
+    assert any("contents: write" in x for x in v), v
+
+    # a workflow with NO top-level block at all is rejected
+    assert _least_privilege_violations("on: push\njobs:\n  b:\n    steps: []\n") == [
+        "no top-level permissions: block"
+    ]
 
 
 def test_no_workflow_uses_pull_request_target() -> None:
@@ -194,10 +312,44 @@ def test_no_workflow_uses_pull_request_target() -> None:
 
 def test_no_workflow_references_a_repository_secret_other_than_github_token() -> None:
     """Frozen Never / CLAUDE.md §4: no secret exposed to a fork-triggered workflow. Only
-    the auto-provisioned ``secrets.GITHUB_TOKEN`` is permitted anywhere."""
+    the auto-provisioned ``secrets.GITHUB_TOKEN`` is permitted anywhere.
+
+    retro A1(b) + P2: matches the index form ``secrets['NAME']`` / ``secrets["NAME"]``
+    (any inner whitespace) alongside ``secrets.NAME``, and also rejects
+    ``${{ toJSON(secrets) }}``, ``secrets: inherit``, and a bare ``${{ secrets }}`` --
+    each leaks every repository secret. Only ``GITHUB_TOKEN`` is allowed, in either form.
+    """
     for name, text in _all_workflows():
-        leftover = re.sub(r"secrets\.GITHUB_TOKEN\b", "", text)
-        assert "secrets." not in leftover, f"{name}: references a repository secret"
+        violations = _secret_violations(text)
+        assert not violations, f"{name}: {violations}"
+
+
+def test_secret_scan_tripwire() -> None:
+    """Committed regression test for retro A1(b) / P2 -- the guard sees no secret on a
+    clean tree, so feed hand-written snippets to ``_secret_violations`` directly."""
+    for snippet in (
+        "run: echo ${{ secrets['PYPI_TOKEN'] }}",
+        'run: echo ${{ secrets["PYPI_TOKEN"] }}',
+        "run: echo ${{ secrets.PYPI_TOKEN }}",
+        "run: echo ${{ secrets . PYPI_TOKEN }}",
+        "run: echo ${{ toJSON(secrets) }}",
+        "run: echo ${{ toJSON( secrets ) }}",
+        "    secrets: inherit",
+        "run: echo ${{ secrets }}",
+    ):
+        assert _secret_violations(snippet), f"not rejected: {snippet!r}"
+
+    for snippet in (
+        "run: echo ${{ secrets.GITHUB_TOKEN }}",
+        "run: echo ${{ secrets['GITHUB_TOKEN'] }}",
+        'run: echo ${{ secrets["GITHUB_TOKEN"] }}',
+        "run: echo ${{ secrets . GITHUB_TOKEN }}",
+        "run: echo nothing sensitive here",
+    ):
+        assert not _secret_violations(snippet), f"wrongly rejected: {snippet!r}"
+
+    if (REPO_ROOT / ".github").is_dir():
+        assert _secret_violations(WORKFLOW.read_text(encoding="utf-8")) == []
 
 
 def test_no_workflow_interpolates_untrusted_input() -> None:
@@ -306,18 +458,58 @@ def test_dependabot_watches_uv_and_github_actions_weekly() -> None:
 # --------------------------------------------------------------------------- #
 
 
+def _declared_dependency_blocks(pyproject_text: str) -> str:
+    """Lowercased text of every ``pyproject.toml`` table that can introduce an installable
+    dependency: the whole ``[project]`` table (its ``dependencies`` array), the whole
+    ``[dependency-groups]`` table, and the whole ``[project.optional-dependencies]`` table
+    (retro A4). retro P3: whole tables are captured -- the old ``dependencies = [.*?]``
+    stopped at the first ``]``, so a requirement with an extras bracket (``typer[all]``)
+    truncated the block and hid every dependency after it."""
+    blocks = re.findall(
+        r"^\[project\]\n.*?(?=^\[|\Z)"
+        r"|^\[dependency-groups\]\n.*?(?=^\[|\Z)"
+        r"|^\[project\.optional-dependencies\]\n.*?(?=^\[|\Z)",
+        pyproject_text,
+        re.MULTILINE | re.DOTALL,
+    )
+    return "\n".join(blocks).lower()
+
+
 def test_no_yaml_parser_is_importable_or_declared() -> None:
     """Frozen Never: no new runtime or dev dependency. No YAML parser is importable
     (transitively included), and neither ``pyyaml`` nor ``ruamel`` is declared in the
-    project's dependency lists."""
+    project's dependency lists.
+
+    retro A4: the scan now also covers ``[project.optional-dependencies]``.
+    retro P3: ``ruamel`` imports as ``ruamel.yaml`` (invisible to ``find_spec("yaml")``)
+    so it gets its own import check, and the table capture no longer truncates on ``[``.
+    """
     assert importlib.util.find_spec("yaml") is None, "a YAML parser is importable"
+    assert importlib.util.find_spec("ruamel") is None, "ruamel.yaml is importable"
 
     text = (REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8")
-    blocks = re.findall(
-        r"^dependencies\s*=\s*\[.*?\]|^\[dependency-groups\].*?(?=^\[|\Z)",
-        text,
-        re.MULTILINE | re.DOTALL,
-    )
-    haystack = "\n".join(blocks).lower()
+    haystack = _declared_dependency_blocks(text)
     for forbidden in ("pyyaml", "ruamel"):
         assert forbidden not in haystack, f"{forbidden} declared in pyproject.toml deps"
+
+
+def test_declared_dependency_scan_tripwire() -> None:
+    """Committed regression test for retro A4 / P3 -- the guard sees a clean pyproject on
+    this tree, so feed hand-written pyproject text to ``_declared_dependency_blocks``."""
+    clean = (
+        '[project]\nname = "x"\n'
+        'dependencies = ["httpx>=0.27", "typer[all]>=0.12", "pydantic>=2"]\n\n'
+        "[build-system]\nrequires = []\n"
+    )
+
+    def _hit(pyproject_text: str) -> bool:
+        hay = _declared_dependency_blocks(pyproject_text)
+        return any(f in hay for f in ("pyyaml", "ruamel"))
+
+    assert not _hit(clean)
+    # truncation regression: a bracket in an earlier spec must not hide a later dep
+    assert _hit(
+        '[project]\ndependencies = ["typer[all]", "pyyaml"]\n\n[build-system]\nrequires = []\n'
+    )
+    assert _hit(clean + '\n[project.optional-dependencies]\nextra = ["pyyaml"]\n')
+    assert _hit(clean + '\n[dependency-groups]\ndev = ["pytest", "ruamel.yaml"]\n')

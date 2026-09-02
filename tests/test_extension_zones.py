@@ -40,20 +40,28 @@ EVAL_PATHS = [f"tests/eval/{zone}/" for zone in ZONES]
 def _count_impls(pkg_dir: Path) -> int:
     """Number of reference implementations directly under a zone package: each ``*.py``
     file that is neither ``__init__.py`` nor underscore-prefixed, **plus** each
-    subdirectory that contains an ``__init__.py`` and whose name is not
-    underscore-prefixed (a reference impl structured as a subpackage)."""
+    subdirectory whose name is not underscore-prefixed and not ``__pycache__`` that
+    *either* contains an ``__init__.py`` (a subpackage) *or* contains any
+    non-underscore-prefixed ``*.py`` module at any depth (a namespace-package impl).
+    A directory meeting both conditions still counts once.
+
+    retro A2: the subpackage arm required ``(p / "__init__.py").is_file()``, but a PEP 420
+    namespace package is importable with no ``__init__.py`` anywhere -- so two full
+    adapters could sit in one zone and clear the at-most-one ceiling. The namespace-package
+    arm closes that."""
     modules = sum(
         1
         for p in pkg_dir.glob("*.py")
         if p.name != "__init__.py" and not p.name.startswith("_")
     )
-    subpackages = sum(
-        1
-        for p in pkg_dir.iterdir()
-        if p.is_dir()
-        and not p.name.startswith("_")
-        and (p / "__init__.py").is_file()
-    )
+    subpackages = 0
+    for p in pkg_dir.iterdir():
+        if not p.is_dir() or p.name.startswith("_") or p.name == "__pycache__":
+            continue
+        has_init = (p / "__init__.py").is_file()
+        has_module = any(not m.name.startswith("_") for m in p.rglob("*.py"))
+        if has_init or has_module:
+            subpackages += 1
     return modules + subpackages
 
 
@@ -64,7 +72,7 @@ def test_count_impls_helper_tripwire(tmp_path: Path) -> None:
     (tmp_path / "_private.py").write_text("x = 1\n", encoding="utf-8")
     (tmp_path / "_helpers").mkdir()
     (tmp_path / "_helpers" / "__init__.py").write_text("", encoding="utf-8")
-    (tmp_path / "notapkg").mkdir()  # dir without __init__.py — not an impl
+    (tmp_path / "notapkg").mkdir()  # empty dir — no __init__.py, no module — not an impl
     assert _count_impls(tmp_path) == 0
 
     (tmp_path / "one.py").write_text("x = 1\n", encoding="utf-8")
@@ -75,6 +83,16 @@ def test_count_impls_helper_tripwire(tmp_path: Path) -> None:
     (tmp_path / "sleeper" / "__init__.py").write_text("x = 3\n", encoding="utf-8")
     assert _count_impls(tmp_path) == 3  # the subpackage counts
     assert not (_count_impls(tmp_path) <= 1)  # the same assertion the guard makes
+
+    # retro A2: a PEP 420 namespace package — a subdir holding a module with no
+    # __init__.py anywhere — is importable and must count as one impl.
+    (tmp_path / "nspkg").mkdir()
+    (tmp_path / "nspkg" / "impl.py").write_text("x = 4\n", encoding="utf-8")
+    assert _count_impls(tmp_path) == 4  # the namespace package counts too
+
+    # a subdir with BOTH an __init__.py and a module still counts once, not twice
+    (tmp_path / "nspkg" / "__init__.py").write_text("", encoding="utf-8")
+    assert _count_impls(tmp_path) == 4
 
 
 # --------------------------------------------------------------------------- #

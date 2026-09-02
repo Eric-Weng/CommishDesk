@@ -220,8 +220,15 @@ def test_tools_and_tests_do_not_ship_in_the_wheel(tmp_path: Path) -> None:
 
 
 def test_runtime_dependency_allowlist() -> None:
-    deps = _pyproject()["project"]["dependencies"]
+    project = _pyproject()["project"]
+    deps = project["dependencies"]
     names = {
         re.split(r"[<>=!~ \[]", spec, maxsplit=1)[0].strip().lower() for spec in deps
     }
     assert names == {"httpx", "pydantic", "typer"}
+    # retro A4: an extras table (`pip install commishdesk[extra]`) is a runtime install
+    # surface this guard previously ignored — it must be absent or hold no non-empty group.
+    optional = project.get("optional-dependencies", {})
+    assert all(not group for group in optional.values()), (
+        f"[project.optional-dependencies] is non-empty: {optional}"
+    )
