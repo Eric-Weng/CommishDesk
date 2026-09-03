@@ -33,6 +33,14 @@ exception exists) from ``httpx`` / ``RuntimeError`` / ``ValueError``. It is rais
 only when *every* source fails against a cold cache; a single source failing is
 swallowed and the fallback taken. The wrapping happens at the call site in
 ``commishdesk/consensus.py``, not here.
+
+``SchemaValidationError`` is the fifth: the stage-3 Facts JSON builder
+(``commishdesk/facts/build.py``) validates its own output and fails loud — any
+``pydantic.ValidationError`` raised while constructing the ``DraftRecapFacts``
+model, or while round-tripping ``model_validate(doc.model_dump())``, surfaces as a
+``SchemaValidationError`` chained from that ``ValidationError``. No partial
+document is returned; no consumer downstream of ``facts/`` re-validates (AD-2).
+The wrapping happens in ``commishdesk/facts/build.py``, not here.
 """
 
 from __future__ import annotations
@@ -42,6 +50,7 @@ __all__ = [
     "CommishDeskError",
     "ConsensusError",
     "IngestError",
+    "SchemaValidationError",
     "StoreError",
 ]
 
@@ -60,6 +69,10 @@ class ConsensusError(CommishDeskError):
 
 class IngestError(CommishDeskError):
     """A raw platform bundle could not be turned into a valid ``LeagueModel``."""
+
+
+class SchemaValidationError(CommishDeskError):
+    """The Facts JSON builder produced a document the schema rejects."""
 
 
 class StoreError(CommishDeskError):
