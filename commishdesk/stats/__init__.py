@@ -20,8 +20,18 @@ _CONSENSUS_NAMES = frozenset(
         "compute_consensus_metrics",
     }
 )
+_GRADE_NAMES = frozenset(
+    {
+        "GRADE_METHOD",
+        "THIRTEEN_POINT_SCALE",
+        "DraftGrades",
+        "GradeMethod",
+        "TeamGrade",
+        "compute_draft_grades",
+    }
+)
 
-__all__ = sorted(_DRAFT_NAMES | _CONSENSUS_NAMES)
+__all__ = sorted(_DRAFT_NAMES | _CONSENSUS_NAMES | _GRADE_NAMES)
 
 if TYPE_CHECKING:
     from .consensus import (
@@ -38,6 +48,14 @@ if TYPE_CHECKING:
         TeamBoard,
         compute_board_metrics,
     )
+    from .grades import (
+        GRADE_METHOD,
+        THIRTEEN_POINT_SCALE,
+        DraftGrades,
+        GradeMethod,
+        TeamGrade,
+        compute_draft_grades,
+    )
 
 
 def __getattr__(name: str) -> object:
@@ -49,6 +67,10 @@ def __getattr__(name: str) -> object:
         from . import consensus
 
         return getattr(consensus, name)
+    if name in _GRADE_NAMES:
+        from . import grades
+
+        return getattr(grades, name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
