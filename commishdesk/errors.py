@@ -24,11 +24,26 @@ Pydantic model rejects — surfaces as an ``IngestError`` chained (where an
 underlying exception exists) from the original ``KeyError`` / ``TypeError`` /
 ``ValueError`` / ``OverflowError`` / ``ValidationError``. The wrapping happens in
 ``commishdesk/ingest/build.py``, not here; no partial model is returned.
+
+``ConsensusError`` is the fourth: any failure fetching, parsing, or ranking an
+external pre-draft consensus board — a non-2xx response, a transport failure, a
+malformed body, an already-closed client, or a payload that ranks none of the
+drafted players — surfaces as a ``ConsensusError`` chained (where an underlying
+exception exists) from ``httpx`` / ``RuntimeError`` / ``ValueError``. It is raised
+only when *every* source fails against a cold cache; a single source failing is
+swallowed and the fallback taken. The wrapping happens at the call site in
+``commishdesk/consensus.py``, not here.
 """
 
 from __future__ import annotations
 
-__all__ = ["AdapterError", "CommishDeskError", "IngestError", "StoreError"]
+__all__ = [
+    "AdapterError",
+    "CommishDeskError",
+    "ConsensusError",
+    "IngestError",
+    "StoreError",
+]
 
 
 class CommishDeskError(Exception):
@@ -37,6 +52,10 @@ class CommishDeskError(Exception):
 
 class AdapterError(CommishDeskError):
     """A platform adapter could not fetch or parse a league's raw data."""
+
+
+class ConsensusError(CommishDeskError):
+    """No external consensus ranking could be fetched or parsed from any source."""
 
 
 class IngestError(CommishDeskError):

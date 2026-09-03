@@ -52,9 +52,19 @@ FIXTURES = ("rookie-draft.json", "week10-superflex.json")
 
 _STATS_PKG_PARTS = ("commishdesk", "stats")
 
-# stats/ may not import from its own upstream (adapters), the storage port, or
-# any later pipeline stage -- it consumes only commishdesk.ingest (AD-1).
-_FORBIDDEN_IMPORTS = ("adapters", "store", "facts", "narrate", "render", "deliver")
+# stats/ may not import from its own upstream (adapters), the storage port, the
+# network-facing consensus fetcher, or any later pipeline stage -- it consumes
+# only commishdesk.ingest (AD-1). ``stats/consensus.py`` takes the rank as a plain
+# mapping, never importing ``commishdesk.consensus``.
+_FORBIDDEN_IMPORTS = (
+    "adapters",
+    "store",
+    "consensus",
+    "facts",
+    "narrate",
+    "render",
+    "deliver",
+)
 
 # stats/ is pure/deterministic/offline: nothing that touches a socket, the
 # network, or a PRNG may be imported.
