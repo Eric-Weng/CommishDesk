@@ -1,0 +1,165 @@
+{
+  "_derived_from": "Story 2.4c oracle. compute_draft_grades() over the rookie-draft.json / week10-superflex.json board (identical 72-pick board, team_count 12, is_superflex_or_2qb=True, te_premium=False) against the synthetic fantasycalc-values.json via the Story 2.4b _synthetic_slots() transform. Values are synthetic - the tests assert the formula, not a real consensus board or the phase-0 golden numbers (anonymized fixture vs. real-player hand build). Regenerate when the algorithm changes.",
+  "teams": [
+    {
+      "roster_id": "1",
+      "draft_score": 8.8,
+      "premium_picks": 0,
+      "format_fit": 0,
+      "grade_input": 8.8,
+      "letter": "B+",
+      "driving_picks": [
+        16,
+        25,
+        60,
+        72
+      ]
+    },
+    {
+      "roster_id": "2",
+      "draft_score": 14.9,
+      "premium_picks": 1,
+      "format_fit": 2,
+      "grade_input": 19.9,
+      "letter": "A+",
+      "driving_picks": [
+        1,
+        43,
+        44,
+        46
+      ]
+    },
+    {
+      "roster_id": "3",
+      "draft_score": 9.9,
+      "premium_picks": 1,
+      "format_fit": 2,
+      "grade_input": 14.9,
+      "letter": "A",
+      "driving_picks": [
+        10,
+        34,
+        58
+      ]
+    },
+    {
+      "roster_id": "4",
+      "draft_score": 9.2,
+      "premium_picks": 1,
+      "format_fit": 2,
+      "grade_input": 14.2,
+      "letter": "A",
+      "driving_picks": [
+        33,
+        36,
+        69
+      ]
+    },
+    {
+      "roster_id": "5",
+      "draft_score": 3.2,
+      "premium_picks": 1,
+      "format_fit": 2,
+      "grade_input": 8.2,
+      "letter": "B+",
+      "driving_picks": [
+        4,
+        28
+      ]
+    },
+    {
+      "roster_id": "6",
+      "draft_score": 5.7,
+      "premium_picks": 2,
+      "format_fit": 0,
+      "grade_input": 11.7,
+      "letter": "A-",
+      "driving_picks": [
+        51
+      ]
+    },
+    {
+      "roster_id": "7",
+      "draft_score": 9.8,
+      "premium_picks": 2,
+      "format_fit": 2,
+      "grade_input": 17.8,
+      "letter": "A+",
+      "driving_picks": [
+        6,
+        35,
+        71
+      ]
+    },
+    {
+      "roster_id": "8",
+      "draft_score": 9.9,
+      "premium_picks": 1,
+      "format_fit": 2,
+      "grade_input": 14.9,
+      "letter": "A",
+      "driving_picks": [
+        8,
+        24,
+        26,
+        38
+      ]
+    },
+    {
+      "roster_id": "9",
+      "draft_score": 7.2,
+      "premium_picks": 0,
+      "format_fit": 0,
+      "grade_input": 7.2,
+      "letter": "B+",
+      "driving_picks": [
+        19,
+        31,
+        67
+      ]
+    },
+    {
+      "roster_id": "10",
+      "draft_score": 4.8,
+      "premium_picks": 0,
+      "format_fit": 2,
+      "grade_input": 6.8,
+      "letter": "B+",
+      "driving_picks": [
+        20
+      ]
+    },
+    {
+      "roster_id": "11",
+      "draft_score": 7.1,
+      "premium_picks": 1,
+      "format_fit": 2,
+      "grade_input": 12.1,
+      "letter": "A",
+      "driving_picks": [
+        12,
+        49,
+        61
+      ]
+    },
+    {
+      "roster_id": "12",
+      "draft_score": 6.6,
+      "premium_picks": 0,
+      "format_fit": 4,
+      "grade_input": 10.6,
+      "letter": "A-",
+      "driving_picks": [
+        17,
+        29,
+        65
+      ]
+    }
+  ],
+  "grade_method": {
+    "letter_scale": "A-F+/-",
+    "inputs": "tier_weighted_delta_vs_consensus + 3*premium_picks(consensus_slot<=10) + format_fit(2QB: +2 >=1 QB, +2 >=2 QB; TE-premium: +1 per TE consensus_slot<=12)",
+    "floor_rule": ">=2 premium picks -> minimum C",
+    "note": "letter is a documented monotonic function of grade_input in the engine; grade.rationale prose is the narrator's"
+  }
+}
