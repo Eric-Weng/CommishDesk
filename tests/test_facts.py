@@ -285,7 +285,16 @@ def test_happy_path_shape() -> None:
     assert [p["pick_no"] for p in dump["picks"]] == [1, 2]
     assert [t["roster_id"] for t in dump["teams"]] == ["1", "2"]
     assert dump["grade_method"] == GRADE_METHOD.model_dump()
-    assert dump["lead_candidates"] == []
+    # Story 2.6: the ``biggest_score`` floor always fires when the draft has a
+    # pick, so even this 2-pick minimal draft carries one lead angle.
+    assert dump["lead_candidates"] == [
+        {
+            "rank": 1,
+            "kind": "biggest_score",
+            "roster_ids": ["1"],
+            "hook": "Player 1 went 1.01.",
+        }
+    ]
     assert dump["storyline_candidates"] == []
     assert list(dump) == [
         "schema_version",
@@ -724,7 +733,10 @@ def test_narration_is_a_trimmed_projection() -> None:
     assert [p.pick_no for p in nar.board_round1] == list(range(1, 13))
     assert len(nar.teams) == len(doc.teams)
     assert nar.positional_runs == doc.draft_summary.positional_runs
-    assert nar.lead_candidates == []
+    # Story 2.6: narration mirrors the full lead-candidate list (no trim yet —
+    # the token cap is Story 3.1).
+    assert nar.lead_candidates == doc.lead_candidates
+    assert nar.lead_candidates != []
     assert nar.storyline_candidates == []
 
 
@@ -818,6 +830,7 @@ def test_empty_draft_builds_and_validates() -> None:
     assert doc.superlatives == Superlatives()
     assert doc.draft_summary.positional_runs.QB.total == 0
     assert doc.narration.headline_numbers.pick_count_leader is None
+    assert doc.lead_candidates == []  # no pick -> not even the biggest_score floor
     DraftRecapFacts.model_validate(doc.model_dump())
 
 
@@ -841,6 +854,10 @@ def test_board_with_no_consensus_yields_empty_superlatives() -> None:
     assert doc.superlatives == Superlatives()
     assert all(p.flags == ["no_consensus"] for p in doc.picks)
     assert all(p.delta is None for p in doc.picks)
+    # biggest_score still fires off pick_no 1 / board position — no crash on the
+    # absent superlatives.best_value.
+    assert [c.kind for c in doc.lead_candidates] == ["biggest_score"]
+    assert doc.lead_candidates[0].hook == "Player 1 went 1.01."
     DraftRecapFacts.model_validate(doc.model_dump())
 
 
@@ -938,3 +955,172 @@ def test_boldest_swing_requires_a_positive_spread() -> None:
         league, board, consensus, grades, generated_at=GENERATED_AT
     )
     assert doc.superlatives.boldest_swing is None
+
+
+# --------------------------------------------------------------------------- #
+# Story 2.6 — board-only lead angles
+# --------------------------------------------------------------------------- #
+
+
+def test_lead_candidates_rookie_fixture_ranked_angles() -> None:
+    """The rookie-draft board produces the four ranked angles, each with a
+    non-empty deterministic hook, computed with no LLM."""
+    cands = _rookie_facts().lead_candidates
+    assert [c.kind for c in cands] == [
+        "positional_run",
+        "manager_approach",
+        "positional_hoard",
+        "biggest_score",
+    ]
+    assert [c.rank for c in cands] == [1, 2, 3, 4]
+    assert [c.roster_ids for c in cands] == [[], ["2"], ["8"], ["2"]]
+    assert all(c.hook and c.hook.endswith(".") for c in cands)
+    assert "None" not in " ".join(c.hook for c in cands)
+
+
+def test_lead_candidates_positional_run_outranks_the_marquee_name() -> None:
+    """AC: a cross-cutting angle sits above manager-approach, above 'the 1.01'."""
+    kinds = [c.kind for c in _rookie_facts().lead_candidates]
+    assert kinds.index("positional_run") < kinds.index("manager_approach")
+    assert kinds.index("manager_approach") < kinds.index("biggest_score")
+
+
+def test_lead_candidates_tiny_draft_is_biggest_score_only() -> None:
+    cands = _build_minimal().lead_candidates
+    assert [(c.rank, c.kind, tuple(c.roster_ids)) for c in cands] == [
+        (1, "biggest_score", ("1",))
+    ]
+
+
+def test_lead_candidates_are_deterministic() -> None:
+    assert (
+        _rookie_facts().model_dump()["lead_candidates"]
+        == _rookie_facts().model_dump()["lead_candidates"]
+    )
+
+
+def test_lead_candidates_skip_an_orphan_roster_that_leads_a_category() -> None:
+    """A manager-less roster with the unique max pick count and the biggest
+    positional stack yields neither a manager_approach nor a positional_hoard
+    angle — no hook is emitted with a null manager name."""
+    picks = [_pick(n, "1", "RB") for n in range(1, 7)] + [
+        _pick(7, "2", "WR"),
+        _pick(8, "2", "WR"),
+        _pick(9, "2", "WR"),
+    ]
+    league = LeagueModel(
+        league_id="LO",
+        name="Orphan",
+        season=2025,
+        format=_fmt(),
+        teams=[Team(roster_id="1", manager=None), Team(roster_id="2", manager="m2")],
+        picks=picks,
+        draft=Draft(id="do", rounds=9),
+    )
+    board = compute_board_metrics(league)
+    consensus = compute_consensus_metrics(league, {})
+    grades = compute_draft_grades(league, consensus)
+    doc = build_draft_recap_facts(
+        league, board, consensus, grades, generated_at=GENERATED_AT
+    )
+    kinds = [c.kind for c in doc.lead_candidates]
+    assert "manager_approach" not in kinds and "positional_hoard" not in kinds
+    assert "biggest_score" in kinds
+    assert "None" not in " ".join(c.hook for c in doc.lead_candidates)
+
+
+@requires_golden
+def test_lead_candidates_reconcile_with_phase0_golden() -> None:
+    """Kind + rank + roster_ids sequence match the private phase-0 golden. Hook
+    *text* is the narrator's later prose and is deliberately not compared."""
+    assert GOLDEN is not None
+    built = _rookie_facts().model_dump()["lead_candidates"]
+    g = GOLDEN["lead_candidates"]
+    assert [c["kind"] for c in built] == [c["kind"] for c in g]
+    assert [c["rank"] for c in built] == [c["rank"] for c in g]
+    assert [c["roster_ids"] for c in built] == [
+        [str(r) for r in c["roster_ids"]] for c in g
+    ]
+
+
+def _facts_from_picks(
+    picks: list[Pick], *, teams: list[Team] | None = None, rounds: int = 1
+) -> DraftRecapFacts:
+    """Build a Facts JSON from a hand-built pick list through the real compute
+    stages — the lightweight path the lead-angle branch tests share."""
+    roster_ids = {p.roster_id for p in picks}
+    league = LeagueModel(
+        league_id="LL",
+        name="Lead",
+        season=2025,
+        format=_fmt(),
+        teams=teams or [Team(roster_id=r, manager=f"m{r}") for r in sorted(roster_ids)],
+        picks=picks,
+        draft=Draft(id="dl", rounds=rounds),
+    )
+    board = compute_board_metrics(league)
+    consensus = compute_consensus_metrics(league, {})
+    grades = compute_draft_grades(league, consensus)
+    return build_draft_recap_facts(
+        league, board, consensus, grades, generated_at=GENERATED_AT
+    )
+
+
+def test_lead_candidates_positional_run_no_round1_qb_gets_a_terminal_hook() -> None:
+    picks = [_pick(n, str(n), "RB") for n in range(1, 5)] + [
+        _pick(n, str(n), "WR") for n in range(5, 13)
+    ]
+    run = _facts_from_picks(picks).lead_candidates[0]
+    assert run.kind == "positional_run"
+    assert run.hook == "Four of the first eleven picks were running backs."
+
+
+def test_lead_candidates_positional_run_single_round1_qb_is_singular() -> None:
+    picks = (
+        [_pick(n, str(n), "RB") for n in range(1, 5)]
+        + [_pick(5, "5", "QB")]
+        + [_pick(n, str(n), "WR") for n in range(6, 13)]
+    )
+    run = _facts_from_picks(picks).lead_candidates[0]
+    assert run.hook.endswith("and one manager took a quarterback in round 1.")
+
+
+def test_lead_candidates_hoard_passes_an_orphan_leader_to_the_next_real_manager() -> None:
+    """The biggest stack belongs to a manager-less roster; the angle still lands
+    on the real manager who cleared the bar (spec: skip orphans during the scan)."""
+    picks = (
+        [_pick(n, "1", "RB") for n in range(1, 8)]  # orphan roster: 7 RB, most picks
+        + [_pick(n, "2", "WR") for n in range(8, 13)]  # real manager: 5 WR
+    )
+    teams = [Team(roster_id="1", manager=None), Team(roster_id="2", manager="Deep")]
+    doc = _facts_from_picks(picks, teams=teams, rounds=7)
+    hoard = [c for c in doc.lead_candidates if c.kind == "positional_hoard"]
+    assert hoard and hoard[0].roster_ids == ["2"]
+    assert hoard[0].hook == "Deep drafted five wide receivers."
+
+
+def test_lead_candidates_manager_approach_needs_a_unique_pick_count_leader() -> None:
+    picks = [_pick(n, "1", "RB") for n in range(1, 5)] + [
+        _pick(n, "2", "WR") for n in range(5, 9)
+    ]
+    doc = _facts_from_picks(picks, rounds=4)
+    assert "manager_approach" not in [c.kind for c in doc.lead_candidates]
+
+
+def test_lead_candidates_hoard_hook_handles_a_nonstandard_position() -> None:
+    # roster 2 leads pick count (-> manager_approach); roster 1's 4-kicker stack
+    # is the positional_hoard, exercising the _POSITION_PLURAL "K" entry.
+    picks = [_pick(n, "1", "K") for n in range(1, 5)] + [
+        _pick(n, "2", "WR") for n in range(5, 11)
+    ]
+    teams = [Team(roster_id="1", manager="Kicker"), Team(roster_id="2", manager="m2")]
+    doc = _facts_from_picks(picks, teams=teams, rounds=1)
+    hoard = [c for c in doc.lead_candidates if c.kind == "positional_hoard"]
+    assert hoard and hoard[0].hook == "Kicker drafted four kickers."
+
+
+def test_lead_kind_priority_covers_every_kind_a_detector_can_emit() -> None:
+    from commishdesk.facts.leads import LEAD_KIND_PRIORITY
+
+    assert len(set(LEAD_KIND_PRIORITY)) == len(LEAD_KIND_PRIORITY)
+    assert {c.kind for c in _rookie_facts().lead_candidates} == set(LEAD_KIND_PRIORITY)
