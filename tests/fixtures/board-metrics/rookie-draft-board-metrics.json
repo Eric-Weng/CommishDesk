@@ -1,0 +1,302 @@
+{
+  "_derived_from": "brief/phase-0/draft-recap-facts.json (Story 2.1 hand-built oracle); pick_count / pick_nos / positional_counts / back_to_back hand-verified against that file's teams[] slice, zero_positions + positional_runs hand-verified against the rookie-draft.json board. Regenerate only when the oracle changes.",
+  "rosters": {
+    "1": {
+      "pick_count": 5,
+      "pick_nos": [
+        16,
+        25,
+        32,
+        60,
+        72
+      ],
+      "positional_counts": {
+        "RB": 3,
+        "TE": 1,
+        "WR": 1
+      },
+      "back_to_back": [],
+      "zero_positions": [
+        "QB"
+      ]
+    },
+    "2": {
+      "pick_count": 12,
+      "pick_nos": [
+        1,
+        30,
+        37,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        54,
+        55,
+        66
+      ],
+      "positional_counts": {
+        "QB": 1,
+        "RB": 4,
+        "TE": 1,
+        "WR": 6
+      },
+      "back_to_back": [
+        [
+          42,
+          43
+        ],
+        [
+          43,
+          44
+        ],
+        [
+          44,
+          45
+        ],
+        [
+          45,
+          46
+        ],
+        [
+          46,
+          47
+        ],
+        [
+          54,
+          55
+        ]
+      ],
+      "zero_positions": []
+    },
+    "3": {
+      "pick_count": 4,
+      "pick_nos": [
+        10,
+        34,
+        58,
+        70
+      ],
+      "positional_counts": {
+        "QB": 1,
+        "RB": 1,
+        "TE": 1,
+        "WR": 1
+      },
+      "back_to_back": [],
+      "zero_positions": []
+    },
+    "4": {
+      "pick_count": 5,
+      "pick_nos": [
+        9,
+        33,
+        36,
+        57,
+        69
+      ],
+      "positional_counts": {
+        "QB": 1,
+        "RB": 1,
+        "TE": 1,
+        "WR": 2
+      },
+      "back_to_back": [],
+      "zero_positions": []
+    },
+    "5": {
+      "pick_count": 5,
+      "pick_nos": [
+        4,
+        15,
+        28,
+        40,
+        64
+      ],
+      "positional_counts": {
+        "QB": 1,
+        "RB": 2,
+        "WR": 2
+      },
+      "back_to_back": [],
+      "zero_positions": [
+        "TE"
+      ]
+    },
+    "6": {
+      "pick_count": 6,
+      "pick_nos": [
+        2,
+        3,
+        27,
+        39,
+        51,
+        63
+      ],
+      "positional_counts": {
+        "RB": 1,
+        "TE": 1,
+        "WR": 4
+      },
+      "back_to_back": [
+        [
+          2,
+          3
+        ]
+      ],
+      "zero_positions": [
+        "QB"
+      ]
+    },
+    "7": {
+      "pick_count": 6,
+      "pick_nos": [
+        6,
+        11,
+        23,
+        35,
+        59,
+        71
+      ],
+      "positional_counts": {
+        "QB": 1,
+        "RB": 3,
+        "TE": 1,
+        "WR": 1
+      },
+      "back_to_back": [],
+      "zero_positions": []
+    },
+    "8": {
+      "pick_count": 11,
+      "pick_nos": [
+        7,
+        8,
+        14,
+        21,
+        24,
+        26,
+        38,
+        48,
+        50,
+        52,
+        62
+      ],
+      "positional_counts": {
+        "QB": 1,
+        "RB": 6,
+        "TE": 1,
+        "WR": 3
+      },
+      "back_to_back": [
+        [
+          7,
+          8
+        ]
+      ],
+      "zero_positions": []
+    },
+    "9": {
+      "pick_count": 4,
+      "pick_nos": [
+        18,
+        19,
+        31,
+        67
+      ],
+      "positional_counts": {
+        "TE": 2,
+        "WR": 2
+      },
+      "back_to_back": [
+        [
+          18,
+          19
+        ]
+      ],
+      "zero_positions": [
+        "QB",
+        "RB"
+      ]
+    },
+    "10": {
+      "pick_count": 3,
+      "pick_nos": [
+        20,
+        56,
+        68
+      ],
+      "positional_counts": {
+        "QB": 1,
+        "RB": 2
+      },
+      "back_to_back": [],
+      "zero_positions": [
+        "TE",
+        "WR"
+      ]
+    },
+    "11": {
+      "pick_count": 5,
+      "pick_nos": [
+        12,
+        13,
+        22,
+        49,
+        61
+      ],
+      "positional_counts": {
+        "QB": 1,
+        "RB": 1,
+        "WR": 3
+      },
+      "back_to_back": [
+        [
+          12,
+          13
+        ]
+      ],
+      "zero_positions": [
+        "TE"
+      ]
+    },
+    "12": {
+      "pick_count": 6,
+      "pick_nos": [
+        5,
+        17,
+        29,
+        41,
+        53,
+        65
+      ],
+      "positional_counts": {
+        "QB": 2,
+        "RB": 2,
+        "TE": 1,
+        "WR": 1
+      },
+      "back_to_back": [],
+      "zero_positions": []
+    }
+  },
+  "positional_runs": [
+    {
+      "position": "WR",
+      "from_pick_no": 17,
+      "to_pick_no": 19,
+      "from_label": "2.05",
+      "to_label": "2.07",
+      "length": 3
+    },
+    {
+      "position": "WR",
+      "from_pick_no": 37,
+      "to_pick_no": 39,
+      "from_label": "4.01",
+      "to_label": "4.03",
+      "length": 3
+    }
+  ]
+}
