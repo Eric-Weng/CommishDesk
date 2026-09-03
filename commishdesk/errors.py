@@ -16,11 +16,19 @@ or a malformed/missing id in the platform's own response shape) surfaces as an
 imports only stdlib + pydantic + commishdesk (``tests/test_store.py``); wrapping
 ``httpx`` and shape exceptions happens at the call site in
 ``commishdesk/adapters/sleeper.py``, not here.
+
+``IngestError`` is the third: any structural failure building the stage-1
+``LeagueModel`` from a raw platform bundle — a missing or mistyped ``league`` /
+``rosters`` / ``users`` / ``draft`` section, a non-object list item, a field the
+Pydantic model rejects — surfaces as an ``IngestError`` chained (where an
+underlying exception exists) from the original ``KeyError`` / ``TypeError`` /
+``ValueError`` / ``OverflowError`` / ``ValidationError``. The wrapping happens in
+``commishdesk/ingest/build.py``, not here; no partial model is returned.
 """
 
 from __future__ import annotations
 
-__all__ = ["AdapterError", "CommishDeskError", "StoreError"]
+__all__ = ["AdapterError", "CommishDeskError", "IngestError", "StoreError"]
 
 
 class CommishDeskError(Exception):
@@ -29,6 +37,10 @@ class CommishDeskError(Exception):
 
 class AdapterError(CommishDeskError):
     """A platform adapter could not fetch or parse a league's raw data."""
+
+
+class IngestError(CommishDeskError):
+    """A raw platform bundle could not be turned into a valid ``LeagueModel``."""
 
 
 class StoreError(CommishDeskError):
