@@ -257,6 +257,92 @@ def test_claim_claimed_at_timezone_handling() -> None:
     assert claim.claimed_at == datetime(2026, 9, 1, tzinfo=UTC)
 
 
+# --- blob cache (Story 2.4b) -----------------------------------------
+
+
+def test_cache_round_trips_a_json_object(tmp_path: Path) -> None:
+    store = _store(tmp_path)
+    payload = {"values": [{"id": "1", "v": 10}, {"id": "2", "v": 5}], "as_of": None}
+    store.write_cache("consensus", "fc-dyn1-qb1-tm12-ppr0_5", payload)
+    assert store.read_cache("consensus", "fc-dyn1-qb1-tm12-ppr0_5") == payload
+
+
+def test_cache_miss_returns_none(tmp_path: Path) -> None:
+    assert _store(tmp_path).read_cache("consensus", "never-written") is None
+
+
+def test_cache_read_after_write_same_process(tmp_path: Path) -> None:
+    store = _store(tmp_path)
+    store.write_cache("consensus", "k", {"a": 1})
+    assert store.read_cache("consensus", "k") == {"a": 1}
+
+
+def test_cache_write_overwrites_atomically(tmp_path: Path) -> None:
+    store = _store(tmp_path)
+    store.write_cache("consensus", "k", {"gen": 1})
+    store.write_cache("consensus", "k", {"gen": 2})
+    assert store.read_cache("consensus", "k") == {"gen": 2}
+    leftovers = [p.name for p in (tmp_path / "cache" / "consensus").iterdir()
+                 if p.suffix == ".tmp"]
+    assert leftovers == []
+
+
+def test_cache_persists_on_disk_for_a_fresh_store(tmp_path: Path) -> None:
+    _store(tmp_path).write_cache("consensus", "k", {"a": 1})
+    on_disk = json.loads(
+        (tmp_path / "cache" / "consensus" / "k.json").read_text(encoding="utf-8")
+    )
+    assert on_disk == {"a": 1}
+    assert FileStore(tmp_path).read_cache("consensus", "k") == {"a": 1}
+
+
+@pytest.mark.parametrize("bad", ["../evil", "a/b", "..", "", "a\\b"])
+def test_cache_rejects_unsafe_namespace(tmp_path: Path, bad: str) -> None:
+    with pytest.raises(StoreError):
+        _store(tmp_path).write_cache(bad, "k", {"a": 1})
+    with pytest.raises(StoreError):
+        _store(tmp_path).read_cache(bad, "k")
+
+
+@pytest.mark.parametrize("bad", ["../evil", "a/b", "..", "", "a\\b"])
+def test_cache_rejects_unsafe_key(tmp_path: Path, bad: str) -> None:
+    with pytest.raises(StoreError):
+        _store(tmp_path).write_cache("consensus", bad, {"a": 1})
+    with pytest.raises(StoreError):
+        _store(tmp_path).read_cache("consensus", bad)
+
+
+def test_cache_malformed_json_raises_store_error(tmp_path: Path) -> None:
+    path = tmp_path / "cache" / "consensus" / "k.json"
+    path.parent.mkdir(parents=True)
+    path.write_text("{ not json", encoding="utf-8")
+    with pytest.raises(StoreError):
+        _store(tmp_path).read_cache("consensus", "k")
+
+
+def test_cache_non_object_json_raises_store_error(tmp_path: Path) -> None:
+    path = tmp_path / "cache" / "consensus" / "k.json"
+    path.parent.mkdir(parents=True)
+    path.write_text("[1, 2, 3]", encoding="utf-8")
+    with pytest.raises(StoreError):
+        _store(tmp_path).read_cache("consensus", "k")
+
+
+def test_cache_non_utf8_file_raises_store_error(tmp_path: Path) -> None:
+    path = tmp_path / "cache" / "consensus" / "k.json"
+    path.parent.mkdir(parents=True)
+    path.write_bytes(bytes([0xFF, 0xFE]) + b" not utf-8 at all")
+    with pytest.raises(StoreError):
+        _store(tmp_path).read_cache("consensus", "k")
+
+
+def test_cache_reason_with_unicode_line_separator_round_trips(tmp_path: Path) -> None:
+    store = _store(tmp_path)
+    payload = {"note": f"outage{LINE_SEP}resolved{PARA_SEP}retry"}
+    store.write_cache("consensus", "k", payload)
+    assert store.read_cache("consensus", "k") == payload
+
+
 # --- read-after-write + abstractness ---------------------------------
 
 
@@ -279,6 +365,8 @@ def test_store_is_abstract() -> None:
             "read_storylines",
             "write_storylines",
             "read_claims",
+            "read_cache",
+            "write_cache",
         }
     )
 
@@ -399,6 +487,8 @@ def test_store_api_names_are_cloud_neutral() -> None:
         "read_storylines",
         "write_storylines",
         "read_claims",
+        "read_cache",
+        "write_cache",
     }
     for name in public:
         member = getattr(Store, name)

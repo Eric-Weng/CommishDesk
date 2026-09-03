@@ -19,20 +19,28 @@ Guarantees every ``Store`` implementation makes:
 * **Claims are read-only in the engine.** The engine surfaces claim records so
   the Generation Set constructor (elsewhere, AD-6) can derive from them; it never
   writes a claim.
+* **The blob cache is a plain key/value store of raw upstream payloads.**
+  ``write_cache`` records one JSON object under a ``(namespace, key)`` pair;
+  ``read_cache`` returns it verbatim, or ``None`` when nothing was written.
+  A written value is visible to an immediately-following ``read_cache`` for the
+  same pair. It carries no schema and no expiry — the caller owns freshness.
 
 ``FileStore`` keeps everything as plain files under a root directory:
 ``leagues/<id>.toml``, ``ledger/<id>.jsonl``, ``storylines/<id>.json``,
-``claims/<id>.json``. Whole-file writes go through a temp file plus
+``claims/<id>.json``, ``cache/<namespace>/<key>.json``. Whole-file writes go
+through a temp file plus
 ``os.replace``; ledger appends write one line and flush. No locking — there is a
 single writer per league (AD-6).
 """
 
 from __future__ import annotations
 
+import json
 import os
 import tempfile
 import tomllib
 from abc import ABC, abstractmethod
+from collections.abc import Mapping
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Annotated, Any, Literal, TypeVar
@@ -81,6 +89,21 @@ def _safe_league_id(league_id: str) -> str:
     ):
         raise StoreError(f"unsafe league id: {league_id!r}")
     return league_id
+
+
+def _safe_segment(segment: str) -> str:
+    """Return *segment* unchanged, or raise ``StoreError`` if it could escape
+    the store root as a path segment. Same rule as ``_safe_league_id`` — this is
+    the guard for a caller-fed ``namespace`` or ``key`` on the blob cache."""
+    if (
+        not segment
+        or segment in (".", "..")
+        or "/" in segment
+        or "\\" in segment
+        or "\x00" in segment
+    ):
+        raise StoreError(f"unsafe cache segment: {segment!r}")
+    return segment
 
 
 # --- record models -----------------------------------------------------------
@@ -165,6 +188,19 @@ class Store(ABC):
     def read_claims(self, league_id: str) -> list[Claim]:
         """Return the league's claim records (empty if none). Read-only: the
         engine has no claim-write path."""
+
+    @abstractmethod
+    def read_cache(self, namespace: str, key: str) -> dict[str, Any] | None:
+        """Return the JSON object last written under ``(namespace, key)``, or
+        ``None`` if nothing was written. Raises ``StoreError`` on unsafe
+        ``namespace`` / ``key`` or an unreadable / malformed entry."""
+
+    @abstractmethod
+    def write_cache(self, namespace: str, key: str, value: Mapping[str, Any]) -> None:
+        """Store one JSON object under ``(namespace, key)``, replacing any prior
+        value. Visible to an immediately-following ``read_cache`` for the same
+        pair. Raises ``StoreError`` on unsafe ``namespace`` / ``key`` or a write
+        failure."""
 
 
 # --- the one local implementation ------------------------------------------
@@ -293,3 +329,32 @@ class FileStore(Store):
             raise StoreError(
                 f"malformed {path.parent.name} JSON for {league_id!r}"
             ) from exc
+
+    def _cache_file(self, namespace: str, key: str) -> Path:
+        return (
+            self._root / "cache" / _safe_segment(namespace) / f"{_safe_segment(key)}.json"
+        )
+
+    def read_cache(self, namespace: str, key: str) -> dict[str, Any] | None:
+        path = self._cache_file(namespace, key)
+        try:
+            raw = path.read_text(encoding="utf-8")
+        except FileNotFoundError:
+            return None
+        except (OSError, UnicodeDecodeError) as exc:
+            raise StoreError(f"cannot read cache {namespace}/{key}") from exc
+        try:
+            value = json.loads(raw)
+        except ValueError as exc:
+            raise StoreError(f"malformed cache JSON for {namespace}/{key}") from exc
+        if not isinstance(value, dict):
+            raise StoreError(f"cache entry {namespace}/{key} is not a JSON object")
+        return value
+
+    def write_cache(self, namespace: str, key: str, value: Mapping[str, Any]) -> None:
+        path = self._cache_file(namespace, key)
+        try:
+            payload = json.dumps(dict(value), ensure_ascii=False, sort_keys=True, indent=2)
+        except (TypeError, ValueError) as exc:
+            raise StoreError(f"cache value for {namespace}/{key} is not JSON") from exc
+        self._atomic_write(path, payload + "\n")

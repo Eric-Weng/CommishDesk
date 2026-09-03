@@ -1,0 +1,833 @@
+{
+  "_synthetic": "Story 2.4b oracle. compute_consensus_metrics() over the rookie-draft.json / week10-superflex.json board (identical 72-pick board, team_count 12) against the synthetic fantasycalc-values.json. Values are synthetic - the test asserts the transform, not a real consensus board. Regenerate when the transform changes.",
+  "picks": [
+    {
+      "pick_no": 1,
+      "roster_id": "2",
+      "player": "Ashton Jeanty",
+      "consensus_slot": 4,
+      "consensus_label": "1.04",
+      "delta": -3,
+      "flags": []
+    },
+    {
+      "pick_no": 2,
+      "roster_id": "6",
+      "player": "Omarion Hampton",
+      "consensus_slot": 1,
+      "consensus_label": "1.01",
+      "delta": 1,
+      "flags": []
+    },
+    {
+      "pick_no": 3,
+      "roster_id": "6",
+      "player": "Travis Hunter",
+      "consensus_slot": 2,
+      "consensus_label": "1.02",
+      "delta": 1,
+      "flags": []
+    },
+    {
+      "pick_no": 4,
+      "roster_id": "5",
+      "player": "Tetairoa McMillan",
+      "consensus_slot": 7,
+      "consensus_label": "1.07",
+      "delta": -3,
+      "flags": []
+    },
+    {
+      "pick_no": 5,
+      "roster_id": "12",
+      "player": "Cameron Ward",
+      "consensus_slot": null,
+      "consensus_label": null,
+      "delta": null,
+      "flags": [
+        "no_consensus"
+      ]
+    },
+    {
+      "pick_no": 6,
+      "roster_id": "7",
+      "player": "TreVeyon Henderson",
+      "consensus_slot": 3,
+      "consensus_label": "1.03",
+      "delta": 3,
+      "flags": []
+    },
+    {
+      "pick_no": 7,
+      "roster_id": "8",
+      "player": "Quinshon Judkins",
+      "consensus_slot": 6,
+      "consensus_label": "1.06",
+      "delta": 1,
+      "flags": []
+    },
+    {
+      "pick_no": 8,
+      "roster_id": "8",
+      "player": "Emeka Egbuka",
+      "consensus_slot": 11,
+      "consensus_label": "1.11",
+      "delta": -3,
+      "flags": []
+    },
+    {
+      "pick_no": 9,
+      "roster_id": "4",
+      "player": "Matthew Golden",
+      "consensus_slot": 9,
+      "consensus_label": "1.09",
+      "delta": 0,
+      "flags": []
+    },
+    {
+      "pick_no": 10,
+      "roster_id": "3",
+      "player": "Jaxson Dart",
+      "consensus_slot": 5,
+      "consensus_label": "1.05",
+      "delta": 5,
+      "flags": []
+    },
+    {
+      "pick_no": 11,
+      "roster_id": "7",
+      "player": "RJ Harvey",
+      "consensus_slot": 10,
+      "consensus_label": "1.10",
+      "delta": 1,
+      "flags": []
+    },
+    {
+      "pick_no": 12,
+      "roster_id": "11",
+      "player": "Luther Burden",
+      "consensus_slot": 8,
+      "consensus_label": "1.08",
+      "delta": 4,
+      "flags": []
+    },
+    {
+      "pick_no": 13,
+      "roster_id": "11",
+      "player": "Kaleb Johnson",
+      "consensus_slot": null,
+      "consensus_label": null,
+      "delta": null,
+      "flags": [
+        "no_consensus"
+      ]
+    },
+    {
+      "pick_no": 14,
+      "roster_id": "8",
+      "player": "Colston Loveland",
+      "consensus_slot": 14,
+      "consensus_label": "2.02",
+      "delta": 0,
+      "flags": []
+    },
+    {
+      "pick_no": 15,
+      "roster_id": "5",
+      "player": "Jayden Higgins",
+      "consensus_slot": 15,
+      "consensus_label": "2.03",
+      "delta": 0,
+      "flags": []
+    },
+    {
+      "pick_no": 16,
+      "roster_id": "1",
+      "player": "Tyler Warren",
+      "consensus_slot": 12,
+      "consensus_label": "1.12",
+      "delta": 4,
+      "flags": []
+    },
+    {
+      "pick_no": 17,
+      "roster_id": "12",
+      "player": "Tre Harris",
+      "consensus_slot": 13,
+      "consensus_label": "2.01",
+      "delta": 4,
+      "flags": []
+    },
+    {
+      "pick_no": 18,
+      "roster_id": "9",
+      "player": "Jack Bech",
+      "consensus_slot": 18,
+      "consensus_label": "2.06",
+      "delta": 0,
+      "flags": []
+    },
+    {
+      "pick_no": 19,
+      "roster_id": "9",
+      "player": "Kyle Williams",
+      "consensus_slot": 16,
+      "consensus_label": "2.04",
+      "delta": 3,
+      "flags": []
+    },
+    {
+      "pick_no": 20,
+      "roster_id": "10",
+      "player": "Cam Skattebo",
+      "consensus_slot": 17,
+      "consensus_label": "2.05",
+      "delta": 3,
+      "flags": []
+    },
+    {
+      "pick_no": 21,
+      "roster_id": "8",
+      "player": "Jaylin Noel",
+      "consensus_slot": 19,
+      "consensus_label": "2.07",
+      "delta": 2,
+      "flags": []
+    },
+    {
+      "pick_no": 22,
+      "roster_id": "11",
+      "player": "Jalen Milroe",
+      "consensus_slot": null,
+      "consensus_label": null,
+      "delta": null,
+      "flags": [
+        "no_consensus"
+      ]
+    },
+    {
+      "pick_no": 23,
+      "roster_id": "7",
+      "player": "Jalen Royals",
+      "consensus_slot": 24,
+      "consensus_label": "2.12",
+      "delta": -1,
+      "flags": []
+    },
+    {
+      "pick_no": 24,
+      "roster_id": "8",
+      "player": "Bhayshul Tuten",
+      "consensus_slot": 20,
+      "consensus_label": "2.08",
+      "delta": 4,
+      "flags": []
+    },
+    {
+      "pick_no": 25,
+      "roster_id": "1",
+      "player": "Jaydon Blue",
+      "consensus_slot": 21,
+      "consensus_label": "2.09",
+      "delta": 4,
+      "flags": []
+    },
+    {
+      "pick_no": 26,
+      "roster_id": "8",
+      "player": "Tyler Shough",
+      "consensus_slot": 23,
+      "consensus_label": "2.11",
+      "delta": 3,
+      "flags": []
+    },
+    {
+      "pick_no": 27,
+      "roster_id": "6",
+      "player": "Mason Taylor",
+      "consensus_slot": null,
+      "consensus_label": null,
+      "delta": null,
+      "flags": [
+        "no_consensus"
+      ]
+    },
+    {
+      "pick_no": 28,
+      "roster_id": "5",
+      "player": "Devin Neal",
+      "consensus_slot": 22,
+      "consensus_label": "2.10",
+      "delta": 6,
+      "flags": []
+    },
+    {
+      "pick_no": 29,
+      "roster_id": "12",
+      "player": "Shedeur Sanders",
+      "consensus_slot": 26,
+      "consensus_label": "3.02",
+      "delta": 3,
+      "flags": []
+    },
+    {
+      "pick_no": 30,
+      "roster_id": "2",
+      "player": "Harold Fannin",
+      "consensus_slot": 31,
+      "consensus_label": "3.07",
+      "delta": -1,
+      "flags": []
+    },
+    {
+      "pick_no": 31,
+      "roster_id": "9",
+      "player": "Terrance Ferguson",
+      "consensus_slot": 25,
+      "consensus_label": "3.01",
+      "delta": 6,
+      "flags": []
+    },
+    {
+      "pick_no": 32,
+      "roster_id": "1",
+      "player": "Ollie Gordon",
+      "consensus_slot": 33,
+      "consensus_label": "3.09",
+      "delta": -1,
+      "flags": []
+    },
+    {
+      "pick_no": 33,
+      "roster_id": "4",
+      "player": "Elijah Arroyo",
+      "consensus_slot": 27,
+      "consensus_label": "3.03",
+      "delta": 6,
+      "flags": []
+    },
+    {
+      "pick_no": 34,
+      "roster_id": "3",
+      "player": "Dylan Sampson",
+      "consensus_slot": 30,
+      "consensus_label": "3.06",
+      "delta": 4,
+      "flags": []
+    },
+    {
+      "pick_no": 35,
+      "roster_id": "7",
+      "player": "Will Howard",
+      "consensus_slot": 29,
+      "consensus_label": "3.05",
+      "delta": 6,
+      "flags": []
+    },
+    {
+      "pick_no": 36,
+      "roster_id": "4",
+      "player": "Trevor Etienne",
+      "consensus_slot": 28,
+      "consensus_label": "3.04",
+      "delta": 8,
+      "flags": []
+    },
+    {
+      "pick_no": 37,
+      "roster_id": "2",
+      "player": "Pat Bryant",
+      "consensus_slot": null,
+      "consensus_label": null,
+      "delta": null,
+      "flags": [
+        "no_consensus"
+      ]
+    },
+    {
+      "pick_no": 38,
+      "roster_id": "8",
+      "player": "Elic Ayomanor",
+      "consensus_slot": 32,
+      "consensus_label": "3.08",
+      "delta": 6,
+      "flags": []
+    },
+    {
+      "pick_no": 39,
+      "roster_id": "6",
+      "player": "Savion Williams",
+      "consensus_slot": 36,
+      "consensus_label": "3.12",
+      "delta": 3,
+      "flags": []
+    },
+    {
+      "pick_no": 40,
+      "roster_id": "5",
+      "player": "Jarquez Hunter",
+      "consensus_slot": 38,
+      "consensus_label": "4.02",
+      "delta": 2,
+      "flags": []
+    },
+    {
+      "pick_no": 41,
+      "roster_id": "12",
+      "player": "DJ Giddens",
+      "consensus_slot": 41,
+      "consensus_label": "4.05",
+      "delta": 0,
+      "flags": []
+    },
+    {
+      "pick_no": 42,
+      "roster_id": "2",
+      "player": "Isaac TeSlaa",
+      "consensus_slot": 39,
+      "consensus_label": "4.03",
+      "delta": 3,
+      "flags": []
+    },
+    {
+      "pick_no": 43,
+      "roster_id": "2",
+      "player": "Tory Horton",
+      "consensus_slot": 34,
+      "consensus_label": "3.10",
+      "delta": 9,
+      "flags": []
+    },
+    {
+      "pick_no": 44,
+      "roster_id": "2",
+      "player": "Brashard Smith",
+      "consensus_slot": 35,
+      "consensus_label": "3.11",
+      "delta": 9,
+      "flags": []
+    },
+    {
+      "pick_no": 45,
+      "roster_id": "2",
+      "player": "Tahj Brooks",
+      "consensus_slot": 40,
+      "consensus_label": "4.04",
+      "delta": 5,
+      "flags": []
+    },
+    {
+      "pick_no": 46,
+      "roster_id": "2",
+      "player": "Dont'e Thornton",
+      "consensus_slot": 37,
+      "consensus_label": "4.01",
+      "delta": 9,
+      "flags": []
+    },
+    {
+      "pick_no": 47,
+      "roster_id": "2",
+      "player": "Woody Marks",
+      "consensus_slot": null,
+      "consensus_label": null,
+      "delta": null,
+      "flags": [
+        "no_consensus"
+      ]
+    },
+    {
+      "pick_no": 48,
+      "roster_id": "8",
+      "player": "Jordan James",
+      "consensus_slot": 43,
+      "consensus_label": "4.07",
+      "delta": 5,
+      "flags": []
+    },
+    {
+      "pick_no": 49,
+      "roster_id": "11",
+      "player": "Xavier Restrepo",
+      "consensus_slot": 42,
+      "consensus_label": "4.06",
+      "delta": 7,
+      "flags": []
+    },
+    {
+      "pick_no": 50,
+      "roster_id": "8",
+      "player": "Kyle Monangai",
+      "consensus_slot": null,
+      "consensus_label": null,
+      "delta": null,
+      "flags": [
+        "no_consensus"
+      ]
+    },
+    {
+      "pick_no": 51,
+      "roster_id": "6",
+      "player": "Jimmy Horn",
+      "consensus_slot": 45,
+      "consensus_label": "4.09",
+      "delta": 6,
+      "flags": []
+    },
+    {
+      "pick_no": 52,
+      "roster_id": "8",
+      "player": "Jacory Croskey-Merritt",
+      "consensus_slot": 46,
+      "consensus_label": "4.10",
+      "delta": 6,
+      "flags": []
+    },
+    {
+      "pick_no": 53,
+      "roster_id": "12",
+      "player": "Damien Martinez",
+      "consensus_slot": null,
+      "consensus_label": null,
+      "delta": null,
+      "flags": [
+        "no_consensus"
+      ]
+    },
+    {
+      "pick_no": 54,
+      "roster_id": "2",
+      "player": "Tai Felton",
+      "consensus_slot": 44,
+      "consensus_label": "4.08",
+      "delta": 10,
+      "flags": []
+    },
+    {
+      "pick_no": 55,
+      "roster_id": "2",
+      "player": "Jaylin Lane",
+      "consensus_slot": 47,
+      "consensus_label": "4.11",
+      "delta": 8,
+      "flags": []
+    },
+    {
+      "pick_no": 56,
+      "roster_id": "10",
+      "player": "Quinn Ewers",
+      "consensus_slot": 49,
+      "consensus_label": "5.01",
+      "delta": 7,
+      "flags": []
+    },
+    {
+      "pick_no": 57,
+      "roster_id": "4",
+      "player": "Dillon Gabriel",
+      "consensus_slot": null,
+      "consensus_label": null,
+      "delta": null,
+      "flags": [
+        "no_consensus"
+      ]
+    },
+    {
+      "pick_no": 58,
+      "roster_id": "3",
+      "player": "Tez Johnson",
+      "consensus_slot": 48,
+      "consensus_label": "4.12",
+      "delta": 10,
+      "flags": []
+    },
+    {
+      "pick_no": 59,
+      "roster_id": "7",
+      "player": "Oronde Gadsden",
+      "consensus_slot": 52,
+      "consensus_label": "5.04",
+      "delta": 7,
+      "flags": []
+    },
+    {
+      "pick_no": 60,
+      "roster_id": "1",
+      "player": "LeQuint Allen",
+      "consensus_slot": 50,
+      "consensus_label": "5.02",
+      "delta": 10,
+      "flags": []
+    },
+    {
+      "pick_no": 61,
+      "roster_id": "11",
+      "player": "Nick Nash",
+      "consensus_slot": 51,
+      "consensus_label": "5.03",
+      "delta": 10,
+      "flags": []
+    },
+    {
+      "pick_no": 62,
+      "roster_id": "8",
+      "player": "Phil Mafah",
+      "consensus_slot": null,
+      "consensus_label": null,
+      "delta": null,
+      "flags": [
+        "no_consensus"
+      ]
+    },
+    {
+      "pick_no": 63,
+      "roster_id": "6",
+      "player": "Arian Smith",
+      "consensus_slot": 56,
+      "consensus_label": "5.08",
+      "delta": 7,
+      "flags": []
+    },
+    {
+      "pick_no": 64,
+      "roster_id": "5",
+      "player": "Kyle McCord",
+      "consensus_slot": 55,
+      "consensus_label": "5.07",
+      "delta": 9,
+      "flags": []
+    },
+    {
+      "pick_no": 65,
+      "roster_id": "12",
+      "player": "Gunnar Helm",
+      "consensus_slot": 53,
+      "consensus_label": "5.05",
+      "delta": 12,
+      "flags": []
+    },
+    {
+      "pick_no": 66,
+      "roster_id": "2",
+      "player": "Tommy Mellott",
+      "consensus_slot": null,
+      "consensus_label": null,
+      "delta": null,
+      "flags": [
+        "no_consensus"
+      ]
+    },
+    {
+      "pick_no": 67,
+      "roster_id": "9",
+      "player": "Jalin Conyers",
+      "consensus_slot": 57,
+      "consensus_label": "5.09",
+      "delta": 10,
+      "flags": []
+    },
+    {
+      "pick_no": 68,
+      "roster_id": "10",
+      "player": "Donovan Edwards",
+      "consensus_slot": 59,
+      "consensus_label": "5.11",
+      "delta": 9,
+      "flags": []
+    },
+    {
+      "pick_no": 69,
+      "roster_id": "4",
+      "player": "Isaiah Bond",
+      "consensus_slot": 58,
+      "consensus_label": "5.10",
+      "delta": 11,
+      "flags": []
+    },
+    {
+      "pick_no": 70,
+      "roster_id": "3",
+      "player": "Mitchell Evans",
+      "consensus_slot": 61,
+      "consensus_label": "6.01",
+      "delta": 9,
+      "flags": []
+    },
+    {
+      "pick_no": 71,
+      "roster_id": "7",
+      "player": "Lan Larison",
+      "consensus_slot": 54,
+      "consensus_label": "5.06",
+      "delta": 17,
+      "flags": []
+    },
+    {
+      "pick_no": 72,
+      "roster_id": "1",
+      "player": "Antwane Wells",
+      "consensus_slot": 60,
+      "consensus_label": "5.12",
+      "delta": 12,
+      "flags": []
+    }
+  ],
+  "teams": [
+    {
+      "roster_id": "1",
+      "best_value_pick": {
+        "pick_no": 72,
+        "player": "Antwane Wells",
+        "delta": 12
+      },
+      "biggest_reach_pick": {
+        "pick_no": 32,
+        "player": "Ollie Gordon",
+        "delta": -1
+      }
+    },
+    {
+      "roster_id": "2",
+      "best_value_pick": {
+        "pick_no": 54,
+        "player": "Tai Felton",
+        "delta": 10
+      },
+      "biggest_reach_pick": {
+        "pick_no": 1,
+        "player": "Ashton Jeanty",
+        "delta": -3
+      }
+    },
+    {
+      "roster_id": "3",
+      "best_value_pick": {
+        "pick_no": 58,
+        "player": "Tez Johnson",
+        "delta": 10
+      },
+      "biggest_reach_pick": {
+        "pick_no": 34,
+        "player": "Dylan Sampson",
+        "delta": 4
+      }
+    },
+    {
+      "roster_id": "4",
+      "best_value_pick": {
+        "pick_no": 69,
+        "player": "Isaiah Bond",
+        "delta": 11
+      },
+      "biggest_reach_pick": {
+        "pick_no": 9,
+        "player": "Matthew Golden",
+        "delta": 0
+      }
+    },
+    {
+      "roster_id": "5",
+      "best_value_pick": {
+        "pick_no": 64,
+        "player": "Kyle McCord",
+        "delta": 9
+      },
+      "biggest_reach_pick": {
+        "pick_no": 4,
+        "player": "Tetairoa McMillan",
+        "delta": -3
+      }
+    },
+    {
+      "roster_id": "6",
+      "best_value_pick": {
+        "pick_no": 63,
+        "player": "Arian Smith",
+        "delta": 7
+      },
+      "biggest_reach_pick": {
+        "pick_no": 2,
+        "player": "Omarion Hampton",
+        "delta": 1
+      }
+    },
+    {
+      "roster_id": "7",
+      "best_value_pick": {
+        "pick_no": 71,
+        "player": "Lan Larison",
+        "delta": 17
+      },
+      "biggest_reach_pick": {
+        "pick_no": 23,
+        "player": "Jalen Royals",
+        "delta": -1
+      }
+    },
+    {
+      "roster_id": "8",
+      "best_value_pick": {
+        "pick_no": 38,
+        "player": "Elic Ayomanor",
+        "delta": 6
+      },
+      "biggest_reach_pick": {
+        "pick_no": 8,
+        "player": "Emeka Egbuka",
+        "delta": -3
+      }
+    },
+    {
+      "roster_id": "9",
+      "best_value_pick": {
+        "pick_no": 67,
+        "player": "Jalin Conyers",
+        "delta": 10
+      },
+      "biggest_reach_pick": {
+        "pick_no": 18,
+        "player": "Jack Bech",
+        "delta": 0
+      }
+    },
+    {
+      "roster_id": "10",
+      "best_value_pick": {
+        "pick_no": 68,
+        "player": "Donovan Edwards",
+        "delta": 9
+      },
+      "biggest_reach_pick": {
+        "pick_no": 20,
+        "player": "Cam Skattebo",
+        "delta": 3
+      }
+    },
+    {
+      "roster_id": "11",
+      "best_value_pick": {
+        "pick_no": 61,
+        "player": "Nick Nash",
+        "delta": 10
+      },
+      "biggest_reach_pick": {
+        "pick_no": 12,
+        "player": "Luther Burden",
+        "delta": 4
+      }
+    },
+    {
+      "roster_id": "12",
+      "best_value_pick": {
+        "pick_no": 65,
+        "player": "Gunnar Helm",
+        "delta": 12
+      },
+      "biggest_reach_pick": {
+        "pick_no": 41,
+        "player": "DJ Giddens",
+        "delta": 0
+      }
+    }
+  ]
+}

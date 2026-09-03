@@ -1,0 +1,673 @@
+[
+  {
+    "player": {
+      "id": 1000,
+      "name": "Omarion Hampton",
+      "sleeperId": "12507",
+      "position": "RB"
+    },
+    "value": 1525,
+    "overallRank": 1,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1001,
+      "name": "Travis Hunter",
+      "sleeperId": "12530",
+      "position": "WR"
+    },
+    "value": 1500,
+    "overallRank": 2,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1002,
+      "name": "TreVeyon Henderson",
+      "sleeperId": "12529",
+      "position": "RB"
+    },
+    "value": 1475,
+    "overallRank": 3,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1003,
+      "name": "Ashton Jeanty",
+      "sleeperId": "12527",
+      "position": "RB"
+    },
+    "value": 1450,
+    "overallRank": 4,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1004,
+      "name": "Jaxson Dart",
+      "sleeperId": "12508",
+      "position": "QB"
+    },
+    "value": 1425,
+    "overallRank": 5,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1005,
+      "name": "Quinshon Judkins",
+      "sleeperId": "12512",
+      "position": "RB"
+    },
+    "value": 1400,
+    "overallRank": 6,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1006,
+      "name": "Tetairoa McMillan",
+      "sleeperId": "12526",
+      "position": "WR"
+    },
+    "value": 1375,
+    "overallRank": 7,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1007,
+      "name": "Luther Burden",
+      "sleeperId": "12519",
+      "position": "WR"
+    },
+    "value": 1350,
+    "overallRank": 8,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1008,
+      "name": "Matthew Golden",
+      "sleeperId": "12501",
+      "position": "WR"
+    },
+    "value": 1325,
+    "overallRank": 9,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1009,
+      "name": "RJ Harvey",
+      "sleeperId": "12489",
+      "position": "RB"
+    },
+    "value": 1300,
+    "overallRank": 10,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1010,
+      "name": "Emeka Egbuka",
+      "sleeperId": "12514",
+      "position": "WR"
+    },
+    "value": 1275,
+    "overallRank": 11,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1011,
+      "name": "Tyler Warren",
+      "sleeperId": "12518",
+      "position": "TE"
+    },
+    "value": 1250,
+    "overallRank": 12,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1012,
+      "name": "Tre Harris",
+      "sleeperId": "12509",
+      "position": "WR"
+    },
+    "value": 1225,
+    "overallRank": 13,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1013,
+      "name": "Colston Loveland",
+      "sleeperId": "12517",
+      "position": "TE"
+    },
+    "value": 1200,
+    "overallRank": 14,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1014,
+      "name": "Jayden Higgins",
+      "sleeperId": "12484",
+      "position": "WR"
+    },
+    "value": 1175,
+    "overallRank": 15,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1015,
+      "name": "Kyle Williams",
+      "sleeperId": "12547",
+      "position": "WR"
+    },
+    "value": 1150,
+    "overallRank": 16,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1016,
+      "name": "Cam Skattebo",
+      "sleeperId": "12481",
+      "position": "RB"
+    },
+    "value": 1125,
+    "overallRank": 17,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1017,
+      "name": "Jack Bech",
+      "sleeperId": "12483",
+      "position": "WR"
+    },
+    "value": 1100,
+    "overallRank": 18,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1018,
+      "name": "Jaylin Noel",
+      "sleeperId": "12536",
+      "position": "WR"
+    },
+    "value": 1075,
+    "overallRank": 19,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1019,
+      "name": "Bhayshul Tuten",
+      "sleeperId": "12490",
+      "position": "RB"
+    },
+    "value": 1050,
+    "overallRank": 20,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1020,
+      "name": "Jaydon Blue",
+      "sleeperId": "12457",
+      "position": "RB"
+    },
+    "value": 1025,
+    "overallRank": 21,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1021,
+      "name": "Devin Neal",
+      "sleeperId": "12476",
+      "position": "RB"
+    },
+    "value": 1000,
+    "overallRank": 22,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1022,
+      "name": "Tyler Shough",
+      "sleeperId": "12545",
+      "position": "QB"
+    },
+    "value": 975,
+    "overallRank": 23,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1023,
+      "name": "Jalen Royals",
+      "sleeperId": "12505",
+      "position": "WR"
+    },
+    "value": 950,
+    "overallRank": 24,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1024,
+      "name": "Terrance Ferguson",
+      "sleeperId": "12487",
+      "position": "TE"
+    },
+    "value": 925,
+    "overallRank": 25,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1025,
+      "name": "Shedeur Sanders",
+      "sleeperId": "12524",
+      "position": "QB"
+    },
+    "value": 900,
+    "overallRank": 26,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1026,
+      "name": "Elijah Arroyo",
+      "sleeperId": "12521",
+      "position": "TE"
+    },
+    "value": 875,
+    "overallRank": 27,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1027,
+      "name": "Trevor Etienne",
+      "sleeperId": "12531",
+      "position": "RB"
+    },
+    "value": 850,
+    "overallRank": 28,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1028,
+      "name": "Will Howard",
+      "sleeperId": "12511",
+      "position": "QB"
+    },
+    "value": 825,
+    "overallRank": 29,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1029,
+      "name": "Dylan Sampson",
+      "sleeperId": "12469",
+      "position": "RB"
+    },
+    "value": 800,
+    "overallRank": 30,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1030,
+      "name": "Harold Fannin",
+      "sleeperId": "12506",
+      "position": "TE"
+    },
+    "value": 775,
+    "overallRank": 31,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1031,
+      "name": "Elic Ayomanor",
+      "sleeperId": "12499",
+      "position": "WR"
+    },
+    "value": 750,
+    "overallRank": 32,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1032,
+      "name": "Ollie Gordon",
+      "sleeperId": "12495",
+      "position": "RB"
+    },
+    "value": 725,
+    "overallRank": 33,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1033,
+      "name": "Tory Horton",
+      "sleeperId": "12497",
+      "position": "WR"
+    },
+    "value": 700,
+    "overallRank": 34,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1034,
+      "name": "Brashard Smith",
+      "sleeperId": "12455",
+      "position": "RB"
+    },
+    "value": 675,
+    "overallRank": 35,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1035,
+      "name": "Savion Williams",
+      "sleeperId": "12482",
+      "position": "WR"
+    },
+    "value": 650,
+    "overallRank": 36,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1036,
+      "name": "Dont'e Thornton",
+      "sleeperId": "12541",
+      "position": "WR"
+    },
+    "value": 625,
+    "overallRank": 37,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1037,
+      "name": "Jarquez Hunter",
+      "sleeperId": "11569",
+      "position": "RB"
+    },
+    "value": 600,
+    "overallRank": 38,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1038,
+      "name": "Isaac TeSlaa",
+      "sleeperId": "12535",
+      "position": "WR"
+    },
+    "value": 575,
+    "overallRank": 39,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1039,
+      "name": "Tahj Brooks",
+      "sleeperId": "12543",
+      "position": "RB"
+    },
+    "value": 550,
+    "overallRank": 40,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1040,
+      "name": "DJ Giddens",
+      "sleeperId": "12471",
+      "position": "RB"
+    },
+    "value": 525,
+    "overallRank": 41,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1041,
+      "name": "Xavier Restrepo",
+      "sleeperId": "12520",
+      "position": "WR"
+    },
+    "value": 500,
+    "overallRank": 42,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1042,
+      "name": "Jordan James",
+      "sleeperId": "12467",
+      "position": "RB"
+    },
+    "value": 475,
+    "overallRank": 43,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1043,
+      "name": "Tai Felton",
+      "sleeperId": "12496",
+      "position": "WR"
+    },
+    "value": 450,
+    "overallRank": 44,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1044,
+      "name": "Jimmy Horn",
+      "sleeperId": "12523",
+      "position": "WR"
+    },
+    "value": 425,
+    "overallRank": 45,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1045,
+      "name": "Jacory Croskey-Merritt",
+      "sleeperId": "12533",
+      "position": "RB"
+    },
+    "value": 400,
+    "overallRank": 46,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1046,
+      "name": "Jaylin Lane",
+      "sleeperId": "12641",
+      "position": "WR"
+    },
+    "value": 375,
+    "overallRank": 47,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1047,
+      "name": "Tez Johnson",
+      "sleeperId": "12485",
+      "position": "WR"
+    },
+    "value": 350,
+    "overallRank": 48,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1048,
+      "name": "Quinn Ewers",
+      "sleeperId": "12500",
+      "position": "QB"
+    },
+    "value": 325,
+    "overallRank": 49,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1049,
+      "name": "LeQuint Allen",
+      "sleeperId": "12544",
+      "position": "RB"
+    },
+    "value": 300,
+    "overallRank": 50,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1050,
+      "name": "Nick Nash",
+      "sleeperId": "12478",
+      "position": "WR"
+    },
+    "value": 275,
+    "overallRank": 51,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1051,
+      "name": "Oronde Gadsden",
+      "sleeperId": "12493",
+      "position": "TE"
+    },
+    "value": 250,
+    "overallRank": 52,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1052,
+      "name": "Gunnar Helm",
+      "sleeperId": "12502",
+      "position": "TE"
+    },
+    "value": 225,
+    "overallRank": 53,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1053,
+      "name": "Lan Larison",
+      "sleeperId": "12969",
+      "position": "RB"
+    },
+    "value": 200,
+    "overallRank": 54,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1054,
+      "name": "Kyle McCord",
+      "sleeperId": "12494",
+      "position": "QB"
+    },
+    "value": 175,
+    "overallRank": 55,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1055,
+      "name": "Arian Smith",
+      "sleeperId": "12539",
+      "position": "WR"
+    },
+    "value": 150,
+    "overallRank": 56,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1056,
+      "name": "Jalin Conyers",
+      "sleeperId": "12866",
+      "position": "TE"
+    },
+    "value": 125,
+    "overallRank": 57,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1057,
+      "name": "Isaiah Bond",
+      "sleeperId": "12503",
+      "position": "WR"
+    },
+    "value": 100,
+    "overallRank": 58,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1058,
+      "name": "Donovan Edwards",
+      "sleeperId": "12515",
+      "position": "RB"
+    },
+    "value": 75,
+    "overallRank": 59,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1059,
+      "name": "Antwane Wells",
+      "sleeperId": "12460",
+      "position": "WR"
+    },
+    "value": 50,
+    "overallRank": 60,
+    "positionRank": null
+  },
+  {
+    "player": {
+      "id": 1060,
+      "name": "Mitchell Evans",
+      "sleeperId": "12473",
+      "position": "TE"
+    },
+    "value": 25,
+    "overallRank": 61,
+    "positionRank": null
+  }
+]
