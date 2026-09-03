@@ -23,21 +23,29 @@ What it does, given one JSON object in the *bundle shape*
   which slice of the league is being anonymized — so fixtures cut from different
   weeks of one league agree on the token for a given team;
 * drops avatar hashes and any ``sleepercdn.com`` URL;
-* trims each NFL player record to a ~9-field allowlist (the raw record carries
-  birth date, birth city, high school, third-party ids, … — none used by the
-  engine and none anybody's to publish);
+* remaps every ``created`` / ``status_updated`` epoch-ms onto a synthetic grid
+  (:data:`SYNTH_EPOCH_BASE_MS` + rank x :data:`SYNTH_EPOCH_STEP_MS` over the
+  sorted distinct set), order-preserving — a real transaction wall-clock is a
+  strong fingerprint of a private league;
+* trims each NFL player record to the :data:`_PLAYER_FIELDS` allowlist. The raw
+  record carries birth date, birth city, high school, third-party ids, … — none
+  used by the engine and none anybody's to publish. ``college`` / ``age`` /
+  ``rookie_year`` *are* kept: published on every NFL roster site, and what a
+  draft recap cites;
 * preserves verbatim: ``scoring_settings``, ``roster_positions``, ``settings``,
   matchup points / players / starters / matchup_id, and transaction / draft /
   bracket structure.
 
-It does **not** do week-window truncation, drop failed waiver claims, or apply
-the superflex roster-slot mutation — those are manual pre-steps applied to the
-raw bundle before it is piped through this tool (see ``tests/fixtures/README.md``).
+It does **not** assemble the bundle from a per-endpoint export, do week-window
+truncation, drop failed waiver claims, or apply the superflex roster-slot
+mutation — that is ``tools/assemble_bundle.py``, run first (see
+``tests/fixtures/README.md``).
 
 Usage::
 
-    python tools/anonymize.py path/to/raw-bundle.json --seed 0 > fixture.json
-    cat raw-bundle.json | python tools/anonymize.py - > fixture.json
+    python tools/assemble_bundle.py raw-dir <case> | python tools/anonymize.py - > fixture.json
+    python tools/anonymize.py path/to/bundle.json --seed 0 > fixture.json
+    cat bundle.json | python tools/anonymize.py - > fixture.json
 """
 
 from __future__ import annotations
@@ -53,7 +61,15 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-__all__ = ["NAME_POOL", "Bundle", "load_bundle", "anonymize_bundle", "main"]
+__all__ = [
+    "NAME_POOL",
+    "Bundle",
+    "load_bundle",
+    "anonymize_bundle",
+    "main",
+    "SYNTH_EPOCH_BASE_MS",
+    "SYNTH_EPOCH_STEP_MS",
+]
 
 # --------------------------------------------------------------------------- #
 # Generated-name pool
@@ -209,6 +225,34 @@ def load_bundle(source: str | bytes | dict[str, Any]) -> dict[str, Any]:
 _TOKEN_ALPHABET = string.ascii_lowercase + string.digits
 _DIGIT_RUN_15 = re.compile(r"\d{15,}")
 
+# Synthetic timestamp grid. Every ``created`` / ``status_updated`` epoch-ms in the
+# anonymized bundle is remapped, order-preserving, onto ``BASE + i * STEP`` where
+# ``i`` is the value's rank in the sorted distinct set. A real Sleeper transaction
+# timestamp is a strong fingerprint of a private league (Sleeper is readable by
+# ``league_id`` without credentials); the grid keeps "X happened before Y" but
+# drops the wall-clock. Deterministic and independent of ``--seed``.
+SYNTH_EPOCH_BASE_MS = 1_735_689_600_000  # 2025-01-01T00:00:00Z
+SYNTH_EPOCH_STEP_MS = 3_600_000  # 1 hour
+_TIMESTAMP_KEYS = frozenset({"created", "status_updated"})
+
+
+def _coerce_epoch(value: Any) -> int | None:
+    """A positive wall-clock as an int, or ``None`` if ``value`` is not one.
+
+    Sleeper serves ``created`` / ``status_updated`` as ints, but a contributor's
+    export (or schema drift) could carry a numeric string or a whole float — the
+    remap normalises all of them so none slips past as an un-gridded original.
+    """
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value if value > 0 else None
+    if isinstance(value, float):
+        return int(value) if value > 0 and value.is_integer() else None
+    if isinstance(value, str) and value.isdigit():
+        return int(value)
+    return None
+
 # Scalar fields whose value is a Sleeper account / league / draft id. Handled
 # explicitly by the section builders and again, defensively, by ``_sweep``.
 _SCALAR_ID_KEYS = frozenset(
@@ -229,7 +273,11 @@ _LIST_ID_KEYS = frozenset({"co_owners", "creators"})
 
 # NFL player record: the only fields the engine consumes. Everything else in the
 # raw record (birth_date, birth_city, high_school, third-party ids, news
-# timestamps, …) is dropped — a size win and a privacy boundary.
+# timestamps, …) is dropped — a size win and a privacy boundary. ``college`` /
+# ``age`` / ``rookie_year`` are published on every NFL roster site (not
+# league-member data) and are what a draft recap cites to tell a rookie from a
+# veteran. ``rookie_year`` lives in the raw record's ``metadata`` sub-object, not
+# at the top level — ``players()`` lifts it.
 _PLAYER_FIELDS = (
     "first_name",
     "last_name",
@@ -240,7 +288,12 @@ _PLAYER_FIELDS = (
     "injury_status",
     "fantasy_positions",
     "status",
+    "college",
+    "age",
+    "rookie_year",
 )
+# Player fields that come from ``rec["metadata"]`` rather than the top level.
+_PLAYER_META_FIELDS = frozenset({"rookie_year"})
 
 _MATCHUP_FIELDS = (
     "roster_id",
@@ -551,7 +604,14 @@ class _Anonymizer:
         out: dict[str, Any] = {}
         for pid, rec in (self.src.get("players") or {}).items():
             rec = rec if isinstance(rec, dict) else {}
-            out[str(pid)] = {f: rec[f] for f in _PLAYER_FIELDS if f in rec}
+            trimmed = {f: rec[f] for f in _PLAYER_FIELDS if f in rec}
+            rec_md = rec.get("metadata")
+            if isinstance(rec_md, dict):
+                # rec_md fields fill in only where the top level did not supply them.
+                for f in _PLAYER_META_FIELDS:
+                    if f not in trimmed and f in rec_md:
+                        trimmed[f] = rec_md[f]
+            out[str(pid)] = trimmed
         return out
 
     # -- driver --------------------------------------------------------------- #
@@ -580,7 +640,47 @@ class _Anonymizer:
         # any 15+-digit run that a passthrough subtree (settings, adds/drops, a
         # contributor's schema drift) still carries. Roster ids, weeks, slots,
         # and epoch-ms timestamps (13 digits) are left alone.
-        return self._sweep(result)
+        result = self._sweep(result)
+        # Then flatten every real ``created`` / ``status_updated`` wall-clock onto
+        # the synthetic grid, order-preserving.
+        return self._remap_timestamps(result)
+
+    def _remap_timestamps(self, result: dict[str, Any]) -> dict[str, Any]:
+        distinct: set[int] = set()
+
+        def collect(obj: Any, parent_key: str | None) -> None:
+            if isinstance(obj, dict):
+                for k, v in obj.items():
+                    collect(v, k)
+            elif isinstance(obj, list):
+                for v in obj:
+                    collect(v, parent_key)
+            elif parent_key in _TIMESTAMP_KEYS:
+                epoch = _coerce_epoch(obj)
+                if epoch is not None:
+                    distinct.add(epoch)
+
+        collect(result, None)
+        if not distinct:
+            return result
+
+        grid = {
+            real: SYNTH_EPOCH_BASE_MS + rank * SYNTH_EPOCH_STEP_MS
+            for rank, real in enumerate(sorted(distinct))
+        }
+
+        def rewrite(obj: Any, parent_key: str | None) -> Any:
+            if isinstance(obj, dict):
+                return {k: rewrite(v, k) for k, v in obj.items()}
+            if isinstance(obj, list):
+                return [rewrite(v, parent_key) for v in obj]
+            if parent_key in _TIMESTAMP_KEYS:
+                epoch = _coerce_epoch(obj)
+                if epoch is not None and epoch in grid:
+                    return grid[epoch]
+            return obj
+
+        return rewrite(result, None)
 
     def _sweep(self, obj: Any) -> Any:
         if isinstance(obj, dict):
