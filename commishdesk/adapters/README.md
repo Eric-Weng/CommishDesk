@@ -7,4 +7,5 @@ from a fantasy platform before `ingest/` sanitizes it. The protocol is defined i
 (recorded platform responses, replay fixtures) lives in `tests/eval/adapters/`. This zone
 carries **at most one reference implementation**, enforced by
 [`tests/test_extension_zones.py`](../../tests/test_extension_zones.py) — today it carries
-none. Nothing here prescribes how to build an adapter.
+one: [`sleeper.py`](sleeper.py)'s `SleeperAdapter`, landed in Epic 2. Nothing here
+prescribes how to build an adapter.

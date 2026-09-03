@@ -1,0 +1,122 @@
+[
+  {
+    "display_name": "Pull-Guard Pumas",
+    "is_bot": false,
+    "is_owner": false,
+    "league_id": "id_rq867j4w7p",
+    "metadata": {
+      "team_name": "Two Minute Drill"
+    },
+    "user_id": "id_jdetw9pdax"
+  },
+  {
+    "display_name": "Blitz Alpacas",
+    "is_bot": false,
+    "is_owner": false,
+    "league_id": "id_rq867j4w7p",
+    "metadata": {
+      "team_name": "Kneel-Down Koalas"
+    },
+    "user_id": "id_c5g5oj0jn6"
+  },
+  {
+    "display_name": "Fair-Catch Ferrets",
+    "is_bot": false,
+    "is_owner": false,
+    "league_id": "id_rq867j4w7p",
+    "metadata": {
+      "team_name": "Bubble-Screen Bobcats"
+    },
+    "user_id": "id_w2l1zlh55w"
+  },
+  {
+    "display_name": "Long-Snap Lynx",
+    "is_bot": false,
+    "is_owner": false,
+    "league_id": "id_rq867j4w7p",
+    "metadata": {
+      "team_name": "No-Huddle Narwhals"
+    },
+    "user_id": "id_1ugx9qsbx3"
+  },
+  {
+    "display_name": "Field-Goal Foxes",
+    "is_bot": false,
+    "is_owner": false,
+    "league_id": "id_rq867j4w7p",
+    "metadata": {
+      "team_name": "Overtime Otters"
+    },
+    "user_id": "id_zxb3twnxx0"
+  },
+  {
+    "display_name": "Goal-Line Gazelles",
+    "is_bot": false,
+    "is_owner": true,
+    "league_id": "id_rq867j4w7p",
+    "metadata": {
+      "team_name": "Flea Flicker Union"
+    },
+    "user_id": "id_s9a3queopr"
+  },
+  {
+    "display_name": "Coverage Capybaras",
+    "is_bot": false,
+    "is_owner": false,
+    "league_id": "id_rq867j4w7p",
+    "metadata": {
+      "team_name": "Backpedal Buffalo"
+    },
+    "user_id": "id_buffkdafoj"
+  },
+  {
+    "display_name": "Iron-Range Ibex",
+    "is_bot": false,
+    "is_owner": null,
+    "league_id": "id_rq867j4w7p",
+    "metadata": {
+      "team_name": "Nickel Newts"
+    },
+    "user_id": "id_22ay41b2dk"
+  },
+  {
+    "display_name": "End-Around Egrets",
+    "is_bot": false,
+    "is_owner": false,
+    "league_id": "id_rq867j4w7p",
+    "metadata": {
+      "team_name": "Chip-Block Chinchillas"
+    },
+    "user_id": "id_zean76kf4f"
+  },
+  {
+    "display_name": "Gridiron Gophers",
+    "is_bot": false,
+    "is_owner": false,
+    "league_id": "id_rq867j4w7p",
+    "metadata": {
+      "team_name": "Screen Pass Syndicate"
+    },
+    "user_id": "id_roh4pg10wg"
+  },
+  {
+    "display_name": "Man-Coverage Meerkats",
+    "is_bot": false,
+    "is_owner": false,
+    "league_id": "id_rq867j4w7p",
+    "metadata": {
+      "team_name": "Stiff-Arm Stags"
+    },
+    "user_id": "id_4upj3szyrw"
+  },
+  {
+    "display_name": "Play-Action Pandas",
+    "is_bot": false,
+    "is_owner": false,
+    "league_id": "id_rq867j4w7p",
+    "metadata": {
+      "team_name": "Yardage Yaks"
+    },
+    "user_id": "id_zwi3yzjvgq"
+  }
+]

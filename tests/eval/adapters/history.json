@@ -1,0 +1,74 @@
+{
+  "long_chain": {
+    "id_histchain0000": {
+      "league_id": "id_histchain0000",
+      "previous_league_id": "id_histchain0001"
+    },
+    "id_histchain0001": {
+      "league_id": "id_histchain0001",
+      "previous_league_id": "id_histchain0002"
+    },
+    "id_histchain0002": {
+      "league_id": "id_histchain0002",
+      "previous_league_id": "id_histchain0003"
+    },
+    "id_histchain0003": {
+      "league_id": "id_histchain0003",
+      "previous_league_id": "id_histchain0004"
+    },
+    "id_histchain0004": {
+      "league_id": "id_histchain0004",
+      "previous_league_id": "id_histchain0005"
+    },
+    "id_histchain0005": {
+      "league_id": "id_histchain0005",
+      "previous_league_id": "id_histchain0006"
+    },
+    "id_histchain0006": {
+      "league_id": "id_histchain0006",
+      "previous_league_id": "id_histchain0007"
+    },
+    "id_histchain0007": {
+      "league_id": "id_histchain0007",
+      "previous_league_id": "id_histchain0008"
+    },
+    "id_histchain0008": {
+      "league_id": "id_histchain0008",
+      "previous_league_id": "id_histchain0009"
+    },
+    "id_histchain0009": {
+      "league_id": "id_histchain0009",
+      "previous_league_id": "id_histchain0010"
+    },
+    "id_histchain0010": {
+      "league_id": "id_histchain0010",
+      "previous_league_id": "id_histchain0011"
+    },
+    "id_histchain0011": {
+      "league_id": "id_histchain0011",
+      "previous_league_id": "id_histchain0012"
+    },
+    "id_histchain0012": {
+      "league_id": "id_histchain0012",
+      "previous_league_id": "id_histchain0013"
+    },
+    "id_histchain0013": {
+      "league_id": "id_histchain0013",
+      "previous_league_id": "id_histchain0014"
+    },
+    "id_histchain0014": {
+      "league_id": "id_histchain0014",
+      "previous_league_id": null
+    }
+  },
+  "two_hop": {
+    "id_histhop0001": {
+      "league_id": "id_histhop0001",
+      "previous_league_id": "id_histhop0002"
+    },
+    "id_histhop0002": {
+      "league_id": "id_histhop0002",
+      "previous_league_id": null
+    }
+  }
+}
