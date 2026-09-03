@@ -1,0 +1,2784 @@
+{
+  "_derived_from": "Story 2.5 oracle. build_draft_recap_facts() over the anonymized rookie-draft.json board + compute_board_metrics / compute_consensus_metrics / compute_draft_grades, via the Story 2.4b _synthetic_slots() transform (sorted fantasycalc-values.json); generated_at pinned to '2026-09-03T00:00:00Z', fetched_at '2026-09-03', consensus_source name/as_of 'synthetic rookie board' / '2025-05'. Values are synthetic - the test asserts the merge + board projections + self-validation round-trip, not the private phase-0 golden (real-player hand build). Regenerate with model_dump(mode='json') of tests/test_facts.py::_rookie_facts() when the builder or an upstream stage changes.",
+  "schema_version": "0.1.0",
+  "generated_at": "2026-09-03T00:00:00Z",
+  "provisional": true,
+  "issue_type": "draft_recap",
+  "source": {
+    "platform": "sleeper",
+    "league_id": "id_rq867j4w7p",
+    "draft_id": "id_a15hovbuqv",
+    "fetched_at": "2026-09-03"
+  },
+  "consensus_source": {
+    "name": "synthetic rookie board",
+    "as_of": "2025-05",
+    "provisional": true,
+    "engine_note": "in production, FantasyCalc /values/current fetched once at generation and cached; Sleeper search_rank offline fallback"
+  },
+  "league": {
+    "id": "id_rq867j4w7p",
+    "name": "Trench Warfare",
+    "season": "2025",
+    "platform": "sleeper",
+    "format": {
+      "team_count": 12,
+      "roster_slots": [
+        "QB",
+        "QB",
+        "RB",
+        "RB",
+        "WR",
+        "WR",
+        "TE",
+        "FLEX",
+        "FLEX",
+        "FLEX",
+        "FLEX"
+      ],
+      "flex_eligibility": {
+        "FLEX": [
+          "RB",
+          "WR",
+          "TE"
+        ]
+      },
+      "scoring_label": "Half PPR · 2QB · dynasty",
+      "is_superflex_or_2qb": true,
+      "te_premium": false
+    }
+  },
+  "draft": {
+    "id": "id_a15hovbuqv",
+    "type": "linear",
+    "rounds": 6,
+    "started_at": null,
+    "completed_at": null
+  },
+  "picks": [
+    {
+      "pick_no": 1,
+      "round": 1,
+      "slot": 1,
+      "board_label": "1.01",
+      "roster_id": "2",
+      "manager": "Pull-Guard Pumas",
+      "player": {
+        "sleeper_id": "12527",
+        "name": "Ashton Jeanty",
+        "position": "RB",
+        "nfl_team": "LV"
+      },
+      "consensus_slot": 4,
+      "consensus_label": "1.04",
+      "delta": -3,
+      "flags": []
+    },
+    {
+      "pick_no": 2,
+      "round": 1,
+      "slot": 2,
+      "board_label": "1.02",
+      "roster_id": "6",
+      "manager": "Field-Goal Foxes",
+      "player": {
+        "sleeper_id": "12507",
+        "name": "Omarion Hampton",
+        "position": "RB",
+        "nfl_team": "LAC"
+      },
+      "consensus_slot": 1,
+      "consensus_label": "1.01",
+      "delta": 1,
+      "flags": []
+    },
+    {
+      "pick_no": 3,
+      "round": 1,
+      "slot": 3,
+      "board_label": "1.03",
+      "roster_id": "6",
+      "manager": "Field-Goal Foxes",
+      "player": {
+        "sleeper_id": "12530",
+        "name": "Travis Hunter",
+        "position": "WR",
+        "nfl_team": "JAX"
+      },
+      "consensus_slot": 2,
+      "consensus_label": "1.02",
+      "delta": 1,
+      "flags": []
+    },
+    {
+      "pick_no": 4,
+      "round": 1,
+      "slot": 4,
+      "board_label": "1.04",
+      "roster_id": "5",
+      "manager": "Iron-Range Ibex",
+      "player": {
+        "sleeper_id": "12526",
+        "name": "Tetairoa McMillan",
+        "position": "WR",
+        "nfl_team": "CAR"
+      },
+      "consensus_slot": 7,
+      "consensus_label": "1.07",
+      "delta": -3,
+      "flags": []
+    },
+    {
+      "pick_no": 5,
+      "round": 1,
+      "slot": 5,
+      "board_label": "1.05",
+      "roster_id": "12",
+      "manager": "Play-Action Pandas",
+      "player": {
+        "sleeper_id": "12522",
+        "name": "Cameron Ward",
+        "position": "QB",
+        "nfl_team": "TEN"
+      },
+      "consensus_slot": null,
+      "consensus_label": null,
+      "delta": null,
+      "flags": [
+        "no_consensus"
+      ]
+    },
+    {
+      "pick_no": 6,
+      "round": 1,
+      "slot": 6,
+      "board_label": "1.06",
+      "roster_id": "7",
+      "manager": "Blitz Alpacas",
+      "player": {
+        "sleeper_id": "12529",
+        "name": "TreVeyon Henderson",
+        "position": "RB",
+        "nfl_team": "NE"
+      },
+      "consensus_slot": 3,
+      "consensus_label": "1.03",
+      "delta": 3,
+      "flags": []
+    },
+    {
+      "pick_no": 7,
+      "round": 1,
+      "slot": 7,
+      "board_label": "1.07",
+      "roster_id": "8",
+      "manager": "Gridiron Gophers",
+      "player": {
+        "sleeper_id": "12512",
+        "name": "Quinshon Judkins",
+        "position": "RB",
+        "nfl_team": "CLE"
+      },
+      "consensus_slot": 6,
+      "consensus_label": "1.06",
+      "delta": 1,
+      "flags": []
+    },
+    {
+      "pick_no": 8,
+      "round": 1,
+      "slot": 8,
+      "board_label": "1.08",
+      "roster_id": "8",
+      "manager": "Gridiron Gophers",
+      "player": {
+        "sleeper_id": "12514",
+        "name": "Emeka Egbuka",
+        "position": "WR",
+        "nfl_team": "TB"
+      },
+      "consensus_slot": 11,
+      "consensus_label": "1.11",
+      "delta": -3,
+      "flags": []
+    },
+    {
+      "pick_no": 9,
+      "round": 1,
+      "slot": 9,
+      "board_label": "1.09",
+      "roster_id": "4",
+      "manager": "End-Around Egrets",
+      "player": {
+        "sleeper_id": "12501",
+        "name": "Matthew Golden",
+        "position": "WR",
+        "nfl_team": "GB"
+      },
+      "consensus_slot": 9,
+      "consensus_label": "1.09",
+      "delta": 0,
+      "flags": []
+    },
+    {
+      "pick_no": 10,
+      "round": 1,
+      "slot": 10,
+      "board_label": "1.10",
+      "roster_id": "3",
+      "manager": "Coverage Capybaras",
+      "player": {
+        "sleeper_id": "12508",
+        "name": "Jaxson Dart",
+        "position": "QB",
+        "nfl_team": "NYG"
+      },
+      "consensus_slot": 5,
+      "consensus_label": "1.05",
+      "delta": 5,
+      "flags": []
+    },
+    {
+      "pick_no": 11,
+      "round": 1,
+      "slot": 11,
+      "board_label": "1.11",
+      "roster_id": "7",
+      "manager": "Blitz Alpacas",
+      "player": {
+        "sleeper_id": "12489",
+        "name": "RJ Harvey",
+        "position": "RB",
+        "nfl_team": "DEN"
+      },
+      "consensus_slot": 10,
+      "consensus_label": "1.10",
+      "delta": 1,
+      "flags": []
+    },
+    {
+      "pick_no": 12,
+      "round": 1,
+      "slot": 12,
+      "board_label": "1.12",
+      "roster_id": "11",
+      "manager": "Fair-Catch Ferrets",
+      "player": {
+        "sleeper_id": "12519",
+        "name": "Luther Burden",
+        "position": "WR",
+        "nfl_team": "CHI"
+      },
+      "consensus_slot": 8,
+      "consensus_label": "1.08",
+      "delta": 4,
+      "flags": []
+    },
+    {
+      "pick_no": 13,
+      "round": 2,
+      "slot": 1,
+      "board_label": "2.01",
+      "roster_id": "11",
+      "manager": "Fair-Catch Ferrets",
+      "player": {
+        "sleeper_id": "12504",
+        "name": "Kaleb Johnson",
+        "position": "RB",
+        "nfl_team": "PIT"
+      },
+      "consensus_slot": null,
+      "consensus_label": null,
+      "delta": null,
+      "flags": [
+        "no_consensus"
+      ]
+    },
+    {
+      "pick_no": 14,
+      "round": 2,
+      "slot": 2,
+      "board_label": "2.02",
+      "roster_id": "8",
+      "manager": "Gridiron Gophers",
+      "player": {
+        "sleeper_id": "12517",
+        "name": "Colston Loveland",
+        "position": "TE",
+        "nfl_team": "CHI"
+      },
+      "consensus_slot": 14,
+      "consensus_label": "2.02",
+      "delta": 0,
+      "flags": []
+    },
+    {
+      "pick_no": 15,
+      "round": 2,
+      "slot": 3,
+      "board_label": "2.03",
+      "roster_id": "5",
+      "manager": "Iron-Range Ibex",
+      "player": {
+        "sleeper_id": "12484",
+        "name": "Jayden Higgins",
+        "position": "WR",
+        "nfl_team": "HOU"
+      },
+      "consensus_slot": 15,
+      "consensus_label": "2.03",
+      "delta": 0,
+      "flags": []
+    },
+    {
+      "pick_no": 16,
+      "round": 2,
+      "slot": 4,
+      "board_label": "2.04",
+      "roster_id": "1",
+      "manager": "Goal-Line Gazelles",
+      "player": {
+        "sleeper_id": "12518",
+        "name": "Tyler Warren",
+        "position": "TE",
+        "nfl_team": "IND"
+      },
+      "consensus_slot": 12,
+      "consensus_label": "1.12",
+      "delta": 4,
+      "flags": []
+    },
+    {
+      "pick_no": 17,
+      "round": 2,
+      "slot": 5,
+      "board_label": "2.05",
+      "roster_id": "12",
+      "manager": "Play-Action Pandas",
+      "player": {
+        "sleeper_id": "12509",
+        "name": "Tre Harris",
+        "position": "WR",
+        "nfl_team": "LAC"
+      },
+      "consensus_slot": 13,
+      "consensus_label": "2.01",
+      "delta": 4,
+      "flags": []
+    },
+    {
+      "pick_no": 18,
+      "round": 2,
+      "slot": 6,
+      "board_label": "2.06",
+      "roster_id": "9",
+      "manager": "Long-Snap Lynx",
+      "player": {
+        "sleeper_id": "12483",
+        "name": "Jack Bech",
+        "position": "WR",
+        "nfl_team": "LV"
+      },
+      "consensus_slot": 18,
+      "consensus_label": "2.06",
+      "delta": 0,
+      "flags": []
+    },
+    {
+      "pick_no": 19,
+      "round": 2,
+      "slot": 7,
+      "board_label": "2.07",
+      "roster_id": "9",
+      "manager": "Long-Snap Lynx",
+      "player": {
+        "sleeper_id": "12547",
+        "name": "Kyle Williams",
+        "position": "WR",
+        "nfl_team": "NE"
+      },
+      "consensus_slot": 16,
+      "consensus_label": "2.04",
+      "delta": 3,
+      "flags": []
+    },
+    {
+      "pick_no": 20,
+      "round": 2,
+      "slot": 8,
+      "board_label": "2.08",
+      "roster_id": "10",
+      "manager": "Man-Coverage Meerkats",
+      "player": {
+        "sleeper_id": "12481",
+        "name": "Cam Skattebo",
+        "position": "RB",
+        "nfl_team": "NYG"
+      },
+      "consensus_slot": 17,
+      "consensus_label": "2.05",
+      "delta": 3,
+      "flags": []
+    },
+    {
+      "pick_no": 21,
+      "round": 2,
+      "slot": 9,
+      "board_label": "2.09",
+      "roster_id": "8",
+      "manager": "Gridiron Gophers",
+      "player": {
+        "sleeper_id": "12536",
+        "name": "Jaylin Noel",
+        "position": "WR",
+        "nfl_team": "HOU"
+      },
+      "consensus_slot": 19,
+      "consensus_label": "2.07",
+      "delta": 2,
+      "flags": []
+    },
+    {
+      "pick_no": 22,
+      "round": 2,
+      "slot": 10,
+      "board_label": "2.10",
+      "roster_id": "11",
+      "manager": "Fair-Catch Ferrets",
+      "player": {
+        "sleeper_id": "12510",
+        "name": "Jalen Milroe",
+        "position": "QB",
+        "nfl_team": "SEA"
+      },
+      "consensus_slot": null,
+      "consensus_label": null,
+      "delta": null,
+      "flags": [
+        "no_consensus"
+      ]
+    },
+    {
+      "pick_no": 23,
+      "round": 2,
+      "slot": 11,
+      "board_label": "2.11",
+      "roster_id": "7",
+      "manager": "Blitz Alpacas",
+      "player": {
+        "sleeper_id": "12505",
+        "name": "Jalen Royals",
+        "position": "WR",
+        "nfl_team": "KC"
+      },
+      "consensus_slot": 24,
+      "consensus_label": "2.12",
+      "delta": -1,
+      "flags": []
+    },
+    {
+      "pick_no": 24,
+      "round": 2,
+      "slot": 12,
+      "board_label": "2.12",
+      "roster_id": "8",
+      "manager": "Gridiron Gophers",
+      "player": {
+        "sleeper_id": "12490",
+        "name": "Bhayshul Tuten",
+        "position": "RB",
+        "nfl_team": "JAX"
+      },
+      "consensus_slot": 20,
+      "consensus_label": "2.08",
+      "delta": 4,
+      "flags": []
+    },
+    {
+      "pick_no": 25,
+      "round": 3,
+      "slot": 1,
+      "board_label": "3.01",
+      "roster_id": "1",
+      "manager": "Goal-Line Gazelles",
+      "player": {
+        "sleeper_id": "12457",
+        "name": "Jaydon Blue",
+        "position": "RB",
+        "nfl_team": "DAL"
+      },
+      "consensus_slot": 21,
+      "consensus_label": "2.09",
+      "delta": 4,
+      "flags": []
+    },
+    {
+      "pick_no": 26,
+      "round": 3,
+      "slot": 2,
+      "board_label": "3.02",
+      "roster_id": "8",
+      "manager": "Gridiron Gophers",
+      "player": {
+        "sleeper_id": "12545",
+        "name": "Tyler Shough",
+        "position": "QB",
+        "nfl_team": "NO"
+      },
+      "consensus_slot": 23,
+      "consensus_label": "2.11",
+      "delta": 3,
+      "flags": []
+    },
+    {
+      "pick_no": 27,
+      "round": 3,
+      "slot": 3,
+      "board_label": "3.03",
+      "roster_id": "6",
+      "manager": "Field-Goal Foxes",
+      "player": {
+        "sleeper_id": "12498",
+        "name": "Mason Taylor",
+        "position": "TE",
+        "nfl_team": "NYJ"
+      },
+      "consensus_slot": null,
+      "consensus_label": null,
+      "delta": null,
+      "flags": [
+        "no_consensus"
+      ]
+    },
+    {
+      "pick_no": 28,
+      "round": 3,
+      "slot": 4,
+      "board_label": "3.04",
+      "roster_id": "5",
+      "manager": "Iron-Range Ibex",
+      "player": {
+        "sleeper_id": "12476",
+        "name": "Devin Neal",
+        "position": "RB",
+        "nfl_team": "NO"
+      },
+      "consensus_slot": 22,
+      "consensus_label": "2.10",
+      "delta": 6,
+      "flags": []
+    },
+    {
+      "pick_no": 29,
+      "round": 3,
+      "slot": 5,
+      "board_label": "3.05",
+      "roster_id": "12",
+      "manager": "Play-Action Pandas",
+      "player": {
+        "sleeper_id": "12524",
+        "name": "Shedeur Sanders",
+        "position": "QB",
+        "nfl_team": "CLE"
+      },
+      "consensus_slot": 26,
+      "consensus_label": "3.02",
+      "delta": 3,
+      "flags": []
+    },
+    {
+      "pick_no": 30,
+      "round": 3,
+      "slot": 6,
+      "board_label": "3.06",
+      "roster_id": "2",
+      "manager": "Pull-Guard Pumas",
+      "player": {
+        "sleeper_id": "12506",
+        "name": "Harold Fannin",
+        "position": "TE",
+        "nfl_team": "CLE"
+      },
+      "consensus_slot": 31,
+      "consensus_label": "3.07",
+      "delta": -1,
+      "flags": []
+    },
+    {
+      "pick_no": 31,
+      "round": 3,
+      "slot": 7,
+      "board_label": "3.07",
+      "roster_id": "9",
+      "manager": "Long-Snap Lynx",
+      "player": {
+        "sleeper_id": "12487",
+        "name": "Terrance Ferguson",
+        "position": "TE",
+        "nfl_team": "LAR"
+      },
+      "consensus_slot": 25,
+      "consensus_label": "3.01",
+      "delta": 6,
+      "flags": []
+    },
+    {
+      "pick_no": 32,
+      "round": 3,
+      "slot": 8,
+      "board_label": "3.08",
+      "roster_id": "1",
+      "manager": "Goal-Line Gazelles",
+      "player": {
+        "sleeper_id": "12495",
+        "name": "Ollie Gordon",
+        "position": "RB",
+        "nfl_team": "MIA"
+      },
+      "consensus_slot": 33,
+      "consensus_label": "3.09",
+      "delta": -1,
+      "flags": []
+    },
+    {
+      "pick_no": 33,
+      "round": 3,
+      "slot": 9,
+      "board_label": "3.09",
+      "roster_id": "4",
+      "manager": "End-Around Egrets",
+      "player": {
+        "sleeper_id": "12521",
+        "name": "Elijah Arroyo",
+        "position": "TE",
+        "nfl_team": "SEA"
+      },
+      "consensus_slot": 27,
+      "consensus_label": "3.03",
+      "delta": 6,
+      "flags": []
+    },
+    {
+      "pick_no": 34,
+      "round": 3,
+      "slot": 10,
+      "board_label": "3.10",
+      "roster_id": "3",
+      "manager": "Coverage Capybaras",
+      "player": {
+        "sleeper_id": "12469",
+        "name": "Dylan Sampson",
+        "position": "RB",
+        "nfl_team": "CLE"
+      },
+      "consensus_slot": 30,
+      "consensus_label": "3.06",
+      "delta": 4,
+      "flags": []
+    },
+    {
+      "pick_no": 35,
+      "round": 3,
+      "slot": 11,
+      "board_label": "3.11",
+      "roster_id": "7",
+      "manager": "Blitz Alpacas",
+      "player": {
+        "sleeper_id": "12511",
+        "name": "Will Howard",
+        "position": "QB",
+        "nfl_team": "PIT"
+      },
+      "consensus_slot": 29,
+      "consensus_label": "3.05",
+      "delta": 6,
+      "flags": []
+    },
+    {
+      "pick_no": 36,
+      "round": 3,
+      "slot": 12,
+      "board_label": "3.12",
+      "roster_id": "4",
+      "manager": "End-Around Egrets",
+      "player": {
+        "sleeper_id": "12531",
+        "name": "Trevor Etienne",
+        "position": "RB",
+        "nfl_team": "CAR"
+      },
+      "consensus_slot": 28,
+      "consensus_label": "3.04",
+      "delta": 8,
+      "flags": []
+    },
+    {
+      "pick_no": 37,
+      "round": 4,
+      "slot": 1,
+      "board_label": "4.01",
+      "roster_id": "2",
+      "manager": "Pull-Guard Pumas",
+      "player": {
+        "sleeper_id": "12492",
+        "name": "Pat Bryant",
+        "position": "WR",
+        "nfl_team": "DEN"
+      },
+      "consensus_slot": null,
+      "consensus_label": null,
+      "delta": null,
+      "flags": [
+        "no_consensus"
+      ]
+    },
+    {
+      "pick_no": 38,
+      "round": 4,
+      "slot": 2,
+      "board_label": "4.02",
+      "roster_id": "8",
+      "manager": "Gridiron Gophers",
+      "player": {
+        "sleeper_id": "12499",
+        "name": "Elic Ayomanor",
+        "position": "WR",
+        "nfl_team": "TEN"
+      },
+      "consensus_slot": 32,
+      "consensus_label": "3.08",
+      "delta": 6,
+      "flags": []
+    },
+    {
+      "pick_no": 39,
+      "round": 4,
+      "slot": 3,
+      "board_label": "4.03",
+      "roster_id": "6",
+      "manager": "Field-Goal Foxes",
+      "player": {
+        "sleeper_id": "12482",
+        "name": "Savion Williams",
+        "position": "WR",
+        "nfl_team": "GB"
+      },
+      "consensus_slot": 36,
+      "consensus_label": "3.12",
+      "delta": 3,
+      "flags": []
+    },
+    {
+      "pick_no": 40,
+      "round": 4,
+      "slot": 4,
+      "board_label": "4.04",
+      "roster_id": "5",
+      "manager": "Iron-Range Ibex",
+      "player": {
+        "sleeper_id": "11569",
+        "name": "Jarquez Hunter",
+        "position": "RB",
+        "nfl_team": "LAR"
+      },
+      "consensus_slot": 38,
+      "consensus_label": "4.02",
+      "delta": 2,
+      "flags": []
+    },
+    {
+      "pick_no": 41,
+      "round": 4,
+      "slot": 5,
+      "board_label": "4.05",
+      "roster_id": "12",
+      "manager": "Play-Action Pandas",
+      "player": {
+        "sleeper_id": "12471",
+        "name": "DJ Giddens",
+        "position": "RB",
+        "nfl_team": "IND"
+      },
+      "consensus_slot": 41,
+      "consensus_label": "4.05",
+      "delta": 0,
+      "flags": []
+    },
+    {
+      "pick_no": 42,
+      "round": 4,
+      "slot": 6,
+      "board_label": "4.06",
+      "roster_id": "2",
+      "manager": "Pull-Guard Pumas",
+      "player": {
+        "sleeper_id": "12535",
+        "name": "Isaac TeSlaa",
+        "position": "WR",
+        "nfl_team": "DET"
+      },
+      "consensus_slot": 39,
+      "consensus_label": "4.03",
+      "delta": 3,
+      "flags": []
+    },
+    {
+      "pick_no": 43,
+      "round": 4,
+      "slot": 7,
+      "board_label": "4.07",
+      "roster_id": "2",
+      "manager": "Pull-Guard Pumas",
+      "player": {
+        "sleeper_id": "12497",
+        "name": "Tory Horton",
+        "position": "WR",
+        "nfl_team": "SEA"
+      },
+      "consensus_slot": 34,
+      "consensus_label": "3.10",
+      "delta": 9,
+      "flags": []
+    },
+    {
+      "pick_no": 44,
+      "round": 4,
+      "slot": 8,
+      "board_label": "4.08",
+      "roster_id": "2",
+      "manager": "Pull-Guard Pumas",
+      "player": {
+        "sleeper_id": "12455",
+        "name": "Brashard Smith",
+        "position": "RB",
+        "nfl_team": "KC"
+      },
+      "consensus_slot": 35,
+      "consensus_label": "3.11",
+      "delta": 9,
+      "flags": []
+    },
+    {
+      "pick_no": 45,
+      "round": 4,
+      "slot": 9,
+      "board_label": "4.09",
+      "roster_id": "2",
+      "manager": "Pull-Guard Pumas",
+      "player": {
+        "sleeper_id": "12543",
+        "name": "Tahj Brooks",
+        "position": "RB",
+        "nfl_team": "CIN"
+      },
+      "consensus_slot": 40,
+      "consensus_label": "4.04",
+      "delta": 5,
+      "flags": []
+    },
+    {
+      "pick_no": 46,
+      "round": 4,
+      "slot": 10,
+      "board_label": "4.10",
+      "roster_id": "2",
+      "manager": "Pull-Guard Pumas",
+      "player": {
+        "sleeper_id": "12541",
+        "name": "Dont'e Thornton",
+        "position": "WR",
+        "nfl_team": "LV"
+      },
+      "consensus_slot": 37,
+      "consensus_label": "4.01",
+      "delta": 9,
+      "flags": []
+    },
+    {
+      "pick_no": 47,
+      "round": 4,
+      "slot": 11,
+      "board_label": "4.11",
+      "roster_id": "2",
+      "manager": "Pull-Guard Pumas",
+      "player": {
+        "sleeper_id": "12474",
+        "name": "Woody Marks",
+        "position": "RB",
+        "nfl_team": "HOU"
+      },
+      "consensus_slot": null,
+      "consensus_label": null,
+      "delta": null,
+      "flags": [
+        "no_consensus"
+      ]
+    },
+    {
+      "pick_no": 48,
+      "round": 4,
+      "slot": 12,
+      "board_label": "4.12",
+      "roster_id": "8",
+      "manager": "Gridiron Gophers",
+      "player": {
+        "sleeper_id": "12467",
+        "name": "Jordan James",
+        "position": "RB",
+        "nfl_team": "SF"
+      },
+      "consensus_slot": 43,
+      "consensus_label": "4.07",
+      "delta": 5,
+      "flags": []
+    },
+    {
+      "pick_no": 49,
+      "round": 5,
+      "slot": 1,
+      "board_label": "5.01",
+      "roster_id": "11",
+      "manager": "Fair-Catch Ferrets",
+      "player": {
+        "sleeper_id": "12520",
+        "name": "Xavier Restrepo",
+        "position": "WR",
+        "nfl_team": "TEN"
+      },
+      "consensus_slot": 42,
+      "consensus_label": "4.06",
+      "delta": 7,
+      "flags": []
+    },
+    {
+      "pick_no": 50,
+      "round": 5,
+      "slot": 2,
+      "board_label": "5.02",
+      "roster_id": "8",
+      "manager": "Gridiron Gophers",
+      "player": {
+        "sleeper_id": "12534",
+        "name": "Kyle Monangai",
+        "position": "RB",
+        "nfl_team": "CHI"
+      },
+      "consensus_slot": null,
+      "consensus_label": null,
+      "delta": null,
+      "flags": [
+        "no_consensus"
+      ]
+    },
+    {
+      "pick_no": 51,
+      "round": 5,
+      "slot": 3,
+      "board_label": "5.03",
+      "roster_id": "6",
+      "manager": "Field-Goal Foxes",
+      "player": {
+        "sleeper_id": "12523",
+        "name": "Jimmy Horn",
+        "position": "WR",
+        "nfl_team": "CAR"
+      },
+      "consensus_slot": 45,
+      "consensus_label": "4.09",
+      "delta": 6,
+      "flags": []
+    },
+    {
+      "pick_no": 52,
+      "round": 5,
+      "slot": 4,
+      "board_label": "5.04",
+      "roster_id": "8",
+      "manager": "Gridiron Gophers",
+      "player": {
+        "sleeper_id": "12533",
+        "name": "Jacory Croskey-Merritt",
+        "position": "RB",
+        "nfl_team": "WAS"
+      },
+      "consensus_slot": 46,
+      "consensus_label": "4.10",
+      "delta": 6,
+      "flags": []
+    },
+    {
+      "pick_no": 53,
+      "round": 5,
+      "slot": 5,
+      "board_label": "5.05",
+      "roster_id": "12",
+      "manager": "Play-Action Pandas",
+      "player": {
+        "sleeper_id": "12462",
+        "name": "Damien Martinez",
+        "position": "RB",
+        "nfl_team": "SEA"
+      },
+      "consensus_slot": null,
+      "consensus_label": null,
+      "delta": null,
+      "flags": [
+        "no_consensus"
+      ]
+    },
+    {
+      "pick_no": 54,
+      "round": 5,
+      "slot": 6,
+      "board_label": "5.06",
+      "roster_id": "2",
+      "manager": "Pull-Guard Pumas",
+      "player": {
+        "sleeper_id": "12496",
+        "name": "Tai Felton",
+        "position": "WR",
+        "nfl_team": "MIN"
+      },
+      "consensus_slot": 44,
+      "consensus_label": "4.08",
+      "delta": 10,
+      "flags": []
+    },
+    {
+      "pick_no": 55,
+      "round": 5,
+      "slot": 7,
+      "board_label": "5.07",
+      "roster_id": "2",
+      "manager": "Pull-Guard Pumas",
+      "player": {
+        "sleeper_id": "12641",
+        "name": "Jaylin Lane",
+        "position": "WR",
+        "nfl_team": "WAS"
+      },
+      "consensus_slot": 47,
+      "consensus_label": "4.11",
+      "delta": 8,
+      "flags": []
+    },
+    {
+      "pick_no": 56,
+      "round": 5,
+      "slot": 8,
+      "board_label": "5.08",
+      "roster_id": "10",
+      "manager": "Man-Coverage Meerkats",
+      "player": {
+        "sleeper_id": "12500",
+        "name": "Quinn Ewers",
+        "position": "QB",
+        "nfl_team": "MIA"
+      },
+      "consensus_slot": 49,
+      "consensus_label": "5.01",
+      "delta": 7,
+      "flags": []
+    },
+    {
+      "pick_no": 57,
+      "round": 5,
+      "slot": 9,
+      "board_label": "5.09",
+      "roster_id": "4",
+      "manager": "End-Around Egrets",
+      "player": {
+        "sleeper_id": "12486",
+        "name": "Dillon Gabriel",
+        "position": "QB",
+        "nfl_team": "CLE"
+      },
+      "consensus_slot": null,
+      "consensus_label": null,
+      "delta": null,
+      "flags": [
+        "no_consensus"
+      ]
+    },
+    {
+      "pick_no": 58,
+      "round": 5,
+      "slot": 10,
+      "board_label": "5.10",
+      "roster_id": "3",
+      "manager": "Coverage Capybaras",
+      "player": {
+        "sleeper_id": "12485",
+        "name": "Tez Johnson",
+        "position": "WR",
+        "nfl_team": "TB"
+      },
+      "consensus_slot": 48,
+      "consensus_label": "4.12",
+      "delta": 10,
+      "flags": []
+    },
+    {
+      "pick_no": 59,
+      "round": 5,
+      "slot": 11,
+      "board_label": "5.11",
+      "roster_id": "7",
+      "manager": "Blitz Alpacas",
+      "player": {
+        "sleeper_id": "12493",
+        "name": "Oronde Gadsden",
+        "position": "TE",
+        "nfl_team": "LAC"
+      },
+      "consensus_slot": 52,
+      "consensus_label": "5.04",
+      "delta": 7,
+      "flags": []
+    },
+    {
+      "pick_no": 60,
+      "round": 5,
+      "slot": 12,
+      "board_label": "5.12",
+      "roster_id": "1",
+      "manager": "Goal-Line Gazelles",
+      "player": {
+        "sleeper_id": "12544",
+        "name": "LeQuint Allen",
+        "position": "RB",
+        "nfl_team": "JAX"
+      },
+      "consensus_slot": 50,
+      "consensus_label": "5.02",
+      "delta": 10,
+      "flags": []
+    },
+    {
+      "pick_no": 61,
+      "round": 6,
+      "slot": 1,
+      "board_label": "6.01",
+      "roster_id": "11",
+      "manager": "Fair-Catch Ferrets",
+      "player": {
+        "sleeper_id": "12478",
+        "name": "Nick Nash",
+        "position": "WR",
+        "nfl_team": "ATL"
+      },
+      "consensus_slot": 51,
+      "consensus_label": "5.03",
+      "delta": 10,
+      "flags": []
+    },
+    {
+      "pick_no": 62,
+      "round": 6,
+      "slot": 2,
+      "board_label": "6.02",
+      "roster_id": "8",
+      "manager": "Gridiron Gophers",
+      "player": {
+        "sleeper_id": "12738",
+        "name": "Phil Mafah",
+        "position": "RB",
+        "nfl_team": "DAL"
+      },
+      "consensus_slot": null,
+      "consensus_label": null,
+      "delta": null,
+      "flags": [
+        "no_consensus"
+      ]
+    },
+    {
+      "pick_no": 63,
+      "round": 6,
+      "slot": 3,
+      "board_label": "6.03",
+      "roster_id": "6",
+      "manager": "Field-Goal Foxes",
+      "player": {
+        "sleeper_id": "12539",
+        "name": "Arian Smith",
+        "position": "WR",
+        "nfl_team": "NYJ"
+      },
+      "consensus_slot": 56,
+      "consensus_label": "5.08",
+      "delta": 7,
+      "flags": []
+    },
+    {
+      "pick_no": 64,
+      "round": 6,
+      "slot": 4,
+      "board_label": "6.04",
+      "roster_id": "5",
+      "manager": "Iron-Range Ibex",
+      "player": {
+        "sleeper_id": "12494",
+        "name": "Kyle McCord",
+        "position": "QB",
+        "nfl_team": "PHI"
+      },
+      "consensus_slot": 55,
+      "consensus_label": "5.07",
+      "delta": 9,
+      "flags": []
+    },
+    {
+      "pick_no": 65,
+      "round": 6,
+      "slot": 5,
+      "board_label": "6.05",
+      "roster_id": "12",
+      "manager": "Play-Action Pandas",
+      "player": {
+        "sleeper_id": "12502",
+        "name": "Gunnar Helm",
+        "position": "TE",
+        "nfl_team": "TEN"
+      },
+      "consensus_slot": 53,
+      "consensus_label": "5.05",
+      "delta": 12,
+      "flags": []
+    },
+    {
+      "pick_no": 66,
+      "round": 6,
+      "slot": 6,
+      "board_label": "6.06",
+      "roster_id": "2",
+      "manager": "Pull-Guard Pumas",
+      "player": {
+        "sleeper_id": "12690",
+        "name": "Tommy Mellott",
+        "position": "QB",
+        "nfl_team": "LV"
+      },
+      "consensus_slot": null,
+      "consensus_label": null,
+      "delta": null,
+      "flags": [
+        "no_consensus"
+      ]
+    },
+    {
+      "pick_no": 67,
+      "round": 6,
+      "slot": 7,
+      "board_label": "6.07",
+      "roster_id": "9",
+      "manager": "Long-Snap Lynx",
+      "player": {
+        "sleeper_id": "12866",
+        "name": "Jalin Conyers",
+        "position": "TE",
+        "nfl_team": "MIA"
+      },
+      "consensus_slot": 57,
+      "consensus_label": "5.09",
+      "delta": 10,
+      "flags": []
+    },
+    {
+      "pick_no": 68,
+      "round": 6,
+      "slot": 8,
+      "board_label": "6.08",
+      "roster_id": "10",
+      "manager": "Man-Coverage Meerkats",
+      "player": {
+        "sleeper_id": "12515",
+        "name": "Donovan Edwards",
+        "position": "RB",
+        "nfl_team": "NYJ"
+      },
+      "consensus_slot": 59,
+      "consensus_label": "5.11",
+      "delta": 9,
+      "flags": []
+    },
+    {
+      "pick_no": 69,
+      "round": 6,
+      "slot": 9,
+      "board_label": "6.09",
+      "roster_id": "4",
+      "manager": "End-Around Egrets",
+      "player": {
+        "sleeper_id": "12503",
+        "name": "Isaiah Bond",
+        "position": "WR",
+        "nfl_team": null
+      },
+      "consensus_slot": 58,
+      "consensus_label": "5.10",
+      "delta": 11,
+      "flags": []
+    },
+    {
+      "pick_no": 70,
+      "round": 6,
+      "slot": 10,
+      "board_label": "6.10",
+      "roster_id": "3",
+      "manager": "Coverage Capybaras",
+      "player": {
+        "sleeper_id": "12473",
+        "name": "Mitchell Evans",
+        "position": "TE",
+        "nfl_team": "CAR"
+      },
+      "consensus_slot": 61,
+      "consensus_label": "6.01",
+      "delta": 9,
+      "flags": []
+    },
+    {
+      "pick_no": 71,
+      "round": 6,
+      "slot": 11,
+      "board_label": "6.11",
+      "roster_id": "7",
+      "manager": "Blitz Alpacas",
+      "player": {
+        "sleeper_id": "12969",
+        "name": "Lan Larison",
+        "position": "RB",
+        "nfl_team": "NE"
+      },
+      "consensus_slot": 54,
+      "consensus_label": "5.06",
+      "delta": 17,
+      "flags": []
+    },
+    {
+      "pick_no": 72,
+      "round": 6,
+      "slot": 12,
+      "board_label": "6.12",
+      "roster_id": "1",
+      "manager": "Goal-Line Gazelles",
+      "player": {
+        "sleeper_id": "12460",
+        "name": "Antwane Wells",
+        "position": "WR",
+        "nfl_team": "NYG"
+      },
+      "consensus_slot": 60,
+      "consensus_label": "5.12",
+      "delta": 12,
+      "flags": []
+    }
+  ],
+  "teams": [
+    {
+      "roster_id": "1",
+      "manager": "Goal-Line Gazelles",
+      "pick_count": 5,
+      "pick_nos": [
+        16,
+        25,
+        32,
+        60,
+        72
+      ],
+      "positional_counts": {
+        "QB": 0,
+        "RB": 3,
+        "WR": 1,
+        "TE": 1
+      },
+      "back_to_back": [],
+      "best_value_pick": {
+        "pick_no": 72,
+        "player": "Antwane Wells",
+        "delta": 12
+      },
+      "biggest_reach_pick": {
+        "pick_no": 32,
+        "player": "Ollie Gordon",
+        "delta": -1
+      },
+      "draft_score": 8.8,
+      "premium_picks": 0,
+      "format_fit": 0,
+      "grade_input": 8.8,
+      "grade": {
+        "letter": "B+",
+        "driving_picks": [
+          16,
+          25,
+          60,
+          72
+        ],
+        "rationale": null
+      }
+    },
+    {
+      "roster_id": "2",
+      "manager": "Pull-Guard Pumas",
+      "pick_count": 12,
+      "pick_nos": [
+        1,
+        30,
+        37,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        54,
+        55,
+        66
+      ],
+      "positional_counts": {
+        "QB": 1,
+        "RB": 4,
+        "WR": 6,
+        "TE": 1
+      },
+      "back_to_back": [
+        [
+          42,
+          43
+        ],
+        [
+          43,
+          44
+        ],
+        [
+          44,
+          45
+        ],
+        [
+          45,
+          46
+        ],
+        [
+          46,
+          47
+        ],
+        [
+          54,
+          55
+        ]
+      ],
+      "best_value_pick": {
+        "pick_no": 54,
+        "player": "Tai Felton",
+        "delta": 10
+      },
+      "biggest_reach_pick": {
+        "pick_no": 1,
+        "player": "Ashton Jeanty",
+        "delta": -3
+      },
+      "draft_score": 14.9,
+      "premium_picks": 1,
+      "format_fit": 2,
+      "grade_input": 19.9,
+      "grade": {
+        "letter": "A+",
+        "driving_picks": [
+          1,
+          43,
+          44,
+          46
+        ],
+        "rationale": null
+      }
+    },
+    {
+      "roster_id": "3",
+      "manager": "Coverage Capybaras",
+      "pick_count": 4,
+      "pick_nos": [
+        10,
+        34,
+        58,
+        70
+      ],
+      "positional_counts": {
+        "QB": 1,
+        "RB": 1,
+        "WR": 1,
+        "TE": 1
+      },
+      "back_to_back": [],
+      "best_value_pick": {
+        "pick_no": 58,
+        "player": "Tez Johnson",
+        "delta": 10
+      },
+      "biggest_reach_pick": {
+        "pick_no": 34,
+        "player": "Dylan Sampson",
+        "delta": 4
+      },
+      "draft_score": 9.9,
+      "premium_picks": 1,
+      "format_fit": 2,
+      "grade_input": 14.9,
+      "grade": {
+        "letter": "A",
+        "driving_picks": [
+          10,
+          34,
+          58
+        ],
+        "rationale": null
+      }
+    },
+    {
+      "roster_id": "4",
+      "manager": "End-Around Egrets",
+      "pick_count": 5,
+      "pick_nos": [
+        9,
+        33,
+        36,
+        57,
+        69
+      ],
+      "positional_counts": {
+        "QB": 1,
+        "RB": 1,
+        "WR": 2,
+        "TE": 1
+      },
+      "back_to_back": [],
+      "best_value_pick": {
+        "pick_no": 69,
+        "player": "Isaiah Bond",
+        "delta": 11
+      },
+      "biggest_reach_pick": {
+        "pick_no": 9,
+        "player": "Matthew Golden",
+        "delta": 0
+      },
+      "draft_score": 9.2,
+      "premium_picks": 1,
+      "format_fit": 2,
+      "grade_input": 14.2,
+      "grade": {
+        "letter": "A",
+        "driving_picks": [
+          33,
+          36,
+          69
+        ],
+        "rationale": null
+      }
+    },
+    {
+      "roster_id": "5",
+      "manager": "Iron-Range Ibex",
+      "pick_count": 5,
+      "pick_nos": [
+        4,
+        15,
+        28,
+        40,
+        64
+      ],
+      "positional_counts": {
+        "QB": 1,
+        "RB": 2,
+        "WR": 2,
+        "TE": 0
+      },
+      "back_to_back": [],
+      "best_value_pick": {
+        "pick_no": 64,
+        "player": "Kyle McCord",
+        "delta": 9
+      },
+      "biggest_reach_pick": {
+        "pick_no": 4,
+        "player": "Tetairoa McMillan",
+        "delta": -3
+      },
+      "draft_score": 3.2,
+      "premium_picks": 1,
+      "format_fit": 2,
+      "grade_input": 8.2,
+      "grade": {
+        "letter": "B+",
+        "driving_picks": [
+          4,
+          28
+        ],
+        "rationale": null
+      }
+    },
+    {
+      "roster_id": "6",
+      "manager": "Field-Goal Foxes",
+      "pick_count": 6,
+      "pick_nos": [
+        2,
+        3,
+        27,
+        39,
+        51,
+        63
+      ],
+      "positional_counts": {
+        "QB": 0,
+        "RB": 1,
+        "WR": 4,
+        "TE": 1
+      },
+      "back_to_back": [
+        [
+          2,
+          3
+        ]
+      ],
+      "best_value_pick": {
+        "pick_no": 63,
+        "player": "Arian Smith",
+        "delta": 7
+      },
+      "biggest_reach_pick": {
+        "pick_no": 2,
+        "player": "Omarion Hampton",
+        "delta": 1
+      },
+      "draft_score": 5.7,
+      "premium_picks": 2,
+      "format_fit": 0,
+      "grade_input": 11.7,
+      "grade": {
+        "letter": "A-",
+        "driving_picks": [
+          51
+        ],
+        "rationale": null
+      }
+    },
+    {
+      "roster_id": "7",
+      "manager": "Blitz Alpacas",
+      "pick_count": 6,
+      "pick_nos": [
+        6,
+        11,
+        23,
+        35,
+        59,
+        71
+      ],
+      "positional_counts": {
+        "QB": 1,
+        "RB": 3,
+        "WR": 1,
+        "TE": 1
+      },
+      "back_to_back": [],
+      "best_value_pick": {
+        "pick_no": 71,
+        "player": "Lan Larison",
+        "delta": 17
+      },
+      "biggest_reach_pick": {
+        "pick_no": 23,
+        "player": "Jalen Royals",
+        "delta": -1
+      },
+      "draft_score": 9.8,
+      "premium_picks": 2,
+      "format_fit": 2,
+      "grade_input": 17.8,
+      "grade": {
+        "letter": "A+",
+        "driving_picks": [
+          6,
+          35,
+          71
+        ],
+        "rationale": null
+      }
+    },
+    {
+      "roster_id": "8",
+      "manager": "Gridiron Gophers",
+      "pick_count": 11,
+      "pick_nos": [
+        7,
+        8,
+        14,
+        21,
+        24,
+        26,
+        38,
+        48,
+        50,
+        52,
+        62
+      ],
+      "positional_counts": {
+        "QB": 1,
+        "RB": 6,
+        "WR": 3,
+        "TE": 1
+      },
+      "back_to_back": [
+        [
+          7,
+          8
+        ]
+      ],
+      "best_value_pick": {
+        "pick_no": 38,
+        "player": "Elic Ayomanor",
+        "delta": 6
+      },
+      "biggest_reach_pick": {
+        "pick_no": 8,
+        "player": "Emeka Egbuka",
+        "delta": -3
+      },
+      "draft_score": 9.9,
+      "premium_picks": 1,
+      "format_fit": 2,
+      "grade_input": 14.9,
+      "grade": {
+        "letter": "A",
+        "driving_picks": [
+          8,
+          24,
+          26,
+          38
+        ],
+        "rationale": null
+      }
+    },
+    {
+      "roster_id": "9",
+      "manager": "Long-Snap Lynx",
+      "pick_count": 4,
+      "pick_nos": [
+        18,
+        19,
+        31,
+        67
+      ],
+      "positional_counts": {
+        "QB": 0,
+        "RB": 0,
+        "WR": 2,
+        "TE": 2
+      },
+      "back_to_back": [
+        [
+          18,
+          19
+        ]
+      ],
+      "best_value_pick": {
+        "pick_no": 67,
+        "player": "Jalin Conyers",
+        "delta": 10
+      },
+      "biggest_reach_pick": {
+        "pick_no": 18,
+        "player": "Jack Bech",
+        "delta": 0
+      },
+      "draft_score": 7.2,
+      "premium_picks": 0,
+      "format_fit": 0,
+      "grade_input": 7.2,
+      "grade": {
+        "letter": "B+",
+        "driving_picks": [
+          19,
+          31,
+          67
+        ],
+        "rationale": null
+      }
+    },
+    {
+      "roster_id": "10",
+      "manager": "Man-Coverage Meerkats",
+      "pick_count": 3,
+      "pick_nos": [
+        20,
+        56,
+        68
+      ],
+      "positional_counts": {
+        "QB": 1,
+        "RB": 2,
+        "WR": 0,
+        "TE": 0
+      },
+      "back_to_back": [],
+      "best_value_pick": {
+        "pick_no": 68,
+        "player": "Donovan Edwards",
+        "delta": 9
+      },
+      "biggest_reach_pick": {
+        "pick_no": 20,
+        "player": "Cam Skattebo",
+        "delta": 3
+      },
+      "draft_score": 4.8,
+      "premium_picks": 0,
+      "format_fit": 2,
+      "grade_input": 6.8,
+      "grade": {
+        "letter": "B+",
+        "driving_picks": [
+          20
+        ],
+        "rationale": null
+      }
+    },
+    {
+      "roster_id": "11",
+      "manager": "Fair-Catch Ferrets",
+      "pick_count": 5,
+      "pick_nos": [
+        12,
+        13,
+        22,
+        49,
+        61
+      ],
+      "positional_counts": {
+        "QB": 1,
+        "RB": 1,
+        "WR": 3,
+        "TE": 0
+      },
+      "back_to_back": [
+        [
+          12,
+          13
+        ]
+      ],
+      "best_value_pick": {
+        "pick_no": 61,
+        "player": "Nick Nash",
+        "delta": 10
+      },
+      "biggest_reach_pick": {
+        "pick_no": 12,
+        "player": "Luther Burden",
+        "delta": 4
+      },
+      "draft_score": 7.1,
+      "premium_picks": 1,
+      "format_fit": 2,
+      "grade_input": 12.1,
+      "grade": {
+        "letter": "A",
+        "driving_picks": [
+          12,
+          49,
+          61
+        ],
+        "rationale": null
+      }
+    },
+    {
+      "roster_id": "12",
+      "manager": "Play-Action Pandas",
+      "pick_count": 6,
+      "pick_nos": [
+        5,
+        17,
+        29,
+        41,
+        53,
+        65
+      ],
+      "positional_counts": {
+        "QB": 2,
+        "RB": 2,
+        "WR": 1,
+        "TE": 1
+      },
+      "back_to_back": [],
+      "best_value_pick": {
+        "pick_no": 65,
+        "player": "Gunnar Helm",
+        "delta": 12
+      },
+      "biggest_reach_pick": {
+        "pick_no": 41,
+        "player": "DJ Giddens",
+        "delta": 0
+      },
+      "draft_score": 6.6,
+      "premium_picks": 0,
+      "format_fit": 4,
+      "grade_input": 10.6,
+      "grade": {
+        "letter": "A-",
+        "driving_picks": [
+          17,
+          29,
+          65
+        ],
+        "rationale": null
+      }
+    }
+  ],
+  "draft_summary": {
+    "round1_positional": {
+      "RB": 5,
+      "WR": 5,
+      "QB": 2
+    },
+    "first11_running_backs": [
+      "Ashton Jeanty",
+      "Omarion Hampton",
+      "TreVeyon Henderson",
+      "Quinshon Judkins",
+      "RJ Harvey"
+    ],
+    "round1_qbs": [
+      {
+        "pick_no": 5,
+        "board_label": "1.05",
+        "manager": "Play-Action Pandas",
+        "player": "Cameron Ward",
+        "position": "QB",
+        "consensus_label": null,
+        "delta": null
+      },
+      {
+        "pick_no": 10,
+        "board_label": "1.10",
+        "manager": "Coverage Capybaras",
+        "player": "Jaxson Dart",
+        "position": "QB",
+        "consensus_label": "1.05",
+        "delta": 5
+      }
+    ],
+    "pick_count_rank": [
+      {
+        "manager": "Pull-Guard Pumas",
+        "pick_count": 12
+      },
+      {
+        "manager": "Gridiron Gophers",
+        "pick_count": 11
+      },
+      {
+        "manager": "Field-Goal Foxes",
+        "pick_count": 6
+      },
+      {
+        "manager": "Blitz Alpacas",
+        "pick_count": 6
+      },
+      {
+        "manager": "Play-Action Pandas",
+        "pick_count": 6
+      },
+      {
+        "manager": "Goal-Line Gazelles",
+        "pick_count": 5
+      },
+      {
+        "manager": "End-Around Egrets",
+        "pick_count": 5
+      },
+      {
+        "manager": "Iron-Range Ibex",
+        "pick_count": 5
+      },
+      {
+        "manager": "Fair-Catch Ferrets",
+        "pick_count": 5
+      },
+      {
+        "manager": "Coverage Capybaras",
+        "pick_count": 4
+      },
+      {
+        "manager": "Long-Snap Lynx",
+        "pick_count": 4
+      },
+      {
+        "manager": "Man-Coverage Meerkats",
+        "pick_count": 3
+      }
+    ],
+    "round_concentration": [
+      {
+        "manager": "Pull-Guard Pumas",
+        "round": 4,
+        "count": 7
+      },
+      {
+        "manager": "Gridiron Gophers",
+        "round": 2,
+        "count": 3
+      }
+    ],
+    "positional_runs": {
+      "QB": {
+        "total": 10,
+        "first_label": "1.05",
+        "by_end_round3": 6,
+        "run_labels": [
+          "1.05",
+          "1.10",
+          "2.10",
+          "3.02",
+          "3.05",
+          "3.11"
+        ],
+        "left_waiting": [
+          "Man-Coverage Meerkats",
+          "End-Around Egrets"
+        ]
+      },
+      "RB": {
+        "total": 26,
+        "first_label": "1.01",
+        "in_round1": 5,
+        "most_by_one_manager": {
+          "manager": "Gridiron Gophers",
+          "count": 6
+        }
+      },
+      "TE": {
+        "total": 10,
+        "early_window_labels": [
+          "2.02",
+          "2.04"
+        ],
+        "third_te_label": "3.03",
+        "third_te_player": "Mason Taylor",
+        "gap_picks": 11
+      }
+    }
+  },
+  "superlatives": {
+    "best_value": {
+      "pick_no": 71,
+      "board_label": "6.11",
+      "manager": "Blitz Alpacas",
+      "player": "Lan Larison",
+      "position": "RB",
+      "consensus_label": "5.06",
+      "delta": 17,
+      "note": null
+    },
+    "best_value_runner_up": {
+      "pick_no": 65,
+      "board_label": "6.05",
+      "manager": "Play-Action Pandas",
+      "player": "Gunnar Helm",
+      "position": "TE",
+      "consensus_label": "5.05",
+      "delta": 12,
+      "note": null
+    },
+    "biggest_reach": {
+      "pick_no": 1,
+      "board_label": "1.01",
+      "manager": "Pull-Guard Pumas",
+      "player": "Ashton Jeanty",
+      "position": "RB",
+      "consensus_label": "1.04",
+      "delta": -3,
+      "note": null
+    },
+    "biggest_reach_runner_up": {
+      "pick_no": 4,
+      "board_label": "1.04",
+      "manager": "Iron-Range Ibex",
+      "player": "Tetairoa McMillan",
+      "position": "WR",
+      "consensus_label": "1.07",
+      "delta": -3,
+      "note": null
+    },
+    "boldest_swing": {
+      "roster_id": "7",
+      "manager": "Blitz Alpacas",
+      "picks": [
+        {
+          "pick_no": 23,
+          "board_label": "2.11",
+          "manager": "Blitz Alpacas",
+          "player": "Jalen Royals",
+          "position": "WR",
+          "consensus_label": "2.12",
+          "delta": -1
+        },
+        {
+          "pick_no": 71,
+          "board_label": "6.11",
+          "manager": "Blitz Alpacas",
+          "player": "Lan Larison",
+          "position": "RB",
+          "consensus_label": "5.06",
+          "delta": 17
+        }
+      ],
+      "note": null
+    }
+  },
+  "grade_method": {
+    "letter_scale": "A-F+/-",
+    "inputs": "tier_weighted_delta_vs_consensus + 3*premium_picks(consensus_slot<=10) + format_fit(2QB: +2 >=1 QB, +2 >=2 QB; TE-premium: +1 per TE consensus_slot<=12)",
+    "floor_rule": ">=2 premium picks -> minimum C",
+    "note": "letter is a documented monotonic function of grade_input in the engine; grade.rationale prose is the narrator's"
+  },
+  "lead_candidates": [],
+  "storyline_candidates": [],
+  "narration": {
+    "issue_type": "draft_recap",
+    "league": {
+      "name": "Trench Warfare",
+      "season": "2025",
+      "scoring_label": "Half PPR · 2QB · dynasty"
+    },
+    "headline_numbers": {
+      "picks_total": 72,
+      "rounds": 6,
+      "r1_positional": {
+        "RB": 5,
+        "WR": 5,
+        "QB": 2
+      },
+      "first11_rb_count": 5,
+      "pick_count_leader": {
+        "manager": "Pull-Guard Pumas",
+        "pick_count": 12
+      },
+      "pick_count_low": {
+        "manager": "Man-Coverage Meerkats",
+        "pick_count": 3
+      }
+    },
+    "board_round1": [
+      {
+        "pick_no": 1,
+        "board_label": "1.01",
+        "manager": "Pull-Guard Pumas",
+        "player": "Ashton Jeanty",
+        "position": "RB",
+        "consensus_label": "1.04",
+        "delta": -3
+      },
+      {
+        "pick_no": 2,
+        "board_label": "1.02",
+        "manager": "Field-Goal Foxes",
+        "player": "Omarion Hampton",
+        "position": "RB",
+        "consensus_label": "1.01",
+        "delta": 1
+      },
+      {
+        "pick_no": 3,
+        "board_label": "1.03",
+        "manager": "Field-Goal Foxes",
+        "player": "Travis Hunter",
+        "position": "WR",
+        "consensus_label": "1.02",
+        "delta": 1
+      },
+      {
+        "pick_no": 4,
+        "board_label": "1.04",
+        "manager": "Iron-Range Ibex",
+        "player": "Tetairoa McMillan",
+        "position": "WR",
+        "consensus_label": "1.07",
+        "delta": -3
+      },
+      {
+        "pick_no": 5,
+        "board_label": "1.05",
+        "manager": "Play-Action Pandas",
+        "player": "Cameron Ward",
+        "position": "QB",
+        "consensus_label": null,
+        "delta": null
+      },
+      {
+        "pick_no": 6,
+        "board_label": "1.06",
+        "manager": "Blitz Alpacas",
+        "player": "TreVeyon Henderson",
+        "position": "RB",
+        "consensus_label": "1.03",
+        "delta": 3
+      },
+      {
+        "pick_no": 7,
+        "board_label": "1.07",
+        "manager": "Gridiron Gophers",
+        "player": "Quinshon Judkins",
+        "position": "RB",
+        "consensus_label": "1.06",
+        "delta": 1
+      },
+      {
+        "pick_no": 8,
+        "board_label": "1.08",
+        "manager": "Gridiron Gophers",
+        "player": "Emeka Egbuka",
+        "position": "WR",
+        "consensus_label": "1.11",
+        "delta": -3
+      },
+      {
+        "pick_no": 9,
+        "board_label": "1.09",
+        "manager": "End-Around Egrets",
+        "player": "Matthew Golden",
+        "position": "WR",
+        "consensus_label": "1.09",
+        "delta": 0
+      },
+      {
+        "pick_no": 10,
+        "board_label": "1.10",
+        "manager": "Coverage Capybaras",
+        "player": "Jaxson Dart",
+        "position": "QB",
+        "consensus_label": "1.05",
+        "delta": 5
+      },
+      {
+        "pick_no": 11,
+        "board_label": "1.11",
+        "manager": "Blitz Alpacas",
+        "player": "RJ Harvey",
+        "position": "RB",
+        "consensus_label": "1.10",
+        "delta": 1
+      },
+      {
+        "pick_no": 12,
+        "board_label": "1.12",
+        "manager": "Fair-Catch Ferrets",
+        "player": "Luther Burden",
+        "position": "WR",
+        "consensus_label": "1.08",
+        "delta": 4
+      }
+    ],
+    "superlatives": {
+      "best_value": {
+        "pick_no": 71,
+        "board_label": "6.11",
+        "manager": "Blitz Alpacas",
+        "player": "Lan Larison",
+        "position": "RB",
+        "consensus_label": "5.06",
+        "delta": 17,
+        "note": null
+      },
+      "best_value_runner_up": {
+        "pick_no": 65,
+        "board_label": "6.05",
+        "manager": "Play-Action Pandas",
+        "player": "Gunnar Helm",
+        "position": "TE",
+        "consensus_label": "5.05",
+        "delta": 12,
+        "note": null
+      },
+      "biggest_reach": {
+        "pick_no": 1,
+        "board_label": "1.01",
+        "manager": "Pull-Guard Pumas",
+        "player": "Ashton Jeanty",
+        "position": "RB",
+        "consensus_label": "1.04",
+        "delta": -3,
+        "note": null
+      },
+      "biggest_reach_runner_up": {
+        "pick_no": 4,
+        "board_label": "1.04",
+        "manager": "Iron-Range Ibex",
+        "player": "Tetairoa McMillan",
+        "position": "WR",
+        "consensus_label": "1.07",
+        "delta": -3,
+        "note": null
+      },
+      "boldest_swing": {
+        "roster_id": "7",
+        "manager": "Blitz Alpacas",
+        "picks": [
+          {
+            "pick_no": 23,
+            "board_label": "2.11",
+            "manager": "Blitz Alpacas",
+            "player": "Jalen Royals",
+            "position": "WR",
+            "consensus_label": "2.12",
+            "delta": -1
+          },
+          {
+            "pick_no": 71,
+            "board_label": "6.11",
+            "manager": "Blitz Alpacas",
+            "player": "Lan Larison",
+            "position": "RB",
+            "consensus_label": "5.06",
+            "delta": 17
+          }
+        ],
+        "note": null
+      }
+    },
+    "teams": [
+      {
+        "manager": "Goal-Line Gazelles",
+        "roster_id": "1",
+        "pick_count": 5,
+        "positional_counts": {
+          "QB": 0,
+          "RB": 3,
+          "WR": 1,
+          "TE": 1
+        },
+        "grade": "B+",
+        "grade_driving_picks": [
+          16,
+          25,
+          60,
+          72
+        ],
+        "grade_rationale": null,
+        "best_value_pick": {
+          "pick_no": 72,
+          "player": "Antwane Wells",
+          "delta": 12
+        },
+        "biggest_reach_pick": {
+          "pick_no": 32,
+          "player": "Ollie Gordon",
+          "delta": -1
+        },
+        "back_to_back": []
+      },
+      {
+        "manager": "Pull-Guard Pumas",
+        "roster_id": "2",
+        "pick_count": 12,
+        "positional_counts": {
+          "QB": 1,
+          "RB": 4,
+          "WR": 6,
+          "TE": 1
+        },
+        "grade": "A+",
+        "grade_driving_picks": [
+          1,
+          43,
+          44,
+          46
+        ],
+        "grade_rationale": null,
+        "best_value_pick": {
+          "pick_no": 54,
+          "player": "Tai Felton",
+          "delta": 10
+        },
+        "biggest_reach_pick": {
+          "pick_no": 1,
+          "player": "Ashton Jeanty",
+          "delta": -3
+        },
+        "back_to_back": [
+          [
+            42,
+            43
+          ],
+          [
+            43,
+            44
+          ],
+          [
+            44,
+            45
+          ],
+          [
+            45,
+            46
+          ],
+          [
+            46,
+            47
+          ],
+          [
+            54,
+            55
+          ]
+        ]
+      },
+      {
+        "manager": "Coverage Capybaras",
+        "roster_id": "3",
+        "pick_count": 4,
+        "positional_counts": {
+          "QB": 1,
+          "RB": 1,
+          "WR": 1,
+          "TE": 1
+        },
+        "grade": "A",
+        "grade_driving_picks": [
+          10,
+          34,
+          58
+        ],
+        "grade_rationale": null,
+        "best_value_pick": {
+          "pick_no": 58,
+          "player": "Tez Johnson",
+          "delta": 10
+        },
+        "biggest_reach_pick": {
+          "pick_no": 34,
+          "player": "Dylan Sampson",
+          "delta": 4
+        },
+        "back_to_back": []
+      },
+      {
+        "manager": "End-Around Egrets",
+        "roster_id": "4",
+        "pick_count": 5,
+        "positional_counts": {
+          "QB": 1,
+          "RB": 1,
+          "WR": 2,
+          "TE": 1
+        },
+        "grade": "A",
+        "grade_driving_picks": [
+          33,
+          36,
+          69
+        ],
+        "grade_rationale": null,
+        "best_value_pick": {
+          "pick_no": 69,
+          "player": "Isaiah Bond",
+          "delta": 11
+        },
+        "biggest_reach_pick": {
+          "pick_no": 9,
+          "player": "Matthew Golden",
+          "delta": 0
+        },
+        "back_to_back": []
+      },
+      {
+        "manager": "Iron-Range Ibex",
+        "roster_id": "5",
+        "pick_count": 5,
+        "positional_counts": {
+          "QB": 1,
+          "RB": 2,
+          "WR": 2,
+          "TE": 0
+        },
+        "grade": "B+",
+        "grade_driving_picks": [
+          4,
+          28
+        ],
+        "grade_rationale": null,
+        "best_value_pick": {
+          "pick_no": 64,
+          "player": "Kyle McCord",
+          "delta": 9
+        },
+        "biggest_reach_pick": {
+          "pick_no": 4,
+          "player": "Tetairoa McMillan",
+          "delta": -3
+        },
+        "back_to_back": []
+      },
+      {
+        "manager": "Field-Goal Foxes",
+        "roster_id": "6",
+        "pick_count": 6,
+        "positional_counts": {
+          "QB": 0,
+          "RB": 1,
+          "WR": 4,
+          "TE": 1
+        },
+        "grade": "A-",
+        "grade_driving_picks": [
+          51
+        ],
+        "grade_rationale": null,
+        "best_value_pick": {
+          "pick_no": 63,
+          "player": "Arian Smith",
+          "delta": 7
+        },
+        "biggest_reach_pick": {
+          "pick_no": 2,
+          "player": "Omarion Hampton",
+          "delta": 1
+        },
+        "back_to_back": [
+          [
+            2,
+            3
+          ]
+        ]
+      },
+      {
+        "manager": "Blitz Alpacas",
+        "roster_id": "7",
+        "pick_count": 6,
+        "positional_counts": {
+          "QB": 1,
+          "RB": 3,
+          "WR": 1,
+          "TE": 1
+        },
+        "grade": "A+",
+        "grade_driving_picks": [
+          6,
+          35,
+          71
+        ],
+        "grade_rationale": null,
+        "best_value_pick": {
+          "pick_no": 71,
+          "player": "Lan Larison",
+          "delta": 17
+        },
+        "biggest_reach_pick": {
+          "pick_no": 23,
+          "player": "Jalen Royals",
+          "delta": -1
+        },
+        "back_to_back": []
+      },
+      {
+        "manager": "Gridiron Gophers",
+        "roster_id": "8",
+        "pick_count": 11,
+        "positional_counts": {
+          "QB": 1,
+          "RB": 6,
+          "WR": 3,
+          "TE": 1
+        },
+        "grade": "A",
+        "grade_driving_picks": [
+          8,
+          24,
+          26,
+          38
+        ],
+        "grade_rationale": null,
+        "best_value_pick": {
+          "pick_no": 38,
+          "player": "Elic Ayomanor",
+          "delta": 6
+        },
+        "biggest_reach_pick": {
+          "pick_no": 8,
+          "player": "Emeka Egbuka",
+          "delta": -3
+        },
+        "back_to_back": [
+          [
+            7,
+            8
+          ]
+        ]
+      },
+      {
+        "manager": "Long-Snap Lynx",
+        "roster_id": "9",
+        "pick_count": 4,
+        "positional_counts": {
+          "QB": 0,
+          "RB": 0,
+          "WR": 2,
+          "TE": 2
+        },
+        "grade": "B+",
+        "grade_driving_picks": [
+          19,
+          31,
+          67
+        ],
+        "grade_rationale": null,
+        "best_value_pick": {
+          "pick_no": 67,
+          "player": "Jalin Conyers",
+          "delta": 10
+        },
+        "biggest_reach_pick": {
+          "pick_no": 18,
+          "player": "Jack Bech",
+          "delta": 0
+        },
+        "back_to_back": [
+          [
+            18,
+            19
+          ]
+        ]
+      },
+      {
+        "manager": "Man-Coverage Meerkats",
+        "roster_id": "10",
+        "pick_count": 3,
+        "positional_counts": {
+          "QB": 1,
+          "RB": 2,
+          "WR": 0,
+          "TE": 0
+        },
+        "grade": "B+",
+        "grade_driving_picks": [
+          20
+        ],
+        "grade_rationale": null,
+        "best_value_pick": {
+          "pick_no": 68,
+          "player": "Donovan Edwards",
+          "delta": 9
+        },
+        "biggest_reach_pick": {
+          "pick_no": 20,
+          "player": "Cam Skattebo",
+          "delta": 3
+        },
+        "back_to_back": []
+      },
+      {
+        "manager": "Fair-Catch Ferrets",
+        "roster_id": "11",
+        "pick_count": 5,
+        "positional_counts": {
+          "QB": 1,
+          "RB": 1,
+          "WR": 3,
+          "TE": 0
+        },
+        "grade": "A",
+        "grade_driving_picks": [
+          12,
+          49,
+          61
+        ],
+        "grade_rationale": null,
+        "best_value_pick": {
+          "pick_no": 61,
+          "player": "Nick Nash",
+          "delta": 10
+        },
+        "biggest_reach_pick": {
+          "pick_no": 12,
+          "player": "Luther Burden",
+          "delta": 4
+        },
+        "back_to_back": [
+          [
+            12,
+            13
+          ]
+        ]
+      },
+      {
+        "manager": "Play-Action Pandas",
+        "roster_id": "12",
+        "pick_count": 6,
+        "positional_counts": {
+          "QB": 2,
+          "RB": 2,
+          "WR": 1,
+          "TE": 1
+        },
+        "grade": "A-",
+        "grade_driving_picks": [
+          17,
+          29,
+          65
+        ],
+        "grade_rationale": null,
+        "best_value_pick": {
+          "pick_no": 65,
+          "player": "Gunnar Helm",
+          "delta": 12
+        },
+        "biggest_reach_pick": {
+          "pick_no": 41,
+          "player": "DJ Giddens",
+          "delta": 0
+        },
+        "back_to_back": []
+      }
+    ],
+    "positional_runs": {
+      "QB": {
+        "total": 10,
+        "first_label": "1.05",
+        "by_end_round3": 6,
+        "run_labels": [
+          "1.05",
+          "1.10",
+          "2.10",
+          "3.02",
+          "3.05",
+          "3.11"
+        ],
+        "left_waiting": [
+          "Man-Coverage Meerkats",
+          "End-Around Egrets"
+        ]
+      },
+      "RB": {
+        "total": 26,
+        "first_label": "1.01",
+        "in_round1": 5,
+        "most_by_one_manager": {
+          "manager": "Gridiron Gophers",
+          "count": 6
+        }
+      },
+      "TE": {
+        "total": 10,
+        "early_window_labels": [
+          "2.02",
+          "2.04"
+        ],
+        "third_te_label": "3.03",
+        "third_te_player": "Mason Taylor",
+        "gap_picks": 11
+      }
+    },
+    "lead_candidates": [],
+    "storyline_candidates": []
+  }
+}
