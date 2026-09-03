@@ -42,6 +42,7 @@ from commishdesk.errors import SchemaValidationError
 from commishdesk.ingest import LeagueModel
 from commishdesk.stats import BoardMetrics, ConsensusMetrics, DraftGrades
 
+from .leads import build_lead_candidates
 from .schema import (
     BoardPick,
     BoldestSwing,
@@ -53,6 +54,7 @@ from .schema import (
     GradeMethodRef,
     GradeRef,
     HeadlineNumbers,
+    LeadCandidate,
     LeagueRef,
     ManagerCount,
     ManagerPickCount,
@@ -119,9 +121,18 @@ def build_draft_recap_facts(
         team_rows = _merge_teams(league, board, consensus, grades)
         draft_summary = _draft_summary(league, board, pick_rows)
         superlatives = _superlatives(league, pick_rows)
+        lead_candidates = build_lead_candidates(
+            league, board, consensus, grades, draft_summary, superlatives
+        )
         league_ref = _league_ref(league)
         narration = _narration(
-            league, league_ref, draft_summary, superlatives, pick_rows, team_rows
+            league,
+            league_ref,
+            draft_summary,
+            superlatives,
+            pick_rows,
+            team_rows,
+            lead_candidates,
         )
         doc = DraftRecapFacts(
             generated_at=generated_at_str,
@@ -151,7 +162,7 @@ def build_draft_recap_facts(
             draft_summary=draft_summary,
             superlatives=superlatives,
             grade_method=GradeMethodRef(**grades.grade_method.model_dump()),
-            lead_candidates=[],
+            lead_candidates=lead_candidates,
             storyline_candidates=[],
             narration=narration,
         )
@@ -590,6 +601,7 @@ def _narration(
     superlatives: Superlatives,
     pick_rows: list[PickRow],
     team_rows: list[TeamRow],
+    lead_candidates: list[LeadCandidate],
 ) -> Narration:
     ordered = sorted(pick_rows, key=lambda r: r.pick_no)
     round1 = [r for r in ordered if r.round == 1]
@@ -641,7 +653,7 @@ def _narration(
         superlatives=superlatives,
         teams=teams,
         positional_runs=draft_summary.positional_runs,
-        lead_candidates=[],
+        lead_candidates=lead_candidates,
         storyline_candidates=[],
     )
 

@@ -8,11 +8,12 @@ schema-tolerance invariant / facts-schema design rule 3) — a consumer written 
 error, the unknown key silently dropped on read.
 
 :data:`SCHEMA_VERSION` is semver: an additive key bumps the minor, a shape change
-the major. Prose fields (``note`` / ``rationale`` / ``hook``) are the narrator's
-and are modelled ``str | None = None`` — the Story 2.5 builder always emits
-``None``. ``lead_candidates`` / ``storyline_candidates`` serialize as ``[]`` (not
-omitted) so a Story 2.6 / 3.1 payload is an additive ``0.1.x``, not a shape
-change.
+the major. The editorial prose fields (``superlatives.*.note`` /
+``teams[].grade.rationale``) are the narrator's and are modelled
+``str | None = None`` — the Story 2.5 builder emits ``None``. ``lead_candidates``
+is populated by Story 2.6 with a deterministic factual ``hook`` per angle (still a
+``0.1.x`` additive payload, not a shape change); ``storyline_candidates`` stays
+``[]`` until Story 3.1. Both serialize as ``[]`` when empty, never omitted.
 
 This module imports stdlib + pydantic only — no engine package.
 """
@@ -352,12 +353,17 @@ class GradeMethodRef(_Doc):
 
 
 # --------------------------------------------------------------------------- #
-# lead / storyline candidates — empty-but-present in Story 2.5
+# lead / storyline candidates
 # --------------------------------------------------------------------------- #
 
 
 class LeadCandidate(_Doc):
-    """A ranked lead angle. Populated by Story 2.6; ``[]`` here."""
+    """A ranked lead angle the narrator can open on (delta D7). Populated by
+    Story 2.6's ``facts/leads.py``: ``kind`` is one of its
+    ``LEAD_KIND_PRIORITY`` values, ``roster_ids`` attributes the angle (empty for
+    a room-wide observation), and ``hook`` is a deterministic factual sentence
+    (never ``None`` on a lead angle — the ``str | None`` type is shared with
+    :class:`StorylineCandidate`, whose ``hook`` is still the narrator's)."""
 
     rank: int
     kind: str

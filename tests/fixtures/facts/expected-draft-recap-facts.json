@@ -2143,7 +2143,38 @@
     "floor_rule": ">=2 premium picks -> minimum C",
     "note": "letter is a documented monotonic function of grade_input in the engine; grade.rationale prose is the narrator's"
   },
-  "lead_candidates": [],
+  "lead_candidates": [
+    {
+      "rank": 1,
+      "kind": "positional_run",
+      "roster_ids": [],
+      "hook": "Five of the first eleven picks were running backs, and two managers took a quarterback in round 1."
+    },
+    {
+      "rank": 2,
+      "kind": "manager_approach",
+      "roster_ids": [
+        "2"
+      ],
+      "hook": "Pull-Guard Pumas made twelve picks, seven of them in round four."
+    },
+    {
+      "rank": 3,
+      "kind": "positional_hoard",
+      "roster_ids": [
+        "8"
+      ],
+      "hook": "Gridiron Gophers drafted six running backs."
+    },
+    {
+      "rank": 4,
+      "kind": "biggest_score",
+      "roster_ids": [
+        "2"
+      ],
+      "hook": "Ashton Jeanty went 1.01."
+    }
+  ],
   "storyline_candidates": [],
   "narration": {
     "issue_type": "draft_recap",
@@ -2778,7 +2809,38 @@
         "gap_picks": 11
       }
     },
-    "lead_candidates": [],
+    "lead_candidates": [
+      {
+        "rank": 1,
+        "kind": "positional_run",
+        "roster_ids": [],
+        "hook": "Five of the first eleven picks were running backs, and two managers took a quarterback in round 1."
+      },
+      {
+        "rank": 2,
+        "kind": "manager_approach",
+        "roster_ids": [
+          "2"
+        ],
+        "hook": "Pull-Guard Pumas made twelve picks, seven of them in round four."
+      },
+      {
+        "rank": 3,
+        "kind": "positional_hoard",
+        "roster_ids": [
+          "8"
+        ],
+        "hook": "Gridiron Gophers drafted six running backs."
+      },
+      {
+        "rank": 4,
+        "kind": "biggest_score",
+        "roster_ids": [
+          "2"
+        ],
+        "hook": "Ashton Jeanty went 1.01."
+      }
+    ],
     "storyline_candidates": []
   }
 }
