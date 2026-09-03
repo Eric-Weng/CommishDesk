@@ -30,15 +30,18 @@ uv run python tools/anonymize.py path/to/your-league-export.json --seed 0 > test
 ```
 
 `--seed` is optional (default `0`); the same seed gives byte-identical output.
-The input must be one JSON object in the bundle shape documented in
+The anonymizer also remaps every `created` / `status_updated` epoch-ms onto a
+synthetic grid — a real transaction wall-clock is a fingerprint of a private
+league. The input must be one JSON object in the bundle shape documented in
 [`tests/fixtures/README.md`](tests/fixtures/README.md) — the tool rejects an
 unknown top-level key, a missing section, or a wrong-typed section before it
 anonymizes anything. Pass `-` (or nothing) to read from stdin.
 
 Any shaping you want — truncating to a range of weeks, dropping failed waiver
-claims, changing a roster slot to reproduce a bug — is a manual edit to the raw
-bundle *before* you pipe it through the anonymizer; the tool itself only
-anonymizes.
+claims, changing a roster slot to reproduce a bug — belongs in the step that
+builds the bundle, *before* you pipe it through the anonymizer. For the project's
+own fixtures that step is [`tools/assemble_bundle.py`](tools/assemble_bundle.py)
+(per-endpoint Sleeper export → one bundle); the anonymizer itself only anonymizes.
 
 A test asserts that no fixture contains a real-looking name, id, or avatar. CI runs
 entirely against fixtures — no network, no keys.

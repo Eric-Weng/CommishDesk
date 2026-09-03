@@ -1753,6 +1753,8 @@
   },
   "players": {
     "10213": {
+      "age": 25,
+      "college": "Cincinnati",
       "fantasy_positions": [
         "WR"
       ],
@@ -1761,11 +1763,14 @@
       "last_name": "Tucker",
       "number": 1,
       "position": "WR",
+      "rookie_year": "2023",
       "status": "Active",
       "team": "LV",
       "years_exp": 3
     },
     "10219": {
+      "age": 26,
+      "college": "Kentucky",
       "fantasy_positions": [
         "RB"
       ],
@@ -1774,11 +1779,14 @@
       "last_name": "Rodriguez",
       "number": 24,
       "position": "RB",
+      "rookie_year": "2023",
       "status": "Active",
       "team": "JAX",
       "years_exp": 3
     },
     "10222": {
+      "age": 26,
+      "college": "Michigan State",
       "fantasy_positions": [
         "WR"
       ],
@@ -1787,11 +1795,14 @@
       "last_name": "Reed",
       "number": 11,
       "position": "WR",
+      "rookie_year": "2023",
       "status": "Active",
       "team": "GB",
       "years_exp": 3
     },
     "10226": {
+      "age": 26,
+      "college": "Princeton",
       "fantasy_positions": [
         "WR"
       ],
@@ -1800,11 +1811,14 @@
       "last_name": "Iosivas",
       "number": 80,
       "position": "WR",
+      "rookie_year": "2023",
       "status": "Active",
       "team": "CIN",
       "years_exp": 3
     },
     "10229": {
+      "age": 26,
+      "college": "SMU",
       "fantasy_positions": [
         "WR"
       ],
@@ -1813,11 +1827,14 @@
       "last_name": "Rice",
       "number": 4,
       "position": "WR",
+      "rookie_year": "2023",
       "status": "Active",
       "team": "KC",
       "years_exp": 3
     },
     "10232": {
+      "age": 26,
+      "college": "Stanford",
       "fantasy_positions": [
         "WR"
       ],
@@ -1826,11 +1843,14 @@
       "last_name": "Wilson",
       "number": 14,
       "position": "WR",
+      "rookie_year": "2023",
       "status": "Active",
       "team": "ARI",
       "years_exp": 3
     },
     "10236": {
+      "age": 26,
+      "college": "Utah",
       "fantasy_positions": [
         "TE"
       ],
@@ -1839,11 +1859,14 @@
       "last_name": "Kincaid",
       "number": 86,
       "position": "TE",
+      "rookie_year": "2023",
       "status": "Active",
       "team": "BUF",
       "years_exp": 3
     },
     "10444": {
+      "age": 26,
+      "college": "Tennessee",
       "fantasy_positions": [
         "WR"
       ],
@@ -1852,11 +1875,14 @@
       "last_name": "Tillman",
       "number": 19,
       "position": "WR",
+      "rookie_year": "2023",
       "status": "Active",
       "team": "CLE",
       "years_exp": 3
     },
     "10859": {
+      "age": 25,
+      "college": "Iowa",
       "fantasy_positions": [
         "TE"
       ],
@@ -1865,11 +1891,14 @@
       "last_name": "LaPorta",
       "number": 87,
       "position": "TE",
+      "rookie_year": "2023",
       "status": "Active",
       "team": "DET",
       "years_exp": 3
     },
     "10866": {
+      "age": 27,
+      "college": "Purdue",
       "fantasy_positions": [
         "QB"
       ],
@@ -1878,11 +1907,14 @@
       "last_name": "O'Connell",
       "number": 12,
       "position": "QB",
+      "rookie_year": "2023",
       "status": "Active",
       "team": "LV",
       "years_exp": 3
     },
     "11068": {
+      "age": 26,
+      "college": "Penn State",
       "fantasy_positions": [
         "WR"
       ],
@@ -1891,11 +1923,14 @@
       "last_name": "Tinsley",
       "number": 82,
       "position": "WR",
+      "rookie_year": "2023",
       "status": "Active",
       "team": "CIN",
       "years_exp": 3
     },
     "11199": {
+      "age": 27,
+      "college": "TCU",
       "fantasy_positions": [
         "RB"
       ],
@@ -1904,11 +1939,14 @@
       "last_name": "Demercado",
       "number": 25,
       "position": "RB",
+      "rookie_year": "2023",
       "status": "Active",
       "team": "KC",
       "years_exp": 3
     },
     "11435": {
+      "age": 27,
+      "college": "Fort Valley State",
       "fantasy_positions": [
         "RB"
       ],
@@ -1917,11 +1955,14 @@
       "last_name": "Wilson",
       "number": 27,
       "position": "RB",
+      "rookie_year": "2023",
       "status": "Active",
       "team": "SEA",
       "years_exp": 3
     },
     "11439": {
+      "age": 25,
+      "college": "Youngstown State",
       "fantasy_positions": [
         "RB"
       ],
@@ -1930,11 +1971,14 @@
       "last_name": "McLaughlin",
       "number": 38,
       "position": "RB",
+      "rookie_year": "2023",
       "status": "Active",
       "team": "DEN",
       "years_exp": 3
     },
     "11557": {
+      "age": 26,
+      "college": "Tennessee",
       "fantasy_positions": [
         "QB"
       ],
@@ -1943,11 +1987,14 @@
       "last_name": "Milton",
       "number": 10,
       "position": "QB",
+      "rookie_year": "2024",
       "status": "Active",
       "team": "DAL",
       "years_exp": 2
     },
     "11559": {
+      "age": 26,
+      "college": "Washington",
       "fantasy_positions": [
         "QB"
       ],
@@ -1956,11 +2003,14 @@
       "last_name": "Penix",
       "number": 9,
       "position": "QB",
+      "rookie_year": "2024",
       "status": "Active",
       "team": "ATL",
       "years_exp": 2
     },
     "11560": {
+      "age": 24,
+      "college": "USC",
       "fantasy_positions": [
         "QB"
       ],
@@ -1969,11 +2019,14 @@
       "last_name": "Williams",
       "number": 18,
       "position": "QB",
+      "rookie_year": "2024",
       "status": "Active",
       "team": "CHI",
       "years_exp": 2
     },
     "11562": {
+      "age": 25,
+      "college": "South Carolina",
       "fantasy_positions": [
         "QB"
       ],
@@ -1982,11 +2035,14 @@
       "last_name": "Rattler",
       "number": 2,
       "position": "QB",
+      "rookie_year": "2024",
       "status": "Active",
       "team": "NO",
       "years_exp": 2
     },
     "11563": {
+      "age": 26,
+      "college": "Oregon",
       "fantasy_positions": [
         "QB"
       ],
@@ -1995,11 +2051,14 @@
       "last_name": "Nix",
       "number": 10,
       "position": "QB",
+      "rookie_year": "2024",
       "status": "Active",
       "team": "DEN",
       "years_exp": 2
     },
     "11564": {
+      "age": 23,
+      "college": "North Carolina",
       "fantasy_positions": [
         "QB"
       ],
@@ -2008,11 +2067,14 @@
       "last_name": "Maye",
       "number": 10,
       "position": "QB",
+      "rookie_year": "2024",
       "status": "Active",
       "team": "NE",
       "years_exp": 2
     },
     "11565": {
+      "age": 23,
+      "college": "Michigan",
       "fantasy_positions": [
         "QB"
       ],
@@ -2021,11 +2083,14 @@
       "last_name": "McCarthy",
       "number": 9,
       "position": "QB",
+      "rookie_year": "2024",
       "status": "Active",
       "team": "MIN",
       "years_exp": 2
     },
     "11566": {
+      "age": 25,
+      "college": "LSU",
       "fantasy_positions": [
         "QB"
       ],
@@ -2034,11 +2099,14 @@
       "last_name": "Daniels",
       "number": 5,
       "position": "QB",
+      "rookie_year": "2024",
       "status": "Active",
       "team": "WAS",
       "years_exp": 2
     },
     "11569": {
+      "age": 23,
+      "college": "Auburn",
       "fantasy_positions": [
         "RB"
       ],
@@ -2047,11 +2115,14 @@
       "last_name": "Hunter",
       "number": 27,
       "position": "RB",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "LAR",
       "years_exp": 1
     },
     "11571": {
+      "age": 24,
+      "college": "South Dakota State",
       "fantasy_positions": [
         "RB"
       ],
@@ -2060,11 +2131,14 @@
       "last_name": "Davis",
       "number": 32,
       "position": "RB",
+      "rookie_year": "2024",
       "status": "Active",
       "team": "NYJ",
       "years_exp": 2
     },
     "11575": {
+      "age": 26,
+      "college": "Kentucky",
       "fantasy_positions": [
         "RB"
       ],
@@ -2073,11 +2147,14 @@
       "last_name": "Davis",
       "number": 7,
       "position": "RB",
+      "rookie_year": "2024",
       "status": "Active",
       "team": "BUF",
       "years_exp": 2
     },
     "11576": {
+      "age": 22,
+      "college": "Wisconsin",
       "fantasy_positions": [
         "RB"
       ],
@@ -2086,11 +2163,14 @@
       "last_name": "Allen",
       "number": 0,
       "position": "RB",
+      "rookie_year": "2024",
       "status": "Active",
       "team": "NYJ",
       "years_exp": 2
     },
     "11577": {
+      "age": 23,
+      "college": "Clemson",
       "fantasy_positions": [
         "RB"
       ],
@@ -2099,11 +2179,14 @@
       "last_name": "Shipley",
       "number": 28,
       "position": "RB",
+      "rookie_year": "2024",
       "status": "Active",
       "team": "PHI",
       "years_exp": 2
     },
     "11579": {
+      "age": 22,
+      "college": "Notre Dame",
       "fantasy_positions": [
         "RB"
       ],
@@ -2112,11 +2195,14 @@
       "last_name": "Estime",
       "number": 30,
       "position": "RB",
+      "rookie_year": "2024",
       "status": "Active",
       "team": "NO",
       "years_exp": 2
     },
     "11581": {
+      "age": 25,
+      "college": "USC",
       "fantasy_positions": [
         "RB"
       ],
@@ -2125,11 +2211,14 @@
       "last_name": "Lloyd",
       "number": 32,
       "position": "RB",
+      "rookie_year": "2024",
       "status": "Active",
       "team": "GB",
       "years_exp": 2
     },
     "11583": {
+      "age": 23,
+      "college": "Texas",
       "fantasy_positions": [
         "RB"
       ],
@@ -2138,11 +2227,14 @@
       "last_name": "Brooks",
       "number": 25,
       "position": "RB",
+      "rookie_year": "2024",
       "status": "Active",
       "team": "CAR",
       "years_exp": 2
     },
     "11584": {
+      "age": 24,
+      "college": "Oregon",
       "fantasy_positions": [
         "RB"
       ],
@@ -2151,11 +2243,14 @@
       "last_name": "Irving",
       "number": 7,
       "position": "RB",
+      "rookie_year": "2024",
       "status": "Active",
       "team": "TB",
       "years_exp": 2
     },
     "11586": {
+      "age": 25,
+      "college": "Michigan",
       "fantasy_positions": [
         "RB"
       ],
@@ -2164,11 +2259,14 @@
       "last_name": "Corum",
       "number": 24,
       "position": "RB",
+      "rookie_year": "2024",
       "status": "Active",
       "team": "LAR",
       "years_exp": 2
     },
     "11588": {
+      "age": 27,
+      "college": "Louisville",
       "fantasy_positions": [
         "RB"
       ],
@@ -2177,11 +2275,14 @@
       "last_name": "Jordan",
       "number": 25,
       "position": "RB",
+      "rookie_year": "2024",
       "status": "Active",
       "team": "HOU",
       "years_exp": 2
     },
     "11589": {
+      "age": 24,
+      "college": "Florida State",
       "fantasy_positions": [
         "RB"
       ],
@@ -2190,11 +2291,14 @@
       "last_name": "Benson",
       "number": 33,
       "position": "RB",
+      "rookie_year": "2024",
       "status": "Active",
       "team": null,
       "years_exp": 2
     },
     "11592": {
+      "age": 25,
+      "college": "Iowa",
       "fantasy_positions": [
         "TE"
       ],
@@ -2203,11 +2307,14 @@
       "last_name": "All",
       "number": 83,
       "position": "TE",
+      "rookie_year": "2024",
       "status": "Active",
       "team": "CIN",
       "years_exp": 2
     },
     "11595": {
+      "age": 25,
+      "college": "TCU",
       "fantasy_positions": [
         "TE"
       ],
@@ -2216,11 +2323,14 @@
       "last_name": "Wiley",
       "number": 12,
       "position": "TE",
+      "rookie_year": "2024",
       "status": "Active",
       "team": "KC",
       "years_exp": 2
     },
     "11596": {
+      "age": 24,
+      "college": "Kansas State",
       "fantasy_positions": [
         "TE"
       ],
@@ -2229,11 +2339,14 @@
       "last_name": "Sinnott",
       "number": 82,
       "position": "TE",
+      "rookie_year": "2024",
       "status": "Active",
       "team": "WAS",
       "years_exp": 2
     },
     "11597": {
+      "age": 25,
+      "college": "Penn State",
       "fantasy_positions": [
         "TE"
       ],
@@ -2242,11 +2355,14 @@
       "last_name": "Johnson",
       "number": 84,
       "position": "TE",
+      "rookie_year": "2024",
       "status": "Active",
       "team": "NYG",
       "years_exp": 2
     },
     "11600": {
+      "age": 23,
+      "college": "Texas",
       "fantasy_positions": [
         "TE"
       ],
@@ -2255,11 +2371,14 @@
       "last_name": "Sanders",
       "number": 0,
       "position": "TE",
+      "rookie_year": "2024",
       "status": "Active",
       "team": "CAR",
       "years_exp": 2
     },
     "11603": {
+      "age": 24,
+      "college": "Michigan",
       "fantasy_positions": [
         "TE"
       ],
@@ -2268,11 +2387,14 @@
       "last_name": "Barner",
       "number": 88,
       "position": "TE",
+      "rookie_year": "2024",
       "status": "Active",
       "team": "SEA",
       "years_exp": 2
     },
     "11604": {
+      "age": 23,
+      "college": "Georgia",
       "fantasy_positions": [
         "TE"
       ],
@@ -2281,11 +2403,14 @@
       "last_name": "Bowers",
       "number": 89,
       "position": "TE",
+      "rookie_year": "2024",
       "status": "Active",
       "team": "LV",
       "years_exp": 2
     },
     "11605": {
+      "age": 25,
+      "college": "Florida State",
       "fantasy_positions": [
         "TE"
       ],
@@ -2294,11 +2419,14 @@
       "last_name": "Bell",
       "number": 82,
       "position": "TE",
+      "rookie_year": "2024",
       "status": "Active",
       "team": "PIT",
       "years_exp": 2
     },
     "11610": {
+      "age": 25,
+      "college": "Virginia",
       "fantasy_positions": [
         "WR"
       ],
@@ -2307,11 +2435,14 @@
       "last_name": "Washington",
       "number": 6,
       "position": "WR",
+      "rookie_year": "2024",
       "status": "Active",
       "team": "MIA",
       "years_exp": 2
     },
     "11616": {
+      "age": 25,
+      "college": "Arizona",
       "fantasy_positions": [
         "WR"
       ],
@@ -2320,11 +2451,14 @@
       "last_name": "Cowing",
       "number": 6,
       "position": "WR",
+      "rookie_year": "2024",
       "status": "Active",
       "team": "SF",
       "years_exp": 2
     },
     "11617": {
+      "age": 24,
+      "college": "Western Kentucky",
       "fantasy_positions": [
         "WR"
       ],
@@ -2333,11 +2467,14 @@
       "last_name": "Corley",
       "number": 83,
       "position": "WR",
+      "rookie_year": "2024",
       "status": "Active",
       "team": "CLE",
       "years_exp": 2
     },
     "11618": {
+      "age": 24,
+      "college": "Washington",
       "fantasy_positions": [
         "WR"
       ],
@@ -2346,11 +2483,14 @@
       "last_name": "McMillan",
       "number": 11,
       "position": "WR",
+      "rookie_year": "2024",
       "status": "Active",
       "team": "TB",
       "years_exp": 2
     },
     "11619": {
+      "age": 24,
+      "college": "Washington",
       "fantasy_positions": [
         "WR"
       ],
@@ -2359,11 +2499,14 @@
       "last_name": "Polk",
       "number": 13,
       "position": "WR",
+      "rookie_year": "2024",
       "status": "Active",
       "team": null,
       "years_exp": 2
     },
     "11620": {
+      "age": 24,
+      "college": "Washington",
       "fantasy_positions": [
         "WR"
       ],
@@ -2372,11 +2515,14 @@
       "last_name": "Odunze",
       "number": 15,
       "position": "WR",
+      "rookie_year": "2024",
       "status": "Active",
       "team": "CHI",
       "years_exp": 2
     },
     "11623": {
+      "age": 25,
+      "college": "Texas",
       "fantasy_positions": [
         "WR"
       ],
@@ -2385,11 +2531,14 @@
       "last_name": "Whittington",
       "number": 88,
       "position": "WR",
+      "rookie_year": "2024",
       "status": "Active",
       "team": "LAR",
       "years_exp": 2
     },
     "11624": {
+      "age": 23,
+      "college": "Texas",
       "fantasy_positions": [
         "WR"
       ],
@@ -2398,11 +2547,14 @@
       "last_name": "Worthy",
       "number": 1,
       "position": "WR",
+      "rookie_year": "2024",
       "status": "Active",
       "team": "KC",
       "years_exp": 2
     },
     "11625": {
+      "age": 23,
+      "college": "Texas",
       "fantasy_positions": [
         "WR"
       ],
@@ -2411,11 +2563,14 @@
       "last_name": "Mitchell",
       "number": 15,
       "position": "WR",
+      "rookie_year": "2024",
       "status": "Active",
       "team": "NYJ",
       "years_exp": 2
     },
     "11626": {
+      "age": 25,
+      "college": "South Carolina",
       "fantasy_positions": [
         "WR"
       ],
@@ -2424,11 +2579,14 @@
       "last_name": "Legette",
       "number": 17,
       "position": "WR",
+      "rookie_year": "2024",
       "status": "Active",
       "team": "CAR",
       "years_exp": 2
     },
     "11627": {
+      "age": 23,
+      "college": "Oregon",
       "fantasy_positions": [
         "WR"
       ],
@@ -2437,11 +2595,14 @@
       "last_name": "Franklin",
       "number": 11,
       "position": "WR",
+      "rookie_year": "2024",
       "status": "Active",
       "team": "DEN",
       "years_exp": 2
     },
     "11628": {
+      "age": 24,
+      "college": "Ohio State",
       "fantasy_positions": [
         "WR"
       ],
@@ -2450,11 +2611,14 @@
       "last_name": "Harrison",
       "number": 18,
       "position": "WR",
+      "rookie_year": "2024",
       "status": "Active",
       "team": "ARI",
       "years_exp": 2
     },
     "11629": {
+      "age": 25,
+      "college": "North Carolina",
       "fantasy_positions": [
         "WR"
       ],
@@ -2463,11 +2627,14 @@
       "last_name": "Walker",
       "number": 81,
       "position": "WR",
+      "rookie_year": "2024",
       "status": "Active",
       "team": "BAL",
       "years_exp": 2
     },
     "11630": {
+      "age": 25,
+      "college": "Michigan",
       "fantasy_positions": [
         "WR"
       ],
@@ -2476,11 +2643,14 @@
       "last_name": "Wilson",
       "number": 14,
       "position": "WR",
+      "rookie_year": "2024",
       "status": "Active",
       "team": "PIT",
       "years_exp": 2
     },
     "11631": {
+      "age": 23,
+      "college": "LSU",
       "fantasy_positions": [
         "WR"
       ],
@@ -2489,11 +2659,14 @@
       "last_name": "Thomas",
       "number": 7,
       "position": "WR",
+      "rookie_year": "2024",
       "status": "Active",
       "team": "JAX",
       "years_exp": 2
     },
     "11632": {
+      "age": 23,
+      "college": "LSU",
       "fantasy_positions": [
         "WR"
       ],
@@ -2502,11 +2675,14 @@
       "last_name": "Nabers",
       "number": 1,
       "position": "WR",
+      "rookie_year": "2024",
       "status": "Active",
       "team": "NYG",
       "years_exp": 2
     },
     "11635": {
+      "age": 24,
+      "college": "Georgia",
       "fantasy_positions": [
         "WR"
       ],
@@ -2515,11 +2691,14 @@
       "last_name": "McConkey",
       "number": 15,
       "position": "WR",
+      "rookie_year": "2024",
       "status": "Active",
       "team": "LAC",
       "years_exp": 2
     },
     "11637": {
+      "age": 23,
+      "college": "Florida State",
       "fantasy_positions": [
         "WR"
       ],
@@ -2528,11 +2707,14 @@
       "last_name": "Coleman",
       "number": 0,
       "position": "WR",
+      "rookie_year": "2024",
       "status": "Active",
       "team": "BUF",
       "years_exp": 2
     },
     "11638": {
+      "age": 25,
+      "college": "Florida",
       "fantasy_positions": [
         "WR"
       ],
@@ -2541,11 +2723,14 @@
       "last_name": "Pearsall",
       "number": 1,
       "position": "WR",
+      "rookie_year": "2024",
       "status": "Inactive",
       "team": "SF",
       "years_exp": 2
     },
     "11643": {
+      "age": 23,
+      "college": "Tennessee",
       "fantasy_positions": [
         "RB"
       ],
@@ -2554,11 +2739,14 @@
       "last_name": "Wright",
       "number": 5,
       "position": "RB",
+      "rookie_year": "2024",
       "status": "Active",
       "team": "MIA",
       "years_exp": 2
     },
     "11645": {
+      "age": 23,
+      "college": "UCF",
       "fantasy_positions": [
         "WR"
       ],
@@ -2567,11 +2755,14 @@
       "last_name": "Baker",
       "number": 83,
       "position": "WR",
+      "rookie_year": "2024",
       "status": "Active",
       "team": null,
       "years_exp": 2
     },
     "11646": {
+      "age": 24,
+      "college": "Holy Cross",
       "fantasy_positions": [
         "WR"
       ],
@@ -2580,11 +2771,14 @@
       "last_name": "Coker",
       "number": 18,
       "position": "WR",
+      "rookie_year": "2024",
       "status": "Active",
       "team": "CAR",
       "years_exp": 2
     },
     "11647": {
+      "age": 24,
+      "college": "Troy",
       "fantasy_positions": [
         "RB"
       ],
@@ -2593,11 +2787,14 @@
       "last_name": "Vidal",
       "number": 28,
       "position": "RB",
+      "rookie_year": "2024",
       "status": "Active",
       "team": "LAC",
       "years_exp": 2
     },
     "11650": {
+      "age": 25,
+      "college": "Rice",
       "fantasy_positions": [
         "WR"
       ],
@@ -2606,11 +2803,14 @@
       "last_name": "McCaffrey",
       "number": 11,
       "position": "WR",
+      "rookie_year": "2024",
       "status": "Active",
       "team": "WAS",
       "years_exp": 2
     },
     "11651": {
+      "age": 26,
+      "college": "Louisville",
       "fantasy_positions": [
         "RB"
       ],
@@ -2619,11 +2819,14 @@
       "last_name": "Guerendo",
       "number": 31,
       "position": "RB",
+      "rookie_year": "2024",
       "status": "Active",
       "team": "SF",
       "years_exp": 2
     },
     "11655": {
+      "age": 26,
+      "college": "Purdue",
       "fantasy_positions": [
         "RB"
       ],
@@ -2632,11 +2835,14 @@
       "last_name": "Tracy",
       "number": 29,
       "position": "RB",
+      "rookie_year": "2024",
       "status": "Active",
       "team": "NYG",
       "years_exp": 2
     },
     "1166": {
+      "age": 38,
+      "college": "Michigan State",
       "fantasy_positions": [
         "QB"
       ],
@@ -2645,11 +2851,14 @@
       "last_name": "Cousins",
       "number": 8,
       "position": "QB",
+      "rookie_year": "2012",
       "status": "Active",
       "team": "LV",
       "years_exp": 14
     },
     "11729": {
+      "age": 25,
+      "college": "Utah",
       "fantasy_positions": [
         "RB"
       ],
@@ -2658,11 +2867,14 @@
       "last_name": "Vaki",
       "number": 33,
       "position": "RB",
+      "rookie_year": "2024",
       "status": "Active",
       "team": "DET",
       "years_exp": 2
     },
     "11783": {
+      "age": 26,
+      "college": "Southeast Missouri State",
       "fantasy_positions": [
         "WR"
       ],
@@ -2671,11 +2883,14 @@
       "last_name": "Flournoy",
       "number": 19,
       "position": "WR",
+      "rookie_year": "2024",
       "status": "Active",
       "team": "DAL",
       "years_exp": 2
     },
     "11834": {
+      "age": 28,
+      "college": "Utah",
       "fantasy_positions": [
         "WR"
       ],
@@ -2684,11 +2899,14 @@
       "last_name": "Vele",
       "number": 14,
       "position": "WR",
+      "rookie_year": "2024",
       "status": "Active",
       "team": "NO",
       "years_exp": 2
     },
     "1234": {
+      "age": 37,
+      "college": "Wisconsin",
       "fantasy_positions": [
         "QB"
       ],
@@ -2697,11 +2915,14 @@
       "last_name": "Wilson",
       "number": 3,
       "position": "QB",
+      "rookie_year": "2012",
       "status": "Active",
       "team": null,
       "years_exp": 14
     },
     "12455": {
+      "age": 23,
+      "college": "SMU",
       "fantasy_positions": [
         "RB"
       ],
@@ -2710,11 +2931,14 @@
       "last_name": "Smith",
       "number": 24,
       "position": "RB",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "KC",
       "years_exp": 1
     },
     "12457": {
+      "age": 22,
+      "college": "Texas",
       "fantasy_positions": [
         "RB"
       ],
@@ -2723,11 +2947,14 @@
       "last_name": "Blue",
       "number": 23,
       "position": "RB",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "DAL",
       "years_exp": 1
     },
     "12462": {
+      "age": 22,
+      "college": "Miami (FL)",
       "fantasy_positions": [
         "RB"
       ],
@@ -2736,11 +2963,14 @@
       "last_name": "Martinez",
       "number": 26,
       "position": "RB",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "GB",
       "years_exp": 1
     },
     "12467": {
+      "age": 22,
+      "college": "Oregon",
       "fantasy_positions": [
         "RB"
       ],
@@ -2749,11 +2979,14 @@
       "last_name": "James",
       "number": 29,
       "position": "RB",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "SF",
       "years_exp": 1
     },
     "12469": {
+      "age": 21,
+      "college": "Tennessee",
       "fantasy_positions": [
         "RB"
       ],
@@ -2762,11 +2995,14 @@
       "last_name": "Sampson",
       "number": 22,
       "position": "RB",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "CLE",
       "years_exp": 1
     },
     "12471": {
+      "age": 23,
+      "college": "Kansas State",
       "fantasy_positions": [
         "RB"
       ],
@@ -2775,11 +3011,14 @@
       "last_name": "Giddens",
       "number": 21,
       "position": "RB",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "IND",
       "years_exp": 1
     },
     "12473": {
+      "age": 23,
+      "college": "Notre Dame",
       "fantasy_positions": [
         "TE"
       ],
@@ -2788,11 +3027,14 @@
       "last_name": "Evans",
       "number": 84,
       "position": "TE",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "CAR",
       "years_exp": 1
     },
     "12474": {
+      "age": 25,
+      "college": "USC",
       "fantasy_positions": [
         "RB"
       ],
@@ -2801,11 +3043,14 @@
       "last_name": "Marks",
       "number": 4,
       "position": "RB",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "HOU",
       "years_exp": 1
     },
     "12476": {
+      "age": 23,
+      "college": "Kansas",
       "fantasy_positions": [
         "RB"
       ],
@@ -2814,11 +3059,14 @@
       "last_name": "Neal",
       "number": 24,
       "position": "RB",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "NO",
       "years_exp": 1
     },
     "12478": {
+      "age": 26,
+      "college": "San Jose State",
       "fantasy_positions": [
         "WR"
       ],
@@ -2827,11 +3075,14 @@
       "last_name": "Nash",
       "number": 19,
       "position": "WR",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "WAS",
       "years_exp": 1
     },
     "12481": {
+      "age": 24,
+      "college": "Arizona State",
       "fantasy_positions": [
         "RB"
       ],
@@ -2840,11 +3091,14 @@
       "last_name": "Skattebo",
       "number": 44,
       "position": "RB",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "NYG",
       "years_exp": 1
     },
     "12482": {
+      "age": 24,
+      "college": "TCU",
       "fantasy_positions": [
         "WR"
       ],
@@ -2853,11 +3107,14 @@
       "last_name": "Williams",
       "number": 83,
       "position": "WR",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "GB",
       "years_exp": 1
     },
     "12483": {
+      "age": 23,
+      "college": "TCU",
       "fantasy_positions": [
         "WR"
       ],
@@ -2866,11 +3123,14 @@
       "last_name": "Bech",
       "number": 18,
       "position": "WR",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "LV",
       "years_exp": 1
     },
     "12484": {
+      "age": 23,
+      "college": "Iowa State",
       "fantasy_positions": [
         "WR"
       ],
@@ -2879,11 +3139,14 @@
       "last_name": "Higgins",
       "number": 81,
       "position": "WR",
+      "rookie_year": "2025",
       "status": "Inactive",
       "team": "HOU",
       "years_exp": 1
     },
     "12485": {
+      "age": 24,
+      "college": "Oregon",
       "fantasy_positions": [
         "WR"
       ],
@@ -2892,11 +3155,14 @@
       "last_name": "Johnson",
       "number": 15,
       "position": "WR",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "TB",
       "years_exp": 1
     },
     "12486": {
+      "age": 25,
+      "college": "Oregon",
       "fantasy_positions": [
         "QB"
       ],
@@ -2905,11 +3171,14 @@
       "last_name": "Gabriel",
       "number": 6,
       "position": "QB",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "CLE",
       "years_exp": 1
     },
     "12487": {
+      "age": 23,
+      "college": "Oregon",
       "fantasy_positions": [
         "TE"
       ],
@@ -2918,11 +3187,14 @@
       "last_name": "Ferguson",
       "number": 18,
       "position": "TE",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "LAR",
       "years_exp": 1
     },
     "12489": {
+      "age": 25,
+      "college": "UCF",
       "fantasy_positions": [
         "RB"
       ],
@@ -2931,11 +3203,14 @@
       "last_name": "Harvey",
       "number": 12,
       "position": "RB",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "DEN",
       "years_exp": 1
     },
     "12490": {
+      "age": 23,
+      "college": "Virginia Tech",
       "fantasy_positions": [
         "RB"
       ],
@@ -2944,11 +3219,14 @@
       "last_name": "Tuten",
       "number": 33,
       "position": "RB",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "JAX",
       "years_exp": 1
     },
     "12492": {
+      "age": 23,
+      "college": "Illinois",
       "fantasy_positions": [
         "WR"
       ],
@@ -2957,11 +3235,14 @@
       "last_name": "Bryant",
       "number": 13,
       "position": "WR",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "DEN",
       "years_exp": 1
     },
     "12493": {
+      "age": 23,
+      "college": "Syracuse",
       "fantasy_positions": [
         "TE"
       ],
@@ -2970,11 +3251,14 @@
       "last_name": "Gadsden",
       "number": 86,
       "position": "TE",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "LAC",
       "years_exp": 1
     },
     "12494": {
+      "age": 23,
+      "college": "Syracuse",
       "fantasy_positions": [
         "QB"
       ],
@@ -2983,11 +3267,14 @@
       "last_name": "McCord",
       "number": 18,
       "position": "QB",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "GB",
       "years_exp": 1
     },
     "12495": {
+      "age": 22,
+      "college": "Oklahoma State",
       "fantasy_positions": [
         "RB"
       ],
@@ -2996,11 +3283,14 @@
       "last_name": "Gordon",
       "number": 0,
       "position": "RB",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "MIA",
       "years_exp": 1
     },
     "12496": {
+      "age": 23,
+      "college": "Maryland",
       "fantasy_positions": [
         "WR"
       ],
@@ -3009,11 +3299,14 @@
       "last_name": "Felton",
       "number": 13,
       "position": "WR",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "MIN",
       "years_exp": 1
     },
     "12497": {
+      "age": 23,
+      "college": "Colorado State",
       "fantasy_positions": [
         "WR"
       ],
@@ -3022,11 +3315,14 @@
       "last_name": "Horton",
       "number": 15,
       "position": "WR",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "SEA",
       "years_exp": 1
     },
     "12498": {
+      "age": 22,
+      "college": "LSU",
       "fantasy_positions": [
         "TE"
       ],
@@ -3035,11 +3331,14 @@
       "last_name": "Taylor",
       "number": 85,
       "position": "TE",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "NYJ",
       "years_exp": 1
     },
     "12499": {
+      "age": 23,
+      "college": "Stanford",
       "fantasy_positions": [
         "WR"
       ],
@@ -3048,11 +3347,14 @@
       "last_name": "Ayomanor",
       "number": 5,
       "position": "WR",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "TEN",
       "years_exp": 1
     },
     "12500": {
+      "age": 23,
+      "college": "Texas",
       "fantasy_positions": [
         "QB"
       ],
@@ -3061,11 +3363,14 @@
       "last_name": "Ewers",
       "number": 14,
       "position": "QB",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "MIA",
       "years_exp": 1
     },
     "12501": {
+      "age": 23,
+      "college": "Texas",
       "fantasy_positions": [
         "WR"
       ],
@@ -3074,11 +3379,14 @@
       "last_name": "Golden",
       "number": 0,
       "position": "WR",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "GB",
       "years_exp": 1
     },
     "12502": {
+      "age": 23,
+      "college": "Texas",
       "fantasy_positions": [
         "TE"
       ],
@@ -3087,11 +3395,14 @@
       "last_name": "Helm",
       "number": 84,
       "position": "TE",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "TEN",
       "years_exp": 1
     },
     "12503": {
+      "age": 22,
+      "college": "Texas",
       "fantasy_positions": [
         "WR"
       ],
@@ -3100,11 +3411,14 @@
       "last_name": "Bond",
       "number": 0,
       "position": "WR",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "CLE",
       "years_exp": 1
     },
     "12504": {
+      "age": 23,
+      "college": "Iowa",
       "fantasy_positions": [
         "RB"
       ],
@@ -3113,11 +3427,14 @@
       "last_name": "Johnson",
       "number": 20,
       "position": "RB",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "PIT",
       "years_exp": 1
     },
     "12505": {
+      "age": 23,
+      "college": "Utah State",
       "fantasy_positions": [
         "WR"
       ],
@@ -3126,11 +3443,14 @@
       "last_name": "Royals",
       "number": 11,
       "position": "WR",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "KC",
       "years_exp": 1
     },
     "12506": {
+      "age": 22,
+      "college": "Bowling Green",
       "fantasy_positions": [
         "TE"
       ],
@@ -3139,11 +3459,14 @@
       "last_name": "Fannin",
       "number": 44,
       "position": "TE",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "CLE",
       "years_exp": 1
     },
     "12507": {
+      "age": 23,
+      "college": "North Carolina",
       "fantasy_positions": [
         "RB"
       ],
@@ -3152,11 +3475,14 @@
       "last_name": "Hampton",
       "number": 8,
       "position": "RB",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "LAC",
       "years_exp": 1
     },
     "12508": {
+      "age": 23,
+      "college": "Ole Miss",
       "fantasy_positions": [
         "QB"
       ],
@@ -3165,11 +3491,14 @@
       "last_name": "Dart",
       "number": 6,
       "position": "QB",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "NYG",
       "years_exp": 1
     },
     "12509": {
+      "age": 24,
+      "college": "Ole Miss",
       "fantasy_positions": [
         "WR"
       ],
@@ -3178,11 +3507,14 @@
       "last_name": "Harris",
       "number": 9,
       "position": "WR",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "LAC",
       "years_exp": 1
     },
     "12510": {
+      "age": 23,
+      "college": "Alabama",
       "fantasy_positions": [
         "QB"
       ],
@@ -3191,11 +3523,14 @@
       "last_name": "Milroe",
       "number": 6,
       "position": "QB",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "SEA",
       "years_exp": 1
     },
     "12511": {
+      "age": 24,
+      "college": "Ohio State",
       "fantasy_positions": [
         "QB"
       ],
@@ -3204,11 +3539,14 @@
       "last_name": "Howard",
       "number": 18,
       "position": "QB",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "PIT",
       "years_exp": 1
     },
     "12512": {
+      "age": 22,
+      "college": "Ohio State",
       "fantasy_positions": [
         "RB"
       ],
@@ -3217,11 +3555,14 @@
       "last_name": "Judkins",
       "number": 10,
       "position": "RB",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "CLE",
       "years_exp": 1
     },
     "12514": {
+      "age": 23,
+      "college": "Ohio State",
       "fantasy_positions": [
         "WR"
       ],
@@ -3230,11 +3571,14 @@
       "last_name": "Egbuka",
       "number": 2,
       "position": "WR",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "TB",
       "years_exp": 1
     },
     "12515": {
+      "age": 23,
+      "college": "Michigan",
       "fantasy_positions": [
         "RB"
       ],
@@ -3243,11 +3587,14 @@
       "last_name": "Edwards",
       "number": 36,
       "position": "RB",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "MIA",
       "years_exp": 1
     },
     "12516": {
+      "age": 23,
+      "college": "Michigan",
       "fantasy_positions": [
         "RB"
       ],
@@ -3256,11 +3603,14 @@
       "last_name": "Mullings",
       "number": 31,
       "position": "RB",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "TEN",
       "years_exp": 1
     },
     "12517": {
+      "age": 22,
+      "college": "Michigan",
       "fantasy_positions": [
         "TE"
       ],
@@ -3269,11 +3619,14 @@
       "last_name": "Loveland",
       "number": 84,
       "position": "TE",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "CHI",
       "years_exp": 1
     },
     "12518": {
+      "age": 24,
+      "college": "Penn State",
       "fantasy_positions": [
         "TE"
       ],
@@ -3282,11 +3635,14 @@
       "last_name": "Warren",
       "number": 84,
       "position": "TE",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "IND",
       "years_exp": 1
     },
     "12519": {
+      "age": 22,
+      "college": "Missouri",
       "fantasy_positions": [
         "WR"
       ],
@@ -3295,11 +3651,14 @@
       "last_name": "Burden",
       "number": 10,
       "position": "WR",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "CHI",
       "years_exp": 1
     },
     "12520": {
+      "age": 24,
+      "college": "Miami (FL)",
       "fantasy_positions": [
         "WR"
       ],
@@ -3308,11 +3667,14 @@
       "last_name": "Restrepo",
       "number": 87,
       "position": "WR",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "TEN",
       "years_exp": 1
     },
     "12521": {
+      "age": 23,
+      "college": "Miami (FL)",
       "fantasy_positions": [
         "TE"
       ],
@@ -3321,11 +3683,14 @@
       "last_name": "Arroyo",
       "number": 18,
       "position": "TE",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "SEA",
       "years_exp": 1
     },
     "12522": {
+      "age": 24,
+      "college": "Miami (FL)",
       "fantasy_positions": [
         "QB"
       ],
@@ -3334,11 +3699,14 @@
       "last_name": "Ward",
       "number": 1,
       "position": "QB",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "TEN",
       "years_exp": 1
     },
     "12523": {
+      "age": 23,
+      "college": "Colorado",
       "fantasy_positions": [
         "WR"
       ],
@@ -3347,11 +3715,14 @@
       "last_name": "Horn",
       "number": 15,
       "position": "WR",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "CAR",
       "years_exp": 1
     },
     "12524": {
+      "age": 24,
+      "college": "Colorado",
       "fantasy_positions": [
         "QB"
       ],
@@ -3360,11 +3731,14 @@
       "last_name": "Sanders",
       "number": 2,
       "position": "QB",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "CLE",
       "years_exp": 1
     },
     "12526": {
+      "age": 23,
+      "college": "Arizona",
       "fantasy_positions": [
         "WR"
       ],
@@ -3373,11 +3747,14 @@
       "last_name": "McMillan",
       "number": 4,
       "position": "WR",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "CAR",
       "years_exp": 1
     },
     "12527": {
+      "age": 22,
+      "college": "Boise State",
       "fantasy_positions": [
         "RB"
       ],
@@ -3386,11 +3763,14 @@
       "last_name": "Jeanty",
       "number": 2,
       "position": "RB",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "LV",
       "years_exp": 1
     },
     "12529": {
+      "age": 23,
+      "college": "Ohio State",
       "fantasy_positions": [
         "RB"
       ],
@@ -3399,11 +3779,14 @@
       "last_name": "Henderson",
       "number": 32,
       "position": "RB",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "NE",
       "years_exp": 1
     },
     "12530": {
+      "age": 23,
+      "college": "Colorado",
       "fantasy_positions": [
         "DB",
         "WR"
@@ -3413,11 +3796,14 @@
       "last_name": "Hunter",
       "number": 12,
       "position": "WR",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "JAX",
       "years_exp": 1
     },
     "12531": {
+      "age": 22,
+      "college": "Georgia",
       "fantasy_positions": [
         "RB"
       ],
@@ -3426,11 +3812,14 @@
       "last_name": "Etienne",
       "number": 23,
       "position": "RB",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "CAR",
       "years_exp": 1
     },
     "12533": {
+      "age": 25,
+      "college": "Arizona",
       "fantasy_positions": [
         "RB"
       ],
@@ -3439,11 +3828,14 @@
       "last_name": "Croskey-Merritt",
       "number": 22,
       "position": "RB",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "WAS",
       "years_exp": 1
     },
     "12534": {
+      "age": 24,
+      "college": "Rutgers",
       "fantasy_positions": [
         "RB"
       ],
@@ -3452,11 +3844,14 @@
       "last_name": "Monangai",
       "number": 25,
       "position": "RB",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "CHI",
       "years_exp": 1
     },
     "12535": {
+      "age": 24,
+      "college": "Arkansas",
       "fantasy_positions": [
         "WR"
       ],
@@ -3465,11 +3860,14 @@
       "last_name": "TeSlaa",
       "number": 18,
       "position": "WR",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "DET",
       "years_exp": 1
     },
     "12536": {
+      "age": 23,
+      "college": "Iowa State",
       "fantasy_positions": [
         "WR"
       ],
@@ -3478,11 +3876,14 @@
       "last_name": "Noel",
       "number": 13,
       "position": "WR",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "HOU",
       "years_exp": 1
     },
     "12538": {
+      "age": 24,
+      "college": "Missouri",
       "fantasy_positions": [
         "QB"
       ],
@@ -3491,11 +3892,14 @@
       "last_name": "Cook",
       "number": 4,
       "position": "QB",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "NYJ",
       "years_exp": 1
     },
     "12539": {
+      "age": 24,
+      "college": "Georgia",
       "fantasy_positions": [
         "WR"
       ],
@@ -3504,11 +3908,14 @@
       "last_name": "Smith",
       "number": 82,
       "position": "WR",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "NYJ",
       "years_exp": 1
     },
     "12540": {
+      "age": 24,
+      "college": "Florida",
       "fantasy_positions": [
         "WR"
       ],
@@ -3517,11 +3924,14 @@
       "last_name": "Dike",
       "number": 17,
       "position": "WR",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "TEN",
       "years_exp": 1
     },
     "12541": {
+      "age": 23,
+      "college": "Tennessee",
       "fantasy_positions": [
         "WR"
       ],
@@ -3530,11 +3940,14 @@
       "last_name": "Thornton",
       "number": 10,
       "position": "WR",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "LV",
       "years_exp": 1
     },
     "12542": {
+      "age": 24,
+      "college": "Eastern Washington",
       "fantasy_positions": [
         "WR"
       ],
@@ -3543,11 +3956,14 @@
       "last_name": "Chism",
       "number": 86,
       "position": "WR",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "NE",
       "years_exp": 1
     },
     "12543": {
+      "age": 24,
+      "college": "Texas Tech",
       "fantasy_positions": [
         "RB"
       ],
@@ -3556,11 +3972,14 @@
       "last_name": "Brooks",
       "number": 25,
       "position": "RB",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "CIN",
       "years_exp": 1
     },
     "12544": {
+      "age": 22,
+      "college": "Syracuse",
       "fantasy_positions": [
         "RB"
       ],
@@ -3569,11 +3988,14 @@
       "last_name": "Allen",
       "number": 5,
       "position": "RB",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "JAX",
       "years_exp": 1
     },
     "12545": {
+      "age": 26,
+      "college": "Louisville",
       "fantasy_positions": [
         "QB"
       ],
@@ -3582,11 +4004,14 @@
       "last_name": "Shough",
       "number": 6,
       "position": "QB",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "NO",
       "years_exp": 1
     },
     "12547": {
+      "age": 23,
+      "college": "Washington State",
       "fantasy_positions": [
         "WR"
       ],
@@ -3595,11 +4020,14 @@
       "last_name": "Williams",
       "number": 18,
       "position": "WR",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "NE",
       "years_exp": 1
     },
     "12641": {
+      "age": 24,
+      "college": "Virginia Tech",
       "fantasy_positions": [
         "WR"
       ],
@@ -3608,11 +4036,14 @@
       "last_name": "Lane",
       "number": 83,
       "position": "WR",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "WAS",
       "years_exp": 1
     },
     "12670": {
+      "age": 24,
+      "college": "Auburn",
       "fantasy_positions": [
         "WR"
       ],
@@ -3621,11 +4052,14 @@
       "last_name": "Lambert-Smith",
       "number": 84,
       "position": "WR",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "LAC",
       "years_exp": 1
     },
     "12738": {
+      "age": 23,
+      "college": "Clemson",
       "fantasy_positions": [
         "RB"
       ],
@@ -3634,11 +4068,14 @@
       "last_name": "Mafah",
       "number": 37,
       "position": "RB",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "DAL",
       "years_exp": 1
     },
     "12866": {
+      "age": 24,
+      "college": "Texas Tech",
       "fantasy_positions": [
         "TE"
       ],
@@ -3647,11 +4084,14 @@
       "last_name": "Conyers",
       "number": 80,
       "position": "TE",
+      "rookie_year": "2025",
       "status": "Active",
       "team": null,
       "years_exp": 1
     },
     "12969": {
+      "age": 24,
+      "college": "UC Davis",
       "fantasy_positions": [
         "RB"
       ],
@@ -3660,11 +4100,14 @@
       "last_name": "Larison",
       "number": 34,
       "position": "RB",
+      "rookie_year": "2025",
       "status": "Active",
       "team": "NE",
       "years_exp": 1
     },
     "1339": {
+      "age": 35,
+      "college": "Stanford",
       "fantasy_positions": [
         "TE"
       ],
@@ -3673,11 +4116,14 @@
       "last_name": "Ertz",
       "number": 86,
       "position": "TE",
+      "rookie_year": "2013",
       "status": "Active",
       "team": null,
       "years_exp": 13
     },
     "1373": {
+      "age": 35,
+      "college": "West Virginia",
       "fantasy_positions": [
         "QB"
       ],
@@ -3686,11 +4132,14 @@
       "last_name": "Smith",
       "number": 7,
       "position": "QB",
+      "rookie_year": "2013",
       "status": "Active",
       "team": "NYJ",
       "years_exp": 13
     },
     "1426": {
+      "age": 33,
+      "college": "Clemson",
       "fantasy_positions": [
         "WR"
       ],
@@ -3699,11 +4148,14 @@
       "last_name": "Hopkins",
       "number": 10,
       "position": "WR",
+      "rookie_year": "2013",
       "status": "Active",
       "team": null,
       "years_exp": 13
     },
     "1466": {
+      "age": 36,
+      "college": "Cincinnati",
       "fantasy_positions": [
         "TE"
       ],
@@ -3712,11 +4164,14 @@
       "last_name": "Kelce",
       "number": 87,
       "position": "TE",
+      "rookie_year": "2013",
       "status": "Active",
       "team": "KC",
       "years_exp": 13
     },
     "1479": {
+      "age": 34,
+      "college": "California",
       "fantasy_positions": [
         "WR"
       ],
@@ -3725,11 +4180,14 @@
       "last_name": "Allen",
       "number": 10,
       "position": "WR",
+      "rookie_year": "2013",
       "status": "Active",
       "team": "IND",
       "years_exp": 13
     },
     "1689": {
+      "age": 35,
+      "college": "Minnesota State",
       "fantasy_positions": [
         "WR"
       ],
@@ -3738,11 +4196,14 @@
       "last_name": "Thielen",
       "number": 16,
       "position": "WR",
+      "rookie_year": "2013",
       "status": "Active",
       "team": null,
       "years_exp": 13
     },
     "1837": {
+      "age": 34,
+      "college": "Eastern Illinois",
       "fantasy_positions": [
         "QB"
       ],
@@ -3751,11 +4212,14 @@
       "last_name": "Garoppolo",
       "number": 11,
       "position": "QB",
+      "rookie_year": "2014",
       "status": "Active",
       "team": null,
       "years_exp": 12
     },
     "19": {
+      "age": 41,
+      "college": "Delaware",
       "fantasy_positions": [
         "QB"
       ],
@@ -3764,11 +4228,14 @@
       "last_name": "Flacco",
       "number": 16,
       "position": "QB",
+      "rookie_year": "2008",
       "status": "Active",
       "team": "CIN",
       "years_exp": 18
     },
     "2133": {
+      "age": 33,
+      "college": "Fresno State",
       "fantasy_positions": [
         "WR"
       ],
@@ -3777,11 +4244,14 @@
       "last_name": "Adams",
       "number": 17,
       "position": "WR",
+      "rookie_year": "2014",
       "status": "Active",
       "team": "LAR",
       "years_exp": 12
     },
     "2197": {
+      "age": 32,
+      "college": "Oregon State",
       "fantasy_positions": [
         "WR"
       ],
@@ -3790,11 +4260,14 @@
       "last_name": "Cooks",
       "number": 18,
       "position": "WR",
+      "rookie_year": "2014",
       "status": "Active",
       "team": null,
       "years_exp": 12
     },
     "2216": {
+      "age": 33,
+      "college": "Texas A&M",
       "fantasy_positions": [
         "WR"
       ],
@@ -3803,11 +4276,14 @@
       "last_name": "Evans",
       "number": 5,
       "position": "WR",
+      "rookie_year": "2014",
       "status": "Active",
       "team": "SF",
       "years_exp": 12
     },
     "2306": {
+      "age": 32,
+      "college": "Florida State",
       "fantasy_positions": [
         "QB"
       ],
@@ -3816,11 +4292,14 @@
       "last_name": "Winston",
       "number": 19,
       "position": "QB",
+      "rookie_year": "2015",
       "status": "Active",
       "team": "NYG",
       "years_exp": 11
     },
     "2307": {
+      "age": 32,
+      "college": "Oregon",
       "fantasy_positions": [
         "QB"
       ],
@@ -3829,11 +4308,14 @@
       "last_name": "Mariota",
       "number": 8,
       "position": "QB",
+      "rookie_year": "2015",
       "status": "Active",
       "team": "WAS",
       "years_exp": 11
     },
     "2374": {
+      "age": 33,
+      "college": "Kansas State",
       "fantasy_positions": [
         "WR"
       ],
@@ -3842,11 +4324,14 @@
       "last_name": "Lockett",
       "number": 17,
       "position": "WR",
+      "rookie_year": "2015",
       "status": "Active",
       "team": null,
       "years_exp": 11
     },
     "2449": {
+      "age": 32,
+      "college": "Maryland",
       "fantasy_positions": [
         "WR"
       ],
@@ -3855,11 +4340,14 @@
       "last_name": "Diggs",
       "number": 3,
       "position": "WR",
+      "rookie_year": "2015",
       "status": "Active",
       "team": "WAS",
       "years_exp": 11
     },
     "2505": {
+      "age": 33,
+      "college": "Georgia Tech",
       "fantasy_positions": [
         "TE"
       ],
@@ -3868,11 +4356,14 @@
       "last_name": "Waller",
       "number": 35,
       "position": "TE",
+      "rookie_year": "2015",
       "status": "Active",
       "team": "CAR",
       "years_exp": 11
     },
     "2749": {
+      "age": 33,
+      "college": "Purdue",
       "fantasy_positions": [
         "RB"
       ],
@@ -3881,11 +4372,14 @@
       "last_name": "Mostert",
       "number": 31,
       "position": "RB",
+      "rookie_year": "2015",
       "status": "Active",
       "team": null,
       "years_exp": 11
     },
     "3161": {
+      "age": 33,
+      "college": "North Dakota State",
       "fantasy_positions": [
         "QB"
       ],
@@ -3894,11 +4388,14 @@
       "last_name": "Wentz",
       "number": 11,
       "position": "QB",
+      "rookie_year": "2016",
       "status": "Active",
       "team": "MIN",
       "years_exp": 10
     },
     "3163": {
+      "age": 31,
+      "college": "California",
       "fantasy_positions": [
         "QB"
       ],
@@ -3907,11 +4404,14 @@
       "last_name": "Goff",
       "number": 16,
       "position": "QB",
+      "rookie_year": "2016",
       "status": "Active",
       "team": "DET",
       "years_exp": 10
     },
     "3198": {
+      "age": 32,
+      "college": "Alabama",
       "fantasy_positions": [
         "RB"
       ],
@@ -3920,11 +4420,14 @@
       "last_name": "Henry",
       "number": 22,
       "position": "RB",
+      "rookie_year": "2016",
       "status": "Active",
       "team": "BAL",
       "years_exp": 10
     },
     "3214": {
+      "age": 31,
+      "college": "Arkansas",
       "fantasy_positions": [
         "TE"
       ],
@@ -3933,11 +4436,14 @@
       "last_name": "Henry",
       "number": 85,
       "position": "TE",
+      "rookie_year": "2016",
       "status": "Active",
       "team": "NE",
       "years_exp": 10
     },
     "3257": {
+      "age": 33,
+      "college": "North Carolina State",
       "fantasy_positions": [
         "QB"
       ],
@@ -3946,11 +4452,14 @@
       "last_name": "Brissett",
       "number": 7,
       "position": "QB",
+      "rookie_year": "2016",
       "status": "Active",
       "team": "ARI",
       "years_exp": 10
     },
     "3271": {
+      "age": 33,
+      "college": "Western Kentucky",
       "fantasy_positions": [
         "TE"
       ],
@@ -3959,11 +4468,14 @@
       "last_name": "Higbee",
       "number": 89,
       "position": "TE",
+      "rookie_year": "2016",
       "status": "Active",
       "team": "LAR",
       "years_exp": 10
     },
     "3286": {
+      "age": 31,
+      "college": "Florida",
       "fantasy_positions": [
         "WR"
       ],
@@ -3972,11 +4484,14 @@
       "last_name": "Robinson",
       "number": 5,
       "position": "WR",
+      "rookie_year": "2016",
       "status": "Active",
       "team": "SF",
       "years_exp": 10
     },
     "3294": {
+      "age": 33,
+      "college": "Mississippi State",
       "fantasy_positions": [
         "QB"
       ],
@@ -3985,11 +4500,14 @@
       "last_name": "Prescott",
       "number": 4,
       "position": "QB",
+      "rookie_year": "2016",
       "status": "Active",
       "team": "DAL",
       "years_exp": 10
     },
     "331": {
+      "age": 44,
+      "college": "North Carolina State",
       "fantasy_positions": [
         "QB"
       ],
@@ -3998,11 +4516,14 @@
       "last_name": "Rivers",
       "number": 17,
       "position": "QB",
+      "rookie_year": "2004",
       "status": "Active",
       "team": null,
       "years_exp": 22
     },
     "3321": {
+      "age": 31,
+      "college": "West Alabama",
       "fantasy_positions": [
         "WR"
       ],
@@ -4011,11 +4532,14 @@
       "last_name": "Hill",
       "number": 10,
       "position": "WR",
+      "rookie_year": "2016",
       "status": "Active",
       "team": null,
       "years_exp": 10
     },
     "4017": {
+      "age": 30,
+      "college": "Clemson",
       "fantasy_positions": [
         "QB"
       ],
@@ -4024,11 +4548,14 @@
       "last_name": "Watson",
       "number": 4,
       "position": "QB",
+      "rookie_year": "2017",
       "status": "Active",
       "team": "CLE",
       "years_exp": 9
     },
     "4018": {
+      "age": 29,
+      "college": "Oklahoma",
       "fantasy_positions": [
         "RB"
       ],
@@ -4037,11 +4564,14 @@
       "last_name": "Mixon",
       "number": 28,
       "position": "RB",
+      "rookie_year": "2017",
       "status": "Active",
       "team": null,
       "years_exp": 9
     },
     "4033": {
+      "age": 30,
+      "college": "Miami (FL)",
       "fantasy_positions": [
         "TE"
       ],
@@ -4050,11 +4580,14 @@
       "last_name": "Njoku",
       "number": 83,
       "position": "TE",
+      "rookie_year": "2017",
       "status": "Active",
       "team": "LAC",
       "years_exp": 9
     },
     "4034": {
+      "age": 30,
+      "college": "Stanford",
       "fantasy_positions": [
         "RB"
       ],
@@ -4063,11 +4596,14 @@
       "last_name": "McCaffrey",
       "number": 23,
       "position": "RB",
+      "rookie_year": "2017",
       "status": "Active",
       "team": "SF",
       "years_exp": 9
     },
     "4035": {
+      "age": 31,
+      "college": "Tennessee",
       "fantasy_positions": [
         "RB"
       ],
@@ -4076,11 +4612,14 @@
       "last_name": "Kamara",
       "number": 41,
       "position": "RB",
+      "rookie_year": "2017",
       "status": "Active",
       "team": "NO",
       "years_exp": 9
     },
     "4037": {
+      "age": 30,
+      "college": "Penn State",
       "fantasy_positions": [
         "WR"
       ],
@@ -4089,11 +4628,14 @@
       "last_name": "Godwin",
       "number": 14,
       "position": "WR",
+      "rookie_year": "2017",
       "status": "Active",
       "team": "TB",
       "years_exp": 9
     },
     "4039": {
+      "age": 33,
+      "college": "Eastern Washington",
       "fantasy_positions": [
         "WR"
       ],
@@ -4102,11 +4644,14 @@
       "last_name": "Kupp",
       "number": 10,
       "position": "WR",
+      "rookie_year": "2017",
       "status": "Active",
       "team": "SEA",
       "years_exp": 9
     },
     "4040": {
+      "age": 29,
+      "college": "USC",
       "fantasy_positions": [
         "WR"
       ],
@@ -4115,11 +4660,14 @@
       "last_name": "Smith-Schuster",
       "number": 8,
       "position": "WR",
+      "rookie_year": "2017",
       "status": "Active",
       "team": null,
       "years_exp": 9
     },
     "4046": {
+      "age": 30,
+      "college": "Texas Tech",
       "fantasy_positions": [
         "QB"
       ],
@@ -4128,11 +4676,14 @@
       "last_name": "Mahomes",
       "number": 15,
       "position": "QB",
+      "rookie_year": "2017",
       "status": "Active",
       "team": "KC",
       "years_exp": 9
     },
     "4066": {
+      "age": 31,
+      "college": "Ole Miss",
       "fantasy_positions": [
         "TE"
       ],
@@ -4141,11 +4692,14 @@
       "last_name": "Engram",
       "number": 1,
       "position": "TE",
+      "rookie_year": "2017",
       "status": "Active",
       "team": "DEN",
       "years_exp": 9
     },
     "4098": {
+      "age": 30,
+      "college": "Toledo",
       "fantasy_positions": [
         "RB"
       ],
@@ -4154,11 +4708,14 @@
       "last_name": "Hunt",
       "number": 29,
       "position": "RB",
+      "rookie_year": "2017",
       "status": "Active",
       "team": null,
       "years_exp": 9
     },
     "4137": {
+      "age": 31,
+      "college": "Pittsburgh",
       "fantasy_positions": [
         "RB"
       ],
@@ -4167,11 +4724,14 @@
       "last_name": "Conner",
       "number": 6,
       "position": "RB",
+      "rookie_year": "2017",
       "status": "Active",
       "team": "ARI",
       "years_exp": 9
     },
     "4144": {
+      "age": 30,
+      "college": "Florida International",
       "fantasy_positions": [
         "TE"
       ],
@@ -4180,11 +4740,14 @@
       "last_name": "Smith",
       "number": 81,
       "position": "TE",
+      "rookie_year": "2017",
       "status": "Active",
       "team": null,
       "years_exp": 9
     },
     "4147": {
+      "age": 30,
+      "college": "Oklahoma",
       "fantasy_positions": [
         "RB"
       ],
@@ -4193,11 +4756,14 @@
       "last_name": "Perine",
       "number": 34,
       "position": "RB",
+      "rookie_year": "2017",
       "status": "Active",
       "team": "CIN",
       "years_exp": 9
     },
     "4177": {
+      "age": 32,
+      "college": "North Carolina",
       "fantasy_positions": [
         "WR"
       ],
@@ -4206,11 +4772,14 @@
       "last_name": "Hollins",
       "number": 13,
       "position": "WR",
+      "rookie_year": "2017",
       "status": "Active",
       "team": "NE",
       "years_exp": 9
     },
     "4199": {
+      "age": 31,
+      "college": "UTEP",
       "fantasy_positions": [
         "RB"
       ],
@@ -4219,11 +4788,14 @@
       "last_name": "Jones",
       "number": 33,
       "position": "RB",
+      "rookie_year": "2017",
       "status": "Active",
       "team": "MIN",
       "years_exp": 9
     },
     "421": {
+      "age": 38,
+      "college": "Georgia",
       "fantasy_positions": [
         "QB"
       ],
@@ -4232,11 +4804,14 @@
       "last_name": "Stafford",
       "number": 9,
       "position": "QB",
+      "rookie_year": "2009",
       "status": "Active",
       "team": "LAR",
       "years_exp": 17
     },
     "4217": {
+      "age": 32,
+      "college": "Iowa",
       "fantasy_positions": [
         "TE"
       ],
@@ -4245,11 +4820,14 @@
       "last_name": "Kittle",
       "number": 85,
       "position": "TE",
+      "rookie_year": "2017",
       "status": "Active",
       "team": "SF",
       "years_exp": 9
     },
     "4219": {
+      "age": 30,
+      "college": "Boise State",
       "fantasy_positions": [
         "RB"
       ],
@@ -4258,11 +4836,14 @@
       "last_name": "McNichols",
       "number": 26,
       "position": "RB",
+      "rookie_year": "2017",
       "status": "Active",
       "team": "WAS",
       "years_exp": 9
     },
     "4234": {
+      "age": 30,
+      "college": "Ohio State",
       "fantasy_positions": [
         "WR"
       ],
@@ -4271,11 +4852,14 @@
       "last_name": "Brown",
       "number": 33,
       "position": "WR",
+      "rookie_year": "2017",
       "status": "Active",
       "team": null,
       "years_exp": 9
     },
     "4381": {
+      "age": 35,
+      "college": "BYU",
       "fantasy_positions": [
         "TE"
       ],
@@ -4284,11 +4868,14 @@
       "last_name": "Hill",
       "number": 7,
       "position": "TE",
+      "rookie_year": "2017",
       "status": "Active",
       "team": null,
       "years_exp": 9
     },
     "4454": {
+      "age": 31,
+      "college": "Eastern Washington",
       "fantasy_positions": [
         "WR"
       ],
@@ -4297,11 +4884,14 @@
       "last_name": "Bourne",
       "number": 17,
       "position": "WR",
+      "rookie_year": "2017",
       "status": "Active",
       "team": "ARI",
       "years_exp": 9
     },
     "4663": {
+      "age": 30,
+      "college": "Western Colorado",
       "fantasy_positions": [
         "RB"
       ],
@@ -4310,11 +4900,14 @@
       "last_name": "Ekeler",
       "number": 30,
       "position": "RB",
+      "rookie_year": "2017",
       "status": "Active",
       "team": null,
       "years_exp": 9
     },
     "4866": {
+      "age": 29,
+      "college": "Penn State",
       "fantasy_positions": [
         "RB"
       ],
@@ -4323,11 +4916,14 @@
       "last_name": "Barkley",
       "number": 26,
       "position": "RB",
+      "rookie_year": "2018",
       "status": "Active",
       "team": "PHI",
       "years_exp": 8
     },
     "4881": {
+      "age": 29,
+      "college": "Louisville",
       "fantasy_positions": [
         "QB"
       ],
@@ -4336,11 +4932,14 @@
       "last_name": "Jackson",
       "number": 8,
       "position": "QB",
+      "rookie_year": "2018",
       "status": "Active",
       "team": "BAL",
       "years_exp": 8
     },
     "4892": {
+      "age": 31,
+      "college": "Oklahoma",
       "fantasy_positions": [
         "QB"
       ],
@@ -4349,11 +4948,14 @@
       "last_name": "Mayfield",
       "number": 6,
       "position": "QB",
+      "rookie_year": "2018",
       "status": "Active",
       "team": "TB",
       "years_exp": 8
     },
     "4943": {
+      "age": 29,
+      "college": "USC",
       "fantasy_positions": [
         "QB"
       ],
@@ -4362,11 +4964,14 @@
       "last_name": "Darnold",
       "number": 14,
       "position": "QB",
+      "rookie_year": "2018",
       "status": "Active",
       "team": "SEA",
       "years_exp": 8
     },
     "4950": {
+      "age": 29,
+      "college": "Texas A&M",
       "fantasy_positions": [
         "WR"
       ],
@@ -4375,11 +4980,14 @@
       "last_name": "Kirk",
       "number": 3,
       "position": "WR",
+      "rookie_year": "2018",
       "status": "Active",
       "team": "SF",
       "years_exp": 8
     },
     "4981": {
+      "age": 31,
+      "college": "Alabama",
       "fantasy_positions": [
         "WR"
       ],
@@ -4388,11 +4996,14 @@
       "last_name": "Ridley",
       "number": 0,
       "position": "WR",
+      "rookie_year": "2018",
       "status": "Active",
       "team": "TEN",
       "years_exp": 8
     },
     "4983": {
+      "age": 29,
+      "college": "Maryland",
       "fantasy_positions": [
         "WR"
       ],
@@ -4401,11 +5012,14 @@
       "last_name": "Moore",
       "number": 2,
       "position": "WR",
+      "rookie_year": "2018",
       "status": "Active",
       "team": "BUF",
       "years_exp": 8
     },
     "4984": {
+      "age": 30,
+      "college": "Wyoming",
       "fantasy_positions": [
         "QB"
       ],
@@ -4414,11 +5028,14 @@
       "last_name": "Allen",
       "number": 17,
       "position": "QB",
+      "rookie_year": "2018",
       "status": "Active",
       "team": "BUF",
       "years_exp": 8
     },
     "4988": {
+      "age": 30,
+      "college": "Georgia",
       "fantasy_positions": [
         "RB"
       ],
@@ -4427,11 +5044,14 @@
       "last_name": "Chubb",
       "number": 21,
       "position": "RB",
+      "rookie_year": "2018",
       "status": "Active",
       "team": null,
       "years_exp": 8
     },
     "4993": {
+      "age": 30,
+      "college": "Penn State",
       "fantasy_positions": [
         "TE"
       ],
@@ -4440,11 +5060,14 @@
       "last_name": "Gesicki",
       "number": 88,
       "position": "TE",
+      "rookie_year": "2018",
       "status": "Active",
       "team": "CIN",
       "years_exp": 8
     },
     "5001": {
+      "age": 30,
+      "college": "Stanford",
       "fantasy_positions": [
         "TE"
       ],
@@ -4453,11 +5076,14 @@
       "last_name": "Schultz",
       "number": 86,
       "position": "TE",
+      "rookie_year": "2018",
       "status": "Active",
       "team": "HOU",
       "years_exp": 8
     },
     "5012": {
+      "age": 30,
+      "college": "Oklahoma",
       "fantasy_positions": [
         "TE"
       ],
@@ -4466,11 +5092,14 @@
       "last_name": "Andrews",
       "number": 89,
       "position": "TE",
+      "rookie_year": "2018",
       "status": "Active",
       "team": "BAL",
       "years_exp": 8
     },
     "5022": {
+      "age": 31,
+      "college": "South Dakota State",
       "fantasy_positions": [
         "TE"
       ],
@@ -4479,11 +5108,14 @@
       "last_name": "Goedert",
       "number": 88,
       "position": "TE",
+      "rookie_year": "2018",
       "status": "Active",
       "team": "PHI",
       "years_exp": 8
     },
     "5045": {
+      "age": 30,
+      "college": "SMU",
       "fantasy_positions": [
         "WR"
       ],
@@ -4492,11 +5124,14 @@
       "last_name": "Sutton",
       "number": 14,
       "position": "WR",
+      "rookie_year": "2018",
       "status": "Active",
       "team": "DEN",
       "years_exp": 8
     },
     "5185": {
+      "age": 30,
+      "college": "Iowa State",
       "fantasy_positions": [
         "WR"
       ],
@@ -4505,11 +5140,14 @@
       "last_name": "Lazard",
       "number": 10,
       "position": "WR",
+      "rookie_year": "2018",
       "status": "Active",
       "team": null,
       "years_exp": 7
     },
     "5844": {
+      "age": 29,
+      "college": "Iowa",
       "fantasy_positions": [
         "TE"
       ],
@@ -4518,11 +5156,14 @@
       "last_name": "Hockenson",
       "number": 87,
       "position": "TE",
+      "rookie_year": "2019",
       "status": "Active",
       "team": "MIN",
       "years_exp": 7
     },
     "5846": {
+      "age": 28,
+      "college": "Ole Miss",
       "fantasy_positions": [
         "WR"
       ],
@@ -4531,11 +5172,14 @@
       "last_name": "Metcalf",
       "number": 4,
       "position": "WR",
+      "rookie_year": "2019",
       "status": "Active",
       "team": "PIT",
       "years_exp": 7
     },
     "5848": {
+      "age": 29,
+      "college": "Oklahoma",
       "fantasy_positions": [
         "WR"
       ],
@@ -4544,11 +5188,14 @@
       "last_name": "Brown",
       "number": 0,
       "position": "WR",
+      "rookie_year": "2019",
       "status": "Active",
       "team": "PHI",
       "years_exp": 7
     },
     "5849": {
+      "age": 29,
+      "college": "Oklahoma",
       "fantasy_positions": [
         "QB"
       ],
@@ -4557,11 +5204,14 @@
       "last_name": "Murray",
       "number": 1,
       "position": "QB",
+      "rookie_year": "2019",
       "status": "Active",
       "team": "MIN",
       "years_exp": 7
     },
     "5850": {
+      "age": 28,
+      "college": "Alabama",
       "fantasy_positions": [
         "RB"
       ],
@@ -4570,11 +5220,14 @@
       "last_name": "Jacobs",
       "number": 8,
       "position": "RB",
+      "rookie_year": "2019",
       "status": "Active",
       "team": "GB",
       "years_exp": 7
     },
     "5857": {
+      "age": 28,
+      "college": "Iowa",
       "fantasy_positions": [
         "TE"
       ],
@@ -4583,11 +5236,14 @@
       "last_name": "Fant",
       "number": 87,
       "position": "TE",
+      "rookie_year": "2019",
       "status": "Active",
       "team": "NO",
       "years_exp": 7
     },
     "5859": {
+      "age": 29,
+      "college": "Ole Miss",
       "fantasy_positions": [
         "WR"
       ],
@@ -4596,11 +5252,14 @@
       "last_name": "Brown",
       "number": 1,
       "position": "WR",
+      "rookie_year": "2019",
       "status": "Active",
       "team": "NE",
       "years_exp": 7
     },
     "5870": {
+      "age": 29,
+      "college": "Duke",
       "fantasy_positions": [
         "QB"
       ],
@@ -4609,11 +5268,14 @@
       "last_name": "Jones",
       "number": 17,
       "position": "QB",
+      "rookie_year": "2019",
       "status": "Active",
       "team": "IND",
       "years_exp": 7
     },
     "5872": {
+      "age": 30,
+      "college": "South Carolina",
       "fantasy_positions": [
         "WR"
       ],
@@ -4622,11 +5284,14 @@
       "last_name": "Samuel",
       "number": 19,
       "position": "WR",
+      "rookie_year": "2019",
       "status": "Active",
       "team": "SF",
       "years_exp": 7
     },
     "5892": {
+      "age": 29,
+      "college": "Iowa State",
       "fantasy_positions": [
         "RB"
       ],
@@ -4635,11 +5300,14 @@
       "last_name": "Montgomery",
       "number": 32,
       "position": "RB",
+      "rookie_year": "2019",
       "status": "Active",
       "team": "HOU",
       "years_exp": 7
     },
     "5906": {
+      "age": 29,
+      "college": "Ole Miss",
       "fantasy_positions": [
         "TE"
       ],
@@ -4648,11 +5316,14 @@
       "last_name": "Knox",
       "number": 88,
       "position": "TE",
+      "rookie_year": "2019",
       "status": "Active",
       "team": "BUF",
       "years_exp": 7
     },
     "5927": {
+      "age": 30,
+      "college": "Ohio State",
       "fantasy_positions": [
         "WR"
       ],
@@ -4661,11 +5332,14 @@
       "last_name": "McLaurin",
       "number": 17,
       "position": "WR",
+      "rookie_year": "2019",
       "status": "Active",
       "team": "WAS",
       "years_exp": 7
     },
     "5947": {
+      "age": 29,
+      "college": "North Carolina State",
       "fantasy_positions": [
         "WR"
       ],
@@ -4674,11 +5348,14 @@
       "last_name": "Meyers",
       "number": 3,
       "position": "WR",
+      "rookie_year": "2019",
       "status": "Active",
       "team": "JAX",
       "years_exp": 7
     },
     "5967": {
+      "age": 29,
+      "college": "Memphis",
       "fantasy_positions": [
         "RB"
       ],
@@ -4687,11 +5364,14 @@
       "last_name": "Pollard",
       "number": 20,
       "position": "RB",
+      "rookie_year": "2019",
       "status": "Active",
       "team": "TEN",
       "years_exp": 7
     },
     "5995": {
+      "age": 28,
+      "college": "Oklahoma State",
       "fantasy_positions": [
         "RB"
       ],
@@ -4700,11 +5380,14 @@
       "last_name": "Hill",
       "number": 43,
       "position": "RB",
+      "rookie_year": "2019",
       "status": "Active",
       "team": "BAL",
       "years_exp": 7
     },
     "6011": {
+      "age": 30,
+      "college": "Washington State",
       "fantasy_positions": [
         "QB"
       ],
@@ -4713,11 +5396,14 @@
       "last_name": "Minshew",
       "number": 15,
       "position": "QB",
+      "rookie_year": "2019",
       "status": "Active",
       "team": "ARI",
       "years_exp": 7
     },
     "6039": {
+      "age": 28,
+      "college": "Maryland",
       "fantasy_positions": [
         "RB"
       ],
@@ -4726,11 +5412,14 @@
       "last_name": "Johnson",
       "number": 26,
       "position": "RB",
+      "rookie_year": "2019",
       "status": "Active",
       "team": "BUF",
       "years_exp": 7
     },
     "6111": {
+      "age": 30,
+      "college": "Washington",
       "fantasy_positions": [
         "QB"
       ],
@@ -4739,11 +5428,14 @@
       "last_name": "Browning",
       "number": 5,
       "position": "QB",
+      "rookie_year": "2019",
       "status": "Active",
       "team": "TB",
       "years_exp": 7
     },
     "6130": {
+      "age": 28,
+      "college": "Florida Atlantic",
       "fantasy_positions": [
         "RB"
       ],
@@ -4752,11 +5444,14 @@
       "last_name": "Singletary",
       "number": 26,
       "position": "RB",
+      "rookie_year": "2019",
       "status": "Active",
       "team": "NYG",
       "years_exp": 7
     },
     "6149": {
+      "age": 29,
+      "college": "Auburn",
       "fantasy_positions": [
         "WR"
       ],
@@ -4765,11 +5460,14 @@
       "last_name": "Slayton",
       "number": 18,
       "position": "WR",
+      "rookie_year": "2019",
       "status": "Active",
       "team": "NYG",
       "years_exp": 7
     },
     "6151": {
+      "age": 28,
+      "college": "Penn State",
       "fantasy_positions": [
         "RB"
       ],
@@ -4778,11 +5476,14 @@
       "last_name": "Sanders",
       "number": 24,
       "position": "RB",
+      "rookie_year": "2019",
       "status": "Active",
       "team": null,
       "years_exp": 7
     },
     "6271": {
+      "age": 29,
+      "college": "Virginia",
       "fantasy_positions": [
         "WR"
       ],
@@ -4791,11 +5492,14 @@
       "last_name": "Zaccheaus",
       "number": 14,
       "position": "WR",
+      "rookie_year": "2019",
       "status": "Active",
       "team": "ATL",
       "years_exp": 7
     },
     "6768": {
+      "age": 28,
+      "college": "Alabama",
       "fantasy_positions": [
         "QB"
       ],
@@ -4804,11 +5508,14 @@
       "last_name": "Tagovailoa",
       "number": 1,
       "position": "QB",
+      "rookie_year": "2020",
       "status": "Active",
       "team": "ATL",
       "years_exp": 6
     },
     "6770": {
+      "age": 29,
+      "college": "LSU",
       "fantasy_positions": [
         "QB"
       ],
@@ -4817,11 +5524,14 @@
       "last_name": "Burrow",
       "number": 9,
       "position": "QB",
+      "rookie_year": "2020",
       "status": "Active",
       "team": "CIN",
       "years_exp": 6
     },
     "6783": {
+      "age": 27,
+      "college": "Alabama",
       "fantasy_positions": [
         "WR"
       ],
@@ -4830,11 +5540,14 @@
       "last_name": "Jeudy",
       "number": 3,
       "position": "WR",
+      "rookie_year": "2020",
       "status": "Active",
       "team": "CLE",
       "years_exp": 6
     },
     "6786": {
+      "age": 27,
+      "college": "Oklahoma",
       "fantasy_positions": [
         "WR"
       ],
@@ -4843,11 +5556,14 @@
       "last_name": "Lamb",
       "number": 88,
       "position": "WR",
+      "rookie_year": "2020",
       "status": "Active",
       "team": "DAL",
       "years_exp": 6
     },
     "6790": {
+      "age": 27,
+      "college": "Georgia",
       "fantasy_positions": [
         "RB"
       ],
@@ -4856,11 +5572,14 @@
       "last_name": "Swift",
       "number": 4,
       "position": "RB",
+      "rookie_year": "2020",
       "status": "Active",
       "team": "CHI",
       "years_exp": 6
     },
     "6794": {
+      "age": 27,
+      "college": "LSU",
       "fantasy_positions": [
         "WR"
       ],
@@ -4869,11 +5588,14 @@
       "last_name": "Jefferson",
       "number": 18,
       "position": "WR",
+      "rookie_year": "2020",
       "status": "Active",
       "team": "MIN",
       "years_exp": 6
     },
     "6797": {
+      "age": 28,
+      "college": "Oregon",
       "fantasy_positions": [
         "QB"
       ],
@@ -4882,11 +5604,14 @@
       "last_name": "Herbert",
       "number": 10,
       "position": "QB",
+      "rookie_year": "2020",
       "status": "Active",
       "team": "LAC",
       "years_exp": 6
     },
     "6801": {
+      "age": 27,
+      "college": "Clemson",
       "fantasy_positions": [
         "WR"
       ],
@@ -4895,11 +5620,14 @@
       "last_name": "Higgins",
       "number": 5,
       "position": "WR",
+      "rookie_year": "2020",
       "status": "Active",
       "team": "CIN",
       "years_exp": 6
     },
     "6803": {
+      "age": 28,
+      "college": "Arizona State",
       "fantasy_positions": [
         "WR"
       ],
@@ -4908,11 +5636,14 @@
       "last_name": "Aiyuk",
       "number": 11,
       "position": "WR",
+      "rookie_year": "2020",
       "status": "Active",
       "team": "SF",
       "years_exp": 6
     },
     "6804": {
+      "age": 27,
+      "college": "Utah State",
       "fantasy_positions": [
         "QB"
       ],
@@ -4921,11 +5652,14 @@
       "last_name": "Love",
       "number": 10,
       "position": "QB",
+      "rookie_year": "2020",
       "status": "Active",
       "team": "GB",
       "years_exp": 6
     },
     "6806": {
+      "age": 27,
+      "college": "Ohio State",
       "fantasy_positions": [
         "RB"
       ],
@@ -4934,11 +5668,14 @@
       "last_name": "Dobbins",
       "number": 27,
       "position": "RB",
+      "rookie_year": "2020",
       "status": "Active",
       "team": "DEN",
       "years_exp": 6
     },
     "6813": {
+      "age": 27,
+      "college": "Wisconsin",
       "fantasy_positions": [
         "RB"
       ],
@@ -4947,11 +5684,14 @@
       "last_name": "Taylor",
       "number": 28,
       "position": "RB",
+      "rookie_year": "2020",
       "status": "Active",
       "team": "IND",
       "years_exp": 6
     },
     "6819": {
+      "age": 28,
+      "college": "USC",
       "fantasy_positions": [
         "WR"
       ],
@@ -4960,11 +5700,14 @@
       "last_name": "Pittman",
       "number": 11,
       "position": "WR",
+      "rookie_year": "2020",
       "status": "Active",
       "team": "PIT",
       "years_exp": 6
     },
     "6826": {
+      "age": 27,
+      "college": "Notre Dame",
       "fantasy_positions": [
         "TE"
       ],
@@ -4973,11 +5716,14 @@
       "last_name": "Kmet",
       "number": 85,
       "position": "TE",
+      "rookie_year": "2020",
       "status": "Active",
       "team": "CHI",
       "years_exp": 6
     },
     "6865": {
+      "age": 27,
+      "college": "Stanford",
       "fantasy_positions": [
         "TE"
       ],
@@ -4986,11 +5732,14 @@
       "last_name": "Parkinson",
       "number": 84,
       "position": "TE",
+      "rookie_year": "2020",
       "status": "Active",
       "team": "LAR",
       "years_exp": 6
     },
     "6904": {
+      "age": 28,
+      "college": "Oklahoma",
       "fantasy_positions": [
         "QB"
       ],
@@ -4999,11 +5748,14 @@
       "last_name": "Hurts",
       "number": 1,
       "position": "QB",
+      "rookie_year": "2020",
       "status": "Active",
       "team": "PHI",
       "years_exp": 6
     },
     "7002": {
+      "age": 29,
+      "college": "Oregon",
       "fantasy_positions": [
         "TE"
       ],
@@ -5012,11 +5764,14 @@
       "last_name": "Johnson",
       "number": 83,
       "position": "TE",
+      "rookie_year": "2020",
       "status": "Active",
       "team": "NO",
       "years_exp": 6
     },
     "7021": {
+      "age": 28,
+      "college": "South Carolina",
       "fantasy_positions": [
         "RB"
       ],
@@ -5025,11 +5780,14 @@
       "last_name": "Dowdle",
       "number": 13,
       "position": "RB",
+      "rookie_year": "2020",
       "status": "Active",
       "team": "PIT",
       "years_exp": 6
     },
     "7049": {
+      "age": 29,
+      "college": "Tennessee",
       "fantasy_positions": [
         "WR"
       ],
@@ -5038,11 +5796,14 @@
       "last_name": "Jennings",
       "number": 14,
       "position": "WR",
+      "rookie_year": "2020",
       "status": "Active",
       "team": "MIN",
       "years_exp": 6
     },
     "7090": {
+      "age": 28,
+      "college": "Tulane",
       "fantasy_positions": [
         "WR"
       ],
@@ -5051,11 +5812,14 @@
       "last_name": "Mooney",
       "number": 17,
       "position": "WR",
+      "rookie_year": "2020",
       "status": "Active",
       "team": "NYG",
       "years_exp": 6
     },
     "7523": {
+      "age": 26,
+      "college": "Clemson",
       "fantasy_positions": [
         "QB"
       ],
@@ -5064,11 +5828,14 @@
       "last_name": "Lawrence",
       "number": 16,
       "position": "QB",
+      "rookie_year": "2021",
       "status": "Active",
       "team": "JAX",
       "years_exp": 5
     },
     "7525": {
+      "age": 27,
+      "college": "Alabama",
       "fantasy_positions": [
         "WR"
       ],
@@ -5077,11 +5844,14 @@
       "last_name": "Smith",
       "number": 6,
       "position": "WR",
+      "rookie_year": "2021",
       "status": "Active",
       "team": "PHI",
       "years_exp": 5
     },
     "7526": {
+      "age": 27,
+      "college": "Alabama",
       "fantasy_positions": [
         "WR"
       ],
@@ -5090,11 +5860,14 @@
       "last_name": "Waddle",
       "number": 17,
       "position": "WR",
+      "rookie_year": "2021",
       "status": "Active",
       "team": "DEN",
       "years_exp": 5
     },
     "7527": {
+      "age": 27,
+      "college": "Alabama",
       "fantasy_positions": [
         "QB"
       ],
@@ -5103,11 +5876,14 @@
       "last_name": "Jones",
       "number": 10,
       "position": "QB",
+      "rookie_year": "2021",
       "status": "Active",
       "team": "SF",
       "years_exp": 5
     },
     "7528": {
+      "age": 28,
+      "college": "Alabama",
       "fantasy_positions": [
         "RB"
       ],
@@ -5116,11 +5892,14 @@
       "last_name": "Harris",
       "number": 22,
       "position": "RB",
+      "rookie_year": "2021",
       "status": "Active",
       "team": "NYG",
       "years_exp": 5
     },
     "7538": {
+      "age": 27,
+      "college": "BYU",
       "fantasy_positions": [
         "QB"
       ],
@@ -5129,11 +5908,14 @@
       "last_name": "Wilson",
       "number": 4,
       "position": "QB",
+      "rookie_year": "2021",
       "status": "Active",
       "team": "NO",
       "years_exp": 5
     },
     "7543": {
+      "age": 27,
+      "college": "Clemson",
       "fantasy_positions": [
         "RB"
       ],
@@ -5142,11 +5924,14 @@
       "last_name": "Etienne",
       "number": 3,
       "position": "RB",
+      "rookie_year": "2021",
       "status": "Active",
       "team": "NO",
       "years_exp": 5
     },
     "7547": {
+      "age": 26,
+      "college": "USC",
       "fantasy_positions": [
         "WR"
       ],
@@ -5155,11 +5940,14 @@
       "last_name": "St. Brown",
       "number": 14,
       "position": "WR",
+      "rookie_year": "2021",
       "status": "Active",
       "team": "DET",
       "years_exp": 5
     },
     "7553": {
+      "age": 25,
+      "college": "Florida",
       "fantasy_positions": [
         "TE"
       ],
@@ -5168,11 +5956,14 @@
       "last_name": "Pitts",
       "number": 8,
       "position": "TE",
+      "rookie_year": "2021",
       "status": "Active",
       "team": "ATL",
       "years_exp": 5
     },
     "7562": {
+      "age": 26,
+      "college": "Louisville",
       "fantasy_positions": [
         "WR"
       ],
@@ -5181,11 +5972,14 @@
       "last_name": "Atwell",
       "number": 4,
       "position": "WR",
+      "rookie_year": "2021",
       "status": "Active",
       "team": "MIA",
       "years_exp": 5
     },
     "7564": {
+      "age": 26,
+      "college": "LSU",
       "fantasy_positions": [
         "WR"
       ],
@@ -5194,11 +5988,14 @@
       "last_name": "Chase",
       "number": 1,
       "position": "WR",
+      "rookie_year": "2021",
       "status": "Active",
       "team": "CIN",
       "years_exp": 5
     },
     "7567": {
+      "age": 27,
+      "college": "Memphis",
       "fantasy_positions": [
         "RB"
       ],
@@ -5207,11 +6004,14 @@
       "last_name": "Gainwell",
       "number": 1,
       "position": "RB",
+      "rookie_year": "2021",
       "status": "Active",
       "team": "TB",
       "years_exp": 5
     },
     "7569": {
+      "age": 27,
+      "college": "Michigan",
       "fantasy_positions": [
         "WR"
       ],
@@ -5220,11 +6020,14 @@
       "last_name": "Collins",
       "number": 12,
       "position": "WR",
+      "rookie_year": "2021",
       "status": "Active",
       "team": "HOU",
       "years_exp": 5
     },
     "7571": {
+      "age": 26,
+      "college": "Minnesota",
       "fantasy_positions": [
         "WR"
       ],
@@ -5233,11 +6036,14 @@
       "last_name": "Bateman",
       "number": 7,
       "position": "WR",
+      "rookie_year": "2021",
       "status": "Active",
       "team": "BAL",
       "years_exp": 5
     },
     "7587": {
+      "age": 26,
+      "college": "North Carolina",
       "fantasy_positions": [
         "WR"
       ],
@@ -5246,11 +6052,14 @@
       "last_name": "Brown",
       "number": 6,
       "position": "WR",
+      "rookie_year": "2021",
       "status": "Active",
       "team": "WAS",
       "years_exp": 5
     },
     "7588": {
+      "age": 26,
+      "college": "North Carolina",
       "fantasy_positions": [
         "RB"
       ],
@@ -5259,11 +6068,14 @@
       "last_name": "Williams",
       "number": 33,
       "position": "RB",
+      "rookie_year": "2021",
       "status": "Active",
       "team": "DAL",
       "years_exp": 5
     },
     "7591": {
+      "age": 27,
+      "college": "Ohio State",
       "fantasy_positions": [
         "QB"
       ],
@@ -5272,11 +6084,14 @@
       "last_name": "Fields",
       "number": 6,
       "position": "QB",
+      "rookie_year": "2021",
       "status": "Active",
       "team": "KC",
       "years_exp": 5
     },
     "7594": {
+      "age": 27,
+      "college": "Oklahoma State",
       "fantasy_positions": [
         "RB"
       ],
@@ -5285,11 +6100,14 @@
       "last_name": "Hubbard",
       "number": 30,
       "position": "RB",
+      "rookie_year": "2021",
       "status": "Active",
       "team": "CAR",
       "years_exp": 5
     },
     "7600": {
+      "age": 27,
+      "college": "Penn State",
       "fantasy_positions": [
         "TE"
       ],
@@ -5298,11 +6116,14 @@
       "last_name": "Freiermuth",
       "number": 88,
       "position": "TE",
+      "rookie_year": "2021",
       "status": "Active",
       "team": "PIT",
       "years_exp": 5
     },
     "7607": {
+      "age": 27,
+      "college": "North Carolina",
       "fantasy_positions": [
         "RB"
       ],
@@ -5311,11 +6132,14 @@
       "last_name": "Carter",
       "number": 35,
       "position": "RB",
+      "rookie_year": "2021",
       "status": "Active",
       "team": "TEN",
       "years_exp": 5
     },
     "7610": {
+      "age": 26,
+      "college": "North Dakota State",
       "fantasy_positions": [
         "QB"
       ],
@@ -5324,11 +6148,14 @@
       "last_name": "Lance",
       "number": 5,
       "position": "QB",
+      "rookie_year": "2021",
       "status": "Active",
       "team": "LAC",
       "years_exp": 5
     },
     "7611": {
+      "age": 28,
+      "college": "Oklahoma",
       "fantasy_positions": [
         "RB"
       ],
@@ -5337,11 +6164,14 @@
       "last_name": "Stevenson",
       "number": 38,
       "position": "RB",
+      "rookie_year": "2021",
       "status": "Active",
       "team": "NE",
       "years_exp": 5
     },
     "7670": {
+      "age": 26,
+      "college": "Tennessee",
       "fantasy_positions": [
         "WR"
       ],
@@ -5350,11 +6180,14 @@
       "last_name": "Palmer",
       "number": 5,
       "position": "WR",
+      "rookie_year": "2021",
       "status": "Active",
       "team": "BUF",
       "years_exp": 5
     },
     "7694": {
+      "age": 26,
+      "college": "Notre Dame",
       "fantasy_positions": [
         "TE"
       ],
@@ -5363,11 +6196,14 @@
       "last_name": "Tremble",
       "number": 82,
       "position": "TE",
+      "rookie_year": "2021",
       "status": "Active",
       "team": "CAR",
       "years_exp": 5
     },
     "7828": {
+      "age": 27,
+      "college": "Duke",
       "fantasy_positions": [
         "TE"
       ],
@@ -5376,11 +6212,14 @@
       "last_name": "Gray",
       "number": 83,
       "position": "TE",
+      "rookie_year": "2021",
       "status": "Active",
       "team": "KC",
       "years_exp": 5
     },
     "8110": {
+      "age": 27,
+      "college": "Wisconsin",
       "fantasy_positions": [
         "TE"
       ],
@@ -5389,11 +6228,14 @@
       "last_name": "Ferguson",
       "number": 87,
       "position": "TE",
+      "rookie_year": "2022",
       "status": "Active",
       "team": "DAL",
       "years_exp": 4
     },
     "8111": {
+      "age": 27,
+      "college": "Washington",
       "fantasy_positions": [
         "TE"
       ],
@@ -5402,11 +6244,14 @@
       "last_name": "Otton",
       "number": 88,
       "position": "TE",
+      "rookie_year": "2022",
       "status": "Active",
       "team": "TB",
       "years_exp": 4
     },
     "8112": {
+      "age": 25,
+      "college": "USC",
       "fantasy_positions": [
         "WR"
       ],
@@ -5415,11 +6260,14 @@
       "last_name": "London",
       "number": 5,
       "position": "WR",
+      "rookie_year": "2022",
       "status": "Active",
       "team": "ATL",
       "years_exp": 4
     },
     "8121": {
+      "age": 26,
+      "college": "Nevada",
       "fantasy_positions": [
         "WR"
       ],
@@ -5428,11 +6276,14 @@
       "last_name": "Doubs",
       "number": 87,
       "position": "WR",
+      "rookie_year": "2022",
       "status": "Active",
       "team": "NE",
       "years_exp": 4
     },
     "8123": {
+      "age": 26,
+      "college": "Michigan",
       "fantasy_positions": [
         "RB"
       ],
@@ -5441,11 +6292,14 @@
       "last_name": "Haskins",
       "number": 26,
       "position": "RB",
+      "rookie_year": "2022",
       "status": "Active",
       "team": "NE",
       "years_exp": 4
     },
     "8125": {
+      "age": 27,
+      "college": "Memphis",
       "fantasy_positions": [
         "WR"
       ],
@@ -5454,11 +6308,14 @@
       "last_name": "Austin",
       "number": 82,
       "position": "WR",
+      "rookie_year": "2022",
       "status": "Active",
       "team": "NYG",
       "years_exp": 4
     },
     "8126": {
+      "age": 25,
+      "college": "Kentucky",
       "fantasy_positions": [
         "WR"
       ],
@@ -5467,11 +6324,14 @@
       "last_name": "Robinson",
       "number": 4,
       "position": "WR",
+      "rookie_year": "2022",
       "status": "Active",
       "team": "TEN",
       "years_exp": 4
     },
     "8129": {
+      "age": 26,
+      "college": "Florida",
       "fantasy_positions": [
         "RB"
       ],
@@ -5480,11 +6340,14 @@
       "last_name": "Pierce",
       "number": 39,
       "position": "RB",
+      "rookie_year": "2022",
       "status": "Active",
       "team": "PHI",
       "years_exp": 4
     },
     "8130": {
+      "age": 26,
+      "college": "Colorado State",
       "fantasy_positions": [
         "TE"
       ],
@@ -5493,11 +6356,14 @@
       "last_name": "McBride",
       "number": 85,
       "position": "TE",
+      "rookie_year": "2022",
       "status": "Active",
       "team": "ARI",
       "years_exp": 4
     },
     "8131": {
+      "age": 26,
+      "college": "Coastal Carolina",
       "fantasy_positions": [
         "TE"
       ],
@@ -5506,11 +6372,14 @@
       "last_name": "Likely",
       "number": 9,
       "position": "TE",
+      "rookie_year": "2022",
       "status": "Active",
       "team": "NYG",
       "years_exp": 4
     },
     "8132": {
+      "age": 26,
+      "college": "BYU",
       "fantasy_positions": [
         "RB"
       ],
@@ -5519,11 +6388,14 @@
       "last_name": "Allgeier",
       "number": 22,
       "position": "RB",
+      "rookie_year": "2022",
       "status": "Active",
       "team": "ARI",
       "years_exp": 4
     },
     "8134": {
+      "age": 26,
+      "college": "Boise State",
       "fantasy_positions": [
         "WR"
       ],
@@ -5532,11 +6404,14 @@
       "last_name": "Shakir",
       "number": 10,
       "position": "WR",
+      "rookie_year": "2022",
       "status": "Active",
       "team": "BUF",
       "years_exp": 4
     },
     "8136": {
+      "age": 27,
+      "college": "Arizona State",
       "fantasy_positions": [
         "RB"
       ],
@@ -5545,11 +6420,14 @@
       "last_name": "White",
       "number": 1,
       "position": "RB",
+      "rookie_year": "2022",
       "status": "Active",
       "team": "WAS",
       "years_exp": 4
     },
     "8137": {
+      "age": 25,
+      "college": "Georgia",
       "fantasy_positions": [
         "WR"
       ],
@@ -5558,11 +6436,14 @@
       "last_name": "Pickens",
       "number": 3,
       "position": "WR",
+      "rookie_year": "2022",
       "status": "Active",
       "team": "DAL",
       "years_exp": 4
     },
     "8138": {
+      "age": 26,
+      "college": "Georgia",
       "fantasy_positions": [
         "RB"
       ],
@@ -5571,11 +6452,14 @@
       "last_name": "Cook",
       "number": 4,
       "position": "RB",
+      "rookie_year": "2022",
       "status": "Active",
       "team": "BUF",
       "years_exp": 4
     },
     "8142": {
+      "age": 26,
+      "college": "Cincinnati",
       "fantasy_positions": [
         "WR"
       ],
@@ -5584,11 +6468,14 @@
       "last_name": "Pierce",
       "number": 14,
       "position": "WR",
+      "rookie_year": "2022",
       "status": "Active",
       "team": "IND",
       "years_exp": 4
     },
     "8143": {
+      "age": 26,
+      "college": "Cincinnati",
       "fantasy_positions": [
         "RB"
       ],
@@ -5597,11 +6484,14 @@
       "last_name": "Ford",
       "number": 34,
       "position": "RB",
+      "rookie_year": "2022",
       "status": "Inactive",
       "team": "WAS",
       "years_exp": 4
     },
     "8144": {
+      "age": 26,
+      "college": "Ohio State",
       "fantasy_positions": [
         "WR"
       ],
@@ -5610,11 +6500,14 @@
       "last_name": "Olave",
       "number": 12,
       "position": "WR",
+      "rookie_year": "2022",
       "status": "Active",
       "team": "NO",
       "years_exp": 4
     },
     "8146": {
+      "age": 26,
+      "college": "Ohio State",
       "fantasy_positions": [
         "WR"
       ],
@@ -5623,11 +6516,14 @@
       "last_name": "Wilson",
       "number": 5,
       "position": "WR",
+      "rookie_year": "2022",
       "status": "Active",
       "team": "NYJ",
       "years_exp": 4
     },
     "8147": {
+      "age": 26,
+      "college": "Alabama",
       "fantasy_positions": [
         "WR"
       ],
@@ -5636,11 +6532,14 @@
       "last_name": "Metchie",
       "number": 13,
       "position": "WR",
+      "rookie_year": "2022",
       "status": "Active",
       "team": "CAR",
       "years_exp": 4
     },
     "8148": {
+      "age": 25,
+      "college": "Alabama",
       "fantasy_positions": [
         "WR"
       ],
@@ -5649,11 +6548,14 @@
       "last_name": "Williams",
       "number": 1,
       "position": "WR",
+      "rookie_year": "2022",
       "status": "Active",
       "team": "DET",
       "years_exp": 4
     },
     "8150": {
+      "age": 26,
+      "college": "Notre Dame",
       "fantasy_positions": [
         "RB"
       ],
@@ -5662,11 +6564,14 @@
       "last_name": "Williams",
       "number": 23,
       "position": "RB",
+      "rookie_year": "2022",
       "status": "Active",
       "team": "LAR",
       "years_exp": 4
     },
     "8151": {
+      "age": 25,
+      "college": "Michigan State",
       "fantasy_positions": [
         "RB"
       ],
@@ -5675,11 +6580,14 @@
       "last_name": "Walker",
       "number": 9,
       "position": "RB",
+      "rookie_year": "2022",
       "status": "Active",
       "team": "KC",
       "years_exp": 4
     },
     "8154": {
+      "age": 27,
+      "college": "Alabama",
       "fantasy_positions": [
         "RB"
       ],
@@ -5688,11 +6596,14 @@
       "last_name": "Robinson",
       "number": 15,
       "position": "RB",
+      "rookie_year": "2022",
       "status": "Active",
       "team": "ATL",
       "years_exp": 4
     },
     "8155": {
+      "age": 25,
+      "college": "Iowa State",
       "fantasy_positions": [
         "RB"
       ],
@@ -5701,11 +6612,14 @@
       "last_name": "Hall",
       "number": 20,
       "position": "RB",
+      "rookie_year": "2022",
       "status": "Active",
       "team": "NYJ",
       "years_exp": 4
     },
     "8160": {
+      "age": 28,
+      "college": "Pittsburgh",
       "fantasy_positions": [
         "QB"
       ],
@@ -5714,11 +6628,14 @@
       "last_name": "Pickett",
       "number": 12,
       "position": "QB",
+      "rookie_year": "2022",
       "status": "Active",
       "team": "CAR",
       "years_exp": 4
     },
     "8161": {
+      "age": 27,
+      "college": "Liberty",
       "fantasy_positions": [
         "QB"
       ],
@@ -5727,11 +6644,14 @@
       "last_name": "Willis",
       "number": 2,
       "position": "QB",
+      "rookie_year": "2022",
       "status": "Active",
       "team": "MIA",
       "years_exp": 4
     },
     "8162": {
+      "age": 25,
+      "college": "North Carolina",
       "fantasy_positions": [
         "QB"
       ],
@@ -5740,11 +6660,14 @@
       "last_name": "Howell",
       "number": 16,
       "position": "QB",
+      "rookie_year": "2022",
       "status": "Active",
       "team": "DAL",
       "years_exp": 4
     },
     "8167": {
+      "age": 27,
+      "college": "North Dakota State",
       "fantasy_positions": [
         "WR"
       ],
@@ -5753,11 +6676,14 @@
       "last_name": "Watson",
       "number": 9,
       "position": "WR",
+      "rookie_year": "2022",
       "status": "Active",
       "team": "GB",
       "years_exp": 4
     },
     "8180": {
+      "age": 27,
+      "college": "Michigan State",
       "fantasy_positions": [
         "WR"
       ],
@@ -5766,11 +6692,14 @@
       "last_name": "Nailor",
       "number": 9,
       "position": "WR",
+      "rookie_year": "2022",
       "status": "Active",
       "team": "LV",
       "years_exp": 4
     },
     "8183": {
+      "age": 26,
+      "college": "Iowa State",
       "fantasy_positions": [
         "QB"
       ],
@@ -5779,11 +6708,14 @@
       "last_name": "Purdy",
       "number": 13,
       "position": "QB",
+      "rookie_year": "2022",
       "status": "Active",
       "team": "SF",
       "years_exp": 4
     },
     "8188": {
+      "age": 26,
+      "college": "Baylor",
       "fantasy_positions": [
         "WR"
       ],
@@ -5792,11 +6724,14 @@
       "last_name": "Thornton",
       "number": 2,
       "position": "WR",
+      "rookie_year": "2022",
       "status": "Active",
       "team": "KC",
       "years_exp": 4
     },
     "8205": {
+      "age": 27,
+      "college": "Rutgers",
       "fantasy_positions": [
         "RB"
       ],
@@ -5805,11 +6740,14 @@
       "last_name": "Pacheco",
       "number": 10,
       "position": "RB",
+      "rookie_year": "2022",
       "status": "Active",
       "team": "DET",
       "years_exp": 4
     },
     "8210": {
+      "age": 26,
+      "college": "Maryland",
       "fantasy_positions": [
         "TE"
       ],
@@ -5818,11 +6756,14 @@
       "last_name": "Okonkwo",
       "number": 85,
       "position": "TE",
+      "rookie_year": "2022",
       "status": "Active",
       "team": "WAS",
       "years_exp": 4
     },
     "8228": {
+      "age": 27,
+      "college": "Oklahoma State",
       "fantasy_positions": [
         "RB"
       ],
@@ -5831,11 +6772,14 @@
       "last_name": "Warren",
       "number": 30,
       "position": "RB",
+      "rookie_year": "2022",
       "status": "Active",
       "team": "PIT",
       "years_exp": 4
     },
     "8230": {
+      "age": 28,
+      "college": "North Carolina",
       "fantasy_positions": [
         "RB"
       ],
@@ -5844,11 +6788,14 @@
       "last_name": "Chandler",
       "number": 32,
       "position": "RB",
+      "rookie_year": "2022",
       "status": "Active",
       "team": "NO",
       "years_exp": 4
     },
     "829": {
+      "age": 38,
+      "college": "TCU",
       "fantasy_positions": [
         "QB"
       ],
@@ -5857,11 +6804,14 @@
       "last_name": "Dalton",
       "number": 14,
       "position": "QB",
+      "rookie_year": "2011",
       "status": "Active",
       "team": "PHI",
       "years_exp": 15
     },
     "8408": {
+      "age": 27,
+      "college": "Georgia Tech",
       "fantasy_positions": [
         "RB"
       ],
@@ -5870,11 +6820,14 @@
       "last_name": "Mason",
       "number": 27,
       "position": "RB",
+      "rookie_year": "2022",
       "status": "Active",
       "team": "MIN",
       "years_exp": 4
     },
     "8413": {
+      "age": 28,
+      "college": "South Dakota State",
       "fantasy_positions": [
         "QB"
       ],
@@ -5883,11 +6836,14 @@
       "last_name": "Oladokun",
       "number": 19,
       "position": "QB",
+      "rookie_year": "2022",
       "status": "Active",
       "team": "KC",
       "years_exp": 4
     },
     "8676": {
+      "age": 27,
+      "college": "Weber State",
       "fantasy_positions": [
         "WR"
       ],
@@ -5896,11 +6852,14 @@
       "last_name": "Shaheed",
       "number": 22,
       "position": "WR",
+      "rookie_year": "2022",
       "status": "Active",
       "team": "SEA",
       "years_exp": 4
     },
     "8698": {
+      "age": 27,
+      "college": "California",
       "fantasy_positions": [
         "TE"
       ],
@@ -5909,11 +6868,14 @@
       "last_name": "Tonges",
       "number": 88,
       "position": "TE",
+      "rookie_year": "2022",
       "status": "Active",
       "team": "SF",
       "years_exp": 4
     },
     "8800": {
+      "age": 27,
+      "college": "Florida",
       "fantasy_positions": [
         "RB"
       ],
@@ -5922,11 +6884,14 @@
       "last_name": "Davis",
       "number": 20,
       "position": "RB",
+      "rookie_year": "2022",
       "status": "Active",
       "team": "DAL",
       "years_exp": 4
     },
     "8917": {
+      "age": 30,
+      "college": "TCU",
       "fantasy_positions": [
         "WR"
       ],
@@ -5935,11 +6900,14 @@
       "last_name": "Turpin",
       "number": 9,
       "position": "WR",
+      "rookie_year": "2022",
       "status": "Active",
       "team": "DAL",
       "years_exp": 4
     },
     "9221": {
+      "age": 24,
+      "college": "Alabama",
       "fantasy_positions": [
         "RB"
       ],
@@ -5948,11 +6916,14 @@
       "last_name": "Gibbs",
       "number": 0,
       "position": "RB",
+      "rookie_year": "2023",
       "status": "Active",
       "team": "DET",
       "years_exp": 3
     },
     "9224": {
+      "age": 26,
+      "college": "Illinois",
       "fantasy_positions": [
         "RB"
       ],
@@ -5961,11 +6932,14 @@
       "last_name": "Brown",
       "number": 30,
       "position": "RB",
+      "rookie_year": "2023",
       "status": "Active",
       "team": "CIN",
       "years_exp": 3
     },
     "9225": {
+      "age": 23,
+      "college": "Auburn",
       "fantasy_positions": [
         "RB"
       ],
@@ -5974,11 +6948,14 @@
       "last_name": "Bigsby",
       "number": 8,
       "position": "RB",
+      "rookie_year": "2023",
       "status": "Active",
       "team": "PHI",
       "years_exp": 3
     },
     "9226": {
+      "age": 24,
+      "college": "Texas A&M",
       "fantasy_positions": [
         "RB"
       ],
@@ -5987,11 +6964,14 @@
       "last_name": "Achane",
       "number": 28,
       "position": "RB",
+      "rookie_year": "2023",
       "status": "Active",
       "team": "MIA",
       "years_exp": 3
     },
     "9228": {
+      "age": 25,
+      "college": "Alabama",
       "fantasy_positions": [
         "QB"
       ],
@@ -6000,11 +6980,14 @@
       "last_name": "Young",
       "number": 9,
       "position": "QB",
+      "rookie_year": "2023",
       "status": "Active",
       "team": "CAR",
       "years_exp": 3
     },
     "9229": {
+      "age": 24,
+      "college": "Florida",
       "fantasy_positions": [
         "QB"
       ],
@@ -6013,11 +6996,14 @@
       "last_name": "Richardson",
       "number": 5,
       "position": "QB",
+      "rookie_year": "2023",
       "status": "Active",
       "team": "IND",
       "years_exp": 3
     },
     "9480": {
+      "age": 25,
+      "college": "Penn State",
       "fantasy_positions": [
         "TE"
       ],
@@ -6026,11 +7012,14 @@
       "last_name": "Strange",
       "number": 85,
       "position": "TE",
+      "rookie_year": "2023",
       "status": "Active",
       "team": "JAX",
       "years_exp": 3
     },
     "9481": {
+      "age": 25,
+      "college": "Oregon State",
       "fantasy_positions": [
         "TE"
       ],
@@ -6039,11 +7028,14 @@
       "last_name": "Musgrave",
       "number": 88,
       "position": "TE",
+      "rookie_year": "2023",
       "status": "Active",
       "team": "GB",
       "years_exp": 3
     },
     "9482": {
+      "age": 25,
+      "college": "Notre Dame",
       "fantasy_positions": [
         "TE"
       ],
@@ -6052,11 +7044,14 @@
       "last_name": "Mayer",
       "number": 87,
       "position": "TE",
+      "rookie_year": "2023",
       "status": "Active",
       "team": "LV",
       "years_exp": 3
     },
     "9484": {
+      "age": 25,
+      "college": "South Dakota State",
       "fantasy_positions": [
         "TE"
       ],
@@ -6065,11 +7060,14 @@
       "last_name": "Kraft",
       "number": 85,
       "position": "TE",
+      "rookie_year": "2023",
       "status": "Active",
       "team": "GB",
       "years_exp": 3
     },
     "9486": {
+      "age": 25,
+      "college": "Virginia",
       "fantasy_positions": [
         "WR"
       ],
@@ -6078,11 +7076,14 @@
       "last_name": "Wicks",
       "number": 13,
       "position": "WR",
+      "rookie_year": "2023",
       "status": "Active",
       "team": "PHI",
       "years_exp": 3
     },
     "9487": {
+      "age": 24,
+      "college": "Penn State",
       "fantasy_positions": [
         "WR"
       ],
@@ -6091,11 +7092,14 @@
       "last_name": "Washington",
       "number": 11,
       "position": "WR",
+      "rookie_year": "2023",
       "status": "Active",
       "team": "JAX",
       "years_exp": 3
     },
     "9488": {
+      "age": 24,
+      "college": "Ohio State",
       "fantasy_positions": [
         "WR"
       ],
@@ -6104,11 +7108,14 @@
       "last_name": "Smith-Njigba",
       "number": 11,
       "position": "WR",
+      "rookie_year": "2023",
       "status": "Active",
       "team": "SEA",
       "years_exp": 3
     },
     "9493": {
+      "age": 25,
+      "college": "BYU",
       "fantasy_positions": [
         "WR"
       ],
@@ -6117,11 +7124,14 @@
       "last_name": "Nacua",
       "number": 12,
       "position": "WR",
+      "rookie_year": "2023",
       "status": "Active",
       "team": "LAR",
       "years_exp": 3
     },
     "9494": {
+      "age": 24,
+      "college": "Oklahoma",
       "fantasy_positions": [
         "WR"
       ],
@@ -6130,11 +7140,14 @@
       "last_name": "Mims",
       "number": 19,
       "position": "WR",
+      "rookie_year": "2023",
       "status": "Active",
       "team": "DEN",
       "years_exp": 3
     },
     "9500": {
+      "age": 25,
+      "college": "North Carolina",
       "fantasy_positions": [
         "WR"
       ],
@@ -6143,11 +7156,14 @@
       "last_name": "Downs",
       "number": 2,
       "position": "WR",
+      "rookie_year": "2023",
       "status": "Active",
       "team": "IND",
       "years_exp": 3
     },
     "9501": {
+      "age": 25,
+      "college": "Liberty",
       "fantasy_positions": [
         "WR"
       ],
@@ -6156,11 +7172,14 @@
       "last_name": "Douglas",
       "number": 3,
       "position": "WR",
+      "rookie_year": "2023",
       "status": "Active",
       "team": "NE",
       "years_exp": 3
     },
     "9502": {
+      "age": 26,
+      "college": "Houston",
       "fantasy_positions": [
         "WR"
       ],
@@ -6169,11 +7188,14 @@
       "last_name": "Dell",
       "number": 1,
       "position": "WR",
+      "rookie_year": "2023",
       "status": "Active",
       "team": "HOU",
       "years_exp": 3
     },
     "9504": {
+      "age": 24,
+      "college": "LSU",
       "fantasy_positions": [
         "WR"
       ],
@@ -6182,11 +7204,14 @@
       "last_name": "Boutte",
       "number": 88,
       "position": "WR",
+      "rookie_year": "2023",
       "status": "Active",
       "team": "HOU",
       "years_exp": 3
     },
     "9505": {
+      "age": 24,
+      "college": "Kansas State",
       "fantasy_positions": [
         "RB"
       ],
@@ -6195,11 +7220,14 @@
       "last_name": "Vaughn",
       "number": 31,
       "position": "RB",
+      "rookie_year": "2023",
       "status": "Active",
       "team": "HOU",
       "years_exp": 3
     },
     "9506": {
+      "age": 24,
+      "college": "Syracuse",
       "fantasy_positions": [
         "RB"
       ],
@@ -6208,11 +7236,14 @@
       "last_name": "Tucker",
       "number": 44,
       "position": "RB",
+      "rookie_year": "2023",
       "status": "Active",
       "team": "TB",
       "years_exp": 3
     },
     "9508": {
+      "age": 25,
+      "college": "Tulane",
       "fantasy_positions": [
         "RB"
       ],
@@ -6221,11 +7252,14 @@
       "last_name": "Spears",
       "number": 2,
       "position": "RB",
+      "rookie_year": "2023",
       "status": "Active",
       "team": "TEN",
       "years_exp": 3
     },
     "9509": {
+      "age": 24,
+      "college": "Texas",
       "fantasy_positions": [
         "RB"
       ],
@@ -6234,11 +7268,14 @@
       "last_name": "Robinson",
       "number": 7,
       "position": "RB",
+      "rookie_year": "2023",
       "status": "Active",
       "team": "ATL",
       "years_exp": 3
     },
     "9511": {
+      "age": 24,
+      "college": "East Carolina",
       "fantasy_positions": [
         "RB"
       ],
@@ -6247,11 +7284,14 @@
       "last_name": "Mitchell",
       "number": 34,
       "position": "RB",
+      "rookie_year": "2023",
       "status": "Active",
       "team": "LAC",
       "years_exp": 3
     },
     "96": {
+      "age": 42,
+      "college": "California",
       "fantasy_positions": [
         "QB"
       ],
@@ -6260,11 +7300,14 @@
       "last_name": "Rodgers",
       "number": 8,
       "position": "QB",
+      "rookie_year": "2005",
       "status": "Active",
       "team": "PIT",
       "years_exp": 21
     },
     "9753": {
+      "age": 25,
+      "college": "UCLA",
       "fantasy_positions": [
         "RB"
       ],
@@ -6273,11 +7316,14 @@
       "last_name": "Charbonnet",
       "number": 26,
       "position": "RB",
+      "rookie_year": "2023",
       "status": "Active",
       "team": "SEA",
       "years_exp": 3
     },
     "9754": {
+      "age": 24,
+      "college": "TCU",
       "fantasy_positions": [
         "WR"
       ],
@@ -6286,11 +7332,14 @@
       "last_name": "Johnston",
       "number": 1,
       "position": "WR",
+      "rookie_year": "2023",
       "status": "Active",
       "team": "LAC",
       "years_exp": 3
     },
     "9756": {
+      "age": 24,
+      "college": "USC",
       "fantasy_positions": [
         "WR"
       ],
@@ -6299,11 +7348,14 @@
       "last_name": "Addison",
       "number": 3,
       "position": "WR",
+      "rookie_year": "2023",
       "status": "Active",
       "team": "MIN",
       "years_exp": 3
     },
     "9757": {
+      "age": 24,
+      "college": "TCU",
       "fantasy_positions": [
         "RB"
       ],
@@ -6312,11 +7364,14 @@
       "last_name": "Miller",
       "number": 5,
       "position": "RB",
+      "rookie_year": "2023",
       "status": "Active",
       "team": "NO",
       "years_exp": 3
     },
     "9758": {
+      "age": 24,
+      "college": "Ohio State",
       "fantasy_positions": [
         "QB"
       ],
@@ -6325,11 +7380,14 @@
       "last_name": "Stroud",
       "number": 7,
       "position": "QB",
+      "rookie_year": "2023",
       "status": "Active",
       "team": "HOU",
       "years_exp": 3
     },
     "9997": {
+      "age": 25,
+      "college": "Boston College",
       "fantasy_positions": [
         "WR"
       ],
@@ -6338,11 +7396,14 @@
       "last_name": "Flowers",
       "number": 4,
       "position": "WR",
+      "rookie_year": "2023",
       "status": "Active",
       "team": "BAL",
       "years_exp": 3
     },
     "9999": {
+      "age": 27,
+      "college": "Kentucky",
       "fantasy_positions": [
         "QB"
       ],
@@ -6351,6 +7412,7 @@
       "last_name": "Levis",
       "number": 8,
       "position": "QB",
+      "rookie_year": "2023",
       "status": "Active",
       "team": "TEN",
       "years_exp": 3

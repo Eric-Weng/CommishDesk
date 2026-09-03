@@ -24,7 +24,9 @@ FIXTURE_DIR = REPO_ROOT / "tests" / "fixtures"
 FIXTURES = sorted(FIXTURE_DIR.glob("*.json"))
 
 # One budget, stated once, used by the test and quoted in the fixtures README.
-SIZE_BUDGET_KB = 400
+# Raised from 400 when college / age / rookie_year on the player allowlist pushed
+# the two week-10 fixtures to ~413 KB.
+SIZE_BUDGET_KB = 450
 
 
 def _load_tool() -> Any:
@@ -36,6 +38,28 @@ def _load_tool() -> Any:
 
 
 anonymize = _load_tool()
+
+# The synthetic timestamp grid every committed fixture's created / status_updated
+# value must sit on (see anonymize._remap_timestamps).
+SYNTH_BASE = anonymize.SYNTH_EPOCH_BASE_MS
+SYNTH_STEP = anonymize.SYNTH_EPOCH_STEP_MS
+TIMESTAMP_KEYS = {"created", "status_updated"}
+
+
+def _walk_keyed(obj: Any, key: Any = None) -> Iterator[tuple[Any, Any]]:
+    """Yield ``(parent_key, scalar)`` for every scalar leaf **and every dict key**
+    (``draft_order`` is keyed by id, so keys need scanning too). A key is yielded
+    with ``parent_key=None`` so it is never mistaken for a timestamp value."""
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            if isinstance(k, str):
+                yield None, k
+            yield from _walk_keyed(v, k)
+    elif isinstance(obj, list):
+        for v in obj:
+            yield from _walk_keyed(v, key)
+    else:
+        yield key, obj
 
 # The scoring settings and roster shape of the source league ("Back to Business",
 # 0.5 PPR + TE-premium, 2-QB). These are league *config*, not anybody's personal
@@ -109,9 +133,12 @@ def synthetic_raw() -> dict[str, Any]:
         injury_status="",
         fantasy_positions=["WR"],
         status="Active",
+        college="Nowhere State",
+        age=27,
         birth_date="1999-01-01",
         birth_city="Nowhere",
         high_school="Nowhere High",
+        metadata={"rookie_year": "2020", "channel_id": "9" * 19},
     )
     return {
         "meta": {"case": "synthetic", "target_week": 1, "exercises": "unit test",
@@ -368,6 +395,20 @@ def test_player_record_trimmed_to_allowlist() -> None:
     assert "junk_field_0" not in out["players"]["100"]
 
 
+def test_player_record_keeps_public_fact_fields() -> None:
+    """college / age / rookie_year survive; other metadata does not."""
+    out = anonymize.anonymize_bundle(synthetic_raw(), seed=0)
+    rec = out["players"]["100"]
+    assert rec["college"] == "Nowhere State"
+    assert rec["age"] == 27
+    assert rec["rookie_year"] == "2020"  # lifted out of raw player.metadata
+    assert "metadata" not in rec
+    assert "channel_id" not in rec
+    # a record with no metadata / no new fields simply omits them
+    assert set(out["players"]["200"]) <= set(anonymize._PLAYER_FIELDS)
+    assert "rookie_year" not in out["players"]["200"]
+
+
 # --------------------------------------------------------------------------- #
 # Free-text / metadata scrub (findings 1-3)
 # --------------------------------------------------------------------------- #
@@ -400,6 +441,38 @@ def test_last_author_display_name_is_dropped() -> None:
     assert PLANTED_FREE_TEXT["last_author"] not in json.dumps(out)
     assert "last_author_display_name" not in out["league"]
     assert "last_author_id" not in out["league"]
+
+
+def test_timestamps_remapped_onto_the_grid_order_preserving() -> None:
+    raw = synthetic_raw()
+    # three settled transactions, timestamps deliberately out of row order with
+    # one exact tie (created == status_updated on the middle row).
+    raw["transactions"]["1"] = [
+        {"type": "waiver", "status": "complete", "transaction_id": "1" * 18,
+         "created": 1_700_000_003_000, "status_updated": 1_700_000_009_000},
+        {"type": "waiver", "status": "complete", "transaction_id": "2" * 18,
+         "created": 1_700_000_001_000, "status_updated": 1_700_000_001_000},
+        {"type": "waiver", "status": "complete", "transaction_id": "3" * 18,
+         "created": 1_700_000_009_000, "status_updated": 1_700_000_020_000},
+    ]
+    out = anonymize.anonymize_bundle(raw, seed=0)
+    rows = out["transactions"]["1"]
+
+    base = anonymize.SYNTH_EPOCH_BASE_MS
+    step = anonymize.SYNTH_EPOCH_STEP_MS
+    # distinct real values sorted: 1,3,9,20 (×1e9-ish) -> ranks 0,1,2,3
+    assert rows[0]["created"] == base + 1 * step
+    assert rows[0]["status_updated"] == base + 2 * step
+    assert rows[1]["created"] == rows[1]["status_updated"] == base + 0 * step
+    assert rows[2]["created"] == base + 2 * step  # same real value as row0 status
+    assert rows[2]["status_updated"] == base + 3 * step
+    # ordering within and across rows is preserved
+    flat = [r["created"] for r in rows] + [r["status_updated"] for r in rows]
+    real = [1_700_000_003_000, 1_700_000_001_000, 1_700_000_009_000,
+            1_700_000_009_000, 1_700_000_001_000, 1_700_000_020_000]
+    assert [a < b for a, b in zip(real, real[1:])] == [
+        a < b for a, b in zip(flat, flat[1:])
+    ]
 
 
 def test_embedded_long_digit_run_in_a_string_is_tokenized() -> None:
@@ -515,12 +588,38 @@ def test_fixture_contains_no_real_identity(path: Path) -> None:
         if team is not None:
             assert team in pool
 
-    for leaf in _walk_scalars(data):
+    # The de-identified league name reaches two more places.
+    assert data["league"]["name"] in pool, f"{path.name}: league.name not from pool"
+    draft = data.get("draft")
+    if draft is not None:
+        assert draft["metadata"]["name"] in pool, (
+            f"{path.name}: draft.metadata.name not from pool"
+        )
+
+    timestamps: list[int] = []
+    for key, leaf in _walk_keyed(data):
         if isinstance(leaf, str):
             assert not HEX32.search(leaf), f"{path.name}: 32-hex hash in {leaf!r}"
             assert not DIGIT_RUN_15.search(leaf), f"{path.name}: 15+-digit id in {leaf!r}"
-        elif isinstance(leaf, int) and not isinstance(leaf, bool):
-            assert abs(leaf) < 10**14, f"{path.name}: big int {leaf}"
+        elif isinstance(leaf, bool):
+            continue
+        elif isinstance(leaf, int):
+            if key in TIMESTAMP_KEYS:
+                timestamps.append(leaf)
+            else:
+                assert abs(leaf) < 10**14, f"{path.name}: big int {leaf}"
+
+    # Every timestamp sits exactly on the synthetic grid, and the distinct values
+    # form a contiguous rank sequence from 0 — no real epoch-ms leaked through.
+    for value in timestamps:
+        assert value >= SYNTH_BASE and (value - SYNTH_BASE) % SYNTH_STEP == 0, (
+            f"{path.name}: timestamp {value} is off the synthetic grid"
+        )
+    if timestamps:
+        ranks = sorted({(v - SYNTH_BASE) // SYNTH_STEP for v in timestamps})
+        assert ranks == list(range(len(ranks))), (
+            f"{path.name}: timestamp grid is not contiguous from 0: {ranks[:5]}…"
+        )
 
 
 @pytest.mark.parametrize("path", FIXTURES, ids=lambda p: p.name)
@@ -579,6 +678,10 @@ def test_already_anonymized_fixture_round_trips() -> None:
     for leaf in _walk_scalars(again):
         if isinstance(leaf, str):
             assert not DIGIT_RUN_15.search(leaf)
+    # the timestamp remap is idempotent: an already-gridded fixture is unchanged
+    src_ts = [v for k, v in _walk_keyed(src) if k in TIMESTAMP_KEYS]
+    again_ts = [v for k, v in _walk_keyed(again) if k in TIMESTAMP_KEYS]
+    assert again_ts == src_ts and src_ts
 
 
 # --------------------------------------------------------------------------- #
@@ -628,3 +731,240 @@ def test_fixtures_and_tool_need_no_network(monkeypatch: pytest.MonkeyPatch) -> N
     for path in FIXTURES:
         module.load_bundle(path.read_text(encoding="utf-8"))
     module.anonymize_bundle(synthetic_raw(), seed=3)
+
+
+# --------------------------------------------------------------------------- #
+# tools/assemble_bundle.py — the per-endpoint -> bundle pre-step.
+# Assembly logic runs on CI against a synthetic mini raw export (built below);
+# only the byte-for-byte reproduction of the real committed fixtures needs the
+# private raw source and skips where it is absent (CI, a fresh contributor clone).
+# --------------------------------------------------------------------------- #
+
+ASSEMBLE_PATH = REPO_ROOT / "tools" / "assemble_bundle.py"
+RAW_DIR = REPO_ROOT.parent / "brief" / "phase-0" / "raw"
+CASE_NAMES = sorted(p.stem for p in FIXTURES)
+
+requires_raw = pytest.mark.skipif(
+    not RAW_DIR.is_dir(),
+    reason="private raw Sleeper export not present (expected on CI / fresh clones)",
+)
+
+
+def _load_assemble() -> Any:
+    spec = importlib.util.spec_from_file_location("assemble_bundle", ASSEMBLE_PATH)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _mini_raw_files() -> dict[str, Any]:
+    """A tiny 2-team, weeks-1..10 per-endpoint export — every section the tool
+    reads, with planted values that must not survive (a real-looking id, a trade
+    note) and a failed transaction that must be dropped."""
+    base = {
+        f"10{n:02d}": {
+            "first_name": f"Player{n}", "last_name": "Example", "position": "RB",
+            "team": "KC", "years_exp": n % 6, "number": str(n), "injury_status": "",
+            "fantasy_positions": ["RB"], "status": "Active", "college": "State U",
+            "age": 24 + (n % 5),
+            "metadata": {"rookie_year": str(2018 + n % 5), "channel_id": "9" * 19},
+        }
+        for n in range(8)
+    }
+    league = {
+        "league_id": "111111111111111111", "draft_id": "222222222222222222",
+        "previous_league_id": None, "name": "My Secret League", "season": "2025",
+        "season_type": "regular", "sport": "nfl", "status": "in_season",
+        "total_rosters": 2,
+        "roster_positions": ["QB", "QB", "RB", "WR", "FLEX", "BN", "BN"],
+        "scoring_settings": {"rec": 0.5, "pass_td": 4}, "settings": {"divisions": 1},
+        "metadata": {"trophy_winner": "trophy1"},
+    }
+    users = [
+        {"user_id": "333333333333333333", "league_id": "111111111111111111",
+         "display_name": "realhandle_a", "metadata": {"team_name": "Real Team Name A"}},
+        {"user_id": "444444444444444444", "league_id": "111111111111111111",
+         "display_name": "realhandle_b", "metadata": {"team_name": "Real Team Name B"}},
+    ]
+    rosters = [
+        {"roster_id": 1, "owner_id": "333333333333333333", "co_owners": None,
+         "league_id": "111111111111111111", "players": ["1000", "1001", "1002"],
+         "starters": ["1000", "1001"], "reserve": [], "taxi": [], "keepers": None,
+         "settings": {"wins": 5}, "metadata": {"record": "WWWWW", "streak": "5W"}},
+        {"roster_id": 2, "owner_id": "444444444444444444", "co_owners": None,
+         "league_id": "111111111111111111", "players": ["1003", "1004", "1005"],
+         "starters": ["1003", "1004"], "reserve": [], "taxi": [], "keepers": None,
+         "settings": {"wins": 4}, "metadata": {"record": "WWWWL", "streak": "1L"}},
+    ]
+    draft = {
+        "draft_id": "222222222222222222", "league_id": "111111111111111111",
+        "type": "linear", "status": "complete", "season": "2025",
+        "season_type": "regular", "sport": "nfl", "settings": {"rounds": 1},
+        "slot_to_roster_id": {"1": 1, "2": 2},
+        "draft_order": {"333333333333333333": 1, "444444444444444444": 2},
+        "creators": ["333333333333333333"],
+        "metadata": {"name": "My Secret League", "scoring_type": "dynasty",
+                     "description": "Priya's home league"},
+        "created": 1_600_000_000_000, "start_time": 1_600_000_100_000,
+        "last_picked": 1_600_000_200_000,
+    }
+    draft_picks = [
+        {"draft_id": "222222222222222222", "picked_by": "333333333333333333",
+         "roster_id": 1, "round": 1, "draft_slot": 1, "pick_no": 1, "is_keeper": None,
+         "player_id": "1006", "metadata": {"first_name": "Sixth", "last_name": "Pick",
+                                           "position": "WR", "player_id": "1006"}},
+        {"draft_id": "222222222222222222", "picked_by": "444444444444444444",
+         "roster_id": 2, "round": 1, "draft_slot": 2, "pick_no": 2, "is_keeper": None,
+         "player_id": "1007", "metadata": {"first_name": "Seventh", "last_name": "Pick",
+                                           "position": "RB", "player_id": "1007"}},
+    ]
+    traded_picks = [{"season": "2026", "round": 1, "roster_id": 1, "owner_id": 2,
+                     "previous_owner_id": 1}]
+    matchups = {
+        str(w): [
+            {"roster_id": 1, "matchup_id": 1, "points": 100.0 + w,
+             "players": ["1000", "1001", "1002"], "starters": ["1000", "1001"]},
+            {"roster_id": 2, "matchup_id": 1, "points": 90.0 + w,
+             "players": ["1003", "1004", "1005"], "starters": ["1003", "1004"]},
+        ]
+        for w in range(1, 11)
+    }
+    transactions = {str(w): [] for w in range(1, 11)}
+    transactions["1"] = [
+        {"type": "waiver", "status": "complete", "transaction_id": "555555555555555555",
+         "created": 1_700_000_000_000, "status_updated": 1_700_000_005_000,
+         "creator": "333333333333333333", "adds": {"1006": 1}, "drops": {"1002": 1},
+         "roster_ids": [1], "consenter_ids": [1],
+         "metadata": {"notes": "per-side deal with a real name"}},
+        {"type": "waiver", "status": "failed", "transaction_id": "666666666666666666",
+         "created": 1_700_000_010_000, "status_updated": 1_700_000_010_000,
+         "creator": "444444444444444444", "adds": {"1007": 2}, "drops": None,
+         "roster_ids": [2], "metadata": {}},
+    ]
+    players = base | {
+        "1006": {"first_name": "Sixth", "last_name": "Pick", "position": "WR",
+                 "team": "SF", "years_exp": 0, "college": "Bama", "age": 22,
+                 "metadata": {"rookie_year": "2025"}},
+        "1007": {"first_name": "Seventh", "last_name": "Pick", "position": "RB",
+                 "team": "DAL", "years_exp": 9, "college": "Ohio State", "age": 31,
+                 "metadata": {"rookie_year": "2016"}},
+    }
+    return {
+        "league.json": league, "users.json": users, "rosters.json": rosters,
+        "draft.json": draft, "draft_picks.json": draft_picks,
+        "traded_picks.json": traded_picks, "players_filtered.json": players,
+        "matchups_by_week.json": matchups, "transactions_by_week.json": transactions,
+    }
+
+
+@pytest.fixture
+def mini_raw(tmp_path: Path) -> Path:
+    d = tmp_path / "mini-raw"
+    d.mkdir()
+    for name, content in _mini_raw_files().items():
+        (d / name).write_text(json.dumps(content), encoding="utf-8")
+    return d
+
+
+def test_assemble_module_lists_exactly_the_five_cases() -> None:
+    mod = _load_assemble()
+    assert sorted(mod.CASES) == CASE_NAMES
+
+
+def test_assemble_rejects_unknown_case() -> None:
+    mod = _load_assemble()
+    with pytest.raises(ValueError, match="unknown case"):
+        mod.assemble(RAW_DIR, "week99-does-not-exist")
+
+
+def test_assemble_rookie_draft_is_pre_week_one(mini_raw: Path) -> None:
+    mod = _load_assemble()
+    bundle = mod.assemble(mini_raw, "rookie-draft")
+    anonymize.load_bundle(bundle)  # structurally valid
+    assert bundle["meta"]["target_week"] is None
+    assert bundle["matchups"] == {}
+    assert bundle["transactions"] == {}
+    assert bundle["winners_bracket"] == [] and bundle["losers_bracket"] == []
+    assert bundle["draft_picks"], "the draft recap needs the picks"
+
+
+def test_assemble_truncates_window_and_drops_non_settled_transactions(
+    mini_raw: Path,
+) -> None:
+    mod = _load_assemble()
+    raw_wk1 = json.loads(
+        (mini_raw / "transactions_by_week.json").read_text("utf-8")
+    )["1"]
+    assert sum(t["status"] != "complete" for t in raw_wk1) == 1  # a failed one exists
+
+    bundle = mod.assemble(mini_raw, "week05-trade")
+    assert sorted(int(w) for w in bundle["matchups"]) == [1, 2, 3, 4, 5]
+    assert sorted(int(w) for w in bundle["transactions"]) == [1, 2, 3, 4, 5]
+    assert len(bundle["transactions"]["1"]) == 1  # the failed row was dropped
+    assert all(
+        t["status"] == "complete"
+        for rows in bundle["transactions"].values()
+        for t in rows
+    )
+    assert "666666666666666666" not in json.dumps(bundle)  # failed tx id gone
+
+
+def test_assemble_superflex_mutates_one_slot_only(mini_raw: Path) -> None:
+    mod = _load_assemble()
+    plain = mod.assemble(mini_raw, "week10-blowout")["league"]["roster_positions"]
+    flex = mod.assemble(mini_raw, "week10-superflex")["league"]["roster_positions"]
+    assert plain[:2] == ["QB", "QB"]
+    assert flex == ["QB", "SUPER_FLEX"] + plain[2:]
+
+
+def test_assemble_then_anonymize_round_trips_and_scrubs(mini_raw: Path) -> None:
+    mod = _load_assemble()
+    out = anonymize.anonymize_bundle(mod.assemble(mini_raw, "week02-nailbiter"), seed=0)
+    anonymize.load_bundle(out)
+    blob = json.dumps(out)
+    assert "My Secret League" not in blob and "realhandle_a" not in blob
+    assert "per-side deal with a real name" not in blob
+    assert "333333333333333333" not in blob  # real-looking id tokenised
+    ts = [v for k, v in _walk_keyed(out) if k in TIMESTAMP_KEYS]
+    assert ts and all((v - SYNTH_BASE) % SYNTH_STEP == 0 and v >= SYNTH_BASE for v in ts)
+    rec = next(r for r in out["players"].values() if r.get("rookie_year"))
+    assert set(rec) <= set(anonymize._PLAYER_FIELDS)  # college/age/rookie_year ok, junk not
+
+
+def test_assemble_raises_when_a_needed_week_is_absent(mini_raw: Path) -> None:
+    mod = _load_assemble()
+    txns = json.loads((mini_raw / "transactions_by_week.json").read_text("utf-8"))
+    del txns["4"]
+    (mini_raw / "transactions_by_week.json").write_text(json.dumps(txns), encoding="utf-8")
+    with pytest.raises(ValueError, match="missing"):
+        mod.assemble(mini_raw, "week05-trade")
+
+
+def test_assemble_omits_referenced_players_absent_from_the_filtered_table(
+    mini_raw: Path, capsys
+) -> None:
+    mod = _load_assemble()
+    rosters = json.loads((mini_raw / "rosters.json").read_text("utf-8"))
+    rosters[0]["players"].append("999999")  # not in players_filtered.json
+    (mini_raw / "rosters.json").write_text(json.dumps(rosters), encoding="utf-8")
+    bundle = mod.assemble(mini_raw, "rookie-draft")
+    assert "999999" not in bundle["players"]
+    assert "not in" in capsys.readouterr().err  # the drop is reported on stderr
+
+
+def test_assemble_reports_unreadable_raw_dir_cleanly() -> None:
+    mod = _load_assemble()
+    with pytest.raises(ValueError, match="cannot read raw file"):
+        mod.assemble(REPO_ROOT / "tests" / "does-not-exist", "rookie-draft")
+
+
+@requires_raw
+@pytest.mark.parametrize("case", CASE_NAMES)
+def test_committed_fixture_reproduces_byte_for_byte_from_raw(case: str) -> None:
+    """The committed fixture is exactly assemble(raw) piped through anonymize
+    at seed 0 — nothing hand-edited, nothing stale."""
+    mod = _load_assemble()
+    regenerated = anonymize.anonymize_bundle(mod.assemble(RAW_DIR, case), seed=0)
+    committed = json.loads((FIXTURE_DIR / f"{case}.json").read_text("utf-8"))
+    assert regenerated == committed
