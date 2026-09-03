@@ -2,13 +2,20 @@
 
 One test per row of the spec's I/O & Edge-Case Matrix on hand-built minimal stage
 results, ISO-8601 conversion both ways, the unknown-key round-trip, determinism,
-``SchemaValidationError`` chained from ``pydantic.ValidationError``, an import
-fence over ``commishdesk/facts/*.py``, and the phase-0 reconciliation: the built
-document over ``rookie-draft.json`` matched field-by-field against
-``brief/phase-0/draft-recap-facts.json`` (board/structural fields; documented
-consensus / grade / prose / name exclusions skipped) and against the committed
-synthetic ``expected-consensus-metrics.json`` / ``expected-draft-grades.json``
-oracles.
+``SchemaValidationError`` chained from ``pydantic.ValidationError``, and an
+import fence over ``commishdesk/facts/*.py``.
+
+Reconciliation runs two ways. The **CI oracle** is the committed
+``tests/fixtures/facts/expected-draft-recap-facts.json`` — a frozen
+``model_dump(mode="json")`` snapshot of the whole document, built from the
+anonymized ``rookie-draft.json`` fixture through the same ``_synthetic_slots()``
+transform the consensus / grade tests use; it runs everywhere. The
+**phase-0 golden** (``brief/phase-0/draft-recap-facts.json``) is a private
+planning artifact that is *not* in the repo (CLAUDE.md §1); the checks that
+match the built document field-by-field against it — board / structural fields,
+documented consensus / grade / prose / name exclusions aside — are all
+``@requires_golden`` skip-gated and only run in a workspace that has the sibling
+``../brief/`` directory.
 """
 
 from __future__ import annotations
@@ -54,12 +61,31 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 FIXTURE_DIR = REPO_ROOT / "tests" / "fixtures"
 CONSENSUS_DIR = FIXTURE_DIR / "consensus"
 GRADES_DIR = FIXTURE_DIR / "grades"
+FACTS_DIR = FIXTURE_DIR / "facts"
 FACTS_PKG = REPO_ROOT / "commishdesk" / "facts"
-GOLDEN = json.loads(
-    (REPO_ROOT.parent / "brief" / "phase-0" / "draft-recap-facts.json").read_text(
-        encoding="utf-8"
-    )
+EXPECTED_FACTS_PATH = FACTS_DIR / "expected-draft-recap-facts.json"
+
+# The phase-0 golden (``draft-recap-facts.json``) is a *private* planning artifact
+# in the sibling ``../brief/`` directory — it is deliberately NOT in this repo
+# (CLAUDE.md §1: no real ``league_id`` / manager names / brief content). Every
+# check that reads it is skip-gated, exactly like ``@requires_raw`` in
+# ``tests/test_fixtures.py``. The committed CI oracle is
+# ``tests/fixtures/facts/expected-draft-recap-facts.json`` — a frozen
+# ``model_dump()`` snapshot derived from the anonymized ``rookie-draft.json``
+# fixture through the same synthetic-slots path the consensus / grade tests use.
+_GOLDEN_PATH = REPO_ROOT.parent / "brief" / "phase-0" / "draft-recap-facts.json"
+GOLDEN = (
+    json.loads(_GOLDEN_PATH.read_text(encoding="utf-8"))
+    if _GOLDEN_PATH.is_file()
+    else None
 )
+requires_golden = pytest.mark.skipif(
+    GOLDEN is None,
+    reason="phase-0 golden is a private planning artifact, not in the tree",
+)
+
+# The committed CI oracle — a frozen full-document snapshot (see module docstring).
+_EXPECTED_FACTS = json.loads(EXPECTED_FACTS_PATH.read_text(encoding="utf-8"))
 
 GENERATED_AT = "2026-09-03T00:00:00Z"
 
@@ -465,8 +491,9 @@ def test_provisional_and_engine_note() -> None:
     doc = _build_minimal(provisional=False)
     assert doc.provisional is False
     assert doc.consensus_source.provisional is False
-    assert "FantasyCalc" in doc.consensus_source.engine_note
-    assert doc.consensus_source.engine_note == GOLDEN["consensus_source"]["engine_note"]
+    note = doc.consensus_source.engine_note
+    assert "FantasyCalc" in note and "search_rank" in note
+    assert note == _EXPECTED_FACTS["consensus_source"]["engine_note"]
 
 
 # --------------------------------------------------------------------------- #
@@ -521,14 +548,49 @@ def test_facts_package_import_fence() -> None:
 
 
 # --------------------------------------------------------------------------- #
-# Phase-0 reconciliation — board / structural fields vs the golden
+# Primary reconciliation — the committed full-document snapshot (runs on CI)
 # --------------------------------------------------------------------------- #
 
 
-def test_reconciles_league_and_format_shape_with_golden() -> None:
-    doc = _rookie_facts().model_dump()
+def test_reconciles_full_document_with_committed_snapshot() -> None:
+    """The whole built document, byte-for-byte against the committed oracle
+    ``tests/fixtures/facts/expected-draft-recap-facts.json`` — the same
+    ``model_dump()`` pattern the consensus / grade fixtures use. This is the
+    reconciliation that runs everywhere; regenerate the fixture from
+    ``_rookie_facts()`` when the builder or an upstream stage changes.
+    """
+    built = _rookie_facts().model_dump(mode="json")
+    expected = {k: v for k, v in _EXPECTED_FACTS.items() if not k.startswith("_")}
+    assert built == expected
+
+
+def test_committed_snapshot_carries_a_provenance_note() -> None:
+    assert _EXPECTED_FACTS["_derived_from"].startswith("Story 2.5 oracle")
+    assert "synthetic" in _EXPECTED_FACTS["_derived_from"]
+
+
+# --------------------------------------------------------------------------- #
+# Phase-0 reconciliation — the private golden (local-only; skip-gated on CI)
+# --------------------------------------------------------------------------- #
+
+
+@requires_golden
+def test_reconciles_with_phase0_golden() -> None:
+    """The built document matched field-by-field against the private phase-0
+    golden — board / structural / board-derived projections only. Documented
+    exclusions (manager names, consensus slots / deltas, grade letters,
+    ``scoring_label``, ``draft.started_at``, the anonymized league / draft ids,
+    delta-driven superlatives) are skipped: the fixture is manager-anonymized
+    and carries a synthetic consensus board, so those cannot equal the golden.
+    The committed ``expected-draft-recap-facts.json`` snapshot is the CI oracle.
+    """
+    assert GOLDEN is not None
+    doc = _rookie_facts().model_dump(mode="json")
+
+    # provenance + league / format shape + draft identity
     assert doc["source"]["platform"] == GOLDEN["source"]["platform"]
     assert doc["issue_type"] == GOLDEN["issue_type"]
+    assert doc["consensus_source"]["engine_note"] == GOLDEN["consensus_source"]["engine_note"]
     gfmt, dfmt = GOLDEN["league"]["format"], doc["league"]["format"]
     for key in ("team_count", "roster_slots", "flex_eligibility", "is_superflex_or_2qb"):
         assert dfmt[key] == gfmt[key], key
@@ -536,65 +598,68 @@ def test_reconciles_league_and_format_shape_with_golden() -> None:
     assert doc["draft"]["rounds"] == GOLDEN["draft"]["rounds"]
     assert doc["draft"]["type"] == GOLDEN["draft"]["type"]
 
-
-def test_reconciles_pick_board_columns_with_golden() -> None:
-    doc = _rookie_facts().model_dump()
-    golden_by_no = {p["pick_no"]: p for p in GOLDEN["picks"]}
+    # picks[] board columns
+    golden_pick = {p["pick_no"]: p for p in GOLDEN["picks"]}
     assert len(doc["picks"]) == len(GOLDEN["picks"])
     for row in doc["picks"]:
-        g = golden_by_no[row["pick_no"]]
-        assert row["round"] == g["round"]
-        assert row["slot"] == g["slot"]
-        assert row["board_label"] == g["board_label"]
+        g = golden_pick[row["pick_no"]]
+        assert (row["round"], row["slot"], row["board_label"]) == (
+            g["round"],
+            g["slot"],
+            g["board_label"],
+        )
         assert str(row["roster_id"]) == str(g["roster_id"])
-        assert row["player"]["sleeper_id"] == g["player"]["sleeper_id"]
-        assert row["player"]["name"] == g["player"]["name"]
-        assert row["player"]["position"] == g["player"]["position"]
-        assert row["player"]["nfl_team"] == g["player"]["nfl_team"]
+        assert row["player"] == {
+            k: g["player"][k]
+            for k in ("sleeper_id", "name", "position", "nfl_team")
+        }
 
-
-def test_reconciles_team_board_counts_with_golden() -> None:
-    doc = _rookie_facts().model_dump()
-    golden_by_roster = {str(t["roster_id"]): t for t in GOLDEN["teams"]}
-    assert {str(t["roster_id"]) for t in doc["teams"]} == set(golden_by_roster)
+    # teams[] board counts
+    golden_team = {str(t["roster_id"]): t for t in GOLDEN["teams"]}
+    assert {str(t["roster_id"]) for t in doc["teams"]} == set(golden_team)
     for row in doc["teams"]:
-        g = golden_by_roster[str(row["roster_id"])]
+        g = golden_team[str(row["roster_id"])]
         assert row["pick_count"] == g["pick_count"]
         assert row["pick_nos"] == g["pick_nos"]
         assert row["positional_counts"] == g["positional_counts"]
         assert [list(pair) for pair in row["back_to_back"]] == g["back_to_back"]
 
-
-def test_reconciles_draft_summary_board_projections_with_golden() -> None:
-    ds = _rookie_facts().model_dump()["draft_summary"]
-    gds = GOLDEN["draft_summary"]
+    # draft_summary board projections
+    ds, gds = doc["draft_summary"], GOLDEN["draft_summary"]
     assert ds["round1_positional"] == gds["round1_positional"]
     assert ds["first11_running_backs"] == gds["first11_running_backs"]
-    assert [q["pick_no"] for q in ds["round1_qbs"]] == [
-        q["pick_no"] for q in gds["round1_qbs"]
-    ]
-    assert [q["player"] for q in ds["round1_qbs"]] == [
-        q["player"] for q in gds["round1_qbs"]
-    ]
-    assert [q["board_label"] for q in ds["round1_qbs"]] == [
-        q["board_label"] for q in gds["round1_qbs"]
-    ]
+    for key in ("pick_no", "player", "board_label"):
+        assert [q[key] for q in ds["round1_qbs"]] == [q[key] for q in gds["round1_qbs"]]
     assert [e["pick_count"] for e in ds["pick_count_rank"]] == [
         e["pick_count"] for e in gds["pick_count_rank"]
     ]
     assert [(e["round"], e["count"]) for e in ds["round_concentration"]] == [
         (e["round"], e["count"]) for e in gds["round_concentration"]
     ]
-    gpr, dpr = gds["positional_runs"], ds["positional_runs"]
-    assert dpr["QB"]["total"] == gpr["QB"]["total"]
-    assert dpr["QB"]["first_label"] == gpr["QB"]["first_label"]
-    assert dpr["QB"]["by_end_round3"] == gpr["QB"]["by_end_round3"]
-    assert dpr["QB"]["run_labels"] == gpr["QB"]["run_labels"]
-    assert dpr["RB"]["total"] == gpr["RB"]["total"]
-    assert dpr["RB"]["first_label"] == gpr["RB"]["first_label"]
-    assert dpr["RB"]["in_round1"] == gpr["RB"]["in_round1"]
+    dpr, gpr = ds["positional_runs"], gds["positional_runs"]
+    for key in ("total", "first_label", "by_end_round3", "run_labels"):
+        assert dpr["QB"][key] == gpr["QB"][key], ("QB", key)
+    for key in ("total", "first_label", "in_round1"):
+        assert dpr["RB"][key] == gpr["RB"][key], ("RB", key)
     assert dpr["RB"]["most_by_one_manager"]["count"] == gpr["RB"]["most_by_one_manager"]["count"]
     assert dpr["TE"] == gpr["TE"]  # every TE field is board-derived
+
+    # narration — the trimmed sections that can reconcile
+    gnar = GOLDEN["narration"]
+    ghn, dhn = gnar["headline_numbers"], doc["narration"]["headline_numbers"]
+    assert dhn["picks_total"] == ghn["picks_total"] == 72
+    assert dhn["rounds"] == ghn["rounds"] == 6
+    assert dhn["r1_positional"] == ghn["r1_positional"]
+    assert dhn["first11_rb_count"] == ghn["first11_rb_count"]
+    assert dhn["pick_count_leader"]["pick_count"] == ghn["pick_count_leader"]["pick_count"] == 12
+    assert dhn["pick_count_low"]["pick_count"] == ghn["pick_count_low"]["pick_count"] == 3
+    assert [
+        (p["pick_no"], p["board_label"], p["player"], p["position"])
+        for p in doc["narration"]["board_round1"]
+    ] == [
+        (p["pick_no"], p["board_label"], p["player"], p["position"])
+        for p in gnar["board_round1"]
+    ]
 
 
 # --------------------------------------------------------------------------- #
@@ -711,32 +776,21 @@ def test_draft_id_defaults_to_ingested_draft_id() -> None:
 
 
 # --------------------------------------------------------------------------- #
-# narration headline numbers — pinned values (a rank[0]/rank[-1] swap must fail)
+# narration headline numbers — pinned literals (a rank[0]/rank[-1] swap fails)
 # --------------------------------------------------------------------------- #
 
 
 def test_narration_headline_numbers_pinned_values() -> None:
     hn = _rookie_facts().narration.headline_numbers
-    g = GOLDEN["narration"]["headline_numbers"]
-    assert hn.picks_total == g["picks_total"] == 72
-    assert hn.rounds == g["rounds"] == 6
-    assert hn.r1_positional == g["r1_positional"] == {"RB": 5, "WR": 5, "QB": 2}
-    assert hn.first11_rb_count == g["first11_rb_count"] == 5
-    assert hn.pick_count_leader.pick_count == g["pick_count_leader"]["pick_count"] == 12
-    assert hn.pick_count_low.pick_count == g["pick_count_low"]["pick_count"] == 3
-
-
-def test_narration_board_round1_reconciles_with_golden() -> None:
-    doc = _rookie_facts().model_dump()
-    got = [
-        (p["pick_no"], p["board_label"], p["player"], p["position"])
-        for p in doc["narration"]["board_round1"]
-    ]
-    want = [
-        (p["pick_no"], p["board_label"], p["player"], p["position"])
-        for p in GOLDEN["narration"]["board_round1"]
-    ]
-    assert got == want
+    assert hn.picks_total == 72
+    assert hn.rounds == 6
+    assert hn.r1_positional == {"RB": 5, "WR": 5, "QB": 2}
+    assert hn.first11_rb_count == 5
+    assert hn.pick_count_leader.pick_count == 12  # most picks
+    assert hn.pick_count_low.pick_count == 3  # fewest picks
+    assert [p.pick_no for p in _rookie_facts().narration.board_round1] == list(
+        range(1, 13)
+    )
 
 
 # --------------------------------------------------------------------------- #
