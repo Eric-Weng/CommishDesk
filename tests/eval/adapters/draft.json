@@ -1,0 +1,65 @@
+{
+  "creators": [
+    "id_s9a3queopr"
+  ],
+  "draft_id": "id_a15hovbuqv",
+  "draft_order": {
+    "id_1ugx9qsbx3": 7,
+    "id_22ay41b2dk": 4,
+    "id_4upj3szyrw": 8,
+    "id_buffkdafoj": 10,
+    "id_c5g5oj0jn6": 11,
+    "id_jdetw9pdax": 6,
+    "id_roh4pg10wg": 2,
+    "id_s9a3queopr": 12,
+    "id_w2l1zlh55w": 1,
+    "id_zean76kf4f": 9,
+    "id_zwi3yzjvgq": 5,
+    "id_zxb3twnxx0": 3
+  },
+  "league_id": "id_rq867j4w7p",
+  "metadata": {
+    "name": "Trench Warfare",
+    "scoring_type": "dynasty_2qb"
+  },
+  "season": "2025",
+  "season_type": "regular",
+  "settings": {
+    "alpha_sort": 0,
+    "autopause_enabled": 1,
+    "autopause_end_time": 900,
+    "autopause_start_time": 180,
+    "autostart": 0,
+    "cpu_autopick": 1,
+    "enforce_position_limits": 1,
+    "nomination_timer": 60,
+    "pick_timer": 3600,
+    "player_type": 1,
+    "reversal_round": 0,
+    "rounds": 6,
+    "slots_bn": 12,
+    "slots_flex": 4,
+    "slots_qb": 2,
+    "slots_rb": 2,
+    "slots_te": 1,
+    "slots_wr": 2,
+    "teams": 12
+  },
+  "slot_to_roster_id": {
+    "1": 11,
+    "10": 3,
+    "11": 7,
+    "12": 1,
+    "2": 8,
+    "3": 6,
+    "4": 5,
+    "5": 12,
+    "6": 2,
+    "7": 9,
+    "8": 10,
+    "9": 4
+  },
+  "sport": "nfl",
+  "status": "complete",
+  "type": "linear"
+}

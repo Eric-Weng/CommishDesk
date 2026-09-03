@@ -33,8 +33,8 @@ not tickets — see [`unclaimed-territory.md`](unclaimed-territory.md).
 `fetch(self, league_id: str) -> Mapping[str, Any]` returns one league's raw platform data.
 `ingest/` sanitizes every league-supplied string at its boundary (AD-24), so an adapter
 returns the platform's shape unmodified. Evaluation material — recorded platform responses,
-replay fixtures — goes in `tests/eval/adapters/`. The reference `Adapter` (Sleeper) lands
-in Epic 2.
+replay fixtures — goes in `tests/eval/adapters/`. The reference `Adapter`, `SleeperAdapter`
+in `commishdesk/adapters/sleeper.py`, landed in Epic 2 (Story 2.2).
 
 ### `Voice` — `commishdesk/voices/`
 
@@ -69,7 +69,8 @@ A "reference implementation" in a zone is a non-underscore-prefixed `.py` module
 non-underscore-prefixed subpackage (a subdirectory with its own `__init__.py`) — directly
 under the zone package, other than the zone's own `__init__.py`.
 `tests/test_extension_zones.py` counts them per zone and asserts the count never exceeds
-one. Today every zone holds zero; the reference implementations land across Epics 2–5.
+one. Today `adapters/` holds its one reference implementation (`SleeperAdapter`, Epic 2);
+`voices/`, `themes/`, and `statmods/` still hold zero — the rest land across Epics 3–5.
 
 **A second or alternative implementation does not go in this repository.** It lives in the
 contributor's own package or fork, or — for a first-party premium implementation — in the

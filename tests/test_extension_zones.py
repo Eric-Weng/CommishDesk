@@ -1,7 +1,8 @@
 """Story 1.6: the four extension zones, their protocols, docs, and the one-reference-impl guard.
 
 One test per I/O & Edge-Case Matrix row, plus the ``_count_impls`` helper's own unit test.
-No reference implementation ships in this story — every zone count is expected to be zero.
+Story 1.6 shipped zero reference implementations; Story 2.2 (Epic 2) landed the first —
+`adapters/sleeper.py` — so `adapters` now counts 1 and the other three zones stay at 0.
 """
 
 from __future__ import annotations
@@ -201,7 +202,10 @@ def test_zone_holds_at_most_one_reference_implementation(zone: str) -> None:
 
 def test_every_zone_ships_zero_reference_impls_in_this_story() -> None:
     assert {zone: _count_impls(PKG_ROOT / zone) for zone in ZONES} == {
-        zone: 0 for zone in ZONES
+        "adapters": 1,
+        "voices": 0,
+        "themes": 0,
+        "statmods": 0,
     }
 
 
