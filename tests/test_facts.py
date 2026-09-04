@@ -636,7 +636,7 @@ def test_reconciles_with_phase0_golden() -> None:
     # draft_summary board projections
     ds, gds = doc["draft_summary"], GOLDEN["draft_summary"]
     assert ds["round1_positional"] == gds["round1_positional"]
-    assert ds["first11_running_backs"] == gds["first11_running_backs"]
+    assert ds["first_window_running_backs"] == gds["first11_running_backs"]
     for key in ("pick_no", "player", "board_label"):
         assert [q[key] for q in ds["round1_qbs"]] == [q[key] for q in gds["round1_qbs"]]
     assert [e["pick_count"] for e in ds["pick_count_rank"]] == [
@@ -659,7 +659,7 @@ def test_reconciles_with_phase0_golden() -> None:
     assert dhn["picks_total"] == ghn["picks_total"] == 72
     assert dhn["rounds"] == ghn["rounds"] == 6
     assert dhn["r1_positional"] == ghn["r1_positional"]
-    assert dhn["first11_rb_count"] == ghn["first11_rb_count"]
+    assert dhn["first_window_rb_count"] == ghn["first11_rb_count"]
     assert dhn["pick_count_leader"]["pick_count"] == ghn["pick_count_leader"]["pick_count"] == 12
     assert dhn["pick_count_low"]["pick_count"] == ghn["pick_count_low"]["pick_count"] == 3
     assert [
@@ -727,8 +727,8 @@ def test_narration_is_a_trimmed_projection() -> None:
     assert nar.league.name == doc.league.name
     assert nar.league.scoring_label == doc.league.format.scoring_label
     assert nar.headline_numbers.picks_total == len(doc.picks)
-    assert nar.headline_numbers.first11_rb_count == len(
-        doc.draft_summary.first11_running_backs
+    assert nar.headline_numbers.first_window_rb_count == len(
+        doc.draft_summary.first_window_running_backs
     )
     assert [p.pick_no for p in nar.board_round1] == list(range(1, 13))
     assert len(nar.teams) == len(doc.teams)
@@ -797,7 +797,7 @@ def test_narration_headline_numbers_pinned_values() -> None:
     assert hn.picks_total == 72
     assert hn.rounds == 6
     assert hn.r1_positional == {"RB": 5, "WR": 5, "QB": 2}
-    assert hn.first11_rb_count == 5
+    assert hn.first_window_rb_count == 5
     assert hn.pick_count_leader.pick_count == 12  # most picks
     assert hn.pick_count_low.pick_count == 3  # fewest picks
     assert [p.pick_no for p in _rookie_facts().narration.board_round1] == list(

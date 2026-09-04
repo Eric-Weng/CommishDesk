@@ -21,7 +21,8 @@ import pytest
 from commishdesk import __version__
 from commishdesk.adapters import Adapter
 from commishdesk.adapters.sleeper import SleeperAdapter
-from commishdesk.errors import AdapterError
+from commishdesk.errors import AdapterError, IngestError
+from commishdesk.ingest import build_league_model
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 EVAL_DIR = REPO_ROOT / "tests" / "eval" / "adapters"
@@ -188,6 +189,67 @@ def test_long_chain_of_fifteen_hops_stops_at_ten() -> None:
         r for r in requests if r.url.path.startswith("/v1/league/id_histchain")
     ]
     assert len(history_calls) == 10  # exactly 10 extra GET /league/* calls
+
+
+# --------------------------------------------------------------------------- #
+# Row: Cyclic history (retro finding C3)
+# --------------------------------------------------------------------------- #
+
+
+def test_two_node_cycle_stops_on_the_repeat_not_the_hop_cap() -> None:
+    """``previous_league_id`` A -> B -> A terminates the moment the repeat is
+    seen, with no duplicate id in the result and none of the ``_MAX_HISTORY_HOPS``
+    - 2 redundant requests a naive cap-only loop would issue."""
+    cycle = {
+        "id_cycle_a": {"previous_league_id": "id_cycle_b"},
+        "id_cycle_b": {"previous_league_id": "id_cycle_a"},
+    }
+    league = _league_with_previous("id_cycle_a")
+    requests: list[httpx.Request] = []
+    transport = _build_transport(
+        league=league,
+        draft=DRAFT,
+        draft_picks=DRAFT_PICKS,
+        rosters=ROSTERS,
+        users=USERS,
+        history=cycle,
+        requests=requests,
+    )
+    adapter = _adapter_for(transport)
+
+    bundle = adapter.fetch(league["league_id"])
+
+    assert bundle["previous_league_ids"] == ["id_cycle_a", "id_cycle_b"]
+    history_calls = [
+        r for r in requests if r.url.path.startswith("/v1/league/id_cycle")
+    ]
+    assert len(history_calls) == 2  # not 10 -- stopped on the repeat, not the cap
+
+
+def test_self_referencing_history_stops_after_one_hop() -> None:
+    """A league whose own ``previous_league_id`` points back at itself is a
+    one-node cycle: the second sighting is caught before any request for it."""
+    cycle = {"id_cycle_self": {"previous_league_id": "id_cycle_self"}}
+    league = _league_with_previous("id_cycle_self")
+    requests: list[httpx.Request] = []
+    transport = _build_transport(
+        league=league,
+        draft=DRAFT,
+        draft_picks=DRAFT_PICKS,
+        rosters=ROSTERS,
+        users=USERS,
+        history=cycle,
+        requests=requests,
+    )
+    adapter = _adapter_for(transport)
+
+    bundle = adapter.fetch(league["league_id"])
+
+    assert bundle["previous_league_ids"] == ["id_cycle_self"]
+    history_calls = [
+        r for r in requests if r.url.path.startswith("/v1/league/id_cycle_self")
+    ]
+    assert len(history_calls) == 1
 
 
 # --------------------------------------------------------------------------- #
@@ -524,3 +586,41 @@ def test_fetch_makes_zero_real_network_calls(monkeypatch: pytest.MonkeyPatch) ->
     bundle = adapter.fetch(league["league_id"])
 
     assert bundle["previous_league_ids"] == ["id_histhop0001", "id_histhop0002"]
+
+
+# --------------------------------------------------------------------------- #
+# Adapter -> ingest seam (retro finding C4)
+# --------------------------------------------------------------------------- #
+
+
+def test_a_null_picks_response_becomes_a_typed_ingest_error_naming_the_section() -> (
+    None
+):
+    """``SleeperAdapter.fetch`` validates ``league`` and each history hop's
+    shape but passes ``draft_picks`` (and the other three sub-bundles) through
+    unvalidated. Sleeper genuinely returns HTTP 200 with a JSON ``null`` body
+    for a deleted draft's picks endpoint. Each side was previously tested only
+    in isolation -- the 2.2 adapter tests all abort before the picks fetch,
+    and the 2.3 ingest tests use hand-built bundles, never real adapter
+    output. This drives a real ``fetch()`` result straight into
+    ``build_league_model`` and confirms the seam is sound: ``ingest/build.py``'s
+    ``_section`` catches it as a typed ``IngestError`` naming the section, not
+    an uncaught ``TypeError`` deeper in league-model construction."""
+    league = _league_with_previous(None)
+    picks_path = f"/v1/draft/{DRAFT['draft_id']}/picks"
+    transport = _build_transport(
+        league=league,
+        draft=DRAFT,
+        draft_picks=DRAFT_PICKS,
+        rosters=ROSTERS,
+        users=USERS,
+        override={picks_path: lambda req: httpx.Response(200, content=b"null")},
+    )
+    adapter = _adapter_for(transport)
+
+    bundle = adapter.fetch(league["league_id"])
+    assert bundle["draft_picks"] is None  # the seam: fetch() passed it through
+
+    with pytest.raises(IngestError) as exc_info:
+        build_league_model(bundle)
+    assert "draft_picks" in str(exc_info.value)

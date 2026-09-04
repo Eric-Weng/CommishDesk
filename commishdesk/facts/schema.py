@@ -296,7 +296,12 @@ class DraftSummary(_Doc):
     the ``consensus_label`` / ``delta`` echoed inside ``round1_qbs``."""
 
     round1_positional: dict[str, int] = {}
-    first11_running_backs: list[str] = []
+    #: The size of the opening-picks window ``first_window_running_backs`` was
+    #: scanned over — ``team_count - 1``, not a fixed 11 (retro finding A2: the
+    #: prior ``first11_*`` names hardcoded "11", which misstated the window in
+    #: any non-12-team league).
+    first_window: int
+    first_window_running_backs: list[str] = []
     round1_qbs: list[BoardPick] = []
     pick_count_rank: list[ManagerPickCount] = []
     round_concentration: list[RoundConcentration] = []
@@ -400,7 +405,9 @@ class HeadlineNumbers(_Doc):
     picks_total: int
     rounds: int | None = None
     r1_positional: dict[str, int] = {}
-    first11_rb_count: int
+    #: Echoes ``len(DraftSummary.first_window_running_backs)`` — see
+    #: :attr:`DraftSummary.first_window` for the window size this counts over.
+    first_window_rb_count: int
     pick_count_leader: ManagerPickCount | None = None
     pick_count_low: ManagerPickCount | None = None
 

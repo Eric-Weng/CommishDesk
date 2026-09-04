@@ -22,6 +22,7 @@ from commishdesk.errors import CommishDeskError, IngestError
 from commishdesk.ingest import (
     MAX_NAME_LENGTH,
     Division,
+    LeagueFormat,
     LeagueModel,
     build_league_model,
     sanitize,
@@ -459,6 +460,30 @@ def test_both_fixtures_carry_format_as_data(name: str) -> None:
     assert isinstance(fmt.flex_eligibility, dict)
     assert isinstance(fmt.scoring_label, str) and fmt.scoring_label
     assert isinstance(fmt.divisions, list)
+
+
+def test_league_format_rejects_a_non_positive_team_count() -> None:
+    """Retro finding C1: ``LeagueFormat.team_count`` must be positive so a zero
+    or negative value fails at construction (a typed Pydantic
+    ``ValidationError``, wrapped as ``IngestError`` by any builder) rather than
+    reaching a bare division downstream (``stats/consensus.py``'s
+    round/column arithmetic) as an uncaught ``ZeroDivisionError``.
+
+    ``build_league_model`` itself can no longer produce ``team_count == 0`` --
+    its own ``bundle has no rosters`` guard runs before ``_build_format``, so
+    the builder's ``len(rosters)`` fallback is never reached with an empty
+    list. This is model-level defense in depth for any other constructor of
+    ``LeagueFormat`` (a hand-built test model, a future second adapter)."""
+    kwargs = dict(
+        roster_slots=["QB", "RB", "WR", "TE"],
+        flex_eligibility={},
+        scoring_label="PPR",
+        is_superflex_or_2qb=False,
+        te_premium=False,
+    )
+    for bad in (0, -1):
+        with pytest.raises(ValidationError):
+            LeagueFormat(team_count=bad, **kwargs)
 
 
 # --------------------------------------------------------------------------- #

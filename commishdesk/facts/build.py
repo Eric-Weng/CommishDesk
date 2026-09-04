@@ -367,7 +367,7 @@ def _draft_summary(
         round1_positional[pos] = round1_positional.get(pos, 0) + 1
 
     first_window = team_count - 1
-    first11_rb = [
+    first_window_rb = [
         row.player.name
         for row in ordered
         if row.pick_no <= first_window and _position(row) == "RB"
@@ -409,7 +409,8 @@ def _draft_summary(
 
     return DraftSummary(
         round1_positional=round1_positional,
-        first11_running_backs=first11_rb,
+        first_window=first_window,
+        first_window_running_backs=first_window_rb,
         round1_qbs=round1_qbs,
         pick_count_rank=pick_count_rank,
         round_concentration=round_concentration,
@@ -613,7 +614,7 @@ def _narration(
         picks_total=len(ordered),
         rounds=league.draft.rounds,
         r1_positional=dict(draft_summary.round1_positional),
-        first11_rb_count=len(draft_summary.first11_running_backs),
+        first_window_rb_count=len(draft_summary.first_window_running_backs),
         pick_count_leader=(
             ManagerPickCount(manager=leader.manager, pick_count=leader.pick_count)
             if leader

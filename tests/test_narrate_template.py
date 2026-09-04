@@ -158,7 +158,7 @@ def test_orphan_roster_is_skipped_never_rendered_as_none() -> None:
     orphan_narration = Narration(
         league=NarrationLeague(name="Orphan League", season="2025", scoring_label="PPR"),
         headline_numbers=HeadlineNumbers(
-            picks_total=1, rounds=1, r1_positional={"RB": 1}, first11_rb_count=1
+            picks_total=1, rounds=1, r1_positional={"RB": 1}, first_window_rb_count=1
         ),
         board_round1=[
             BoardPick(
