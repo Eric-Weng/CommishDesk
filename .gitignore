@@ -53,5 +53,6 @@ desktop.ini
 
 # Local run artifacts (rendered issues dumped by the CLI)
 *.local.html
+commishdesk-*-draft-recap.html
 /out/
 /.commishdesk/

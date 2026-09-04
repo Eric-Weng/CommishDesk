@@ -17,6 +17,7 @@ from __future__ import annotations
 import ast
 import inspect
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -127,7 +128,33 @@ def test_I1() -> None:
     """I1 — No paid operation executes for a league with zero verified channels.
     The Generation Set is *derived* from verified-channel state by exactly one
     constructor. No other code path may add a league to a run."""
-    pytest.skip("pending Epic 2")
+    from commishdesk import generation
+    from commishdesk.generation import GenerationSet, build_generation_set
+
+    # empty in -> empty out; 10k harvested ids, none activated -> empty out, zero work
+    assert build_generation_set([]).league_ids == ()
+    assert (
+        build_generation_set(
+            (str(n) for n in range(10_000)), is_activated=lambda _id: False
+        ).league_ids
+        == ()
+    )
+    assert isinstance(build_generation_set(["77", "77"]), GenerationSet)
+    assert build_generation_set(["77", "77"]).league_ids == ("77",)
+
+    # exactly one module in the package constructs GenerationSet(...)
+    pkg_root = Path(generation.__file__).resolve().parent
+    builders = sorted(
+        path.relative_to(pkg_root).as_posix()
+        for path in pkg_root.rglob("*.py")
+        if any(
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "GenerationSet"
+            for node in ast.walk(ast.parse(path.read_text(encoding="utf-8")))
+        )
+    )
+    assert builders == ["generation.py"], builders
 
 
 def test_I2() -> None:
@@ -143,13 +170,67 @@ def test_I3() -> None:
     pytest.skip("pending Epic 3")
 
 
-def test_I4() -> None:
+def test_I4(monkeypatch: "pytest.MonkeyPatch") -> None:
     """I4 — Deterministic output requires no credentials and no paid resources.
     `ingest → stats → facts → narrate(template) → render` runs with zero credentials and
     no network beyond the Sleeper API. The onboarding sample is stats + templated prose
     only — no LLM. Two runs on one frozen input produce byte-identical output (modulo the
     generated-at timestamp)."""
-    pytest.skip("pending Epic 2")
+    from datetime import datetime, timezone
+
+    from commishdesk import demo
+    from commishdesk.facts import build_draft_recap_facts
+    from commishdesk.ingest import build_league_model
+    from commishdesk.narrate import recap_to_text, render_draft_recap
+    from commishdesk.render import recap_to_html
+    from commishdesk.stats import (
+        compute_board_metrics,
+        compute_consensus_metrics,
+        compute_draft_grades,
+    )
+
+    # no credential of any kind is consulted by the deterministic core
+    for key in ("LLM_API_KEY", "ANTHROPIC_API_KEY", "OPENAI_API_KEY"):
+        monkeypatch.delenv(key, raising=False)
+
+    def _demo_chain() -> tuple[str, str]:
+        model = build_league_model(demo.load_demo_bundle())
+        board = compute_board_metrics(model)
+        consensus = compute_consensus_metrics(model, demo.demo_consensus_slots())
+        grades = compute_draft_grades(model, consensus)
+        doc = build_draft_recap_facts(
+            model,
+            board,
+            consensus,
+            grades,
+            generated_at=datetime.now(tz=timezone.utc),
+            consensus_source_name="synthetic rookie board",
+            consensus_as_of="2025-05",
+        )
+        recap = render_draft_recap(doc.narration)
+        return recap_to_text(recap), recap_to_html(recap)
+
+    text1, html1 = _demo_chain()
+    text2, html2 = _demo_chain()
+    assert text1 == text2, "template narrator stdout is not deterministic"
+    assert html1 == html2, "rendered HTML is not deterministic"
+    # the narrator itself reads no clock — its only stamp is the caller's generated_at
+    assert "generated" not in text1
+
+    # httpx is only reachable on the real-league path — the narrator pulls in none
+    probe = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import commishdesk.narrate.template as t, sys; t.render_draft_recap; "
+            "assert 'httpx' not in sys.modules; print('ok')",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=REPO_ROOT,
+    )
+    assert probe.returncode == 0, probe.stderr
+    assert probe.stdout.strip() == "ok"
 
 
 def test_I5() -> None:
