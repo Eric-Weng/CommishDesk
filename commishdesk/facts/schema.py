@@ -61,7 +61,7 @@ __all__ = [
 SCHEMA_VERSION = "0.1.0"
 """Semver contract version. Additive key -> minor bump; shape change -> major."""
 
-_ISSUE_TYPE = "draft_recap"
+_ISSUE_TYPE: Literal["draft_recap"] = "draft_recap"
 
 
 class _Doc(BaseModel):

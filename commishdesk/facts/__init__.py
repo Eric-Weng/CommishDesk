@@ -13,11 +13,11 @@ in pydantic.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, TypeAlias
+from typing import TYPE_CHECKING, Any
 
 from commishdesk.errors import SchemaValidationError
 
-FactsJSON: TypeAlias = Mapping[str, Any]
+type FactsJSON = Mapping[str, Any]
 """Loose input contract for the ``Renderer`` and ``StatModule`` extension zones (AD-2).
 Epic 2 tightens this into the validated Pydantic model in ``facts/schema.py``."""
 

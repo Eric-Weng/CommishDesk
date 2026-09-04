@@ -1,4 +1,5 @@
-"""Stage 1 — pull a league through a platform-agnostic Adapter port and sanitize every league-supplied string at the boundary.
+"""Stage 1 — pull a league through a platform-agnostic Adapter port and sanitize
+every league-supplied string at the boundary.
 
 Public surface: :func:`sanitize` (the one league-string scrubber, AD-24),
 :func:`build_league_model` (raw platform bundle -> shape-agnostic

@@ -51,7 +51,7 @@ it is **not** part of the ``stats/`` pipeline fence.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, Literal
+from typing import Any, Literal, TypeGuard
 
 import httpx
 from pydantic import BaseModel, ConfigDict
@@ -250,7 +250,7 @@ def _dense_rank(ordered_ids: list[str]) -> dict[str, int]:
     return {sleeper_id: slot for slot, sleeper_id in enumerate(ordered_ids, start=1)}
 
 
-def _is_number(value: Any) -> bool:
+def _is_number(value: Any) -> TypeGuard[int | float]:
     return isinstance(value, (int, float)) and not isinstance(value, bool)
 
 

@@ -17,7 +17,9 @@ commishdesk = "commishdesk.cli:main"
 
 [dependency-groups]
 dev = [
+    "mypy",
     "pytest",
+    "ruff",
 ]
 
 [build-system]
@@ -26,3 +28,18 @@ build-backend = "uv_build"
 
 [tool.uv.build-backend]
 module-root = ""
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+files = ["commishdesk"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

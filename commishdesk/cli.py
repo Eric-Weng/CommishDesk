@@ -13,9 +13,8 @@ from __future__ import annotations
 import logging
 import os
 import tempfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Optional
 
 import typer
 
@@ -51,10 +50,10 @@ def _cache_dir() -> Path:
 
 @app.callback(invoke_without_command=True)
 def run(
-    league: Optional[str] = typer.Option(
+    league: str | None = typer.Option(
         None, "--league", help="Sleeper league id to build a recap for (or 'demo')."
     ),
-    week: Optional[int] = typer.Option(
+    week: int | None = typer.Option(
         None,
         "--week",
         min=1,
@@ -64,13 +63,13 @@ def run(
     draft_recap: bool = typer.Option(
         False, "--draft-recap", help="Build the draft recap instead of a weekly recap."
     ),
-    out_dir: Path = typer.Option(
+    out_dir: Path = typer.Option(  # noqa: B008 -- canonical typer idiom
         Path("."), "--out-dir", help="Directory to write the recap HTML file into."
     ),
     verbose: bool = typer.Option(
         False, "--verbose", help="Increase output verbosity."
     ),
-    version: Optional[bool] = typer.Option(
+    version: bool | None = typer.Option(
         None,
         "--version",
         "-V",
@@ -173,7 +172,7 @@ def _recap_one_league(
         compute_draft_grades,
     )
 
-    generated_at = datetime.now(tz=timezone.utc)
+    generated_at = datetime.now(tz=UTC)
 
     if resolved == demo_id:
         logger.debug("loading committed demo fixture")

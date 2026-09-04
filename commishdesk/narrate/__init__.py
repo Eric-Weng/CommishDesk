@@ -1,4 +1,5 @@
-"""Stage 4 — turn the Facts JSON into prose via the zero-credential template narrator (the floor) and the opt-in LLM narrator.
+"""Stage 4 — turn the Facts JSON into prose via the zero-credential template
+narrator (the floor) and the opt-in LLM narrator.
 
 The template narrator (:func:`render_draft_recap` / :func:`recap_to_text`) is
 deterministic and credential-free — it reads only the ``narration`` projection of

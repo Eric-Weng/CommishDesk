@@ -1,4 +1,5 @@
-"""Extension zone: output-surface renderers (zone dir ``themes/``; the protocol is ``Renderer`` and owns the whole surface). Protocol only, one reference impl max."""
+"""Extension zone: output-surface renderers (zone dir ``themes/``; the protocol
+is ``Renderer`` and owns the whole surface). Protocol only, one reference impl max."""
 
 from __future__ import annotations
 

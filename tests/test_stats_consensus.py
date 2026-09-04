@@ -115,7 +115,7 @@ def _identity_slots(pids: list[str], targets: dict[str, int]) -> dict[str, int]:
     free_slots = sorted(set(range(1, len(pids) + 1)) - set(targets.values()))
     free_pids = [p for p in pids if p not in targets]
     slots = dict(targets)
-    slots.update(dict(zip(free_pids, free_slots)))
+    slots.update(dict(zip(free_pids, free_slots, strict=True)))
     return slots
 
 
