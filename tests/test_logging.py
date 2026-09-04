@@ -326,6 +326,63 @@ def test_18_digit_league_id_survives_verbatim():
     assert "[redacted]" not in record["msg"]
 
 
+# --- context values are redacted, not just the message ---------------
+
+
+def test_secret_shaped_league_id_context_is_redacted_in_json():
+    stream = FakeStream(tty=False)
+    logger = _log(stream)
+    with log_context(league_id="Bearer sometoken123"):
+        logger.info("building recap")
+    (record,) = _json_lines(stream)
+    assert record["league_id"] == "[redacted]"
+    assert "sometoken123" not in json.dumps(record)
+
+
+def test_secret_shaped_league_id_context_is_redacted_in_human():
+    stream = FakeStream(tty=True)
+    logger = _log(stream)
+    with log_context(league_id="Bearer sometoken123"):
+        logger.info("building recap")
+    out = stream.getvalue()
+    assert "sometoken123" not in out
+    assert "league_id=[redacted]" in out
+
+
+def test_email_shaped_league_id_context_is_redacted_in_json():
+    stream = FakeStream(tty=False)
+    logger = _log(stream)
+    with log_context(league_id="a@b.com"):
+        logger.info("building recap")
+    (record,) = _json_lines(stream)
+    assert record["league_id"] == "[redacted]"
+    assert "a@b.com" not in json.dumps(record)
+
+
+def test_email_shaped_league_id_context_is_redacted_in_human():
+    stream = FakeStream(tty=True)
+    logger = _log(stream)
+    with log_context(league_id="a@b.com"):
+        logger.info("building recap")
+    out = stream.getvalue()
+    assert "a@b.com" not in out
+    assert "league_id=[redacted]" in out
+
+
+def test_redaction_is_per_key_not_blanket():
+    """One secret-shaped key and one benign key bound together: only the secret-shaped
+    one is redacted, proving ContextFilter redacts per-key rather than either redacting
+    everything once any key looks secret-shaped, or skipping redaction once any key
+    doesn't."""
+    stream = FakeStream(tty=False)
+    logger = _log(stream)
+    with log_context(league_id="Bearer sometoken123", week=3):
+        logger.info("building recap")
+    (record,) = _json_lines(stream)
+    assert record["league_id"] == "[redacted]"
+    assert record["week"] == 3
+
+
 # --- format override --------------------------------------------------
 
 

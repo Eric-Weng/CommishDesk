@@ -119,13 +119,22 @@ class RedactionFilter(logging.Filter):
 
 
 class ContextFilter(logging.Filter):
-    """Copy the current ``log_context`` binding onto the record."""
+    """Copy the current ``log_context`` binding onto the record, redacted.
+
+    Each ``str``-typed value is run through ``_redact()`` before ``setattr`` —
+    the same choke point the message path already trusts. Non-``str`` values
+    (an ``int`` week, or the ``object()`` degrade-not-crash case) pass through
+    unchanged; ``_redact()`` only accepts ``str``.
+    """
 
     def filter(self, record: logging.LogRecord) -> bool:
         ctx = _log_context.get()
         for key in _CONTEXT_KEYS:
             if key in ctx:
-                setattr(record, key, ctx[key])
+                value = ctx[key]
+                if isinstance(value, str):
+                    value = _redact(value)
+                setattr(record, key, value)
         return True
 
 
