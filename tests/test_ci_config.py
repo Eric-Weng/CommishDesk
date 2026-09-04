@@ -29,6 +29,9 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW_DIR = REPO_ROOT / ".github" / "workflows"
 WORKFLOW = WORKFLOW_DIR / "test.yml"
 DEPENDABOT = REPO_ROOT / ".github" / "dependabot.yml"
+README = REPO_ROOT / "README.md"
+PYPROJECT = REPO_ROOT / "pyproject.toml"
+CONTRIBUTING = REPO_ROOT / "CONTRIBUTING.md"
 
 # Actions allowed by the spec (frozen "Ask First": anything else needs a renegotiation).
 ALLOWED_ACTIONS = {"actions/checkout", "astral-sh/setup-uv"}
@@ -66,6 +69,22 @@ def _workflow() -> str:
 
 def _dependabot() -> str:
     return _read_github_file(DEPENDABOT)
+
+
+def _readme() -> str:
+    """Return ``README.md`` text, or ``pytest.skip`` when this tree has no
+    ``README.md`` -- mirrors ``_read_github_file``'s out-of-tree skip."""
+    if not README.is_file():
+        pytest.skip("no README.md in this tree -- repo-hygiene check, not library behavior")
+    return README.read_text(encoding="utf-8")
+
+
+def _contributing() -> str:
+    """Return ``CONTRIBUTING.md`` text, or ``pytest.skip`` when this tree has no
+    ``CONTRIBUTING.md`` -- mirrors ``_read_github_file``'s out-of-tree skip."""
+    if not CONTRIBUTING.is_file():
+        pytest.skip("no CONTRIBUTING.md in this tree -- repo-hygiene check, not library behavior")
+    return CONTRIBUTING.read_text(encoding="utf-8")
 
 
 def _all_workflows() -> list[tuple[str, str]]:
@@ -588,6 +607,116 @@ def test_dependabot_watches_uv_and_github_actions_weekly() -> None:
     assert text.count('directory: "/"') == 2
     assert text.count('interval: "weekly"') == 2
     assert text.count("open-pull-requests-limit: 5") == 2
+
+
+def _dependabot_entries(text: str) -> list[str]:
+    """Text of each top-level ``updates`` entry, from its own ``- package-ecosystem:``
+    line up to the next one (or EOF). Per-entry isolation so a copy-paste bug that
+    attaches both ecosystems' ``groups:``/``commit-message:``/``labels:`` blocks under
+    one entry -- leaving the other bare -- cannot pass a whole-file ``text.count(...)``
+    check that only cares about the file-wide total."""
+    parts = re.split(r"(?=^  - package-ecosystem:)", text, flags=re.MULTILINE)
+    return [p for p in parts if p.lstrip().startswith("- package-ecosystem:")]
+
+
+def test_dependabot_groups_commit_message_and_labels_per_ecosystem() -> None:
+    """Row: Two same-ecosystem deps bump in one week / Dependabot opens a PR
+    (Story 1B.2). EVERY ``updates`` entry -- checked individually, not as a file-wide
+    count -- groups same-ecosystem bumps into one PR, prefixes its commit message, and
+    carries the ``dependencies`` label."""
+    entries = _dependabot_entries(_dependabot())
+    assert len(entries) == 2, f"expected exactly 2 update entries, found {len(entries)}"
+    for entry in entries:
+        assert "groups:" in entry, f"missing groups: block in entry:\n{entry}"
+        assert 'patterns: ["*"]' in entry, f"missing same-ecosystem grouping pattern in entry:\n{entry}"
+        assert "commit-message:" in entry, f"missing commit-message: block in entry:\n{entry}"
+        assert 'prefix: "chore(deps)"' in entry, f"missing chore(deps) prefix in entry:\n{entry}"
+        assert "labels:" in entry, f"missing labels: block in entry:\n{entry}"
+        assert '- "dependencies"' in entry, f"missing dependencies label in entry:\n{entry}"
+
+
+# --------------------------------------------------------------------------- #
+# Row: README CI badge (Story 1B.2)
+# --------------------------------------------------------------------------- #
+
+
+def test_readme_shows_ci_badge_for_test_workflow() -> None:
+    """AC: README.md displays a CI status badge for the ``test`` workflow, and the
+    badge image and its link target form one coherent Markdown image-link -- not two
+    unrelated occurrences of a badge URL and a workflow URL elsewhere on the page --
+    pointing at that workflow's own Actions page (not ``lint``, a job inside it)."""
+    text = _readme()
+    assert re.search(
+        r"\[!\[[^\]]*\]\(https://github\.com/Eric-Weng/CommishDesk/actions/workflows/"
+        r"test\.yml/badge\.svg\)\]\(https://github\.com/Eric-Weng/CommishDesk/actions/"
+        r"workflows/test\.yml\)",
+        text,
+    ), "no GitHub Actions workflow badge for the test workflow, linked to its Actions page"
+
+
+# --------------------------------------------------------------------------- #
+# Row: a future DCO gate lands / dependabot[bot] exemption (Story 1B.2)
+# --------------------------------------------------------------------------- #
+
+
+def test_contributing_documents_dependabot_dco_exemption() -> None:
+    """Row: A future DCO gate lands / dependabot[bot]-authored commit -- CONTRIBUTING.md's
+    DCO section documents that ``dependabot[bot]`` commits are exempt from sign-off, so a
+    later automated DCO check (not yet built) can allowlist that actor instead of failing
+    every Dependabot PR."""
+    text = _contributing()
+    dco_heading = re.search(r"^## .*DCO.*$", text, re.MULTILINE)
+    assert dco_heading, "no DCO section in CONTRIBUTING.md"
+    assert "dependabot[bot]" in text, "no dependabot[bot] exemption documented"
+    # The exemption line must live in (or after) the DCO section, not somewhere unrelated.
+    assert text.index("dependabot[bot]") > dco_heading.start(), "exemption not documented in the DCO section"
+
+
+# --------------------------------------------------------------------------- #
+# Row: PyPI listing rendered -- [project] release-readiness metadata (Story 1B.2)
+# --------------------------------------------------------------------------- #
+
+
+_QUOTED_NONEMPTY = re.compile(r'"[^"]+"')  # a quoted string with at least one char inside
+
+
+def test_project_table_has_release_readiness_metadata() -> None:
+    """AC: given ``pyproject.toml``'s ``[project]`` table, when read, then it carries
+    ``urls`` (repository, issues), ``classifiers``, ``keywords``, and name-only
+    ``authors`` (no email -- CLAUDE.md §1: no real email address anywhere in this repo).
+
+    Each array/value is checked for actual content, not just key presence -- an empty
+    ``keywords = []`` / ``classifiers = []`` or a blank ``Repository = ""`` would pass a
+    bare ``re.search(r"^keywords\\s*=", ...)`` or substring check but is not, in fact,
+    release-readiness metadata."""
+    text = PYPROJECT.read_text(encoding="utf-8")
+
+    project_block = re.search(r"^\[project\]\n.*?(?=^\[|\Z)", text, re.MULTILINE | re.DOTALL)
+    assert project_block, "no [project] table"
+    block = project_block.group(0)
+
+    authors_line = re.search(r"^authors\s*=.*$", block, re.MULTILINE)
+    assert authors_line, "no authors in [project]"
+    assert "@" not in authors_line.group(0), "authors carries an email address"
+
+    keywords_m = re.search(r"^keywords\s*=\s*(\[.*?\])", block, re.MULTILINE | re.DOTALL)
+    assert keywords_m, "no keywords in [project]"
+    assert _QUOTED_NONEMPTY.search(keywords_m.group(1)), "keywords array is empty"
+
+    classifiers_m = re.search(r"^classifiers\s*=\s*(\[.*?\])", block, re.MULTILINE | re.DOTALL)
+    assert classifiers_m, "no classifiers in [project]"
+    assert _QUOTED_NONEMPTY.search(classifiers_m.group(1)), "classifiers array is empty"
+
+    urls_block = re.search(r"^\[project\.urls\]\n.*?(?=^\[|\Z)", text, re.MULTILINE | re.DOTALL)
+    assert urls_block, "no [project.urls] table"
+
+    repo_m = re.search(r'^Repository\s*=\s*"(.*?)"', urls_block.group(0), re.MULTILINE)
+    assert repo_m, "no Repository url"
+    assert repo_m.group(1).strip(), "Repository url is empty"
+
+    issues_m = re.search(r'^Issues\s*=\s*"(.*?)"', urls_block.group(0), re.MULTILINE)
+    assert issues_m, "no Issues url"
+    assert issues_m.group(1).strip(), "Issues url is empty"
 
 
 # --------------------------------------------------------------------------- #

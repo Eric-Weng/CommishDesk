@@ -6,11 +6,27 @@ readme = "README.md"
 requires-python = ">=3.12"
 license = "AGPL-3.0-only"
 license-files = ["LICENSE"]
+authors = [{ name = "Eric Weng" }]
+keywords = ["fantasy-football", "sleeper", "newsletter", "discord", "fantasy-sports"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: GNU Affero General Public License v3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Games/Entertainment",
+    "Environment :: Console",
+]
 dependencies = [
     "httpx>=0.27",
     "pydantic>=2",
     "typer>=0.12",
 ]
+
+[project.urls]
+Repository = "https://github.com/Eric-Weng/CommishDesk"
+Issues = "https://github.com/Eric-Weng/CommishDesk/issues"
 
 [project.scripts]
 commishdesk = "commishdesk.cli:main"
