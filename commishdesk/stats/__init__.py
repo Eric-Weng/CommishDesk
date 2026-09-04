@@ -1,4 +1,5 @@
-"""Stage 2 — deterministic statistics (all-play, luck, coaching efficiency, power-model score, draft grades); no model, no clock, no network."""
+"""Stage 2 — deterministic statistics (all-play, luck, coaching efficiency,
+power-model score, draft grades); no model, no clock, no network."""
 
 from __future__ import annotations
 
@@ -34,28 +35,25 @@ _GRADE_NAMES = frozenset(
 __all__ = sorted(_DRAFT_NAMES | _CONSENSUS_NAMES | _GRADE_NAMES)
 
 if TYPE_CHECKING:
-    from .consensus import (
-        ConsensusMetrics,
-        PickConsensus,
-        PickRef,
-        TeamConsensus,
-        compute_consensus_metrics,
-    )
-    from .draft import (
-        MIN_RUN,
-        BoardMetrics,
-        PositionalRun,
-        TeamBoard,
-        compute_board_metrics,
-    )
-    from .grades import (
-        GRADE_METHOD,
-        THIRTEEN_POINT_SCALE,
-        DraftGrades,
-        GradeMethod,
-        TeamGrade,
-        compute_draft_grades,
-    )
+    # Explicit "as X" re-export idiom: these names are only for static type
+    # checkers (the runtime attribute is served lazily via __getattr__ below),
+    # so mark each import as an intentional re-export rather than unused (F401).
+    from .consensus import ConsensusMetrics as ConsensusMetrics
+    from .consensus import PickConsensus as PickConsensus
+    from .consensus import PickRef as PickRef
+    from .consensus import TeamConsensus as TeamConsensus
+    from .consensus import compute_consensus_metrics as compute_consensus_metrics
+    from .draft import MIN_RUN as MIN_RUN
+    from .draft import BoardMetrics as BoardMetrics
+    from .draft import PositionalRun as PositionalRun
+    from .draft import TeamBoard as TeamBoard
+    from .draft import compute_board_metrics as compute_board_metrics
+    from .grades import GRADE_METHOD as GRADE_METHOD
+    from .grades import THIRTEEN_POINT_SCALE as THIRTEEN_POINT_SCALE
+    from .grades import DraftGrades as DraftGrades
+    from .grades import GradeMethod as GradeMethod
+    from .grades import TeamGrade as TeamGrade
+    from .grades import compute_draft_grades as compute_draft_grades
 
 
 def __getattr__(name: str) -> object:

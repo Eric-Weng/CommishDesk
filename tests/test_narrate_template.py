@@ -26,8 +26,7 @@ from commishdesk.facts.schema import (
     TERunSummary,
 )
 from commishdesk.ingest import build_league_model
-from commishdesk.narrate import Recap, recap_to_text, render_draft_recap
-from commishdesk.narrate import template
+from commishdesk.narrate import Recap, recap_to_text, render_draft_recap, template
 from commishdesk.stats import (
     compute_board_metrics,
     compute_consensus_metrics,
@@ -88,7 +87,7 @@ def test_lead_carries_headline_numbers_and_the_ranked_hooks(narration: Narration
 def test_board_round1_names_and_numbers_match_the_narration(narration: Narration) -> None:
     board = _section(render_draft_recap(narration), "The Board — Round 1")
     assert len(board.blocks) == len(narration.board_round1)
-    for block, pick in zip(board.blocks, narration.board_round1):
+    for block, pick in zip(board.blocks, narration.board_round1, strict=True):
         assert block.startswith(f"{pick.board_label} — ")
         assert pick.player in block
         if pick.manager:

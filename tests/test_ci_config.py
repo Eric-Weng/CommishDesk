@@ -424,15 +424,152 @@ def test_matrix_python_version_is_actually_consumed_by_both_steps() -> None:
     *and* the ``pytest`` run step."""
     text = _workflow()
     interp = "python-version: ${{ matrix.python-version }}"
+    pytest_run = "- run: uv run --frozen"
     assert interp in text, "setup-uv is not passed the matrix interpreter"
     assert "--python ${{ matrix.python-version }}" in text, "the run step does not pin the interpreter"
-    # the with: python-version input belongs to the setup-uv step, before the run step
-    assert text.index("astral-sh/setup-uv@") < text.index(interp) < text.index("- run:")
+    # the with: python-version input belongs to the setup-uv step, before the pytest run
+    # step -- anchored on the pytest step's own text (not the generic "- run:", which
+    # this story's added `uv lock --check` step now also matches, first)
+    assert text.index("astral-sh/setup-uv@") < text.index(interp) < text.index(pytest_run)
 
 
 def test_suite_runs_against_the_committed_lockfile() -> None:
     """Frozen Always: each leg runs the suite with the committed lockfile respected."""
     assert re.search(r"uv run --frozen .*pytest", _workflow())
+
+
+def test_python_matrix_also_covers_3_13() -> None:
+    """AC: the matrix contains "3.13" alongside "3.12"/"3.14" (Story 1B.1 -- chosen
+    over a floor-plus-latest rationale note)."""
+    matrix = re.search(r"matrix:\s*\n\s*python-version:\s*(\[[^\]]*\])", _workflow())
+    assert matrix, "no strategy.matrix.python-version list"
+    assert '"3.13"' in matrix.group(1)
+
+
+# --------------------------------------------------------------------------- #
+# Row: Lint / type-check gate (Story 1B.1)
+# --------------------------------------------------------------------------- #
+
+
+def test_lint_job_present_and_runs_ruff_and_mypy() -> None:
+    """AC: given ``[tool.ruff]``/``[tool.mypy]`` are defined, the ``lint`` job runs
+    both, so a reintroduced violation fails CI."""
+    text = _workflow()
+    assert re.search(r"^  lint:\s*$", text, re.MULTILINE), "no top-level lint: job"
+    assert re.search(r"uv run --frozen ruff check", text), "lint job does not run ruff"
+    assert re.search(r"uv run --frozen mypy commishdesk", text), "lint job does not run mypy"
+
+
+def test_lint_job_is_declared_after_the_test_job() -> None:
+    """Frozen Always: ``lint:`` is ordered after ``test:`` in the YAML so
+    ``test_matrix_python_version_is_actually_consumed_by_both_steps``'s
+    first-occurrence anchors keep resolving inside ``test:``'s own steps."""
+    text = _workflow()
+    assert text.index("\n  test:") < text.index("\n  lint:")
+
+
+def _step_blocks(text: str, action_prefix: str) -> list[str]:
+    """Text of every step whose ``uses:`` starts with *action_prefix*, from its
+    ``uses:`` line up to (not including) the next step at the same indent or the
+    end of its job. Mirrors ``_permissions_blocks``'s indent-based extraction."""
+    lines = text.splitlines()
+    blocks: list[str] = []
+    for i, ln in enumerate(lines):
+        m = re.match(rf"^(\s*)-\s*uses:\s*{re.escape(action_prefix)}", ln)
+        if not m:
+            continue
+        indent = len(m.group(1))
+        chunk = [ln]
+        for sub in lines[i + 1 :]:
+            stripped = sub.lstrip()
+            sub_indent = len(sub) - len(stripped)
+            if not stripped:
+                chunk.append(sub)
+                continue
+            if sub_indent <= indent:  # next step, or dedent out of this job
+                break
+            chunk.append(sub)
+        blocks.append("\n".join(chunk))
+    return blocks
+
+
+def test_every_checkout_step_sets_persist_credentials_false() -> None:
+    """Row: Fork PR. Every ``actions/checkout`` step disables credential
+    persistence so no token is left on disk for a later step to exfiltrate."""
+    blocks = _step_blocks(_workflow(), "actions/checkout@")
+    assert blocks, "no actions/checkout step found"
+    for block in blocks:
+        assert "persist-credentials: false" in block, block
+
+
+def test_every_setup_uv_step_pins_a_version_and_enables_cache() -> None:
+    """AC: ``setup-uv`` carries a pinned ``version:`` input (the uv binary version)
+    and ``enable-cache: true``, on every job that uses it."""
+    blocks = _step_blocks(_workflow(), "astral-sh/setup-uv@")
+    assert blocks, "no astral-sh/setup-uv step found"
+    for block in blocks:
+        # negative lookbehind for a preceding word/hyphen char so this matches only the
+        # uv-binary `version:` key, not a suffix of `python-version:` (which is quoted
+        # in the `lint` job's setup-uv step, just like a real `version:` pin would be).
+        assert re.search(r"(?<![\w-])version:\s*['\"][\w.]+['\"]", block), block
+        assert "enable-cache: true" in block, block
+
+
+def test_uv_lock_check_step_present() -> None:
+    """AC: a ``uv lock --check`` step exists, so a stale lockfile fails the build."""
+    assert re.search(r"-\s*run:\s*uv lock --check", _workflow())
+
+
+def _job_blocks(text: str) -> dict[str, str]:
+    """``{job_id: block_text}`` for each top-level job under ``jobs:`` (2-space
+    indent keys)."""
+    lines = text.splitlines()
+    jobs_start = next(
+        (i + 1 for i, ln in enumerate(lines) if re.match(r"^jobs:\s*$", ln)), None
+    )
+    assert jobs_start is not None, "no jobs: key"
+    blocks: dict[str, str] = {}
+    current_id: str | None = None
+    current_lines: list[str] = []
+    for ln in lines[jobs_start:]:
+        m = re.match(r"^  ([A-Za-z_][\w-]*):\s*$", ln)
+        if m:
+            if current_id is not None:
+                blocks[current_id] = "\n".join(current_lines)
+            current_id, current_lines = m.group(1), []
+            continue
+        if current_id is not None:
+            current_lines.append(ln)
+    if current_id is not None:
+        blocks[current_id] = "\n".join(current_lines)
+    return blocks
+
+
+def test_every_job_declares_a_timeout_minutes() -> None:
+    """AC: ``timeout-minutes`` is present on every job -- a hung runner cannot pin
+    the queue indefinitely."""
+    jobs = _job_blocks(_workflow())
+    assert jobs, "no jobs found"
+    for job_id, block in jobs.items():
+        assert re.search(r"^\s*timeout-minutes:\s*\d+", block, re.MULTILINE), job_id
+
+
+def test_no_job_runs_on_a_bare_ubuntu_latest() -> None:
+    """AC: a pinned runner image, not the floating ``ubuntu-latest`` alias."""
+    text = _workflow()
+    assert "ubuntu-latest" not in text
+    assert re.search(r"runs-on:\s*ubuntu-\d", text), "no pinned ubuntu-NN.NN image"
+
+
+def test_cancel_in_progress_is_gated_to_pull_request() -> None:
+    """Row: Rapid pushes to main. ``cancel-in-progress`` is conditioned on
+    ``github.event_name == 'pull_request'`` so a post-merge ``push`` run to
+    ``main`` is never cancelled by the next commit."""
+    text = _workflow()
+    assert re.search(
+        r"cancel-in-progress:\s*\$\{\{\s*github\.event_name\s*==\s*'pull_request'\s*\}\}",
+        text,
+    ), "cancel-in-progress is not gated to pull_request"
 
 
 # --------------------------------------------------------------------------- #

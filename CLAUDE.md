@@ -176,7 +176,7 @@ self-hosters inherit them and CI enforces them.
 
 ## 5. Conventions
 
-- **Python** `>=3.12`; `uv` + committed `uv.lock`. CI on 3.12 and 3.14.
+- **Python** `>=3.12`; `uv` + committed `uv.lock`. CI on 3.12, 3.13, and 3.14.
 - Sleeper `league_id` / `user_id` / `roster_id` normalized to **strings**.
 - **UTC + ISO 8601** everywhere internally; timezone conversion only in `render`.
   Cron expressions in UTC with a documented ET target and a November DST note.

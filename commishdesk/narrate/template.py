@@ -28,8 +28,8 @@ from commishdesk.facts.schema import (
     BoldestSwing,
     Narration,
     PositionalRunsSummary,
-    Superlatives,
     SuperlativePick,
+    Superlatives,
 )
 
 __all__ = ["Recap", "Section", "recap_to_text", "render_draft_recap"]

@@ -13,8 +13,9 @@ import re
 import socket
 import subprocess
 import sys
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
 
 import pytest
 
@@ -470,8 +471,8 @@ def test_timestamps_remapped_onto_the_grid_order_preserving() -> None:
     flat = [r["created"] for r in rows] + [r["status_updated"] for r in rows]
     real = [1_700_000_003_000, 1_700_000_001_000, 1_700_000_009_000,
             1_700_000_009_000, 1_700_000_001_000, 1_700_000_020_000]
-    assert [a < b for a, b in zip(real, real[1:])] == [
-        a < b for a, b in zip(flat, flat[1:])
+    assert [a < b for a, b in zip(real, real[1:], strict=False)] == [
+        a < b for a, b in zip(flat, flat[1:], strict=False)
     ]
 
 
@@ -538,7 +539,6 @@ def test_pool_too_small_is_caught_by_main(tmp_path: Path, capsys, monkeypatch) -
 def test_unknown_co_owner_gets_its_own_persona_not_the_league_name() -> None:
     out = anonymize.anonymize_bundle(synthetic_raw(), seed=0)
     co_token = out["rosters"][0]["co_owners"][1]  # REAL_UID_COOWNER, absent from users
-    pool = set(anonymize.NAME_POOL)
     # it is tokenized...
     assert co_token.startswith("id_")
     # ...and every token that resolves to a persona resolves to a distinct pool name

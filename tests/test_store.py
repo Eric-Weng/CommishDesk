@@ -8,7 +8,7 @@ import inspect
 import json
 import re
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -16,7 +16,6 @@ import pytest
 from commishdesk.errors import CommishDeskError, StoreError
 from commishdesk.store import Claim, FileStore, LedgerEntry, Store, Storyline
 
-UTC = timezone.utc
 ENGINE_ROOT = Path(__file__).resolve().parent.parent / "commishdesk"
 
 # Substrings that must never appear in a public Store name or in engine imports.

@@ -173,9 +173,9 @@ def test_real_league_branch_threads_the_mocked_consensus_source(
     """Exercise the network branch past ``adapter.fetch``: a fake adapter returns
     the demo bundle, a fake ``build_consensus_rank`` supplies known
     ``source`` / ``as_of``, and the CLI must thread those into the Facts JSON."""
+    import commishdesk.facts as facts_pkg
     from commishdesk import consensus, demo
     from commishdesk.consensus import ConsensusRank
-    import commishdesk.facts as facts_pkg
 
     bundle = demo.load_demo_bundle()
 

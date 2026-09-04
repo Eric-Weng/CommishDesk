@@ -71,13 +71,21 @@ PRs with unsigned commits will be asked to amend. To sign off a series you alrea
 ```bash
 git clone https://github.com/Eric-Weng/CommishDesk.git
 cd CommishDesk
-uv sync                 # Python >=3.12; installs the dev dependency group
-uv run pytest -q        # must pass offline, with no environment variables set
+uv sync                        # Python >=3.12; installs the dev dependency group
+uv run pytest -q               # must pass offline, with no environment variables set
+uv run ruff check .            # lint -- the `lint` CI job runs this too
+uv run mypy commishdesk        # type-check (scoped to the `commishdesk` package)
 ```
 
-- Target Python `>=3.12`. CI runs 3.12 and 3.14.
+- Target Python `>=3.12`. CI runs 3.12, 3.13, and 3.14.
 - The lockfile (`uv.lock`) is committed. If you add a dependency, verify the package
-  actually exists and is maintained, then commit the updated lock.
+  actually exists and is maintained, then commit the updated lock (`uv lock`). CI's
+  `uv lock --check` step fails the build if the lockfile drifts from `pyproject.toml`.
+- Lint (`ruff`) and type-check (`mypy`) run as a separate `lint` CI job under a
+  conservative, human-decided config in `pyproject.toml` (`[tool.ruff]` /
+  `[tool.mypy]`) -- a violation fails CI independently of the test matrix. `mypy`
+  is scoped to the `commishdesk/` package only; `ruff` also lints `tests/` and
+  `tools/`.
 
 ## Ground rules for changes
 
@@ -97,6 +105,8 @@ I1–I7 that a change may not weaken. A few consequences for PR authors:
 - **No bare `except`.** Raise a typed exception under `CommishDeskError`.
 - **Don't weaken an invariant test.** If your change makes one fail, the change is
   wrong, not the test.
+- **Lint and type-check are a CI gate.** The `lint` job runs `ruff check .` and
+  `mypy commishdesk`; either one failing blocks CI independently of the test matrix.
 
 ## Reporting security issues
 

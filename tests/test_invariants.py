@@ -19,6 +19,7 @@ import inspect
 import re
 import subprocess
 import sys
+from datetime import UTC
 from pathlib import Path
 
 import pytest
@@ -170,13 +171,13 @@ def test_I3() -> None:
     pytest.skip("pending Epic 3")
 
 
-def test_I4(monkeypatch: "pytest.MonkeyPatch") -> None:
+def test_I4(monkeypatch: pytest.MonkeyPatch) -> None:
     """I4 — Deterministic output requires no credentials and no paid resources.
     `ingest → stats → facts → narrate(template) → render` runs with zero credentials and
     no network beyond the Sleeper API. The onboarding sample is stats + templated prose
     only — no LLM. Two runs on one frozen input produce byte-identical output (modulo the
     generated-at timestamp)."""
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     from commishdesk import demo
     from commishdesk.facts import build_draft_recap_facts
@@ -203,7 +204,7 @@ def test_I4(monkeypatch: "pytest.MonkeyPatch") -> None:
             board,
             consensus,
             grades,
-            generated_at=datetime.now(tz=timezone.utc),
+            generated_at=datetime.now(tz=UTC),
             consensus_source_name="synthetic rookie board",
             consensus_as_of="2025-05",
         )

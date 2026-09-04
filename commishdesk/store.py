@@ -41,7 +41,7 @@ import tempfile
 import tomllib
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated, Any, Literal, TypeVar
 
@@ -61,12 +61,12 @@ def _to_utc(value: datetime) -> datetime:
     """Require a timezone-aware datetime; normalize it to UTC."""
     if value.tzinfo is None or value.tzinfo.utcoffset(value) is None:
         raise ValueError("datetime must be timezone-aware (UTC)")
-    return value.astimezone(timezone.utc)
+    return value.astimezone(UTC)
 
 
 def _iso_z(value: datetime) -> str:
     """Serialize a UTC datetime as ISO 8601 with a trailing ``Z``."""
-    return value.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+    return value.astimezone(UTC).isoformat().replace("+00:00", "Z")
 
 
 UtcDateTime = Annotated[

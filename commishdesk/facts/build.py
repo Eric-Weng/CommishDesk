@@ -34,13 +34,14 @@ stages), stdlib, and pydantic — nothing from ``adapters`` / ``consensus`` /
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
+from typing import cast
 
 from pydantic import ValidationError
 
 from commishdesk.errors import SchemaValidationError
 from commishdesk.ingest import LeagueModel
-from commishdesk.stats import BoardMetrics, ConsensusMetrics, DraftGrades
+from commishdesk.stats import BoardMetrics, ConsensusMetrics, DraftGrades, PickRef
 
 from .leads import build_lead_candidates
 from .schema import (
@@ -69,8 +70,8 @@ from .schema import (
     RBRunSummary,
     RoundConcentration,
     Source,
-    Superlatives,
     SuperlativePick,
+    Superlatives,
     TeamRow,
     TERunSummary,
 )
@@ -84,7 +85,7 @@ _ENGINE_NOTE = (
 """Mirror of the phase-0 golden's ``consensus_source.engine_note`` — a constant of
 the engine, not a per-league value."""
 
-_EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
+_EPOCH = datetime(1970, 1, 1, tzinfo=UTC)
 _CANON_POSITIONS = ("QB", "RB", "WR", "TE")
 _MIN_ROUND_CONCENTRATION = 3
 """A manager's heaviest round is reported only at this many picks or more."""
@@ -216,9 +217,9 @@ def _iso_datetime(stamp: datetime) -> str | None:
     to milliseconds; ``None`` if the year is not four digits or it will not
     format."""
     if stamp.tzinfo is None:
-        stamp = stamp.replace(tzinfo=timezone.utc)
+        stamp = stamp.replace(tzinfo=UTC)
     else:
-        stamp = stamp.astimezone(timezone.utc)
+        stamp = stamp.astimezone(UTC)
     try:
         text = stamp.strftime("%Y-%m-%dT%H:%M:%S.%f")
     except (OverflowError, OSError, ValueError):
@@ -298,15 +299,22 @@ def _merge_teams(
                 pick_count=tb.pick_count if tb else 0,
                 pick_nos=list(tb.pick_nos) if tb else [],
                 positional_counts=_canon_counts(tb.positional_counts if tb else {}),
-                back_to_back=[tuple(pair) for pair in tb.back_to_back] if tb else [],
+                back_to_back=list(tb.back_to_back) if tb else [],
                 best_value_pick=_extreme(tc.best_value_pick if tc else None),
                 biggest_reach_pick=_extreme(tc.biggest_reach_pick if tc else None),
-                draft_score=tg.draft_score if tg else None,
-                premium_picks=tg.premium_picks if tg else None,
-                format_fit=tg.format_fit if tg else None,
-                grade_input=tg.grade_input if tg else None,
+                # ``tg`` is expected to always be present (grades are computed for
+                # every roster in ``league.teams``); when it is not, the ``TeamRow(...)``
+                # construction below raises pydantic's ``ValidationError`` (``None`` is not
+                # a valid ``float``/``int``/``str``) -- caught by the outer try/except in
+                # ``build_draft_recap_facts`` and re-raised as ``SchemaValidationError``,
+                # just as it did before these casts -- cast() is a no-op at runtime, it
+                # only tells mypy the same thing the surrounding merge already assumes.
+                draft_score=cast(float, tg.draft_score if tg else None),
+                premium_picks=cast(int, tg.premium_picks if tg else None),
+                format_fit=cast(int, tg.format_fit if tg else None),
+                grade_input=cast(float, tg.grade_input if tg else None),
                 grade=GradeRef(
-                    letter=tg.letter if tg else None,
+                    letter=cast(str, tg.letter if tg else None),
                     driving_picks=list(tg.driving_picks) if tg else [],
                 ),
             )
@@ -326,7 +334,7 @@ def _canon_counts(counts: dict[str, int]) -> dict[str, int]:
     return {pos: merged[pos] for pos in ordered}
 
 
-def _extreme(ref: object) -> PickExtreme | None:
+def _extreme(ref: PickRef | None) -> PickExtreme | None:
     if ref is None:
         return None
     return PickExtreme(pick_no=ref.pick_no, player=ref.player, delta=ref.delta)
@@ -519,7 +527,9 @@ def _superlatives(league: LeagueModel, pick_rows: list[PickRow]) -> Superlatives
     if not ranked:
         return Superlatives()
 
-    by_value = sorted(ranked, key=lambda r: (-r.delta, r.pick_no))
+    # ``ranked`` is already filtered to rows with a non-None delta (above); cast()
+    # only tells mypy what the filter already guarantees, no runtime check added.
+    by_value = sorted(ranked, key=lambda r: (-cast(int, r.delta), r.pick_no))
     by_reach = sorted(ranked, key=lambda r: (r.delta, r.pick_no))
 
     return Superlatives(
@@ -548,7 +558,8 @@ def _boldest_swing(
         rows = by_roster.get(team.roster_id, [])
         if len(rows) < 2:
             continue
-        deltas = [r.delta for r in rows]
+        # ``rows`` are drawn from ``ranked``, already filtered to non-None delta.
+        deltas = [cast(int, r.delta) for r in rows]
         spread = max(deltas) - min(deltas)
         if spread > best_spread:
             best_spread, best_roster = spread, team.roster_id

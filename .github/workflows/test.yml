@@ -21,18 +21,45 @@ env:
 
 concurrency:
   group: test-${{ github.ref }}
-  cancel-in-progress: true
+  # A post-merge `main` run must never be cancelled by the next push; only
+  # superseded `pull_request` runs on the same ref are cancelled.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.12", "3.14"]
+        python-version: ["3.12", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d  # v10.0.1
         with:
+          version: "0.12.6"
+          enable-cache: true
           python-version: ${{ matrix.python-version }}
+      - run: uv lock --check
       - run: uv run --frozen --python ${{ matrix.python-version }} pytest -q
+
+  # Placed after `test:` -- test_matrix_python_version_is_actually_consumed_by_both_steps
+  # locates the *first* occurrence of each of its three anchors, so `test:`'s own
+  # steps must stay the first `astral-sh/setup-uv@` / matrix-interpolation / `- run:`
+  # in the file.
+  lint:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d  # v10.0.1
+        with:
+          version: "0.12.6"
+          enable-cache: true
+          python-version: "3.12"
+      - run: uv run --frozen ruff check .
+      - run: uv run --frozen mypy commishdesk

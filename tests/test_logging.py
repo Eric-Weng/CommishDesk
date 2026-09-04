@@ -13,8 +13,6 @@ from pathlib import Path
 import pytest
 
 from commishdesk.logconfig import (
-    HumanFormatter,
-    JsonFormatter,
     configure_logging,
     log_context,
 )

@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import ast
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -48,7 +48,6 @@ from commishdesk.stats import (
     DraftGrades,
     PickConsensus,
     PickRef,
-    PositionalRun,
     TeamBoard,
     TeamConsensus,
     TeamGrade,
@@ -425,7 +424,7 @@ def test_builder_performs_the_self_validation_round_trip(monkeypatch) -> None:
 
 def test_generated_at_datetime_normalized_to_z_iso() -> None:
     league, board, consensus, grades = _minimal()
-    aware = datetime(2026, 9, 3, 1, 2, 3, tzinfo=timezone.utc)
+    aware = datetime(2026, 9, 3, 1, 2, 3, tzinfo=UTC)
     doc = build_draft_recap_facts(
         league, board, consensus, grades, generated_at=aware
     )

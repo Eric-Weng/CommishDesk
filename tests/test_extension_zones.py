@@ -365,7 +365,8 @@ def test_zone_packages_ship_in_the_wheel_and_import_from_it(tmp_path: Path) -> N
     prog = (
         "import sys;"
         "root=sys.argv[1];"
-        "sys.path=[root]+[p for p in sys.path if p and 'site-packages' not in p.replace(chr(92),'/') and root not in p];"
+        "sys.path=[root]+[p for p in sys.path if p and "
+        "'site-packages' not in p.replace(chr(92),'/') and root not in p];"
         "import commishdesk.adapters, commishdesk.voices, commishdesk.themes,"
         " commishdesk.statmods, commishdesk.stats;"
         "from commishdesk.adapters import Adapter;"

@@ -16,7 +16,7 @@ import logging
 import os
 import re
 import sys
-from typing import Any, Optional
+from typing import Any, Literal
 
 __all__ = [
     "configure_logging",
@@ -33,7 +33,7 @@ _FORMAT_ENV = "COMMISHDESK_LOG_FORMAT"
 # --- context binding --------------------------------------------------------
 
 _log_context: contextvars.ContextVar[dict[str, Any]] = contextvars.ContextVar(
-    "commishdesk_log_context", default={}
+    "commishdesk_log_context", default={}  # noqa: B039 -- pre-existing, deferred
 )
 
 # Keys copied from the context binding onto each record, in display order.
@@ -49,9 +49,9 @@ class log_context:
 
     def __init__(self, **fields: Any) -> None:
         self._fields = {k: v for k, v in fields.items() if v is not None}
-        self._token: Optional[contextvars.Token] = None
+        self._token: contextvars.Token | None = None
 
-    def __enter__(self) -> "log_context":
+    def __enter__(self) -> log_context:
         if self._token is not None:
             raise RuntimeError("log_context instances are not reentrant")
         merged = dict(_log_context.get())
@@ -59,7 +59,7 @@ class log_context:
         self._token = _log_context.set(merged)
         return self
 
-    def __exit__(self, *exc: object) -> bool:
+    def __exit__(self, *exc: object) -> Literal[False]:
         assert self._token is not None
         _log_context.reset(self._token)
         self._token = None
@@ -133,7 +133,7 @@ class ContextFilter(logging.Filter):
 
 
 def _utc_dt(created: float) -> datetime.datetime:
-    return datetime.datetime.fromtimestamp(created, tz=datetime.timezone.utc)
+    return datetime.datetime.fromtimestamp(created, tz=datetime.UTC)
 
 
 class JsonFormatter(logging.Formatter):

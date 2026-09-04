@@ -1,4 +1,5 @@
-"""Stage 5 — one content model, three surfaces: a self-contained web page, a dark-mode-safe email, and a Discord post with a rendered image.
+"""Stage 5 — one content model, three surfaces: a self-contained web page, a
+dark-mode-safe email, and a Discord post with a rendered image.
 
 At MVP this is a bare, unstyled local HTML dump of the template narrator's
 :class:`~commishdesk.narrate.Recap` — a literal ``<h1>``/``<h2>``/``<p>``

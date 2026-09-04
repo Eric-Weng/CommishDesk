@@ -1,4 +1,5 @@
-"""Extension zone: community stat modules (``statmods/``, distinct from the ``stats/`` compute package). Protocol only, one reference impl max."""
+"""Extension zone: community stat modules (``statmods/``, distinct from the
+``stats/`` compute package). Protocol only, one reference impl max."""
 
 from __future__ import annotations
 
