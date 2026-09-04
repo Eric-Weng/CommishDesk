@@ -37,14 +37,20 @@ def test_all_stage_packages_import() -> None:
 
 
 _ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
+_BOX_RE = re.compile(r"[│╭╮╰╯─┃┏┓┗┛━┆┊]")
+_WS_RE = re.compile(r"\s+")
 
 
 def _plain_help() -> str:
-    """``--help`` output with ANSI escapes stripped and a wide terminal forced, so
-    a fragment match does not hinge on rich's colouring or line-wrapping."""
+    """``--help`` output flattened to a single whitespace-normalized line: ANSI
+    escapes and rich's panel box-drawing characters removed, then every run of
+    whitespace collapsed to one space. typer caps its help width at 100 columns
+    regardless of ``COLUMNS``, so a multi-word help fragment can straddle a line
+    wrap; flattening makes a substring match independent of where rich wrapped."""
     result = runner.invoke(app, ["--help"], env={"COLUMNS": "200"})
     assert result.exit_code == 0
-    return _ANSI_RE.sub("", result.output)
+    stripped = _BOX_RE.sub(" ", _ANSI_RE.sub("", result.output))
+    return _WS_RE.sub(" ", stripped)
 
 
 def test_help_lists_every_option() -> None:
