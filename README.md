@@ -1,5 +1,7 @@
 # CommishDesk
 
+[![test](https://github.com/Eric-Weng/CommishDesk/actions/workflows/test.yml/badge.svg)](https://github.com/Eric-Weng/CommishDesk/actions/workflows/test.yml)
+
 **An automated weekly newspaper for a Sleeper fantasy football league.** Deterministic
 statistics computed in code, written up in a warm factual voice, delivered to the group
 chat and to inboxes every week, plus an interactive league page. The job is narrow: give

@@ -66,6 +66,10 @@ git config user.email "you@example.com"
 PRs with unsigned commits will be asked to amend. To sign off a series you already made:
 `git rebase --signoff main`.
 
+`dependabot[bot]` commits are exempt from this requirement — the bot cannot sign off its
+own commits. A future automated DCO check must allowlist that actor rather than fail
+every Dependabot PR.
+
 ## Development setup
 
 ```bash
