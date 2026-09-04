@@ -19,11 +19,12 @@ command will produce voiced prose instead.
 
 > **Status:** early build — this is the target shape, not yet the shipped behavior. The
 > MVP (`v0.5`, a draft recap for a single league, Discord delivery) is under
-> construction — see the milestone notes. The command above is Epic 2's deliverable.
-> Epic 1 is complete: the package installs, the CLI and its `--help` work, structured
-> logging, the `Store` port, the anonymized fixtures, the four extension zones, and CI
-> are all in place. The recap pipeline itself is Epic 2 — today the CLI reports "not yet
-> implemented" and exits cleanly.
+> construction — see the milestone notes. Epic 1 is complete, and Epic 2 now runs the
+> draft recap end to end: `commishdesk --league demo --draft-recap` ingests the committed
+> fixture, computes the board metrics and grades, writes the recap with the
+> zero-credential template narrator, and prints it to stdout plus a bare local HTML file —
+> no keys, no network. The designed render, the voiced LLM narrator, and delivery are the
+> later epics; the weekly recap still reports "not yet implemented".
 
 ---
 
@@ -37,8 +38,8 @@ cd CommishDesk
 # 2. install (uv: https://docs.astral.sh/uv/)
 uv sync
 
-# 3. run the CLI — no network, no keys (reports "not yet implemented" until Epic 2;
-#    from Epic 2 on, `--league demo` runs against a committed fixture)
+# 3. run the CLI — no network, no keys (`--league demo` runs the draft recap
+#    against a committed fixture; writes the recap HTML into --out-dir, default `.`)
 uv run commishdesk --league demo --draft-recap
 
 # 4. run the tests — no network, no keys

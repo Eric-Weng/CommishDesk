@@ -1,6 +1,10 @@
 # Normalize line endings: text files are LF in the repo, checked out native.
 * text=auto eol=lf
 
+# Fixtures are the byte-for-byte determinism oracle (Story 2.7 / I4): the repo-wide
+# `text=auto eol=lf` must never rewrite a fixture byte. Treat them as opaque.
+tests/fixtures/** -text
+
 # Explicitly binary
 *.png binary
 *.jpg binary

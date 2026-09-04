@@ -36,26 +36,73 @@ def test_all_stage_packages_import() -> None:
         assert module.__doc__, f"commishdesk.{stage} is missing its pipeline-role docstring"
 
 
-def test_help_lists_every_option() -> None:
-    result = runner.invoke(app, ["--help"])
+_ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def _plain_help() -> str:
+    """``--help`` output with ANSI escapes stripped and a wide terminal forced, so
+    a fragment match does not hinge on rich's colouring or line-wrapping."""
+    result = runner.invoke(app, ["--help"], env={"COLUMNS": "200"})
     assert result.exit_code == 0
-    for option in ("--league", "--week", "--draft-recap", "--verbose"):
-        assert option in result.output
+    return _ANSI_RE.sub("", result.output)
+
+
+def test_help_lists_every_option() -> None:
+    output = _plain_help()
+    for option in (
+        "--league",
+        "--week",
+        "--draft-recap",
+        "--out-dir",
+        "--verbose",
+        "--version",
+    ):
+        assert option in output
     # "with descriptions": a distinctive fragment of each option's help text is shown.
     for fragment in (
         "Sleeper league id",
         "NFL week",
         "draft recap instead",
+        "recap HTML file",
         "output verbosity",
+        "commishdesk version",
     ):
-        assert fragment in result.output
+        assert fragment in output
 
 
-def test_draft_recap_reports_not_yet_implemented() -> None:
-    result = runner.invoke(app, ["--league", "123", "--draft-recap"])
-    assert result.exit_code == 0
-    assert "not yet implemented" in result.output
+def test_draft_recap_renders_a_recap(tmp_path: Path) -> None:
+    """The draft recap now runs end to end for ``--league demo``: all six section
+    headings on stdout, and a bare HTML file written to ``--out-dir``."""
+    result = runner.invoke(
+        app, ["--league", "demo", "--draft-recap", "--out-dir", str(tmp_path)]
+    )
+    assert result.exit_code == 0, result.output
     assert "Traceback" not in result.output
+    for heading in (
+        "The Lead",
+        "The Board — Round 1",
+        "Superlatives",
+        "Team Grades",
+        "Positional Read",
+        "The Picks We'll Be Arguing About in December",
+    ):
+        assert heading in result.output
+    html_file = tmp_path / "commishdesk-demo-draft-recap.html"
+    assert html_file.is_file()
+    assert html_file.read_text(encoding="utf-8").startswith("<!doctype html>")
+
+
+def test_draft_recap_with_week_is_a_usage_error() -> None:
+    result = runner.invoke(app, ["--league", "demo", "--draft-recap", "--week", "5"])
+    assert result.exit_code == 2
+    assert "Traceback" not in result.output
+    assert "--week" in result.output
+
+
+def test_version_flag_prints_version_and_exits() -> None:
+    result = runner.invoke(app, ["--version"])
+    assert result.exit_code == 0
+    assert result.output.strip() == f"commishdesk {commishdesk.__version__}"
 
 
 def test_weekly_recap_reports_not_yet_implemented() -> None:
@@ -131,16 +178,18 @@ def _stderr_json(result: subprocess.CompletedProcess) -> list[dict]:
     ]
 
 
-def test_verbose_run_emits_context_stamped_debug_json_to_stderr() -> None:
-    result = _run_cli("--league", "123", "--draft-recap", "--verbose")
-    assert result.returncode == 0
-    assert "not yet implemented" in result.stdout
+def test_verbose_run_emits_context_stamped_debug_json_to_stderr(tmp_path: Path) -> None:
+    result = _run_cli(
+        "--league", "demo", "--draft-recap", "--out-dir", str(tmp_path), "--verbose"
+    )
+    assert result.returncode == 0, result.stderr
+    assert "The Lead" in result.stdout
     assert "Traceback" not in result.stdout
     records = _stderr_json(result)
     assert records, result.stderr
     debug = [r for r in records if r["level"] == "DEBUG"]
     assert debug, records
-    assert all(r["league_id"] == "123" for r in debug)
+    assert all(r["league_id"] == "demo" for r in debug)
     assert all("week" not in r for r in debug)  # --draft-recap has no week
 
 
@@ -152,10 +201,10 @@ def test_verbose_weekly_run_stamps_week_on_stderr_json() -> None:
     assert any(r.get("league_id") == "123" and r.get("week") == 5 for r in records)
 
 
-def test_plain_run_emits_no_log_lines_to_stderr() -> None:
-    result = _run_cli("--league", "123", "--draft-recap")
-    assert result.returncode == 0
-    assert "not yet implemented" in result.stdout
+def test_plain_run_emits_no_log_lines_to_stderr(tmp_path: Path) -> None:
+    result = _run_cli("--league", "demo", "--draft-recap", "--out-dir", str(tmp_path))
+    assert result.returncode == 0, result.stderr
+    assert "The Lead" in result.stdout
     assert result.stderr.strip() == ""
 
 
