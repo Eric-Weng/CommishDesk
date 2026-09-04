@@ -1942,7 +1942,8 @@
       "WR": 5,
       "QB": 2
     },
-    "first11_running_backs": [
+    "first_window": 11,
+    "first_window_running_backs": [
       "Ashton Jeanty",
       "Omarion Hampton",
       "TreVeyon Henderson",
@@ -2191,7 +2192,7 @@
         "WR": 5,
         "QB": 2
       },
-      "first11_rb_count": 5,
+      "first_window_rb_count": 5,
       "pick_count_leader": {
         "manager": "Pull-Guard Pumas",
         "pick_count": 12

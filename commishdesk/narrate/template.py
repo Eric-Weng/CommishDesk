@@ -132,7 +132,7 @@ def _delta_phrase(delta: int) -> str:
     slots = "slot" if magnitude == 1 else "slots"
     if delta > 0:
         return f"{_spell(magnitude)} {slots} of value"
-    return f"{_spell(magnitude)} {slots} early"
+    return f"{_spell(magnitude)} {slots} of reach"
 
 
 # --------------------------------------------------------------------------- #

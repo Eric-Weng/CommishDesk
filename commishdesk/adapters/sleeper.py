@@ -149,11 +149,18 @@ class SleeperAdapter:
         """Follow ``previous_league_id`` one hop at a time via a real
         ``GET /league/{id}`` per hop, capped at ``_MAX_HISTORY_HOPS``. Returns
         the visited ids in traversal order (``[]`` if there is no history).
-        Raises ``AdapterError`` if a hop response isn't an object."""
+        Raises ``AdapterError`` if a hop response isn't an object.
+
+        Stops on a repeated id (retro finding C3) as well as on the hop cap: a
+        self-referencing or cyclic ``previous_league_id`` chain would otherwise
+        re-request the same league up to ``_MAX_HISTORY_HOPS`` times and return
+        that many duplicate ids instead of terminating immediately."""
         visited: list[str] = []
         current = previous_league_id
         while current and len(visited) < _MAX_HISTORY_HOPS:
             current_id = str(current)
+            if current_id in visited:
+                break
             hop_league = self._get(f"/league/{current_id}")
             if not isinstance(hop_league, Mapping):
                 raise AdapterError(

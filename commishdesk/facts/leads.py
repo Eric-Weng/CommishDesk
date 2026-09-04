@@ -98,7 +98,7 @@ def build_lead_candidates(
     """
     approach = _manager_approach(board, draft_summary)
     angles = [
-        _positional_run(league, draft_summary),
+        _positional_run(draft_summary),
         approach,
         _positional_hoard(
             board, exclude=approach.roster_ids[0] if approach else None
@@ -119,16 +119,18 @@ def _candidate(kind: str, roster_ids: list[str], hook: str) -> LeadCandidate:
     return LeadCandidate(rank=0, kind=kind, roster_ids=roster_ids, hook=hook)
 
 
-def _positional_run(
-    league: LeagueModel, draft_summary: DraftSummary
-) -> LeadCandidate | None:
+def _positional_run(draft_summary: DraftSummary) -> LeadCandidate | None:
     """A running-back cluster in the opening picks — the cross-cutting board
     read. The hook also names the round-1 quarterbacks, the counter-signal a
-    human editor reaches for (the board and the format pulling opposite ways)."""
-    rb_count = len(draft_summary.first11_running_backs)
+    human editor reaches for (the board and the format pulling opposite ways).
+
+    The window size is read off ``draft_summary.first_window`` (``team_count -
+    1``, retro finding A2) rather than re-derived from ``league.format`` here —
+    one source of truth instead of two."""
+    rb_count = len(draft_summary.first_window_running_backs)
     if rb_count < _MIN_R1_RB_RUN:
         return None
-    window = league.format.team_count - 1
+    window = draft_summary.first_window
     qb_count = len(draft_summary.round1_qbs)
     hook = (
         f"{_spell(rb_count).capitalize()} of the first {_spell(window)} picks "

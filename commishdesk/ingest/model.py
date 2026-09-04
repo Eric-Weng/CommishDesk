@@ -19,7 +19,7 @@ here.
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 __all__ = [
     "Division",
@@ -50,7 +50,11 @@ class LeagueFormat(_Frozen):
     """The league's shape, as data. No downstream stage branches on a hardcoded
     league shape -- it reads these fields instead."""
 
-    team_count: int
+    #: Must be positive (retro finding C1): a zero team count reaches a bare
+    #: division in ``stats/consensus.py``'s round/column arithmetic, which
+    #: would otherwise surface as an uncaught ``ZeroDivisionError`` instead of
+    #: the typed ``IngestError`` this bound produces at the stage-1 boundary.
+    team_count: int = Field(gt=0)
     roster_slots: list[str]
     flex_eligibility: dict[str, list[str]]
     scoring_label: str
