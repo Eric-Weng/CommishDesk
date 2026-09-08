@@ -46,15 +46,11 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    rendered = render()
+    rendered = render().encode("utf-8")
     if args.check:
-        # ``newline=""`` — compare raw bytes, so a CRLF checkout is caught as stale
-        # rather than silently normalized away on read.
-        current = (
-            OUTPUT_PATH.read_text(encoding="utf-8", newline="")
-            if OUTPUT_PATH.is_file()
-            else ""
-        )
+        # byte comparison — a CRLF checkout is caught as stale rather than
+        # normalized away on read (and ``read_bytes`` needs no 3.13+ ``newline`` kwarg).
+        current = OUTPUT_PATH.read_bytes() if OUTPUT_PATH.is_file() else b""
         if current != rendered:
             print(
                 f"stale: {OUTPUT_PATH} — run `python tools/generate_facts_schema.py`",
@@ -63,8 +59,9 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         return 0
 
-    # ``newline="\n"`` — always LF on disk, whatever platform regenerates it.
-    OUTPUT_PATH.write_text(rendered, encoding="utf-8", newline="\n")
+    # bytes straight from ``render()`` — always LF on disk, whatever platform
+    # regenerates it (no universal-newline translation).
+    OUTPUT_PATH.write_bytes(rendered)
     print(f"wrote {OUTPUT_PATH}")
     return 0
 
