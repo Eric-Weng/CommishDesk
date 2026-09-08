@@ -41,6 +41,19 @@ model, or while round-tripping ``model_validate(doc.model_dump())``, surfaces as
 ``SchemaValidationError`` chained from that ``ValidationError``. No partial
 document is returned; no consumer downstream of ``facts/`` re-validates (AD-2).
 The wrapping happens in ``commishdesk/facts/build.py``, not here.
+
+``NarratorError`` is the sixth. Two failure modes raise it. (1) The opt-in LLM
+narrator (``commishdesk/narrate/llm.py``) raises it when a provider adapter is
+unusable — the SDK is not installed, its API key is absent, the completion is
+truncated or empty — chained from the underlying exception where one exists, and
+again as the internal both-attempts-failed signal ``narrate_with_llm`` raises
+after the primary and the fallback have each been tried once. These are caught by
+the selection function (``narrate_draft_recap``), which degrades to the
+zero-credential template narrator's text — a provider/generation fault never
+reaches the caller (AD-8 / I3). (2) A malformed ``COMMISHDESK_LLM_*`` value (an
+unknown provider token, a spec that is not ``<provider>:<model_id>``) raises it
+from ``commishdesk/llmconfig.py::load_llm_config`` at startup, by design —
+misconfiguration fails loud rather than silently narrating with the wrong model.
 """
 
 from __future__ import annotations
@@ -50,6 +63,7 @@ __all__ = [
     "CommishDeskError",
     "ConsensusError",
     "IngestError",
+    "NarratorError",
     "SchemaValidationError",
     "StoreError",
 ]
@@ -69,6 +83,10 @@ class ConsensusError(CommishDeskError):
 
 class IngestError(CommishDeskError):
     """A raw platform bundle could not be turned into a valid ``LeagueModel``."""
+
+
+class NarratorError(CommishDeskError):
+    """An LLM narrator provider adapter is unusable, or both providers failed."""
 
 
 class SchemaValidationError(CommishDeskError):

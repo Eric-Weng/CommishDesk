@@ -24,6 +24,14 @@ dependencies = [
     "typer>=0.12",
 ]
 
+[project.optional-dependencies]
+# Opt-in LLM narrator (Epic 3). Direct provider SDKs only — no aggregator/proxy
+# (AD-15). Absent from a default install; the engine core stays zero-credential.
+llm = [
+    "anthropic>=0.40",
+    "google-genai>=0.3",
+]
+
 [project.urls]
 Repository = "https://github.com/Eric-Weng/CommishDesk"
 Issues = "https://github.com/Eric-Weng/CommishDesk/issues"
