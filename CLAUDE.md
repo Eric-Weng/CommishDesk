@@ -142,9 +142,12 @@ self-hosters inherit them and CI enforces them.
 - **One paid LLM call per league-week (AD-8 / I3).** primary → fallback → template.
 - **A fault skips one league, never the batch (AD-9).** Typed exceptions under
   `CommishDeskError`, caught per league. No bare `except`.
-- **Content safety is enforced in code, not just the prompt (AD-12).** A named-person +
-  banned-category hit holds the entire Issue. Safety lists are version-controlled data
-  files, editable without a code change.
+- **Content safety is enforced in code, not just the prompt (AD-12).** `narrate/safety.py`
+  runs a deterministic, credential-free check over every narrator's output (template, LLM,
+  demo alike); a named-person + banned-category hit holds the entire Issue. Safety lists are
+  version-controlled data in `narrate/safety_lists.toml`, editable without a code change, and
+  a `Voice`'s `banned_topics` prose merges in as extracted keyword patterns (warn tier only —
+  never a hold).
 - **Power ranking (AD-13).** `stats/` emits `model_rank` only; `narrate/` owns
   `published_rank` end to end, bounded to ±`POWER_NUDGE_CAP` (2) with every deviation
   citing a Facts-JSON fact.

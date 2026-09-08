@@ -1,0 +1,152 @@
+# safety_lists.toml — deterministic content-safety pattern lists (AD-12, Story 3.4)
+#
+# Consumed by commishdesk/narrate/safety.py. Every entry is a Python regular
+# expression, compiled case-insensitively (re.IGNORECASE) and matched against a
+# single sentence of a narrator's output. Editing this file changes the checks
+# in force WITHOUT a code change — that is the point (AD-12: "safety lists are
+# version-controlled data files").
+#
+# How to edit:
+#   * Use TOML *literal* strings (single quotes) so backslashes reach the regex
+#     engine untouched — `'\bfoo\b'`, never `"\bfoo\b"` (a TOML basic string
+#     would try to interpret `\b` / `\w` and fail to parse).
+#   * Anchor word matches with `\b...\b` so "bet" does not fire inside "better".
+#   * A pattern that does not compile raises NarratorError the first time a
+#     recap is checked — run `uv run pytest tests/test_narrate_safety.py` after
+#     any edit.
+#   * `[banned_topics]` maps a category name to its pattern list. A hit in the
+#     same sentence as a manager's name holds the whole Issue (`hold_issue`); a
+#     hit with no name in that sentence only warns (`banned_topic`).
+#   * `personal_insults` and `slop` are flat lists. A personal insult beside a
+#     manager name also holds; slop only ever warns.
+#   * A Voice's `banned_topics` prose is merged in on top of this file at
+#     runtime as extracted keyword patterns under a `voice:<voice_id>` category
+#     — it does not need to be copied here. Those voice keywords only ever warn,
+#     never hold.
+#
+# Calibration rule: the hold tier fires next to a manager's name, so a pattern
+# here must target abuse of a *person*, not language that roasts a *pick or an
+# approach*. "reached for a kicker", "wasted the third-rounder", "took the
+# injury-prone back", "a clueless approach from Marcus" must all pass. Ambiguous
+# words (pathetic / clueless / incompetent / a drafted player's injury history)
+# are therefore kept out of the bare lists or required to be person-directed.
+
+personal_insults = [
+  '\bidiot(s|ic)?\b',
+  '\bmoron(s|ic)?\b',
+  '\bstupid(ity)?\b',
+  '\bdumb(ass|est)?\b',
+  '\bbrain-?dead\b',
+  '\bimbecile\b',
+  '\bcan.?t read a (draft )?board\b',
+  '\bwhat an idiot\b',
+  '\bwhat an? (embarrassment|disgrace|joke|clown)\b',
+  '\bhe.?s a (clown|joke|fraud|disgrace)\b',
+  '\bshe.?s a (clown|joke|fraud|disgrace)\b',
+  '\b(he|she|they|you)\b.{0,24}\b(pathetic|clueless|incompetent|incompetence|embarrassment|embarrassing)\b',
+  '\bwaste of a (roster|seat|keyboard)\b',
+]
+
+slop = [
+  '\bmake no mistake\b',
+  '\bbuckle up\b',
+  '\bstrap in\b',
+  '\bhold on to your (hats?|butts?)\b',
+  '\blet that sink in\b',
+  '\bneedless to say\b',
+  '\bat the end of the day\b',
+  '\bwhen all is said and done\b',
+  '\bwhen the dust settle[sd]\b',
+  '\bfor the ages\b',
+  '\bone for the record books\b',
+  '\bit is what it is\b',
+  '\bgame[- ]changer\b',
+  '\bmove the needle\b',
+  '\bin today.?s day and age\b',
+]
+
+[banned_topics]
+# Narrow, phrase-based — no bare "injured" / "injury", which fire on legitimate
+# scouting talk about a pick ("took the injury-prone back").
+injury_medical = [
+  '\binjury history\b',
+  '\bmedical (status|history|records?)\b',
+  '\bconcussion\b',
+  '\btorn (acl|mcl|labrum|achilles)\b',
+  '\bhamstring (injury|strain|issue)\b',
+  '\bsurgery\b',
+  '\bcarted off\b',
+  '\bwheelchair\b',
+  '\bhealth scare\b',
+]
+legal = [
+  '\barrest(ed|s)?\b',
+  '\bindict(ed|ment)\b',
+  '\bcharged with\b',
+  '\blawsuit\b',
+  '\bcourt (date|case|appearance)\b',
+  '\bprobation\b',
+  '\bfelony\b',
+  '\bmisdemeanor\b',
+  '\bdui\b',
+  '\bdomestic (violence|dispute|abuse)\b',
+  '\blegal trouble\b',
+]
+personal_life = [
+  '\bdivorce\w*',
+  '\bgirlfriend\b',
+  '\bboyfriend\b',
+  '\b(his|her|their) (wife|husband|marriage|kids?|children)\b',
+  '\bfamily life\b',
+  '\bpersonal life\b',
+  '\bbaby mama\b',
+  '\bcustody battle\b',
+  '\bmessy breakup\b',
+]
+appearance = [
+  '\boverweight\b',
+  '\bout of shape\b',
+  '\bdad bod\b',
+  '\bbody fat\b',
+  '\bobese\b',
+  '\bbald(ing)?\b',
+  '\b(he|she|they) (is|are|looks?) (fat|ugly|hideous)\b',
+  '\b(his|her|their) (weight|gut|physique)\b',
+]
+politics_religion = [
+  '\bpolitic(s|al|ians?)\b',
+  '\breligio(n|us)\b',
+  '\bnationalit(y|ies)\b',
+  '\bimmigrat(ion|e|ed)\b',
+  '\bpartisan\b',
+  '\b(democrat|republican)s?\b',
+  '\b(left|right)-wing\b',
+  '\bchurch-?going\b',
+]
+gambling = [
+  '\bbetting (line|odds|advice)\b',
+  '\bthe (betting )?line on\b',
+  '\bpoint spread\b',
+  '\bmoneyline\b',
+  '\bover/under\b',
+  '\bparlay\b',
+  '\bsportsbook\b',
+  '\bwager(s|ing|ed)?\b',
+  '\bprop bet\b',
+  '\b(draftkings|fanduel)\b',
+  '\bgambl(e|ing|er)\b',
+  '\bvegas (has|likes?|line)\b',
+]
+substances = [
+  '\bhungover\b',
+  '\b(drafted|drafting|picking|picked) (while )?drunk\b',
+  '\bshowed up (drunk|hammered|wasted)\b',
+  '\bstoned\b',
+  '\bhigh as a kite\b',
+  '\bcocaine\b',
+  '\bmarijuana\b',
+  '\bdrinking problem\b',
+  '\bsubstance (abuse|problem)\b',
+  '\bin rehab\b',
+  '\bpopping pills\b',
+]

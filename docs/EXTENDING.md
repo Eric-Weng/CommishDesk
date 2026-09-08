@@ -40,11 +40,29 @@ in `commishdesk/adapters/sleeper.py`, landed in Epic 2 (Story 2.2).
 
 A `Voice` supplies `system_prompt: str`, `banned_topics: frozenset[str]`, and
 `voice_id: str` — all three members are required. The banned topics merge into the
-deterministic content-safety check (AD-12); a voice that bans no extra topics uses an empty
-frozenset. `voice_id` is a stable identifier for the recap's provenance and (later) voice
-selection — it has no consumer in the engine yet. Voice eval prompts and expected-tone
-samples go in `tests/eval/voices/`; the length target the sample is scored against
-(`REFERENCE_TARGET_CHARS`) and the rubric live in that directory's `README.md`.
+deterministic content-safety check (`commishdesk/narrate/safety.py`, AD-12) as extracted
+keyword patterns: each phrase is lowercased, reduced to its words of four or more letters
+(a small stop-set of generic words dropped), and each surviving word is matched
+`\bword\b`, case-insensitively, under a synthetic `voice:<voice_id>` category on top of
+the base `commishdesk/narrate/safety_lists.toml` lists.
+
+Worked example — a voice with
+`banned_topics = {"a manager's politics, religion, or nationality"}` yields the patterns
+`\bpolitics\b`, `\breligion\b`, `\bnationality\b` (`"a"`, `"or"` are too short;
+`"manager"` is in the stop-set). A recap sentence "he would not stop talking about his
+politics" then produces a finding.
+
+**A voice-keyword hit can only ever warn, never hold.** Even in the same sentence as a
+manager's name it produces a `banned_topic` (warn) finding, not a `hold_issue` — crude
+keyword extraction over free-text prose is too false-positive-prone to silently block a
+whole league. Only the curated `[banned_topics]` and `personal_insults` in
+`safety_lists.toml` carry the hold tier.
+
+A voice that bans no extra topics uses an empty frozenset. `voice_id` is a stable
+identifier for the recap's provenance and (later) voice selection — it has no consumer in
+the engine yet. Voice eval prompts and expected-tone samples go in `tests/eval/voices/`;
+the length target the sample is scored against (`REFERENCE_TARGET_CHARS`) and the rubric
+live in that directory's `README.md`.
 
 The public repo ships **at most one** `Voice` file. That reference implementation —
 `commishdesk/voices/beat_writer.py`, the mild "beat writer" default returned by

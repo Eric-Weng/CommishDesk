@@ -86,7 +86,13 @@ class IngestError(CommishDeskError):
 
 
 class NarratorError(CommishDeskError):
-    """An LLM narrator provider adapter is unusable, or both providers failed."""
+    """An LLM narrator provider adapter is unusable, or both providers failed.
+
+    Also raised by the CLI's deterministic content-safety gate (Story 3.4) when
+    ``narrate/safety.py`` returns a ``hold_issue`` finding: that league is
+    skipped like any other per-league fault (one-line stderr, exit 1, no HTML —
+    AD-9). No behaviour change to the LLM-narrator paths above.
+    """
 
 
 class SchemaValidationError(CommishDeskError):
