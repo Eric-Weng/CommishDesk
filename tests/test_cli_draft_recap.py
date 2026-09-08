@@ -352,18 +352,23 @@ def test_malformed_llm_config_is_exit_1_before_any_league_runs(
     assert not list(tmp_path.iterdir())  # nothing written — the fault is pre-loop
 
 
-def test_demo_run_ignores_a_malformed_llm_config(tmp_path: Path, monkeypatch) -> None:
-    """The zero-credential onboarding/smoke path must not depend on LLM config
-    parsing: ``--league demo`` with a broken ``COMMISHDESK_LLM_*`` still exits 0
-    and prints the template recap."""
+def test_demo_run_tolerates_a_malformed_llm_config_and_warns_once(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """The zero-credential onboarding/smoke path never *depends* on LLM config: a
+    broken ``COMMISHDESK_LLM_*`` on ``--league demo`` is not fatal — the run
+    still exits 0 and prints the template recap. It is parsed exactly once, only
+    to emit a single warning that it is being ignored (Story 3.5)."""
     monkeypatch.setenv("COMMISHDESK_LLM_PRIMARY", "bogus-no-colon")
     result = runner.invoke(
         app, ["--league", "demo", "--draft-recap", "--out-dir", str(tmp_path)]
     )
     assert result.exit_code == 0, result.output
+    assert "Traceback" not in result.output
     for heading in SECTION_HEADINGS:
         assert heading in result.output
     assert (tmp_path / "commishdesk-demo-draft-recap.html").is_file()
+    assert result.output.count("ignoring a malformed COMMISHDESK_LLM_") == 1
 
 
 def test_demo_is_always_template_even_with_a_provider_key(
@@ -433,13 +438,16 @@ def test_llm_flag_without_a_key_falls_back_to_the_template(
     assert "<h2>Superlatives</h2>" in body
 
 
-def _install_fake_anthropic(monkeypatch, reply: str) -> None:
+def _install_fake_anthropic(monkeypatch, reply: str) -> dict:
     """A minimal ``anthropic`` stand-in: ``Anthropic().messages.create(...)``
-    returns one text block with *reply* and a clean stop reason."""
+    returns one text block with *reply* and a clean stop reason. Returns a dict
+    whose ``["create"]`` counts generation calls (one paid call each — I3)."""
     module = types.ModuleType("anthropic")
+    calls = {"create": 0}
 
     class _Messages:
         def create(self, **_kw: object) -> object:
+            calls["create"] += 1
             return types.SimpleNamespace(
                 stop_reason="end_turn",
                 content=[types.SimpleNamespace(type="text", text=reply)],
@@ -451,25 +459,48 @@ def _install_fake_anthropic(monkeypatch, reply: str) -> None:
 
     module.Anthropic = _Anthropic  # type: ignore[attr-defined]
     monkeypatch.setitem(sys.modules, "anthropic", module)
+    return calls
+
+
+def _six_section_llm_text(*extra_blocks: str) -> str:
+    """A structurally-valid LLM completion — all six canonical ``## `` headings,
+    plus any *extra_blocks* appended as their own paragraphs."""
+    lines = ["Trench Warfare Draft Recap", ""]
+    for heading in SECTION_HEADINGS:
+        # lowercase filler so no token trips the closed-world hallucination check
+        lines += [f"## {heading}", "", "nothing here is worth flagging at all.", ""]
+    for block in extra_blocks:
+        lines += [block, ""]
+    return "\n".join(lines)
+
+
+def _stub_narrator(monkeypatch, text: str, narrator: str = "llm-primary") -> dict:
+    """Replace ``narrate_draft_recap`` with a call-counting stub returning a fixed
+    ``NarrationResult``. Returns a dict whose ``["n"]`` is the invocation count."""
+    from commishdesk.narrate import NarrationResult
+
+    calls = {"n": 0}
+
+    def _fake(*_a: object, **_k: object) -> NarrationResult:
+        calls["n"] += 1
+        return NarrationResult(text=text, narrator=narrator)
+
+    monkeypatch.setattr("commishdesk.narrate.llm.narrate_draft_recap", _fake)
+    return calls
 
 
 def test_unsafe_narrator_output_holds_the_league_exit_1_no_html(
     tmp_path: Path, monkeypatch
 ) -> None:
-    """Story 3.4 — a narrator emitting a ``hold_issue`` line (a manager's name
-    beside a banned-category term): that league raises ``NarratorError`` from the
-    content-safety gate, prints one stderr line, exits 1, and writes no HTML."""
-    from commishdesk.narrate import NarrationResult
-
+    """AD-12 L3 — a structurally-valid LLM narration with a manager's name beside
+    a banned-category term: ``ContentSafetyError`` from ``_produce_issue``, one
+    stderr line naming "content-safety hold", exit 1, and no HTML."""
     _fake_real_league(monkeypatch)
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
-    unsafe = NarrationResult(
-        text="Pull-Guard Pumas clearly drafted hungover this year.",
-        narrator="llm-primary",
-    )
-    monkeypatch.setattr(
-        "commishdesk.narrate.llm.narrate_draft_recap", lambda *a, **k: unsafe
+    _stub_narrator(
+        monkeypatch,
+        _six_section_llm_text("Pull-Guard Pumas clearly drafted hungover this year."),
     )
     result = runner.invoke(
         app, ["--league", "70", "--draft-recap", "--out-dir", str(tmp_path)]
@@ -482,50 +513,41 @@ def test_unsafe_narrator_output_holds_the_league_exit_1_no_html(
         assert heading not in result.output
 
 
-def test_safety_warn_tier_proceeds_and_logs_the_league_id(
+def test_slop_on_llm_output_degrades_to_template_with_an_alert(
     tmp_path: Path, monkeypatch
 ) -> None:
-    """Story 3.4 P5/P6 — a warn-tier finding (slop, no manager name) does not
-    hold: exit 0, HTML written, and a content-safety line naming the category and
-    the league id reaches the operator."""
-    from commishdesk.narrate import NarrationResult
-
+    """AD-12 L3 — a slop phrase in a structurally-valid LLM narration is a
+    ``suppress_section`` tier: degrade to the template narrator, emit a
+    ``logger.error`` + a distinct stderr alert naming the league, exit 0 + HTML."""
     _fake_real_league(monkeypatch)
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
-    warn = NarrationResult(
-        text="Trench Warfare Recap\n\nMake no mistake, this draft had chaos.",
-        narrator="llm-primary",
-    )
-    monkeypatch.setattr(
-        "commishdesk.narrate.llm.narrate_draft_recap", lambda *a, **k: warn
+    calls = _stub_narrator(
+        monkeypatch,
+        _six_section_llm_text("Honestly, make no mistake, this draft had chaos."),
     )
     result = runner.invoke(
-        app, ["--league", "71", "--draft-recap", "--out-dir", str(tmp_path), "--verbose"]
+        app, ["--league", "71", "--draft-recap", "--out-dir", str(tmp_path)]
     )
     assert result.exit_code == 0, result.output
-    assert (tmp_path / "commishdesk-71-draft-recap.html").is_file()
-    assert "content-safety" in result.output
+    assert calls["n"] == 1  # a suppress tier must NOT consume the regeneration budget
+    body = (tmp_path / "commishdesk-71-draft-recap.html").read_text(encoding="utf-8")
+    assert "<h2>Superlatives</h2>" in body  # the structured template render shipped
+    assert "content-safety alert for league 71" in result.output
     assert "slop" in result.output
-    assert "league 71" in result.output
 
 
 def test_safety_hold_lists_every_hold_finding(tmp_path: Path, monkeypatch) -> None:
-    """Story 3.4 P6 — two holds in one narration: the exit-1 message names both."""
-    from commishdesk.narrate import NarrationResult
-
+    """AD-12 L3 — two holds in one narration: the exit-1 message names both."""
     _fake_real_league(monkeypatch)
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
-    unsafe = NarrationResult(
-        text=(
+    _stub_narrator(
+        monkeypatch,
+        _six_section_llm_text(
             "Pull-Guard Pumas clearly drafted hungover. "
             "Blitz Alpacas is an idiot, frankly."
         ),
-        narrator="llm-primary",
-    )
-    monkeypatch.setattr(
-        "commishdesk.narrate.llm.narrate_draft_recap", lambda *a, **k: unsafe
     )
     result = runner.invoke(
         app, ["--league", "72", "--draft-recap", "--out-dir", str(tmp_path)]
@@ -555,26 +577,360 @@ def test_llm_narrator_path_emits_text_and_a_bare_html_dump(
     for var in _KEY_VARS:
         monkeypatch.delenv(var, raising=False)
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
-    reply = "Trench Warfare Rookie Recap\n\n## The Lead\n\nJeanty went 1.01, and it only got weirder.\n"
-    _install_fake_anthropic(monkeypatch, reply)
+    reply = _six_section_llm_text("Jeanty went 1.01, and it only got weirder.")
+    fake = _install_fake_anthropic(monkeypatch, reply)
 
     result = runner.invoke(
         app, ["--league", "77", "--draft-recap", "--out-dir", str(tmp_path)]
     )
     assert result.exit_code == 0, result.output
+    assert fake["create"] == 1  # a clean first pass makes exactly one paid call (I3)
     assert re.search(r"generated \d{4}-\d{2}-\d{2}T", result.output)
     assert "Jeanty went 1.01, and it only got weirder." in result.output
-    # the structured template sections must NOT be what got rendered
-    assert "The Board — Round 1" not in result.output
+    # the LLM prose shipped, not the structured template render
+    assert "content-safety alert" not in result.output
 
     html_path = tmp_path / "commishdesk-77-draft-recap.html"
     body = html_path.read_text(encoding="utf-8")
     assert body.startswith("<!doctype html>")
-    assert "<h1>Trench Warfare Rookie Recap</h1>" in body
+    assert "<h1>Trench Warfare Draft Recap</h1>" in body
     assert "<h2>The Lead</h2>" in body
     assert "<p>generated " in body  # provenance stamp on the bare dump too
     assert "<style>" not in body and "<script" not in body
+    # the bare LLM dump, never the template narrator's fixed method sentence
+    assert "Grades weigh each pick against the consensus board" not in body
 
     raw = html_path.read_bytes()
     assert b"\r\n" not in raw  # LF-only on disk
     raw.decode("utf-8")  # valid UTF-8, no surrogate escapes
+
+
+# --------------------------------------------------------------------------- #
+# Story 3.5 — tiered failure response + narrator selection (AD-12 L3 / FR-17)
+# --------------------------------------------------------------------------- #
+
+
+def test_hallucination_on_llm_output_regenerates_once_then_degrades(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """A ``regenerate`` tier (a proper noun absent from the payload) triggers one
+    regeneration; a second unclean result degrades to the template. Even though
+    every attempt trips the same tier, ``narrate_draft_recap`` is invoked
+    **exactly twice** — the CLI-level ceiling above I3's single paid call."""
+    _fake_real_league(monkeypatch)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+    calls = _stub_narrator(
+        monkeypatch,
+        _six_section_llm_text("Bratwurst Lindqvist had the draft of his life."),
+    )
+    result = runner.invoke(
+        app, ["--league", "73", "--draft-recap", "--out-dir", str(tmp_path)]
+    )
+    assert result.exit_code == 0, result.output
+    assert calls["n"] == 2, calls  # never a 3rd narrate_draft_recap call
+    body = (tmp_path / "commishdesk-73-draft-recap.html").read_text(encoding="utf-8")
+    assert "<h2>Superlatives</h2>" in body  # degraded to the template render
+    assert "Bratwurst" not in body
+
+
+def test_hallucination_regeneration_ships_a_clean_retry(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """When the one permitted regeneration comes back clean, that regenerated LLM
+    prose ships (not the template)."""
+    from commishdesk.narrate import NarrationResult
+
+    _fake_real_league(monkeypatch)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+
+    replies = iter(
+        [
+            _six_section_llm_text("Bratwurst Lindqvist had the draft of his life."),
+            _six_section_llm_text("the clean retry reads just fine."),
+        ]
+    )
+    calls = {"n": 0}
+
+    def _fake(*_a: object, **_k: object) -> NarrationResult:
+        calls["n"] += 1
+        return NarrationResult(text=next(replies), narrator="llm-primary")
+
+    monkeypatch.setattr("commishdesk.narrate.llm.narrate_draft_recap", _fake)
+
+    result = runner.invoke(
+        app, ["--league", "74", "--draft-recap", "--out-dir", str(tmp_path)]
+    )
+    assert result.exit_code == 0, result.output
+    assert calls["n"] == 2
+    assert "the clean retry reads just fine." in result.output
+    body = (tmp_path / "commishdesk-74-draft-recap.html").read_text(encoding="utf-8")
+    assert "the clean retry reads just fine." in body
+    # the bare LLM dump, not the structured template render
+    assert "Grades weigh each pick against the consensus board" not in body
+
+
+def test_structurally_broken_llm_output_falls_back_to_the_template(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """An LLM completion missing the six ``## `` headings counts as a failed
+    generation — the league is narrated by the template, exit 0."""
+    _fake_real_league(monkeypatch)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+    _stub_narrator(monkeypatch, "just one bare paragraph, no headings at all.")
+    result = runner.invoke(
+        app, ["--league", "75", "--draft-recap", "--out-dir", str(tmp_path)]
+    )
+    assert result.exit_code == 0, result.output
+    for heading in SECTION_HEADINGS:
+        assert heading in result.output
+    body = (tmp_path / "commishdesk-75-draft-recap.html").read_text(encoding="utf-8")
+    assert "<h2>Superlatives</h2>" in body
+
+
+def test_empty_llm_output_falls_back_to_the_template(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """A whitespace-only completion is a failed generation → template, exit 0."""
+    _fake_real_league(monkeypatch)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+    # narrate_draft_recap itself rejects an empty completion, so simulate a stub
+    # that slipped one through to _produce_issue's own validation.
+    _stub_narrator(monkeypatch, "   \n  \t \n ")
+    result = runner.invoke(
+        app, ["--league", "76", "--draft-recap", "--out-dir", str(tmp_path)]
+    )
+    assert result.exit_code == 0, result.output
+    body = (tmp_path / "commishdesk-76-draft-recap.html").read_text(encoding="utf-8")
+    assert "<h2>Team Grades</h2>" in body
+
+
+def _stub_template_recap(
+    monkeypatch,
+    *,
+    offending_heading: str | None = None,
+    phrase: str = "nothing offending here.",
+    title: str = "Trench Warfare — 2025 Draft Recap",
+    dateline: str = "Trench Warfare · 2025 season · Half PPR",
+) -> None:
+    """Replace ``render_draft_recap`` with one returning a six-section recap. When
+    *offending_heading* is given that section carries *phrase*; otherwise every
+    section is clean and *phrase* lives only where *title* / *dateline* put it."""
+    from commishdesk.narrate import Recap, Section
+
+    def _fake(*_a: object, **_k: object) -> Recap:
+        return Recap(
+            title=title,
+            dateline=dateline,
+            sections=[
+                Section(
+                    heading=h,
+                    blocks=[phrase if h == offending_heading else "nothing to see here."],
+                )
+                for h in SECTION_HEADINGS
+            ],
+        )
+
+    monkeypatch.setattr("commishdesk.narrate.render_draft_recap", _fake)
+
+
+def test_banned_pattern_in_a_template_section_drops_that_section(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """A banned-topic pattern (no manager name) in a non-lead template section:
+    that ``Section`` is removed, an alert is emitted, the rest ships, exit 0."""
+    _fake_real_league(monkeypatch)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
+    for var in _KEY_VARS:
+        monkeypatch.delenv(var, raising=False)
+    _stub_template_recap(
+        monkeypatch,
+        offending_heading="Superlatives",
+        phrase="The betting line on this pick was absurd.",
+    )
+    result = runner.invoke(
+        app, ["--league", "80", "--draft-recap", "--no-llm", "--out-dir", str(tmp_path)]
+    )
+    assert result.exit_code == 0, result.output
+    assert "content-safety alert for league 80" in result.output
+    body = (tmp_path / "commishdesk-80-draft-recap.html").read_text(encoding="utf-8")
+    assert "<h2>The Lead</h2>" in body
+    assert "<h2>Superlatives</h2>" not in body  # the offending section is gone
+
+
+def test_suppression_hitting_the_lead_holds_the_issue(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """When suppression would remove **The Lead**, the whole Issue is held:
+    ``ContentSafetyError``, exit 1, no HTML."""
+    _fake_real_league(monkeypatch)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
+    for var in _KEY_VARS:
+        monkeypatch.delenv(var, raising=False)
+    _stub_template_recap(
+        monkeypatch,
+        offending_heading="The Lead",
+        phrase="The betting line on this whole draft was absurd.",
+    )
+    result = runner.invoke(
+        app, ["--league", "81", "--draft-recap", "--no-llm", "--out-dir", str(tmp_path)]
+    )
+    assert result.exit_code == 1
+    assert "content-safety hold" in result.output
+    assert not (tmp_path / "commishdesk-81-draft-recap.html").is_file()
+
+
+def test_total_llm_outage_still_produces_every_league_an_issue(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """Every provider attempt fails across a multi-league run — each league still
+    writes a template-narrated HTML Issue and the run exits 0 (FR-17)."""
+    from commishdesk import generation
+
+    _fake_real_league(monkeypatch)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
+    for var in _KEY_VARS:
+        monkeypatch.delenv(var, raising=False)
+    monkeypatch.setattr(
+        generation,
+        "build_generation_set",
+        lambda *a, **k: generation.GenerationSet(("201", "202", "203")),
+    )
+    # --llm with no key and no SDK: every adapter call raises, narrate_draft_recap
+    # swallows it to narrator="template".
+    result = runner.invoke(
+        app, ["--league", "200", "--draft-recap", "--llm", "--out-dir", str(tmp_path)]
+    )
+    assert result.exit_code == 0, result.output
+    for league_id in ("201", "202", "203"):
+        assert (tmp_path / f"commishdesk-{league_id}-draft-recap.html").is_file()
+
+
+def test_template_section_manager_plus_banned_term_holds_directly(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """A manager's name beside a banned-category term inside a template section is
+    a ``named_person_proximity`` hold reached directly (not via
+    ``suppress_sections`` returning ``None``): ``ContentSafetyError``, exit 1, no
+    HTML."""
+    _fake_real_league(monkeypatch)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
+    for var in _KEY_VARS:
+        monkeypatch.delenv(var, raising=False)
+    _stub_template_recap(
+        monkeypatch,
+        offending_heading="Team Grades",
+        phrase="Pull-Guard Pumas clearly drafted hungover this year.",
+    )
+    result = runner.invoke(
+        app, ["--league", "83", "--draft-recap", "--no-llm", "--out-dir", str(tmp_path)]
+    )
+    assert result.exit_code == 1
+    assert "content-safety hold" in result.output
+    assert "hungover" in result.output
+    assert not (tmp_path / "commishdesk-83-draft-recap.html").is_file()
+
+
+def test_suppress_finding_mapping_to_no_section_holds_the_issue(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """A ``suppress`` tier whose sentence is only in ``recap.title`` (no section)
+    cannot be localized — fail closed: ``ContentSafetyError``, exit 1, no HTML,
+    and no empty "suppressed section(s)" line."""
+    _fake_real_league(monkeypatch)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
+    for var in _KEY_VARS:
+        monkeypatch.delenv(var, raising=False)
+    _stub_template_recap(
+        monkeypatch,
+        title="The betting line on this whole draft was a joke. Trench Warfare Recap",
+    )
+    result = runner.invoke(
+        app, ["--league", "84", "--draft-recap", "--no-llm", "--out-dir", str(tmp_path)]
+    )
+    assert result.exit_code == 1
+    assert "content-safety hold" in result.output
+    assert "suppressed section(s) " not in result.output
+    assert not (tmp_path / "commishdesk-84-draft-recap.html").is_file()
+
+
+def test_regenerated_llm_attempt_that_holds_exits_1_after_exactly_two_calls(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """First attempt trips ``regenerate``; the regenerated attempt trips a
+    ``hold`` — ``ContentSafetyError``, exit 1, no HTML, exactly two
+    ``narrate_draft_recap`` calls."""
+    from commishdesk.narrate import NarrationResult
+
+    _fake_real_league(monkeypatch)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+
+    replies = iter(
+        [
+            _six_section_llm_text("Bratwurst Lindqvist had a monster draft."),
+            _six_section_llm_text("Pull-Guard Pumas clearly drafted hungover."),
+        ]
+    )
+    calls = {"n": 0}
+
+    def _fake(*_a: object, **_k: object) -> NarrationResult:
+        calls["n"] += 1
+        return NarrationResult(text=next(replies), narrator="llm-primary")
+
+    monkeypatch.setattr("commishdesk.narrate.llm.narrate_draft_recap", _fake)
+
+    result = runner.invoke(
+        app, ["--league", "85", "--draft-recap", "--out-dir", str(tmp_path)]
+    )
+    assert result.exit_code == 1
+    assert calls["n"] == 2
+    assert "content-safety hold" in result.output
+    assert not (tmp_path / "commishdesk-85-draft-recap.html").is_file()
+
+
+def test_content_safety_alert_is_on_stderr_not_stdout(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """The operator alert (`_emit_alerts`) goes to stderr; the recap goes to
+    stdout; the alert string never appears in stdout."""
+    _fake_real_league(monkeypatch)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+    _stub_narrator(
+        monkeypatch,
+        _six_section_llm_text("Honestly, make no mistake, this draft had chaos."),
+    )
+    result = runner.invoke(
+        app, ["--league", "86", "--draft-recap", "--out-dir", str(tmp_path)]
+    )
+    assert result.exit_code == 0, result.output
+    assert "content-safety alert for league 86" in result.stderr
+    assert "## The Lead" in result.stdout  # the template recap went to stdout
+    assert "content-safety alert" not in result.stdout
+
+
+def test_llm_completion_is_sanitized_on_the_ship_path(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """A clean six-section completion carrying an ANSI/SGR escape and a control
+    char ships as LLM prose — but the escape and control bytes are stripped from
+    both stdout and the written HTML (`sanitize_completion`)."""
+    _fake_real_league(monkeypatch)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+    _stub_narrator(
+        monkeypatch,
+        _six_section_llm_text("the \x1b[1mbold bit\x1b[0m and the \x07 bell are cleaned."),
+    )
+    result = runner.invoke(
+        app, ["--league", "87", "--draft-recap", "--out-dir", str(tmp_path)]
+    )
+    assert result.exit_code == 0, result.output
+    body = (tmp_path / "commishdesk-87-draft-recap.html").read_text(encoding="utf-8")
+    for blob in (result.stdout, body):
+        assert "bold bit" in blob and "bell are cleaned." in blob
+        assert "\x1b" not in blob and "\x07" not in blob and "[1m" not in blob

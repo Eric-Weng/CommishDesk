@@ -78,6 +78,26 @@ one model call per league through the default voice — `primary → fallback �
 provider outage silently falls back to the deterministic template recap. `--no-llm` forces
 the template narrator even with a key set; `--league demo` is always the template narrator.
 
+**Tiered failure response.** `commishdesk/narrate/response.py` (AD-12 Layer 3) turns a
+`narrate/safety.py` report into a decision the CLI acts on, graded by the finding's tier:
+
+- **`hold_issue`** (a manager's name in the same sentence as a banned-category term *or* a
+  personal-insult-lexicon hit; also a section suppression that would drop *The Lead* /
+  leave fewer than two sections / not localize to any section) — hold the whole Issue:
+  `ContentSafetyError`, exit 1, no HTML.
+- **`regenerate`** (a hallucination — a proper noun / number absent from the payload, LLM
+  narrator only) — regenerate the LLM narration **once**, then degrade to the template if
+  still unclean. This is the single retry the whole layer permits.
+- **`suppress_section`** (slop or a banned-topic pattern with no manager name) — drop that
+  section from the template recap; on LLM prose, degrade straight to the template with
+  **no** retry.
+
+A `structural_ok` failure (the completion is not recap-shaped) also degrades straight to
+the template with no retry. The template narrator is the degradation floor under all of
+it — any LLM prose that cannot be cleanly repaired is replaced by the template recap, so a
+league always gets a complete Issue. `sanitize_completion` + `structural_ok` run on the
+LLM completion before the safety check.
+
 ### `Renderer` — `commishdesk/themes/`
 
 `render(self, facts: FactsJSON) -> str` turns the Facts JSON into one complete output

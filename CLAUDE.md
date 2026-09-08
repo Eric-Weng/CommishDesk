@@ -80,8 +80,14 @@ is called out per-invariant below.
   an app/Epic-6 concern and is not exercised by this test.
 
 - **I3 — LLM cost per league-week is exactly one call.**
-  Regardless of member count. The Recap is generated once per league and reused for
-  every recipient. The local Layer-4 safety classifier is unpaid and does not count.
+  Read "exactly one call" as *one narration per league-week, reused for every
+  recipient regardless of member count* — never one call per member. The local
+  Layer-4 safety classifier is unpaid and does not count. **One** safety-triggered
+  regeneration is permitted on top (AD-12 Layer 3, Story 3.5): when a QA check on
+  the generated Recap fails on the `regenerate` tier, `cli.py` re-enters
+  `narrate_draft_recap` once — which may itself try primary → fallback — so the
+  worst case is ~4 provider attempts for one league-week, hard-capped, before
+  degrading to the template. Still one Recap per league, reused for everyone.
   Directly engine-testable against a fake `LLMClient`.
 
 - **I4 — Deterministic output requires no credentials and no paid resources.**
@@ -144,10 +150,15 @@ self-hosters inherit them and CI enforces them.
   `CommishDeskError`, caught per league. No bare `except`.
 - **Content safety is enforced in code, not just the prompt (AD-12).** `narrate/safety.py`
   runs a deterministic, credential-free check over every narrator's output (template, LLM,
-  demo alike); a named-person + banned-category hit holds the entire Issue. Safety lists are
-  version-controlled data in `narrate/safety_lists.toml`, editable without a code change, and
-  a `Voice`'s `banned_topics` prose merges in as extracted keyword patterns (warn tier only —
-  never a hold).
+  demo alike); a manager's name in the same sentence as a banned-category term **or** a
+  personal-insult-lexicon hit holds the entire Issue. Safety lists are version-controlled
+  data in `narrate/safety_lists.toml`, editable without a code change, and a `Voice`'s
+  `banned_topics` prose merges in as extracted keyword patterns (warn tier only — never a
+  hold). `narrate/response.py` turns that report into the Layer 3 tiered response —
+  suppress the offending section, regenerate the LLM narration **once** (only on the
+  `regenerate`/hallucination tier), or hold the whole Issue (`ContentSafetyError`) —
+  degrading to the template narrator whenever LLM prose cannot be cleanly repaired; that
+  single safety-triggered regeneration is the one exception to I3.
 - **Power ranking (AD-13).** `stats/` emits `model_rank` only; `narrate/` owns
   `published_rank` end to end, bounded to ±`POWER_NUDGE_CAP` (2) with every deviation
   citing a Facts-JSON fact.
