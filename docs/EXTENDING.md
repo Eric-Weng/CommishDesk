@@ -24,7 +24,7 @@ not tickets — see [`unclaimed-territory.md`](unclaimed-territory.md).
 | Zone package | Protocol | Signature | Eval fixtures |
 |---|---|---|---|
 | `commishdesk/adapters/` | `Adapter` | `fetch(self, league_id: str) -> Mapping[str, Any]` | `tests/eval/adapters/` |
-| `commishdesk/voices/` | `Voice` | `system_prompt: str` and `banned_topics: frozenset[str]` | `tests/eval/voices/` |
+| `commishdesk/voices/` | `Voice` | `system_prompt: str`, `banned_topics: frozenset[str]`, `voice_id: str` | `tests/eval/voices/` |
 | `commishdesk/themes/` | `Renderer` | `render(self, facts: FactsJSON) -> str` | `tests/eval/themes/` |
 | `commishdesk/statmods/` | `StatModule` | `module_id: str` and `compute(self, facts: FactsJSON) -> Mapping[str, object]` | `tests/eval/statmods/` |
 
@@ -38,12 +38,27 @@ in `commishdesk/adapters/sleeper.py`, landed in Epic 2 (Story 2.2).
 
 ### `Voice` — `commishdesk/voices/`
 
-A `Voice` supplies both `system_prompt: str` and `banned_topics: frozenset[str]` — the two
-members are required. The banned topics merge into the deterministic content-safety check
-(AD-12); a voice that bans no extra topics uses an empty frozenset. Voice eval prompts and
-expected-tone samples go in `tests/eval/voices/`. The public repo ships **at most one**
-`Voice` file — the mild "beat writer" default lands in Story 3.3 (a test enforces the
-ceiling); additional voices are a paid feature in the private app repo.
+A `Voice` supplies `system_prompt: str`, `banned_topics: frozenset[str]`, and
+`voice_id: str` — all three members are required. The banned topics merge into the
+deterministic content-safety check (AD-12); a voice that bans no extra topics uses an empty
+frozenset. `voice_id` is a stable identifier for the recap's provenance and (later) voice
+selection — it has no consumer in the engine yet. Voice eval prompts and expected-tone
+samples go in `tests/eval/voices/`; the length target the sample is scored against
+(`REFERENCE_TARGET_CHARS`) and the rubric live in that directory's `README.md`.
+
+The public repo ships **at most one** `Voice` file. That reference implementation —
+`commishdesk/voices/beat_writer.py`, the mild "beat writer" default returned by
+`commishdesk.voices.load_default_voice()` — landed in Story 3.3 (a test enforces the
+ceiling). Additional voices are a paid feature in the private app repo.
+
+**Enabling voiced prose.** The LLM narrator (`commishdesk/narrate/llm.py`) defines an
+`LLMClient` protocol (`generate(self, payload: str, voice: Voice) -> str`) with two direct
+provider adapters (Anthropic, Google — no aggregator, AD-15). It is opt-in: install the
+extra (`pip install 'commishdesk[llm]'`) and export a provider key (`ANTHROPIC_API_KEY` /
+`LLM_API_KEY` / `GEMINI_API_KEY` / `GOOGLE_API_KEY`). `commishdesk --draft-recap` then runs
+one model call per league through the default voice — `primary → fallback → template`, so a
+provider outage silently falls back to the deterministic template recap. `--no-llm` forces
+the template narrator even with a key set; `--league demo` is always the template narrator.
 
 ### `Renderer` — `commishdesk/themes/`
 
@@ -69,8 +84,9 @@ A "reference implementation" in a zone is a non-underscore-prefixed `.py` module
 non-underscore-prefixed subpackage (a subdirectory with its own `__init__.py`) — directly
 under the zone package, other than the zone's own `__init__.py`.
 `tests/test_extension_zones.py` counts them per zone and asserts the count never exceeds
-one. Today `adapters/` holds its one reference implementation (`SleeperAdapter`, Epic 2);
-`voices/`, `themes/`, and `statmods/` still hold zero — the rest land across Epics 3–5.
+one. Today `adapters/` holds `SleeperAdapter` (Epic 2) and `voices/` holds the beat-writer
+default (Epic 3); `themes/` and `statmods/` still hold zero — those land across Epics 4–5
+and v1.
 
 **A second or alternative implementation does not go in this repository.** It lives in the
 contributor's own package or fork, or — for a first-party premium implementation — in the

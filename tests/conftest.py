@@ -23,6 +23,7 @@ _KNOWN_SKIP_PREFIXES = (
     "uv not available",  # test_extension_zones.py / test_skeleton.py
     "phase-0 golden is a private planning artifact",  # test_facts.py
     "private raw Sleeper export not present",  # test_fixtures.py
+    "COMMISHDESK_LIVE_LLM is unset",  # test_voices.py -- opt-in live voice eval
 )
 
 #: The ``pytest.skip(...)`` reason string in a skip report's ``longrepr`` is

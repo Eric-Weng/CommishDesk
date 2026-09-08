@@ -15,12 +15,17 @@ import os
 import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import typer
 
 from commishdesk import __version__
 from commishdesk.errors import CommishDeskError
 from commishdesk.logconfig import configure_logging, log_context
+
+if TYPE_CHECKING:
+    from commishdesk.llmconfig import LLMConfig
+    from commishdesk.voices import Voice
 
 app = typer.Typer(
     add_completion=False,
@@ -63,6 +68,15 @@ def run(
     draft_recap: bool = typer.Option(
         False, "--draft-recap", help="Build the draft recap instead of a weekly recap."
     ),
+    llm: bool | None = typer.Option(
+        None,
+        "--llm/--no-llm",
+        help=(
+            "Force the voiced LLM narrator on/off. Default: on when a provider API "
+            "key is set (ANTHROPIC_API_KEY / LLM_API_KEY / GEMINI_API_KEY / "
+            "GOOGLE_API_KEY). '--league demo' is always the template narrator."
+        ),
+    ),
     out_dir: Path = typer.Option(  # noqa: B008 -- canonical typer idiom
         Path("."), "--out-dir", help="Directory to write the recap HTML file into."
     ),
@@ -91,7 +105,9 @@ def run(
                 raise typer.BadParameter("--draft-recap requires --league")
             logger.debug("cli invoked: mode=draft recap")
             try:
-                exit_code = _run_draft_recap(league, out_dir, logger)
+                exit_code = _run_draft_recap(
+                    league, out_dir, logger, llm_enabled=_llm_enabled(llm)
+                )
             except (CommishDeskError, OSError) as exc:
                 typer.echo(_one_line(exc), err=True)
                 raise typer.Exit(code=1) from exc
@@ -112,13 +128,28 @@ def _one_line(exc: Exception) -> str:
     return str(exc) or exc.__class__.__name__
 
 
-def _run_draft_recap(league: str, out_dir: Path, logger: logging.Logger) -> int:
+#: Any one of these, set and non-blank, turns the LLM narrator on by default.
+_LLM_KEY_VARS = ("ANTHROPIC_API_KEY", "LLM_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY")
+
+
+def _llm_enabled(cli_flag: bool | None) -> bool:
+    """Resolve the narrator selection: an explicit ``--llm`` / ``--no-llm`` wins;
+    otherwise the LLM narrator is on when a provider API key is present."""
+    if cli_flag is not None:
+        return cli_flag
+    return any((os.environ.get(name) or "").strip() for name in _LLM_KEY_VARS)
+
+
+def _run_draft_recap(
+    league: str, out_dir: Path, logger: logging.Logger, *, llm_enabled: bool
+) -> int:
     """Derive the run list (the one Generation Set constructor) and build a recap
     for each activated league. Returns the process exit code: ``0`` when every
     league in the set produced a recap, ``1`` when one or more faulted (each
     fault is isolated and printed as a one-line message — AD-9). Raises
     :class:`~commishdesk.errors.CommishDeskError` before any league runs when the
-    league is not activated for a run."""
+    league is not activated for a run or a ``COMMISHDESK_LLM_*`` value is
+    malformed."""
     from commishdesk.demo import (
         DEMO_CONSENSUS_AS_OF,
         DEMO_CONSENSUS_SOURCE_NAME,
@@ -132,6 +163,19 @@ def _run_draft_recap(league: str, out_dir: Path, logger: logging.Logger) -> int:
     if not run_list:
         raise CommishDeskError(f"league {league!r} is not activated for a run")
 
+    # The zero-credential demo path must not depend on LLM config parsing at all:
+    # only load (and validate) the voice + model config when the run list holds a
+    # real league. A malformed COMMISHDESK_LLM_* value then raises NarratorError
+    # here — before any league runs — as an exit-1 one-liner, never mid-batch.
+    voice: Voice | None = None
+    llm_config: LLMConfig | None = None
+    if any(resolved != DEMO_LEAGUE_ID for resolved in run_list):
+        from commishdesk.llmconfig import load_llm_config
+        from commishdesk.voices import load_default_voice
+
+        voice = load_default_voice()
+        llm_config = load_llm_config()
+
     exit_code = 0
     for resolved in run_list:
         try:
@@ -142,6 +186,9 @@ def _run_draft_recap(league: str, out_dir: Path, logger: logging.Logger) -> int:
                 demo_id=DEMO_LEAGUE_ID,
                 demo_source_name=DEMO_CONSENSUS_SOURCE_NAME,
                 demo_as_of=DEMO_CONSENSUS_AS_OF,
+                voice=voice,
+                llm_config=llm_config,
+                llm_enabled=llm_enabled,
             )
         except (CommishDeskError, OSError) as exc:
             logger.debug("league %s faulted: %s", resolved, _one_line(exc))
@@ -158,6 +205,9 @@ def _recap_one_league(
     demo_id: str,
     demo_source_name: str,
     demo_as_of: str,
+    voice: Voice | None,
+    llm_config: LLMConfig | None,
+    llm_enabled: bool,
 ) -> None:
     """Chain the five pipeline stages for one league and emit the recap to stdout
     plus a local HTML file."""
@@ -167,7 +217,11 @@ def _recap_one_league(
     from commishdesk.facts.storylines import DRAFT_RECAP_WEEK, advance_storylines
     from commishdesk.ingest import build_league_model
     from commishdesk.narrate import recap_to_text, render_draft_recap
-    from commishdesk.render import write_draft_recap
+    from commishdesk.render import (
+        narrated_text_to_html,
+        write_draft_recap,
+        write_html_file,
+    )
     from commishdesk.stats import (
         compute_board_metrics,
         compute_consensus_metrics,
@@ -190,6 +244,11 @@ def _recap_one_league(
         slots = demo_consensus_slots()
         consensus_source_name: str | None = demo_source_name
         consensus_as_of: str | None = demo_as_of
+        # I4: the onboarding sample is stats + templated prose only — no model call,
+        # no SDK import, byte-deterministic — regardless of any provider key.
+        if llm_enabled:
+            logger.info("--league demo always uses the template narrator")
+        llm_enabled = False
     else:
         from commishdesk.adapters.sleeper import SleeperAdapter
         from commishdesk.consensus import build_consensus_rank
@@ -243,15 +302,41 @@ def _recap_one_league(
         ]
         store.write_storylines(resolved, next_storylines)
 
-    logger.debug("narrating (template) and rendering local HTML")
-    recap = render_draft_recap(doc.narration)
-    recap = recap.model_copy(
-        update={"dateline": f"{recap.dateline} · generated {doc.generated_at}"}
-    )
-    typer.echo(recap_to_text(recap))
-
+    logger.debug("narrating and rendering local HTML")
     dest = Path(out_dir) / f"commishdesk-{resolved}-draft-recap.html"
-    written = write_draft_recap(recap, dest)
+
+    narrator = "template"
+    narrated_text = ""
+    if llm_enabled:
+        from commishdesk.narrate import narrate_draft_recap
+
+        # When llm_enabled is True the run list held a real league, so the voice
+        # and model config were loaded and validated before the loop.
+        assert voice is not None and llm_config is not None
+        # A provider/generation fault is swallowed inside narrate_draft_recap to
+        # narrator="template" — it never reaches here. The HTML path keys off the
+        # result's narrator, not llm_enabled: only a real llm-primary /
+        # llm-fallback result takes the bare text→HTML dump (Design Notes).
+        result = narrate_draft_recap(
+            doc.narration, voice, llm_config, llm_enabled=True
+        )
+        narrator, narrated_text = result.narrator, result.text
+
+    if narrator == "template":
+        recap = render_draft_recap(doc.narration)
+        recap = recap.model_copy(
+            update={"dateline": f"{recap.dateline} · generated {doc.generated_at}"}
+        )
+        typer.echo(recap_to_text(recap))
+        written = write_draft_recap(recap, dest)
+    else:
+        logger.debug("llm narrator produced prose (%s)", narrator)
+        typer.echo(f"generated {doc.generated_at}\n\n{narrated_text}")
+        written = write_html_file(
+            narrated_text_to_html(narrated_text, generated_at=str(doc.generated_at)),
+            dest,
+        )
+
     typer.echo(str(written))
 
 
