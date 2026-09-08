@@ -177,6 +177,9 @@ def test_real_league_branch_threads_the_mocked_consensus_source(
     from commishdesk import consensus, demo
     from commishdesk.consensus import ConsensusRank
 
+    # the real-league branch now reads/writes the storyline store; keep it in tmp
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+
     bundle = demo.load_demo_bundle()
 
     class _FakeAdapter:
@@ -209,6 +212,65 @@ def test_real_league_branch_threads_the_mocked_consensus_source(
     assert seen["consensus_source_name"] == "fantasycalc"
     assert seen["consensus_as_of"] == "2099-07"
     assert (tmp_path / "commishdesk-999-draft-recap.html").is_file()
+
+
+def _fake_real_league(monkeypatch) -> None:
+    """Wire the real-league branch to run fully offline off the demo bundle."""
+    from commishdesk import consensus, demo
+    from commishdesk.consensus import ConsensusRank
+
+    bundle = demo.load_demo_bundle()
+
+    class _FakeAdapter:
+        def __init__(self, *a: object, **k: object) -> None: ...
+
+        def fetch(self, league_id: str) -> dict:
+            return bundle
+
+        def close(self) -> None: ...
+
+    fake_rank = ConsensusRank(
+        source="fantasycalc", as_of="2099-07", slots=demo.demo_consensus_slots()
+    )
+    monkeypatch.setattr("commishdesk.adapters.sleeper.SleeperAdapter", _FakeAdapter)
+    monkeypatch.setattr(consensus, "build_consensus_rank", lambda *a, **k: fake_rank)
+
+
+def test_storylines_round_trip_across_two_real_league_runs(tmp_path: Path, monkeypatch) -> None:
+    """Two non-demo runs for one league: the second reads the storylines the
+    first persisted, and continuity fields (``first_week``) carry over — proving
+    the read -> advance -> write wiring is not a no-op."""
+    import json as _json
+
+    _fake_real_league(monkeypatch)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
+    store_file = tmp_path / "commishdesk" / "storylines" / "42.json"
+
+    r1 = runner.invoke(app, ["--league", "42", "--draft-recap", "--out-dir", str(tmp_path)])
+    assert r1.exit_code == 0, r1.output
+    assert store_file.is_file(), "first run must persist the league's storylines"
+    persisted = _json.loads(store_file.read_text(encoding="utf-8"))
+    assert persisted and all(s["league_id"] == "42" for s in persisted)
+
+    # tamper the continuity span (first_week <= last_week must hold); a working
+    # read path must carry it through untouched
+    for entry in persisted:
+        entry["first_week"] = 3
+        entry["last_week"] = 9
+    store_file.write_text(_json.dumps(persisted), encoding="utf-8")
+
+    r2 = runner.invoke(app, ["--league", "42", "--draft-recap", "--out-dir", str(tmp_path)])
+    assert r2.exit_code == 0, r2.output
+    after = _json.loads(store_file.read_text(encoding="utf-8"))
+    assert {s["id"] for s in after} == {s["id"] for s in persisted}
+    assert all(s["first_week"] == 3 for s in after), "second run reset first_week — wiring is a no-op"
+
+
+def test_demo_run_touches_no_storyline_store(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
+    result = _run("--league", "demo", "--draft-recap", "--out-dir", str(tmp_path))
+    assert result.returncode == 0, result.stderr
+    assert not (tmp_path / "commishdesk" / "storylines").exists()
 
 
 def test_real_league_id_with_no_network_is_exit_1_no_traceback() -> None:

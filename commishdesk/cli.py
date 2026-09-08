@@ -163,6 +163,8 @@ def _recap_one_league(
     plus a local HTML file."""
     from commishdesk.demo import demo_consensus_slots, load_demo_bundle
     from commishdesk.facts import build_draft_recap_facts
+    from commishdesk.facts.schema import Storyline
+    from commishdesk.facts.storylines import DRAFT_RECAP_WEEK, advance_storylines
     from commishdesk.ingest import build_league_model
     from commishdesk.narrate import recap_to_text, render_draft_recap
     from commishdesk.render import write_draft_recap
@@ -171,8 +173,16 @@ def _recap_one_league(
         compute_consensus_metrics,
         compute_draft_grades,
     )
+    from commishdesk.store import FileStore
 
     generated_at = datetime.now(tz=UTC)
+
+    # Storyline persistence bridge — mirrors the consensus bridge below: the Store
+    # I/O lives here in the CLI, never in ``facts/`` (import fence). The demo path
+    # stays side-effect-free and offline, so it never touches the store and
+    # ``previous_storylines`` stays empty for it.
+    store: FileStore | None = None
+    previous_storylines: list[Storyline] = []
 
     if resolved == demo_id:
         logger.debug("loading committed demo fixture")
@@ -183,7 +193,6 @@ def _recap_one_league(
     else:
         from commishdesk.adapters.sleeper import SleeperAdapter
         from commishdesk.consensus import build_consensus_rank
-        from commishdesk.store import FileStore
 
         logger.debug("fetching Sleeper board")
         adapter = SleeperAdapter()
@@ -193,10 +202,12 @@ def _recap_one_league(
             adapter.close()
         model = build_league_model(bundle)
         logger.debug("fetching consensus rank")
-        rank = build_consensus_rank(model, FileStore(_cache_dir()))
+        store = FileStore(_cache_dir())
+        rank = build_consensus_rank(model, store)
         slots = rank.slots
         consensus_source_name = rank.source
         consensus_as_of = rank.as_of
+        previous_storylines = store.read_storylines(resolved)
 
     logger.debug("computing board / consensus / grades")
     board = compute_board_metrics(model)
@@ -213,7 +224,24 @@ def _recap_one_league(
         draft_id=model.draft.id,
         consensus_source_name=consensus_source_name,
         consensus_as_of=consensus_as_of,
+        previous_storylines=previous_storylines,
     )
+
+    if store is not None:
+        logger.debug("persisting storylines")
+        next_storylines = [
+            storyline.model_copy(update={"league_id": resolved})
+            for storyline in advance_storylines(
+                previous_storylines,
+                week=DRAFT_RECAP_WEEK,
+                board=board,
+                consensus=consensus,
+                grades=grades,
+                draft_summary=doc.draft_summary,
+                superlatives=doc.superlatives,
+            )
+        ]
+        store.write_storylines(resolved, next_storylines)
 
     logger.debug("narrating (template) and rendering local HTML")
     recap = render_draft_recap(doc.narration)

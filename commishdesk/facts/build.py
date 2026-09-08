@@ -34,6 +34,7 @@ stages), stdlib, and pydantic — nothing from ``adapters`` / ``consensus`` /
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 from typing import cast
 
@@ -45,6 +46,7 @@ from commishdesk.stats import BoardMetrics, ConsensusMetrics, DraftGrades, PickR
 
 from .leads import build_lead_candidates
 from .schema import (
+    NARRATION_TOKEN_CAP,
     BoardPick,
     BoldestSwing,
     ConsensusSource,
@@ -70,11 +72,14 @@ from .schema import (
     RBRunSummary,
     RoundConcentration,
     Source,
+    Storyline,
+    StorylineCandidate,
     SuperlativePick,
     Superlatives,
     TeamRow,
     TERunSummary,
 )
+from .storylines import DRAFT_RECAP_WEEK, advance_storylines, project_storyline_candidates
 
 __all__ = ["build_draft_recap_facts"]
 
@@ -105,6 +110,7 @@ def build_draft_recap_facts(
     consensus_source_name: str | None = None,
     consensus_as_of: str | None = None,
     provisional: bool = True,
+    previous_storylines: Sequence[Storyline] = (),
 ) -> DraftRecapFacts:
     """Merge the four stage results into a validated :class:`DraftRecapFacts`.
 
@@ -125,6 +131,16 @@ def build_draft_recap_facts(
         lead_candidates = build_lead_candidates(
             league, board, consensus, grades, draft_summary, superlatives
         )
+        storylines = advance_storylines(
+            previous_storylines,
+            week=DRAFT_RECAP_WEEK,
+            board=board,
+            consensus=consensus,
+            grades=grades,
+            draft_summary=draft_summary,
+            superlatives=superlatives,
+        )
+        storyline_candidates = project_storyline_candidates(storylines)
         league_ref = _league_ref(league)
         narration = _narration(
             league,
@@ -134,6 +150,7 @@ def build_draft_recap_facts(
             pick_rows,
             team_rows,
             lead_candidates,
+            storyline_candidates,
         )
         doc = DraftRecapFacts(
             generated_at=generated_at_str,
@@ -164,7 +181,7 @@ def build_draft_recap_facts(
             superlatives=superlatives,
             grade_method=GradeMethodRef(**grades.grade_method.model_dump()),
             lead_candidates=lead_candidates,
-            storyline_candidates=[],
+            storyline_candidates=storyline_candidates,
             narration=narration,
         )
         _validate(doc)
@@ -614,6 +631,7 @@ def _narration(
     pick_rows: list[PickRow],
     team_rows: list[TeamRow],
     lead_candidates: list[LeadCandidate],
+    storyline_candidates: list[StorylineCandidate],
 ) -> Narration:
     ordered = sorted(pick_rows, key=lambda r: r.pick_no)
     round1 = [r for r in ordered if r.round == 1]
@@ -654,7 +672,7 @@ def _narration(
         for row in team_rows
     ]
 
-    return Narration(
+    narration = Narration(
         league=NarrationLeague(
             name=league_ref.name,
             season=league_ref.season,
@@ -666,8 +684,61 @@ def _narration(
         teams=teams,
         positional_runs=draft_summary.positional_runs,
         lead_candidates=lead_candidates,
-        storyline_candidates=[],
+        storyline_candidates=storyline_candidates,
     )
+    return _apply_narration_cap(narration)
+
+
+def _apply_narration_cap(narration: Narration) -> Narration:
+    """Hold ``len(narration.model_dump_json())`` at or under
+    :data:`NARRATION_TOKEN_CAP` via the fixed AD-14 reduction ladder. Each tier
+    is applied only if the prior one left the projection over the cap;
+    ``lead_candidates`` and every team's grade letter are never touched.
+
+    1. drop board / history detail — ``board_round1`` and each team's
+       ``back_to_back`` / ``best_value_pick`` / ``biggest_reach_pick``;
+    2. drop per-team grade rationale (``grade_rationale`` -> ``None``);
+    3. keep only the lead ``storyline_candidates`` entry.
+    """
+    if _within_cap(narration):
+        return narration
+
+    narration = narration.model_copy(
+        update={
+            "board_round1": [],
+            "teams": [
+                team.model_copy(
+                    update={
+                        "back_to_back": [],
+                        "best_value_pick": None,
+                        "biggest_reach_pick": None,
+                    }
+                )
+                for team in narration.teams
+            ],
+        }
+    )
+    if _within_cap(narration):
+        return narration
+
+    narration = narration.model_copy(
+        update={
+            "teams": [
+                team.model_copy(update={"grade_rationale": None})
+                for team in narration.teams
+            ]
+        }
+    )
+    if _within_cap(narration):
+        return narration
+
+    return narration.model_copy(
+        update={"storyline_candidates": list(narration.storyline_candidates[:1])}
+    )
+
+
+def _within_cap(narration: Narration) -> bool:
+    return len(narration.model_dump_json()) <= NARRATION_TOKEN_CAP
 
 
 def _validate(doc: DraftRecapFacts) -> None:

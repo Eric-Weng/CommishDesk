@@ -48,6 +48,7 @@ from typing import Annotated, Any, Literal, TypeVar
 from pydantic import AfterValidator, BaseModel, Field, PlainSerializer, TypeAdapter
 
 from commishdesk.errors import StoreError
+from commishdesk.facts.schema import Storyline
 
 __all__ = ["LedgerEntry", "Storyline", "Claim", "Store", "FileStore"]
 
@@ -109,7 +110,9 @@ def _safe_segment(segment: str) -> str:
 # --- record models -----------------------------------------------------------
 #
 # These are internal engine state, evolvable per story. They are deliberately
-# NOT the Facts contract and carry no ``schema_version`` (AD-2).
+# NOT the Facts contract and carry no ``schema_version`` (AD-2). ``Storyline``
+# now lives in ``commishdesk.facts.schema`` (facts owns its shape, AD-14) and is
+# imported back above; ``store`` only reads and writes the whole set.
 
 
 class LedgerEntry(BaseModel):
@@ -123,18 +126,6 @@ class LedgerEntry(BaseModel):
     sent_at: UtcDateTime
     # Why this delivery was a deliberate re-issue; ``None`` for a first send (AD-10).
     reason: str | None = None
-
-
-class Storyline(BaseModel):
-    """A running thread the facts builder tracks across weeks for a league."""
-
-    id: str
-    league_id: str
-    headline: str
-    status: Literal["active", "resolved"]
-    first_week: int = Field(ge=1, le=18)
-    last_week: int = Field(ge=1, le=18)
-    notes: str = ""
 
 
 class Claim(BaseModel):

@@ -279,8 +279,9 @@ def _rookie_facts() -> DraftRecapFacts:
 def test_happy_path_shape() -> None:
     doc = _build_minimal()
     dump = doc.model_dump()
-    assert dump["schema_version"] == "0.1.0" == SCHEMA_VERSION
+    assert dump["schema_version"] == "0.2.0" == SCHEMA_VERSION
     assert dump["issue_type"] == "draft_recap"
+    assert dump["week"] is None and dump["weekly"] is None
     assert [p["pick_no"] for p in dump["picks"]] == [1, 2]
     assert [t["roster_id"] for t in dump["teams"]] == ["1", "2"]
     assert dump["grade_method"] == GRADE_METHOD.model_dump()
@@ -294,12 +295,16 @@ def test_happy_path_shape() -> None:
             "hook": "Player 1 went 1.01.",
         }
     ]
+    # minimal 2-pick draft: no grade lands at a scale end, there is no boldest
+    # swing (needs >= 2 picks in the swing) and no round concentration — so no
+    # storyline signal fires. storyline_candidates is computed, and computes to [].
     assert dump["storyline_candidates"] == []
     assert list(dump) == [
         "schema_version",
         "generated_at",
         "provisional",
         "issue_type",
+        "week",
         "source",
         "consensus_source",
         "league",
@@ -312,6 +317,7 @@ def test_happy_path_shape() -> None:
         "lead_candidates",
         "storyline_candidates",
         "narration",
+        "weekly",
     ]
 
 
@@ -362,7 +368,7 @@ def test_unknown_key_on_read_is_dropped() -> None:
     payload["narration"]["future_key"] = {"nested": True}
     doc = DraftRecapFacts.model_validate(payload)
     assert not hasattr(doc, "future_key")
-    assert doc.schema_version == "0.1.0"
+    assert doc.schema_version == "0.2.0"
 
 
 def test_schema_violation_raises_typed_chained_error() -> None:
@@ -732,11 +738,14 @@ def test_narration_is_a_trimmed_projection() -> None:
     assert [p.pick_no for p in nar.board_round1] == list(range(1, 13))
     assert len(nar.teams) == len(doc.teams)
     assert nar.positional_runs == doc.draft_summary.positional_runs
-    # Story 2.6: narration mirrors the full lead-candidate list (no trim yet —
-    # the token cap is Story 3.1).
+    # Story 2.6: narration mirrors the full lead-candidate list (the rookie
+    # fixture is well under NARRATION_TOKEN_CAP, so no ladder tier fires).
     assert nar.lead_candidates == doc.lead_candidates
     assert nar.lead_candidates != []
-    assert nar.storyline_candidates == []
+    # Story 3.1: storyline_candidates is computed, not a hardcoded [] — the
+    # rookie board fires at least the grade_extreme contrast.
+    assert nar.storyline_candidates == doc.storyline_candidates
+    assert nar.storyline_candidates != []
 
 
 def test_facts_import_pulls_in_no_network_module() -> None:
@@ -1123,3 +1132,425 @@ def test_lead_kind_priority_covers_every_kind_a_detector_can_emit() -> None:
 
     assert len(set(LEAD_KIND_PRIORITY)) == len(LEAD_KIND_PRIORITY)
     assert {c.kind for c in _rookie_facts().lead_candidates} == set(LEAD_KIND_PRIORITY)
+
+
+# --------------------------------------------------------------------------- #
+# Story 3.1 — schema widening + the issue_type / week / weekly consistency rule
+# --------------------------------------------------------------------------- #
+
+
+def test_schema_version_bumped_additively_to_0_2_0() -> None:
+    assert SCHEMA_VERSION == "0.2.0"
+    doc = _build_minimal()
+    assert doc.schema_version == "0.2.0"
+    assert doc.week is None
+    assert doc.weekly is None
+
+
+def test_draft_recap_rejects_a_week_or_weekly_block() -> None:
+    from commishdesk.facts.schema import DraftRecapFacts, WeeklyFacts
+
+    payload = _build_minimal().model_dump()
+    with pytest.raises(ValidationError):
+        DraftRecapFacts.model_validate({**payload, "week": 4})
+    with pytest.raises(ValidationError):
+        DraftRecapFacts.model_validate(
+            {**payload, "weekly": WeeklyFacts().model_dump()}
+        )
+
+
+def test_weekly_issue_requires_a_week() -> None:
+    from commishdesk.facts.schema import DraftRecapFacts
+
+    payload = _build_minimal().model_dump()
+    with pytest.raises(ValidationError):
+        DraftRecapFacts.model_validate(
+            {**payload, "issue_type": "weekly", "week": None}
+        )
+    # a weekly document with a week and no weekly block validates
+    ok = DraftRecapFacts.model_validate(
+        {**payload, "issue_type": "weekly", "week": 6}
+    )
+    assert ok.issue_type == "weekly" and ok.week == 6
+
+
+def test_generated_json_schema_is_fresh() -> None:
+    """The spec's schema-freshness command: ``docs/facts-schema.json`` matches
+    what ``tools/generate_facts_schema.py`` would write right now."""
+    import sys
+
+    sys.path.insert(0, str(REPO_ROOT / "tools"))
+    try:
+        import generate_facts_schema  # noqa: PLC0415
+    finally:
+        sys.path.pop(0)
+
+    committed = generate_facts_schema.OUTPUT_PATH.read_text(encoding="utf-8")
+    assert committed == generate_facts_schema.render(), (
+        "docs/facts-schema.json is stale — run `python tools/generate_facts_schema.py`"
+    )
+    # the tool's own --check path agrees
+    assert generate_facts_schema.main(["--check"]) == 0
+
+
+def test_0_1_0_shaped_document_still_loads_under_0_2_0() -> None:
+    """The 0.1.0 -> 0.2.0 bump is additive: an existing draft-recap document with
+    no ``week`` / ``weekly`` keys loads, and the consistency validator is happy."""
+    payload = _build_minimal().model_dump()
+    del payload["week"]
+    del payload["weekly"]
+    doc = DraftRecapFacts.model_validate(payload)
+    assert doc.week is None
+    assert doc.weekly is None
+    assert doc.issue_type == "draft_recap"
+
+
+# --------------------------------------------------------------------------- #
+# Story 3.1 — the NARRATION_TOKEN_CAP reduction ladder
+# --------------------------------------------------------------------------- #
+
+
+def _oversized_narration(
+    *, n_teams: int, n_storylines: int, rationale_len: int, hook_len: int
+):
+    from commishdesk.facts.schema import (
+        BoardPick,
+        HeadlineNumbers,
+        LeadCandidate,
+        Narration,
+        NarrationLeague,
+        NarrationTeam,
+        PickExtreme,
+        PositionalRunsSummary,
+        QBRunSummary,
+        RBRunSummary,
+        StorylineCandidate,
+        Superlatives,
+        TERunSummary,
+    )
+
+    teams = [
+        NarrationTeam(
+            manager=f"Manager With A Fairly Long Handle Number {i:03d}",
+            roster_id=str(i),
+            pick_count=16,
+            positional_counts={"QB": 3, "RB": 5, "WR": 6, "TE": 2},
+            grade="B+",
+            grade_driving_picks=[i, i + 1, i + 2, i + 3],
+            grade_rationale="reason " * (rationale_len // 7),
+            best_value_pick=PickExtreme(pick_no=i, player=f"Player {i}", delta=9),
+            biggest_reach_pick=PickExtreme(pick_no=i + 1, player=f"Player {i + 1}", delta=-9),
+            back_to_back=[(i, i + 1), (i + 4, i + 5)],
+        )
+        for i in range(1, n_teams + 1)
+    ]
+    board_round1 = [
+        BoardPick(
+            pick_no=i,
+            board_label=f"1.{i:02d}",
+            manager=f"Manager With A Fairly Long Handle Number {i:03d}",
+            player=f"A Drafted Player With A Long Name {i}",
+            position="WR",
+            consensus_label=f"1.{i:02d}",
+            delta=i,
+        )
+        for i in range(1, n_teams + 1)
+    ]
+    storylines = [
+        StorylineCandidate(
+            id=f"grade_extreme:{i}",
+            kind="grade_extreme",
+            roster_ids=[str(i)],
+            hook=("storyline detail " * (hook_len // 16)).strip() + f" #{i}.",
+        )
+        for i in range(1, n_storylines + 1)
+    ]
+    runs = PositionalRunsSummary(
+        QB=QBRunSummary(total=0, by_end_round3=0),
+        RB=RBRunSummary(total=0, in_round1=0),
+        TE=TERunSummary(total=0),
+    )
+    return Narration(
+        league=NarrationLeague(name="Oversized", season="2025", scoring_label="PPR"),
+        headline_numbers=HeadlineNumbers(
+            picks_total=999, rounds=16, r1_positional={"WR": n_teams}, first_window_rb_count=4
+        ),
+        board_round1=board_round1,
+        superlatives=Superlatives(),
+        teams=teams,
+        positional_runs=runs,
+        lead_candidates=[
+            LeadCandidate(rank=1, kind="biggest_score", roster_ids=["1"], hook="The 1.01 went first."),
+        ],
+        storyline_candidates=storylines,
+    )
+
+
+def test_narration_cap_holds_and_never_drops_lead_or_grades() -> None:
+    from commishdesk.facts.build import _apply_narration_cap
+    from commishdesk.facts.schema import NARRATION_TOKEN_CAP
+
+    big = _oversized_narration(
+        n_teams=60, n_storylines=6, rationale_len=300, hook_len=80
+    )
+    assert len(big.model_dump_json()) > NARRATION_TOKEN_CAP  # the input is over
+
+    capped = _apply_narration_cap(big)
+    assert len(capped.model_dump_json()) <= NARRATION_TOKEN_CAP
+    # the lead story and every team's grade letter survive at every tier
+    assert capped.lead_candidates == big.lead_candidates
+    assert [t.grade for t in capped.teams] == [t.grade for t in big.teams]
+    assert len(capped.teams) == len(big.teams)
+    # tier 1 fired: board / per-team history detail is gone
+    assert capped.board_round1 == []
+    assert all(t.back_to_back == [] and t.best_value_pick is None for t in capped.teams)
+
+
+def test_narration_cap_ladder_fires_tiers_two_and_three() -> None:
+    """A case engineered to still exceed the cap after dropping board/history
+    detail: tier 2 (grade_rationale -> None on every team) and tier 3
+    (storyline_candidates trimmed to the lead entry) both fire."""
+    from commishdesk.facts.build import _apply_narration_cap
+
+    big = _oversized_narration(
+        n_teams=40, n_storylines=120, rationale_len=500, hook_len=300
+    )
+    capped = _apply_narration_cap(big)
+
+    from commishdesk.facts.schema import NARRATION_TOKEN_CAP
+
+    assert len(capped.model_dump_json()) <= NARRATION_TOKEN_CAP  # the ladder held
+    assert capped.board_round1 == []  # tier 1
+    assert all(t.grade_rationale is None for t in capped.teams)  # tier 2
+    assert [t.grade for t in capped.teams] == [t.grade for t in big.teams]
+    assert capped.storyline_candidates == big.storyline_candidates[:1]  # tier 3
+    assert capped.lead_candidates == big.lead_candidates
+
+
+def test_builder_output_stays_under_the_narration_cap() -> None:
+    from commishdesk.facts.schema import NARRATION_TOKEN_CAP
+
+    assert len(_rookie_facts().narration.model_dump_json()) <= NARRATION_TOKEN_CAP
+
+
+def test_builder_actually_applies_the_reduction_ladder(monkeypatch) -> None:
+    """``_narration`` must call ``_apply_narration_cap`` — not just define it.
+    Drop the cap just under the rookie fixture's own narration size and confirm
+    the document that comes out of ``build_draft_recap_facts`` is trimmed (tier 1
+    fired) — reverting the ``_narration`` call would leave ``board_round1`` full
+    and this assertion would fail."""
+    from commishdesk.facts import build as build_mod
+
+    full = len(_rookie_facts().narration.model_dump_json())
+    monkeypatch.setattr(build_mod, "NARRATION_TOKEN_CAP", full - 1)
+
+    nar = _rookie_facts().narration
+    assert len(nar.model_dump_json()) < full  # something was trimmed by the builder
+    assert nar.board_round1 == []  # tier 1 fired inside the builder
+    assert nar.lead_candidates  # never dropped
+    assert all(t.grade for t in nar.teams)  # never dropped
+
+
+def test_realistic_deep_league_never_trips_the_ladder() -> None:
+    """A legitimate 12-team, 15-round league (deeper than any real Sleeper draft)
+    stays well under the cap — the ladder is a pathological-input guard, it must
+    not fire for a normal league."""
+    from commishdesk.facts.schema import NARRATION_TOKEN_CAP
+
+    picks = [
+        _pick(n, str((n - 1) % 12 + 1), "RB" if n % 3 else "WR") for n in range(1, 181)
+    ]
+    doc = _facts_from_picks(picks, rounds=15)
+    assert len(doc.narration.model_dump_json()) <= NARRATION_TOKEN_CAP
+    assert doc.narration.board_round1 != []  # nothing was trimmed
+
+
+# --------------------------------------------------------------------------- #
+# Story 3.1 — the storyline lifecycle
+# --------------------------------------------------------------------------- #
+
+
+def _period_stage_results(fixture_name: str):
+    from commishdesk.facts.build import _draft_summary, _merge_picks, _superlatives
+
+    league = build_league_model(_bundle(fixture_name))
+    slots = _synthetic_slots()
+    board = compute_board_metrics(league)
+    consensus = compute_consensus_metrics(league, slots)
+    grades = compute_draft_grades(league, consensus)
+    pick_rows = _merge_picks(league, consensus)
+    return {
+        "board": board,
+        "consensus": consensus,
+        "grades": grades,
+        "draft_summary": _draft_summary(league, board, pick_rows),
+        "superlatives": _superlatives(league, pick_rows),
+    }
+
+
+def test_advance_storylines_opens_updates_and_closes_across_two_periods() -> None:
+    from commishdesk.facts.storylines import advance_storylines, project_storyline_candidates
+
+    a = _period_stage_results("week02-nailbiter.json")
+    b = _period_stage_results("week05-trade.json")
+
+    after_a = advance_storylines((), week=2, **a)
+    assert after_a, "period A should open at least one thread"
+    assert all(s.status == "active" and s.first_week == 2 for s in after_a)
+
+    after_b = advance_storylines(after_a, week=5, **b)
+    by_id = {s.id: s for s in after_b}
+    # every thread still open in B kept its first_week and advanced last_week
+    for s in after_b:
+        if s.status == "active" and s.id in {p.id for p in after_a}:
+            assert s.first_week == 2
+            assert s.last_week == 5
+    # a thread whose signal stopped in B is closed, not dropped
+    stopped = [p for p in after_a if p.id not in {s.id for s in after_b if s.status == "active"}]
+    for p in stopped:
+        assert by_id[p.id].status == "resolved"
+
+    # narrators only ever see the active projection
+    cands = project_storyline_candidates(after_b)
+    assert {c.id for c in cands} == {s.id for s in after_b if s.status == "active"}
+    assert all(":" in c.id and c.kind and c.roster_ids for c in cands)
+
+
+def test_advance_storylines_is_idempotent_per_period() -> None:
+    from commishdesk.facts.storylines import advance_storylines
+
+    a = _period_stage_results("week02-nailbiter.json")
+    b = _period_stage_results("week05-trade.json")
+
+    after_a = advance_storylines((), week=2, **a)
+    once = advance_storylines(after_a, week=5, **b)
+    twice = advance_storylines(once, week=5, **b)
+    thrice = advance_storylines(twice, week=5, **b)
+
+    dump = lambda seq: [s.model_dump() for s in seq]  # noqa: E731
+    assert dump(twice) == dump(once)
+    assert dump(thrice) == dump(once)
+    # and the raw JSON the store would persist is byte-identical
+    assert (
+        json.dumps(dump(once), sort_keys=True) == json.dumps(dump(twice), sort_keys=True)
+    )
+
+
+def test_advance_storylines_draft_recap_default_is_no_prior_history() -> None:
+    """The build entry point: no previous_storylines -> storyline_candidates is
+    still computed, not hardcoded ([] is a valid result for a bare draft)."""
+    doc = _build_minimal()
+    assert doc.storyline_candidates == []  # nothing fires on the 2-team minimal draft
+    rookie = _rookie_facts()
+    assert rookie.storyline_candidates  # the real board does fire threads
+    assert all(":" in c.id for c in rookie.storyline_candidates)
+
+
+def test_round_stack_skips_an_unresolvable_manager_name() -> None:
+    """Two teams sharing a manager name -> the round_stack signal is skipped
+    rather than guessing a roster."""
+    from commishdesk.facts.schema import (
+        DraftSummary,
+        PositionalRunsSummary,
+        QBRunSummary,
+        RBRunSummary,
+        RoundConcentration,
+        TERunSummary,
+    )
+    from commishdesk.facts.storylines import advance_storylines
+    from commishdesk.stats import BoardMetrics, ConsensusMetrics, DraftGrades, TeamBoard
+
+    def _tb(roster_id: str) -> TeamBoard:
+        return TeamBoard(
+            roster_id=roster_id, manager="Twin", pick_count=6, pick_nos=[],
+            positional_counts={}, back_to_back=[], zero_positions=[],
+        )
+
+    board = BoardMetrics(teams=[_tb("1"), _tb("2")], positional_runs=[])
+    runs = PositionalRunsSummary(
+        QB=QBRunSummary(total=0, by_end_round3=0),
+        RB=RBRunSummary(total=0, in_round1=0),
+        TE=TERunSummary(total=0),
+    )
+    ds = DraftSummary(
+        first_window=11,
+        round1_qbs=[],
+        positional_runs=runs,
+        round_concentration=[RoundConcentration(manager="Twin", round=3, count=4)],
+    )
+    grades = DraftGrades(teams=[], grade_method=GRADE_METHOD)
+    out = advance_storylines(
+        (), week=1, board=board, consensus=ConsensusMetrics(picks=[], teams=[]),
+        grades=grades, draft_summary=ds, superlatives=Superlatives(),
+    )
+    assert [s.id for s in out if s.id.startswith("round_stack")] == []
+
+
+def test_grade_extreme_only_fires_at_a_genuine_scale_end() -> None:
+    """A middling worst grade (the lowest in the room but a ``B+``) must not be
+    called "the draft's worst grade"; an unrecognized letter is skipped, not
+    flagged as worst."""
+    from commishdesk.facts.storylines import _grade_extreme
+
+    managers = {"1": "Alpha", "2": "Bravo", "3": "Charlie"}
+
+    class _G:
+        def __init__(self, roster_id: str, letter: str) -> None:
+            self.roster_id = roster_id
+            self.letter = letter
+
+    # best A+, worst B+ -> only the top thread fires
+    only_top = _grade_extreme(
+        _NS(teams=[_G("1", "A+"), _G("2", "B+"), _G("3", "B")]), managers
+    )
+    assert [s.id for s in only_top] == ["grade_extreme:1"]
+    assert "top grade" in only_top[0].hook
+
+    # best A, worst F -> both ends fire
+    both = _grade_extreme(_NS(teams=[_G("1", "A"), _G("2", "F")]), managers)
+    assert {s.id for s in both} == {"grade_extreme:1", "grade_extreme:2"}
+
+    # a garbage letter is the numeric "worst" but is not a real bottom grade
+    garbage = _grade_extreme(
+        _NS(teams=[_G("1", "A+"), _G("2", "ZZ"), _G("3", "C")]), managers
+    )
+    assert [s.id for s in garbage] == ["grade_extreme:1"]
+
+
+class _NS:
+    """Tiny stand-in for a ``DraftGrades``-shaped object (only ``.teams`` read)."""
+
+    def __init__(self, *, teams: list) -> None:
+        self.teams = teams
+
+
+def test_builder_storyline_candidates_match_a_standalone_advance() -> None:
+    """The CLI advances storylines a second time off the same stage results to
+    get the full list to persist; that must project to exactly the
+    ``storyline_candidates`` the builder already embedded (they agree only by
+    determinism)."""
+    from commishdesk.facts.storylines import (
+        DRAFT_RECAP_WEEK,
+        advance_storylines,
+        project_storyline_candidates,
+    )
+
+    league = build_league_model(_bundle("rookie-draft.json"))
+    board = compute_board_metrics(league)
+    consensus = compute_consensus_metrics(league, _synthetic_slots())
+    grades = compute_draft_grades(league, consensus)
+    doc = build_draft_recap_facts(
+        league, board, consensus, grades, generated_at=GENERATED_AT
+    )
+    standalone = advance_storylines(
+        (),
+        week=DRAFT_RECAP_WEEK,
+        board=board,
+        consensus=consensus,
+        grades=grades,
+        draft_summary=doc.draft_summary,
+        superlatives=doc.superlatives,
+    )
+    assert [c.model_dump() for c in project_storyline_candidates(standalone)] == [
+        c.model_dump() for c in doc.storyline_candidates
+    ]

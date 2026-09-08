@@ -1,9 +1,10 @@
 {
   "_derived_from": "Story 2.5 oracle. build_draft_recap_facts() over the anonymized rookie-draft.json board + compute_board_metrics / compute_consensus_metrics / compute_draft_grades, via the Story 2.4b _synthetic_slots() transform (sorted fantasycalc-values.json); generated_at pinned to '2026-09-03T00:00:00Z', fetched_at '2026-09-03', consensus_source name/as_of 'synthetic rookie board' / '2025-05'. Values are synthetic - the test asserts the merge + board projections + self-validation round-trip, not the private phase-0 golden (real-player hand build). Regenerate with model_dump(mode='json') of tests/test_facts.py::_rookie_facts() when the builder or an upstream stage changes.",
-  "schema_version": "0.1.0",
+  "schema_version": "0.2.0",
   "generated_at": "2026-09-03T00:00:00Z",
   "provisional": true,
   "issue_type": "draft_recap",
+  "week": null,
   "source": {
     "platform": "sleeper",
     "league_id": "id_rq867j4w7p",
@@ -2176,7 +2177,32 @@
       "hook": "Ashton Jeanty went 1.01."
     }
   ],
-  "storyline_candidates": [],
+  "storyline_candidates": [
+    {
+      "id": "grade_extreme:2",
+      "kind": "grade_extreme",
+      "roster_ids": [
+        "2"
+      ],
+      "hook": "Pull-Guard Pumas came away with the draft's top grade, an A+."
+    },
+    {
+      "id": "boldest_swing:7",
+      "kind": "boldest_swing",
+      "roster_ids": [
+        "7"
+      ],
+      "hook": "Blitz Alpacas made the draft's boldest swing: Jalen Royals at 2.11 against Lan Larison at 6.11."
+    },
+    {
+      "id": "round_stack:2",
+      "kind": "round_stack",
+      "roster_ids": [
+        "2"
+      ],
+      "hook": "Pull-Guard Pumas funneled seven of their picks into round four."
+    }
+  ],
   "narration": {
     "issue_type": "draft_recap",
     "league": {
@@ -2842,6 +2868,32 @@
         "hook": "Ashton Jeanty went 1.01."
       }
     ],
-    "storyline_candidates": []
-  }
+    "storyline_candidates": [
+      {
+        "id": "grade_extreme:2",
+        "kind": "grade_extreme",
+        "roster_ids": [
+          "2"
+        ],
+        "hook": "Pull-Guard Pumas came away with the draft's top grade, an A+."
+      },
+      {
+        "id": "boldest_swing:7",
+        "kind": "boldest_swing",
+        "roster_ids": [
+          "7"
+        ],
+        "hook": "Blitz Alpacas made the draft's boldest swing: Jalen Royals at 2.11 against Lan Larison at 6.11."
+      },
+      {
+        "id": "round_stack:2",
+        "kind": "round_stack",
+        "roster_ids": [
+          "2"
+        ],
+        "hook": "Pull-Guard Pumas funneled seven of their picks into round four."
+      }
+    ]
+  },
+  "weekly": null
 }

@@ -1,0 +1,1600 @@
+{
+  "$defs": {
+    "BoardPick": {
+      "description": "A trimmed pick reference used in board projections (round-1 board, the\nround-1 QB list, a boldest-swing pair).",
+      "properties": {
+        "board_label": {
+          "title": "Board Label",
+          "type": "string"
+        },
+        "consensus_label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Consensus Label"
+        },
+        "delta": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Delta"
+        },
+        "manager": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Manager"
+        },
+        "pick_no": {
+          "title": "Pick No",
+          "type": "integer"
+        },
+        "player": {
+          "title": "Player",
+          "type": "string"
+        },
+        "position": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Position"
+        }
+      },
+      "required": [
+        "pick_no",
+        "board_label",
+        "player"
+      ],
+      "title": "BoardPick",
+      "type": "object"
+    },
+    "BoldestSwing": {
+      "description": "The roster whose draft carried the widest spread between its best value and\nits biggest reach.",
+      "properties": {
+        "manager": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Manager"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        },
+        "picks": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/BoardPick"
+          },
+          "title": "Picks",
+          "type": "array"
+        },
+        "roster_id": {
+          "title": "Roster Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "roster_id"
+      ],
+      "title": "BoldestSwing",
+      "type": "object"
+    },
+    "ConsensusSource": {
+      "description": "The pre-draft consensus board the picks were measured against.\n``name`` / ``as_of`` come from the caller's ``ConsensusRank``; ``engine_note``\nis a constant of the engine.",
+      "properties": {
+        "as_of": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "As Of"
+        },
+        "engine_note": {
+          "title": "Engine Note",
+          "type": "string"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "provisional": {
+          "default": true,
+          "title": "Provisional",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "engine_note"
+      ],
+      "title": "ConsensusSource",
+      "type": "object"
+    },
+    "DraftRef": {
+      "description": "Draft-level metadata. ``started_at`` / ``completed_at`` are UTC ISO 8601\n(the epoch-ms -> ISO conversion Story 2.2 deferred to the builder); ``None``\nwhen the platform reports no timestamp.",
+      "properties": {
+        "completed_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Completed At"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "rounds": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rounds"
+        },
+        "started_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Started At"
+        },
+        "type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Type"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "DraftRef",
+      "type": "object"
+    },
+    "DraftSummary": {
+      "description": "Board-only aggregates — no consensus source required for any field except\nthe ``consensus_label`` / ``delta`` echoed inside ``round1_qbs``.",
+      "properties": {
+        "first_window": {
+          "title": "First Window",
+          "type": "integer"
+        },
+        "first_window_running_backs": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "First Window Running Backs",
+          "type": "array"
+        },
+        "pick_count_rank": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ManagerPickCount"
+          },
+          "title": "Pick Count Rank",
+          "type": "array"
+        },
+        "positional_runs": {
+          "$ref": "#/$defs/PositionalRunsSummary"
+        },
+        "round1_positional": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "default": {},
+          "title": "Round1 Positional",
+          "type": "object"
+        },
+        "round1_qbs": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/BoardPick"
+          },
+          "title": "Round1 Qbs",
+          "type": "array"
+        },
+        "round_concentration": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/RoundConcentration"
+          },
+          "title": "Round Concentration",
+          "type": "array"
+        }
+      },
+      "required": [
+        "first_window",
+        "positional_runs"
+      ],
+      "title": "DraftSummary",
+      "type": "object"
+    },
+    "FormatRef": {
+      "description": "The league's shape, as data (facts-schema design rule 2).",
+      "properties": {
+        "flex_eligibility": {
+          "additionalProperties": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "title": "Flex Eligibility",
+          "type": "object"
+        },
+        "is_superflex_or_2qb": {
+          "title": "Is Superflex Or 2Qb",
+          "type": "boolean"
+        },
+        "roster_slots": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Roster Slots",
+          "type": "array"
+        },
+        "scoring_label": {
+          "title": "Scoring Label",
+          "type": "string"
+        },
+        "te_premium": {
+          "title": "Te Premium",
+          "type": "boolean"
+        },
+        "team_count": {
+          "title": "Team Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "team_count",
+        "roster_slots",
+        "flex_eligibility",
+        "scoring_label",
+        "is_superflex_or_2qb",
+        "te_premium"
+      ],
+      "title": "FormatRef",
+      "type": "object"
+    },
+    "GradeMethodRef": {
+      "description": "The grade-method descriptor, copied verbatim from ``DraftGrades``.",
+      "properties": {
+        "floor_rule": {
+          "title": "Floor Rule",
+          "type": "string"
+        },
+        "inputs": {
+          "title": "Inputs",
+          "type": "string"
+        },
+        "letter_scale": {
+          "title": "Letter Scale",
+          "type": "string"
+        },
+        "note": {
+          "title": "Note",
+          "type": "string"
+        }
+      },
+      "required": [
+        "letter_scale",
+        "inputs",
+        "floor_rule",
+        "note"
+      ],
+      "title": "GradeMethodRef",
+      "type": "object"
+    },
+    "GradeRef": {
+      "description": "A roster's editorial grade. ``letter`` + ``driving_picks`` come from\n``DraftGrades``; ``rationale`` prose is the narrator's (Story 2.5 emits\n``None``).",
+      "properties": {
+        "driving_picks": {
+          "default": [],
+          "items": {
+            "type": "integer"
+          },
+          "title": "Driving Picks",
+          "type": "array"
+        },
+        "letter": {
+          "title": "Letter",
+          "type": "string"
+        },
+        "rationale": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rationale"
+        }
+      },
+      "required": [
+        "letter"
+      ],
+      "title": "GradeRef",
+      "type": "object"
+    },
+    "HeadlineNumbers": {
+      "description": "The counts a lead paragraph leans on.",
+      "properties": {
+        "first_window_rb_count": {
+          "title": "First Window Rb Count",
+          "type": "integer"
+        },
+        "pick_count_leader": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ManagerPickCount"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "pick_count_low": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ManagerPickCount"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "picks_total": {
+          "title": "Picks Total",
+          "type": "integer"
+        },
+        "r1_positional": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "default": {},
+          "title": "R1 Positional",
+          "type": "object"
+        },
+        "rounds": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rounds"
+        }
+      },
+      "required": [
+        "picks_total",
+        "first_window_rb_count"
+      ],
+      "title": "HeadlineNumbers",
+      "type": "object"
+    },
+    "LeadCandidate": {
+      "description": "A ranked lead angle the narrator can open on (delta D7). Populated by\nStory 2.6's ``facts/leads.py``: ``kind`` is one of its\n``LEAD_KIND_PRIORITY`` values, ``roster_ids`` attributes the angle (empty for\na room-wide observation), and ``hook`` is a deterministic factual sentence\n(never ``None`` on a lead angle — the ``str | None`` type is shared with\n:class:`StorylineCandidate`, whose ``hook`` is still the narrator's).",
+      "properties": {
+        "hook": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Hook"
+        },
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "rank": {
+          "title": "Rank",
+          "type": "integer"
+        },
+        "roster_ids": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Roster Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "rank",
+        "kind"
+      ],
+      "title": "LeadCandidate",
+      "type": "object"
+    },
+    "LeagueRef": {
+      "description": "League identity. ``season`` is a string here (Facts JSON convention),\nthough ``LeagueModel.season`` is an ``int`` year.",
+      "properties": {
+        "format": {
+          "$ref": "#/$defs/FormatRef"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "platform": {
+          "title": "Platform",
+          "type": "string"
+        },
+        "season": {
+          "title": "Season",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "season",
+        "platform",
+        "format"
+      ],
+      "title": "LeagueRef",
+      "type": "object"
+    },
+    "ManagerCount": {
+      "description": "A ``{manager, count}`` reference (the roster with the most picks of one\nposition).",
+      "properties": {
+        "count": {
+          "title": "Count",
+          "type": "integer"
+        },
+        "manager": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Manager"
+        }
+      },
+      "required": [
+        "count"
+      ],
+      "title": "ManagerCount",
+      "type": "object"
+    },
+    "ManagerPickCount": {
+      "description": "A ``{manager, pick_count}`` row in the pick-count ranking.",
+      "properties": {
+        "manager": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Manager"
+        },
+        "pick_count": {
+          "title": "Pick Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "pick_count"
+      ],
+      "title": "ManagerPickCount",
+      "type": "object"
+    },
+    "Narration": {
+      "description": "The sanitized projection the narrators see — never a raw roster or a board\ncolumn it does not need. The builder holds this under\n:data:`NARRATION_TOKEN_CAP` via a fixed reduction ladder (Story 3.1).",
+      "properties": {
+        "board_round1": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/BoardPick"
+          },
+          "title": "Board Round1",
+          "type": "array"
+        },
+        "headline_numbers": {
+          "$ref": "#/$defs/HeadlineNumbers"
+        },
+        "issue_type": {
+          "default": "draft_recap",
+          "enum": [
+            "draft_recap",
+            "weekly"
+          ],
+          "title": "Issue Type",
+          "type": "string"
+        },
+        "lead_candidates": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/LeadCandidate"
+          },
+          "title": "Lead Candidates",
+          "type": "array"
+        },
+        "league": {
+          "$ref": "#/$defs/NarrationLeague"
+        },
+        "positional_runs": {
+          "$ref": "#/$defs/PositionalRunsSummary"
+        },
+        "storyline_candidates": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/StorylineCandidate"
+          },
+          "title": "Storyline Candidates",
+          "type": "array"
+        },
+        "superlatives": {
+          "$ref": "#/$defs/Superlatives"
+        },
+        "teams": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/NarrationTeam"
+          },
+          "title": "Teams",
+          "type": "array"
+        }
+      },
+      "required": [
+        "league",
+        "headline_numbers",
+        "superlatives",
+        "positional_runs"
+      ],
+      "title": "Narration",
+      "type": "object"
+    },
+    "NarrationLeague": {
+      "description": "Just enough league identity for a headline.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "scoring_label": {
+          "title": "Scoring Label",
+          "type": "string"
+        },
+        "season": {
+          "title": "Season",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "season",
+        "scoring_label"
+      ],
+      "title": "NarrationLeague",
+      "type": "object"
+    },
+    "NarrationTeam": {
+      "description": "One roster, trimmed to what the grades section needs.",
+      "properties": {
+        "back_to_back": {
+          "default": [],
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "type": "array"
+          },
+          "title": "Back To Back",
+          "type": "array"
+        },
+        "best_value_pick": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PickExtreme"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "biggest_reach_pick": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PickExtreme"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "grade": {
+          "title": "Grade",
+          "type": "string"
+        },
+        "grade_driving_picks": {
+          "default": [],
+          "items": {
+            "type": "integer"
+          },
+          "title": "Grade Driving Picks",
+          "type": "array"
+        },
+        "grade_rationale": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Grade Rationale"
+        },
+        "manager": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Manager"
+        },
+        "pick_count": {
+          "title": "Pick Count",
+          "type": "integer"
+        },
+        "positional_counts": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "default": {},
+          "title": "Positional Counts",
+          "type": "object"
+        },
+        "roster_id": {
+          "title": "Roster Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "roster_id",
+        "pick_count",
+        "grade"
+      ],
+      "title": "NarrationTeam",
+      "type": "object"
+    },
+    "PickExtreme": {
+      "description": "A per-team raw extreme — the largest / smallest ``delta`` on the roster.",
+      "properties": {
+        "delta": {
+          "title": "Delta",
+          "type": "integer"
+        },
+        "pick_no": {
+          "title": "Pick No",
+          "type": "integer"
+        },
+        "player": {
+          "title": "Player",
+          "type": "string"
+        }
+      },
+      "required": [
+        "pick_no",
+        "player",
+        "delta"
+      ],
+      "title": "PickExtreme",
+      "type": "object"
+    },
+    "PickRow": {
+      "description": "One selection, joined to its consensus measurement. ``consensus_slot`` /\n``consensus_label`` / ``delta`` are ``None`` together exactly when\n``flags == [\"no_consensus\"]``.",
+      "properties": {
+        "board_label": {
+          "title": "Board Label",
+          "type": "string"
+        },
+        "consensus_label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Consensus Label"
+        },
+        "consensus_slot": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Consensus Slot"
+        },
+        "delta": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Delta"
+        },
+        "flags": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Flags",
+          "type": "array"
+        },
+        "manager": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Manager"
+        },
+        "pick_no": {
+          "title": "Pick No",
+          "type": "integer"
+        },
+        "player": {
+          "$ref": "#/$defs/PlayerRef"
+        },
+        "roster_id": {
+          "title": "Roster Id",
+          "type": "string"
+        },
+        "round": {
+          "title": "Round",
+          "type": "integer"
+        },
+        "slot": {
+          "title": "Slot",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "pick_no",
+        "round",
+        "slot",
+        "board_label",
+        "roster_id",
+        "player"
+      ],
+      "title": "PickRow",
+      "type": "object"
+    },
+    "PlayerRef": {
+      "description": "A drafted player, snapshotted from the pick record (not a live lookup).",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "nfl_team": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Nfl Team"
+        },
+        "position": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Position"
+        },
+        "sleeper_id": {
+          "title": "Sleeper Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "sleeper_id",
+        "name"
+      ],
+      "title": "PlayerRef",
+      "type": "object"
+    },
+    "PositionalRunsSummary": {
+      "description": "The three position runs the draft recap talks about.",
+      "properties": {
+        "QB": {
+          "$ref": "#/$defs/QBRunSummary"
+        },
+        "RB": {
+          "$ref": "#/$defs/RBRunSummary"
+        },
+        "TE": {
+          "$ref": "#/$defs/TERunSummary"
+        }
+      },
+      "required": [
+        "QB",
+        "RB",
+        "TE"
+      ],
+      "title": "PositionalRunsSummary",
+      "type": "object"
+    },
+    "QBRunSummary": {
+      "description": "The quarterback run. ``run_labels`` are the board labels of the QBs taken\nthrough the end of round 3; ``left_waiting`` are the managers who took their\nfirst QB after the run tailed off but before the final round.",
+      "properties": {
+        "by_end_round3": {
+          "title": "By End Round3",
+          "type": "integer"
+        },
+        "first_label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "First Label"
+        },
+        "left_waiting": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Left Waiting",
+          "type": "array"
+        },
+        "run_labels": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Run Labels",
+          "type": "array"
+        },
+        "total": {
+          "title": "Total",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "total",
+        "by_end_round3"
+      ],
+      "title": "QBRunSummary",
+      "type": "object"
+    },
+    "RBRunSummary": {
+      "description": "The running-back run.",
+      "properties": {
+        "first_label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "First Label"
+        },
+        "in_round1": {
+          "title": "In Round1",
+          "type": "integer"
+        },
+        "most_by_one_manager": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ManagerCount"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "total": {
+          "title": "Total",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "total",
+        "in_round1"
+      ],
+      "title": "RBRunSummary",
+      "type": "object"
+    },
+    "RoundConcentration": {
+      "description": "A manager who put an unusual share of their draft into one round.",
+      "properties": {
+        "count": {
+          "title": "Count",
+          "type": "integer"
+        },
+        "manager": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Manager"
+        },
+        "round": {
+          "title": "Round",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "round",
+        "count"
+      ],
+      "title": "RoundConcentration",
+      "type": "object"
+    },
+    "Source": {
+      "description": "Where the raw league data came from. ``draft_id`` / ``fetched_at`` are\nsupplied by the caller (the Story 2.7 CLI), not carried on a stage result.",
+      "properties": {
+        "draft_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Draft Id"
+        },
+        "fetched_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fetched At"
+        },
+        "league_id": {
+          "title": "League Id",
+          "type": "string"
+        },
+        "platform": {
+          "title": "Platform",
+          "type": "string"
+        }
+      },
+      "required": [
+        "platform",
+        "league_id"
+      ],
+      "title": "Source",
+      "type": "object"
+    },
+    "StorylineCandidate": {
+      "description": "A \"still arguing about it in December\" angle — the narrator projection of an\n*active* :class:`Storyline`. Populated by Story 3.1's\n``facts/storylines.py::project_storyline_candidates``: ``id`` is\n``\"<kind>:<roster_id>\"``, ``kind`` is one of\n``storylines.STORYLINE_KIND_PRIORITY``, ``roster_ids`` attributes the thread,\nand ``hook`` is the thread's one-sentence summary.",
+      "properties": {
+        "hook": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Hook"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "roster_ids": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Roster Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "kind"
+      ],
+      "title": "StorylineCandidate",
+      "type": "object"
+    },
+    "SuperlativePick": {
+      "description": "A single highlighted pick. ``note`` prose is the narrator's (Story 2.5\nemits ``None``).",
+      "properties": {
+        "board_label": {
+          "title": "Board Label",
+          "type": "string"
+        },
+        "consensus_label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Consensus Label"
+        },
+        "delta": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Delta"
+        },
+        "manager": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Manager"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        },
+        "pick_no": {
+          "title": "Pick No",
+          "type": "integer"
+        },
+        "player": {
+          "title": "Player",
+          "type": "string"
+        },
+        "position": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Position"
+        }
+      },
+      "required": [
+        "pick_no",
+        "board_label",
+        "player"
+      ],
+      "title": "SuperlativePick",
+      "type": "object"
+    },
+    "Superlatives": {
+      "description": "The five recap superlatives, all derived from ``delta``. Every field is\nnullable — a draft with no ranked pick has no superlatives.",
+      "properties": {
+        "best_value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SuperlativePick"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "best_value_runner_up": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SuperlativePick"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "biggest_reach": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SuperlativePick"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "biggest_reach_runner_up": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SuperlativePick"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "boldest_swing": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BoldestSwing"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "Superlatives",
+      "type": "object"
+    },
+    "TERunSummary": {
+      "description": "The tight-end window: the opening cluster of TE picks, the third TE, and\nthe pick gap that separated them.",
+      "properties": {
+        "early_window_labels": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Early Window Labels",
+          "type": "array"
+        },
+        "gap_picks": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Gap Picks"
+        },
+        "third_te_label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Third Te Label"
+        },
+        "third_te_player": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Third Te Player"
+        },
+        "total": {
+          "title": "Total",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "total"
+      ],
+      "title": "TERunSummary",
+      "type": "object"
+    },
+    "TeamRow": {
+      "description": "One roster: its board profile, its raw consensus extremes, and its grade,\njoined on ``roster_id`` in ``league.teams`` order.",
+      "properties": {
+        "back_to_back": {
+          "default": [],
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "type": "array"
+          },
+          "title": "Back To Back",
+          "type": "array"
+        },
+        "best_value_pick": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PickExtreme"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "biggest_reach_pick": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PickExtreme"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "draft_score": {
+          "title": "Draft Score",
+          "type": "number"
+        },
+        "format_fit": {
+          "title": "Format Fit",
+          "type": "integer"
+        },
+        "grade": {
+          "$ref": "#/$defs/GradeRef"
+        },
+        "grade_input": {
+          "title": "Grade Input",
+          "type": "number"
+        },
+        "manager": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Manager"
+        },
+        "pick_count": {
+          "title": "Pick Count",
+          "type": "integer"
+        },
+        "pick_nos": {
+          "default": [],
+          "items": {
+            "type": "integer"
+          },
+          "title": "Pick Nos",
+          "type": "array"
+        },
+        "positional_counts": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "default": {},
+          "title": "Positional Counts",
+          "type": "object"
+        },
+        "premium_picks": {
+          "title": "Premium Picks",
+          "type": "integer"
+        },
+        "roster_id": {
+          "title": "Roster Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "roster_id",
+        "pick_count",
+        "draft_score",
+        "premium_picks",
+        "format_fit",
+        "grade_input",
+        "grade"
+      ],
+      "title": "TeamRow",
+      "type": "object"
+    },
+    "WeeklyFacts": {
+      "description": "Schema-only placeholder for the Epic-5 weekly issue's stats (power rank,\nblowout, luck index, coaching efficiency). Intentionally empty at\n:data:`SCHEMA_VERSION` ``0.2.0`` — no builder emits it, and ``weekly`` is\n``None`` on every ``draft_recap`` document. Present so downstream consumers\ncan already name the type.",
+      "properties": {},
+      "title": "WeeklyFacts",
+      "type": "object"
+    }
+  },
+  "description": "The whole Facts JSON — the one published contract every narrator and\nrenderer downstream of ``facts/`` reads (AD-2). Top-level key order matches\n``brief/phase-0/draft-recap-facts.json``; ``week`` / ``weekly`` are the Story\n3.1 additive placeholders for the not-yet-built weekly issue.",
+  "properties": {
+    "consensus_source": {
+      "$ref": "#/$defs/ConsensusSource"
+    },
+    "draft": {
+      "$ref": "#/$defs/DraftRef"
+    },
+    "draft_summary": {
+      "$ref": "#/$defs/DraftSummary"
+    },
+    "generated_at": {
+      "title": "Generated At",
+      "type": "string"
+    },
+    "grade_method": {
+      "$ref": "#/$defs/GradeMethodRef"
+    },
+    "issue_type": {
+      "default": "draft_recap",
+      "enum": [
+        "draft_recap",
+        "weekly"
+      ],
+      "title": "Issue Type",
+      "type": "string"
+    },
+    "lead_candidates": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/LeadCandidate"
+      },
+      "title": "Lead Candidates",
+      "type": "array"
+    },
+    "league": {
+      "$ref": "#/$defs/LeagueRef"
+    },
+    "narration": {
+      "$ref": "#/$defs/Narration"
+    },
+    "picks": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/PickRow"
+      },
+      "title": "Picks",
+      "type": "array"
+    },
+    "provisional": {
+      "default": true,
+      "title": "Provisional",
+      "type": "boolean"
+    },
+    "schema_version": {
+      "default": "0.2.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "source": {
+      "$ref": "#/$defs/Source"
+    },
+    "storyline_candidates": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/StorylineCandidate"
+      },
+      "title": "Storyline Candidates",
+      "type": "array"
+    },
+    "superlatives": {
+      "$ref": "#/$defs/Superlatives"
+    },
+    "teams": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/TeamRow"
+      },
+      "title": "Teams",
+      "type": "array"
+    },
+    "week": {
+      "anyOf": [
+        {
+          "maximum": 18,
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Week"
+    },
+    "weekly": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/WeeklyFacts"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "generated_at",
+    "source",
+    "consensus_source",
+    "league",
+    "draft",
+    "draft_summary",
+    "superlatives",
+    "grade_method",
+    "narration"
+  ],
+  "title": "DraftRecapFacts",
+  "type": "object"
+}
