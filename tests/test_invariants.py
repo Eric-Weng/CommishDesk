@@ -168,7 +168,102 @@ def test_I2() -> None:
 def test_I3() -> None:
     """I3 — LLM cost per league-week is exactly one call. Regardless of member
     count. The Recap is generated once per league and reused for every recipient."""
-    pytest.skip("pending Epic 3")
+    import commishdesk
+    from commishdesk.facts.schema import (
+        HeadlineNumbers,
+        Narration,
+        NarrationLeague,
+        NarrationTeam,
+        PositionalRunsSummary,
+        QBRunSummary,
+        RBRunSummary,
+        Superlatives,
+        TERunSummary,
+    )
+    from commishdesk.llmconfig import load_llm_config
+    from commishdesk.narrate import narrate_draft_recap
+
+    calls = {"n": 0, "attempts": 0}
+
+    class _FakeClient:
+        def __init__(self, *, fail: bool = False) -> None:
+            self._fail = fail
+
+        def generate(self, payload: str, voice: object) -> str:
+            calls["attempts"] += 1
+            if self._fail:
+                raise RuntimeError("primary is down")
+            calls["n"] += 1
+            return "voiced recap"
+
+    class _Voice:
+        system_prompt = "beat writer"
+        banned_topics: frozenset[str] = frozenset()
+
+    def _narration(n_teams: int) -> Narration:
+        return Narration(
+            league=NarrationLeague(name="L", season="2025", scoring_label="PPR"),
+            headline_numbers=HeadlineNumbers(picks_total=n_teams, first_window_rb_count=0),
+            superlatives=Superlatives(),
+            teams=[
+                NarrationTeam(manager=f"m{i}", roster_id=str(i), pick_count=1, grade="B")
+                for i in range(n_teams)
+            ],
+            positional_runs=PositionalRunsSummary(
+                QB=QBRunSummary(total=0, by_end_round3=0),
+                RB=RBRunSummary(total=0, in_round1=0),
+                TE=TERunSummary(total=0),
+            ),
+        )
+
+    config = load_llm_config({})
+
+    # behavioural: exactly one *successful* generation call, whatever the member count
+    for n_teams in (4, 250):
+        calls["n"] = calls["attempts"] = 0
+        result = narrate_draft_recap(
+            _narration(n_teams),
+            _Voice(),
+            config,
+            llm_enabled=True,
+            client_factory=lambda _cfg: _FakeClient(),
+        )
+        assert result.narrator == "llm-primary", (n_teams, result.narrator)
+        assert calls["n"] == 1, (n_teams, calls["n"])
+
+    # primary fails -> fallback: still exactly one successful call, <=2 attempts total
+    calls["n"] = calls["attempts"] = 0
+    seq = iter([_FakeClient(fail=True), _FakeClient()])
+    result = narrate_draft_recap(
+        _narration(12), _Voice(), config, llm_enabled=True,
+        client_factory=lambda _cfg: next(seq),
+    )
+    assert result.narrator == "llm-fallback"
+    assert calls["n"] == 1
+    assert calls["attempts"] == 2
+
+    # llm_enabled=False: zero generation calls, template narrator
+    calls["n"] = calls["attempts"] = 0
+    result = narrate_draft_recap(
+        _narration(12), _Voice(), config, llm_enabled=False,
+        client_factory=lambda _cfg: _FakeClient(),
+    )
+    assert result.narrator == "template"
+    assert calls["attempts"] == 0
+
+    # structural (mirrors test_I1): exactly one `.generate(` call site in
+    # commishdesk/, behind the LLMClient protocol -- a second call path trips this.
+    pkg_root = Path(commishdesk.__file__).resolve().parent
+    sites = sorted(
+        f"{path.relative_to(pkg_root).as_posix()}:{node.lineno}"
+        for path in pkg_root.rglob("*.py")
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8")))
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "generate"
+    )
+    assert len(sites) == 1, sites
+    assert sites[0].startswith("narrate/llm.py:"), sites
 
 
 def test_I4(monkeypatch: pytest.MonkeyPatch) -> None:

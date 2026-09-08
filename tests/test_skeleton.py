@@ -282,8 +282,15 @@ def test_runtime_dependency_allowlist() -> None:
     }
     assert names == {"httpx", "pydantic", "typer"}
     # retro A4: an extras table (`pip install commishdesk[extra]`) is a runtime install
-    # surface this guard previously ignored — it must be absent or hold no non-empty group.
+    # surface this guard previously ignored. Story 3.2 adds exactly one group, `llm` —
+    # the two *direct* provider SDKs for the opt-in narrator (AD-15: no aggregator/proxy).
+    # Nothing else may appear, in `llm` or in a new group.
     optional = project.get("optional-dependencies", {})
-    assert all(not group for group in optional.values()), (
-        f"[project.optional-dependencies] is non-empty: {optional}"
+    assert set(optional) <= {"llm"}, f"unexpected optional-dependency group(s): {set(optional)}"
+    llm_names = {
+        re.split(r"[<>=!~ \[]", spec, maxsplit=1)[0].strip().lower()
+        for spec in optional.get("llm", [])
+    }
+    assert llm_names <= {"anthropic", "google-genai"}, (
+        f"[project.optional-dependencies].llm has unexpected deps: {llm_names}"
     )
