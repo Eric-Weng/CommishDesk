@@ -10,20 +10,28 @@ the Facts JSON (AD-1) and is imported eagerly. The LLM narrator lives in
 via ``__getattr__`` — the same pattern as ``commishdesk.facts`` — so
 ``import commishdesk.narrate`` never pulls in ``anthropic`` / ``google.genai`` /
 ``httpx`` and the zero-credential core (I4) is protected.
+
+The deterministic content-safety check (``narrate/safety.py`` — AD-12 Layer 2:
+:class:`SafetyFinding`, :class:`SafetyReport`, :func:`check_narration`) is
+credential-free and imported **eagerly**, like ``template.py``.
 """
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from .safety import SafetyFinding, SafetyReport, check_narration
 from .template import Recap, Section, recap_to_text, render_draft_recap
 
 __all__ = [
     "LLMClient",
     "NarrationResult",
     "Recap",
+    "SafetyFinding",
+    "SafetyReport",
     "Section",
     "build_narration_payload",
+    "check_narration",
     "narrate_draft_recap",
     "narrate_with_llm",
     "recap_to_text",

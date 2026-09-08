@@ -212,11 +212,12 @@ def _recap_one_league(
     """Chain the five pipeline stages for one league and emit the recap to stdout
     plus a local HTML file."""
     from commishdesk.demo import demo_consensus_slots, load_demo_bundle
+    from commishdesk.errors import NarratorError
     from commishdesk.facts import build_draft_recap_facts
     from commishdesk.facts.schema import Storyline
     from commishdesk.facts.storylines import DRAFT_RECAP_WEEK, advance_storylines
     from commishdesk.ingest import build_league_model
-    from commishdesk.narrate import recap_to_text, render_draft_recap
+    from commishdesk.narrate import check_narration, recap_to_text, render_draft_recap
     from commishdesk.render import (
         narrated_text_to_html,
         write_draft_recap,
@@ -322,10 +323,32 @@ def _recap_one_league(
         )
         narrator, narrated_text = result.narrator, result.text
 
+    # AD-12 Layer 2 minimal gate: check the narrator's own prose (not the CLI's
+    # ``generated <ts>`` provenance line) before anything is emitted. A
+    # ``hold_issue`` finding raises ``NarratorError`` — caught per league in
+    # ``_run_draft_recap`` → one-line stderr, exit 1, no HTML (AD-9). Everything
+    # else warns and proceeds; Story 3.5 owns the graded tiered response.
+    template_recap = render_draft_recap(doc.narration) if narrator == "template" else None
+    safety_body = recap_to_text(template_recap) if template_recap is not None else narrated_text
+    report = check_narration(safety_body, doc.narration, voice=voice)
+    for finding in report.findings:
+        logger.warning(
+            "league %s content-safety (%s/%s): %s",
+            resolved,
+            finding.category,
+            finding.severity,
+            finding.message,
+        )
+    if report.held:
+        holds = [f.message for f in report.findings if f.severity == "hold_issue"]
+        raise NarratorError(
+            f"content-safety hold for league {resolved}: " + "; ".join(holds)
+        )
+
     if narrator == "template":
-        recap = render_draft_recap(doc.narration)
-        recap = recap.model_copy(
-            update={"dateline": f"{recap.dateline} · generated {doc.generated_at}"}
+        assert template_recap is not None
+        recap = template_recap.model_copy(
+            update={"dateline": f"{template_recap.dateline} · generated {doc.generated_at}"}
         )
         typer.echo(recap_to_text(recap))
         written = write_draft_recap(recap, dest)

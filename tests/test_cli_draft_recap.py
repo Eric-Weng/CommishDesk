@@ -453,6 +453,97 @@ def _install_fake_anthropic(monkeypatch, reply: str) -> None:
     monkeypatch.setitem(sys.modules, "anthropic", module)
 
 
+def test_unsafe_narrator_output_holds_the_league_exit_1_no_html(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """Story 3.4 — a narrator emitting a ``hold_issue`` line (a manager's name
+    beside a banned-category term): that league raises ``NarratorError`` from the
+    content-safety gate, prints one stderr line, exits 1, and writes no HTML."""
+    from commishdesk.narrate import NarrationResult
+
+    _fake_real_league(monkeypatch)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+    unsafe = NarrationResult(
+        text="Pull-Guard Pumas clearly drafted hungover this year.",
+        narrator="llm-primary",
+    )
+    monkeypatch.setattr(
+        "commishdesk.narrate.llm.narrate_draft_recap", lambda *a, **k: unsafe
+    )
+    result = runner.invoke(
+        app, ["--league", "70", "--draft-recap", "--out-dir", str(tmp_path)]
+    )
+    assert result.exit_code == 1
+    assert "Traceback" not in result.output
+    assert "content-safety hold" in result.output
+    assert not (tmp_path / "commishdesk-70-draft-recap.html").is_file()
+    for heading in SECTION_HEADINGS:
+        assert heading not in result.output
+
+
+def test_safety_warn_tier_proceeds_and_logs_the_league_id(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """Story 3.4 P5/P6 — a warn-tier finding (slop, no manager name) does not
+    hold: exit 0, HTML written, and a content-safety line naming the category and
+    the league id reaches the operator."""
+    from commishdesk.narrate import NarrationResult
+
+    _fake_real_league(monkeypatch)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+    warn = NarrationResult(
+        text="Trench Warfare Recap\n\nMake no mistake, this draft had chaos.",
+        narrator="llm-primary",
+    )
+    monkeypatch.setattr(
+        "commishdesk.narrate.llm.narrate_draft_recap", lambda *a, **k: warn
+    )
+    result = runner.invoke(
+        app, ["--league", "71", "--draft-recap", "--out-dir", str(tmp_path), "--verbose"]
+    )
+    assert result.exit_code == 0, result.output
+    assert (tmp_path / "commishdesk-71-draft-recap.html").is_file()
+    assert "content-safety" in result.output
+    assert "slop" in result.output
+    assert "league 71" in result.output
+
+
+def test_safety_hold_lists_every_hold_finding(tmp_path: Path, monkeypatch) -> None:
+    """Story 3.4 P6 — two holds in one narration: the exit-1 message names both."""
+    from commishdesk.narrate import NarrationResult
+
+    _fake_real_league(monkeypatch)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+    unsafe = NarrationResult(
+        text=(
+            "Pull-Guard Pumas clearly drafted hungover. "
+            "Blitz Alpacas is an idiot, frankly."
+        ),
+        narrator="llm-primary",
+    )
+    monkeypatch.setattr(
+        "commishdesk.narrate.llm.narrate_draft_recap", lambda *a, **k: unsafe
+    )
+    result = runner.invoke(
+        app, ["--league", "72", "--draft-recap", "--out-dir", str(tmp_path)]
+    )
+    assert result.exit_code == 1
+    assert "hungover" in result.output and "idiot" in result.output
+    assert not (tmp_path / "commishdesk-72-draft-recap.html").is_file()
+
+
+def test_demo_draft_recap_passes_the_safety_gate(tmp_path: Path) -> None:
+    """Story 3.4 — the gate runs on the demo path, does not hold, exit 0 + HTML,
+    and emits no content-safety warning."""
+    result = _run("--league", "demo", "--draft-recap", "--out-dir", str(tmp_path))
+    assert result.returncode == 0, result.stderr
+    assert "content-safety" not in result.stderr
+    assert (tmp_path / "commishdesk-demo-draft-recap.html").is_file()
+
+
 def test_llm_narrator_path_emits_text_and_a_bare_html_dump(
     tmp_path: Path, monkeypatch
 ) -> None:
