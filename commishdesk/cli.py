@@ -13,6 +13,7 @@ from __future__ import annotations
 import logging
 import os
 import tempfile
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -24,8 +25,24 @@ from commishdesk.errors import CommishDeskError
 from commishdesk.logconfig import configure_logging, log_context
 
 if TYPE_CHECKING:
+    from commishdesk.facts.schema import DraftRecapFacts
     from commishdesk.llmconfig import LLMConfig
+    from commishdesk.narrate import Recap, SafetyReport, TieredResponse
     from commishdesk.voices import Voice
+
+
+@dataclass(frozen=True)
+class IssueBody:
+    """The narrated body of one Issue, ready to render.
+
+    Exactly one of ``recap`` (the template narrator's structured
+    :class:`~commishdesk.narrate.Recap`, possibly with sections suppressed) or
+    ``llm_text`` (the validated LLM prose) is set, per ``narrator``.
+    """
+
+    narrator: str
+    recap: Recap | None = None
+    llm_text: str | None = None
 
 app = typer.Typer(
     add_completion=False,
@@ -133,8 +150,16 @@ _LLM_KEY_VARS = ("ANTHROPIC_API_KEY", "LLM_API_KEY", "GEMINI_API_KEY", "GOOGLE_A
 
 
 def _llm_enabled(cli_flag: bool | None) -> bool:
-    """Resolve the narrator selection: an explicit ``--llm`` / ``--no-llm`` wins;
-    otherwise the LLM narrator is on when a provider API key is present."""
+    """Resolve the narrator selection (FR-17): an explicit ``--llm`` / ``--no-llm``
+    wins; otherwise the LLM narrator is on when a provider API key is present, and
+    the template narrator otherwise. ``--league demo`` is always the template
+    narrator regardless of this result (forced in :func:`_recap_one_league`).
+
+    This is *selection*, not a budget gate: whatever it returns, every league in
+    the run still yields a complete Issue — a stubbed-failing or unusable LLM
+    endpoint degrades to the template narrator, never to "no Issue". A run-cost
+    ceiling / spend gate (AD-7 / AD-21) is a v1 concern and is not applied here.
+    """
     if cli_flag is not None:
         return cli_flag
     return any((os.environ.get(name) or "").strip() for name in _LLM_KEY_VARS)
@@ -163,10 +188,12 @@ def _run_draft_recap(
     if not run_list:
         raise CommishDeskError(f"league {league!r} is not activated for a run")
 
-    # The zero-credential demo path must not depend on LLM config parsing at all:
-    # only load (and validate) the voice + model config when the run list holds a
-    # real league. A malformed COMMISHDESK_LLM_* value then raises NarratorError
-    # here — before any league runs — as an exit-1 one-liner, never mid-batch.
+    # The zero-credential demo path never *depends* on LLM config: the voice +
+    # model config are loaded and validated only when the run list holds a real
+    # league, where a malformed COMMISHDESK_LLM_* value raises NarratorError here
+    # — before any league runs — as an exit-1 one-liner, never mid-batch. On a
+    # demo-only run list a malformed value is *tolerated*: it is parsed once, only
+    # to emit a single warning that it is being ignored (never to fail the run).
     voice: Voice | None = None
     llm_config: LLMConfig | None = None
     if any(resolved != DEMO_LEAGUE_ID for resolved in run_list):
@@ -175,6 +202,16 @@ def _run_draft_recap(
 
         voice = load_default_voice()
         llm_config = load_llm_config()
+    elif any(name.startswith("COMMISHDESK_LLM_") for name in os.environ):
+        from commishdesk.llmconfig import load_llm_config
+
+        try:
+            load_llm_config()
+        except CommishDeskError:
+            logger.warning(
+                "ignoring a malformed COMMISHDESK_LLM_* value: --league demo always "
+                "uses the template narrator and never parses LLM config"
+            )
 
     exit_code = 0
     for resolved in run_list:
@@ -212,12 +249,11 @@ def _recap_one_league(
     """Chain the five pipeline stages for one league and emit the recap to stdout
     plus a local HTML file."""
     from commishdesk.demo import demo_consensus_slots, load_demo_bundle
-    from commishdesk.errors import NarratorError
     from commishdesk.facts import build_draft_recap_facts
     from commishdesk.facts.schema import Storyline
     from commishdesk.facts.storylines import DRAFT_RECAP_WEEK, advance_storylines
     from commishdesk.ingest import build_league_model
-    from commishdesk.narrate import check_narration, recap_to_text, render_draft_recap
+    from commishdesk.narrate import recap_to_text
     from commishdesk.render import (
         narrated_text_to_html,
         write_draft_recap,
@@ -306,61 +342,198 @@ def _recap_one_league(
     logger.debug("narrating and rendering local HTML")
     dest = Path(out_dir) / f"commishdesk-{resolved}-draft-recap.html"
 
-    narrator = "template"
-    narrated_text = ""
-    if llm_enabled:
-        from commishdesk.narrate import narrate_draft_recap
+    # AD-12 Layer 3 + FR-17: select the narrator, validate its output, apply the
+    # tiered response (suppress a section / one LLM regeneration / hold the
+    # Issue), and degrade to the template narrator whenever LLM prose cannot be
+    # cleanly repaired. A hold raises ``ContentSafetyError`` — caught per league
+    # in ``_run_draft_recap`` → one-line stderr, exit 1, no HTML (AD-9).
+    body = _produce_issue(
+        doc, voice, llm_config, llm_enabled=llm_enabled, logger=logger, resolved=resolved
+    )
 
-        # When llm_enabled is True the run list held a real league, so the voice
-        # and model config were loaded and validated before the loop.
-        assert voice is not None and llm_config is not None
-        # A provider/generation fault is swallowed inside narrate_draft_recap to
-        # narrator="template" — it never reaches here. The HTML path keys off the
-        # result's narrator, not llm_enabled: only a real llm-primary /
-        # llm-fallback result takes the bare text→HTML dump (Design Notes).
-        result = narrate_draft_recap(
-            doc.narration, voice, llm_config, llm_enabled=True
-        )
-        narrator, narrated_text = result.narrator, result.text
-
-    # AD-12 Layer 2 minimal gate: check the narrator's own prose (not the CLI's
-    # ``generated <ts>`` provenance line) before anything is emitted. A
-    # ``hold_issue`` finding raises ``NarratorError`` — caught per league in
-    # ``_run_draft_recap`` → one-line stderr, exit 1, no HTML (AD-9). Everything
-    # else warns and proceeds; Story 3.5 owns the graded tiered response.
-    template_recap = render_draft_recap(doc.narration) if narrator == "template" else None
-    safety_body = recap_to_text(template_recap) if template_recap is not None else narrated_text
-    report = check_narration(safety_body, doc.narration, voice=voice)
-    for finding in report.findings:
-        logger.warning(
-            "league %s content-safety (%s/%s): %s",
-            resolved,
-            finding.category,
-            finding.severity,
-            finding.message,
-        )
-    if report.held:
-        holds = [f.message for f in report.findings if f.severity == "hold_issue"]
-        raise NarratorError(
-            f"content-safety hold for league {resolved}: " + "; ".join(holds)
-        )
-
-    if narrator == "template":
-        assert template_recap is not None
-        recap = template_recap.model_copy(
-            update={"dateline": f"{template_recap.dateline} · generated {doc.generated_at}"}
+    if body.narrator == "template":
+        assert body.recap is not None
+        recap = body.recap.model_copy(
+            update={"dateline": f"{body.recap.dateline} · generated {doc.generated_at}"}
         )
         typer.echo(recap_to_text(recap))
         written = write_draft_recap(recap, dest)
     else:
-        logger.debug("llm narrator produced prose (%s)", narrator)
-        typer.echo(f"generated {doc.generated_at}\n\n{narrated_text}")
+        assert body.llm_text is not None
+        logger.debug("llm narrator produced prose (%s)", body.narrator)
+        typer.echo(f"generated {doc.generated_at}\n\n{body.llm_text}")
         written = write_html_file(
-            narrated_text_to_html(narrated_text, generated_at=str(doc.generated_at)),
+            narrated_text_to_html(body.llm_text, generated_at=str(doc.generated_at)),
             dest,
         )
 
     typer.echo(str(written))
+
+
+def _produce_issue(
+    doc: DraftRecapFacts,
+    voice: Voice | None,
+    llm_config: LLMConfig | None,
+    *,
+    llm_enabled: bool,
+    logger: logging.Logger,
+    resolved: str,
+) -> IssueBody:
+    """Narrator selection + AD-12 Layer 3 tiered response for one league.
+
+    ``llm_enabled=False`` → the template narrator, checked and (if a league-
+    supplied string tripped a pattern) section-suppressed or held. ``True`` → the
+    ``primary → fallback → template`` selection, then: validate the completion's
+    shape (:func:`~commishdesk.narrate.structural_ok` on
+    :func:`~commishdesk.narrate.sanitize_completion` output — a miss is a failed
+    generation → template); run the safety check; :func:`~commishdesk.narrate.classify`
+    the report; on ``hold`` raise :class:`~commishdesk.errors.ContentSafetyError`,
+    on ``regenerate`` re-narrate once then degrade, on ``regenerate`` / ``suppress``
+    otherwise degrade straight to the template. A clean pass ships the LLM prose.
+
+    The one permitted regeneration is spent only on a ``regenerate`` (hallucination)
+    tier; a ``suppress`` tier or a ``structural_ok`` failure degrades to the
+    template with no retry. ``narrate_draft_recap`` is invoked at most twice for
+    one league-week (the CLI-level ceiling above I3's single paid call).
+    """
+    from commishdesk.errors import ContentSafetyError
+    from commishdesk.narrate import (
+        check_narration,
+        classify,
+        recap_to_text,
+        render_draft_recap,
+        sanitize_completion,
+        structural_ok,
+        suppress_sections,
+    )
+
+    narration = doc.narration
+
+    def _emit_alerts(alerts: tuple[str, ...]) -> None:
+        """One structured ``logger.error`` per driving finding, plus a one-line
+        stderr message distinct from the AD-9 per-league fault line."""
+        for line in alerts:
+            logger.error("league %s content-safety: %s", resolved, line)
+            typer.echo(f"content-safety alert for league {resolved}: {line}", err=True)
+
+    def _hold(reasons: tuple[str, ...]) -> ContentSafetyError:
+        return ContentSafetyError(
+            f"content-safety hold for league {resolved}: " + "; ".join(reasons)
+        )
+
+    def _log_filtered_findings(report: SafetyReport, decision: TieredResponse) -> None:
+        """Findings ``classify`` dropped (today only template-narrator
+        hallucinations) are still worth seeing at DEBUG for a maintainer chasing
+        a false positive — they never reach :func:`_emit_alerts`."""
+        actioned = set(decision.alerts)
+        for finding in report.findings:
+            line = f"{finding.category}/{finding.severity}: {finding.message}"
+            if line not in actioned:
+                logger.debug(
+                    "league %s content-safety finding not actioned (%s): %s",
+                    resolved,
+                    finding.severity,
+                    finding.message,
+                )
+
+    def _template_issue() -> IssueBody:
+        recap = render_draft_recap(narration)
+        report = check_narration(recap_to_text(recap), narration, voice=voice)
+        decision = classify(report, narrator_is_template=True)
+        _log_filtered_findings(report, decision)
+        # classify() filters every hallucination finding for the template
+        # narrator, and only hallucinations carry the ``regenerate`` tier, so
+        # decision.regenerate is structurally always False here. If that ever
+        # changes, the template narrator has no retry to spend — treat it as
+        # un-repairable and hold rather than silently dropping the flag.
+        if decision.hold or decision.regenerate:
+            _emit_alerts(decision.alerts)
+            reasons = decision.hold_reasons or (
+                "a regenerate-tier finding on the template narrator, which has no "
+                "regeneration to spend",
+            )
+            raise _hold(reasons)
+        if decision.suppress:
+            _emit_alerts(decision.alerts)
+            trimmed, removed = suppress_sections(recap, report)
+            if not removed:
+                # a suppress-tier finding that maps to no section: the flagged
+                # phrase is still in the recap (title / dateline / a split
+                # artefact). Un-localizable → never ship it.
+                raise _hold(
+                    (
+                        "a suppress-tier content-safety finding could not be "
+                        "localized to a section",
+                    )
+                )
+            if trimmed is None:
+                raise _hold(
+                    (
+                        "section suppression would remove The Lead or leave fewer "
+                        f"than two sections (offending: {', '.join(removed)})",
+                    )
+                )
+            logger.warning(
+                "league %s content-safety: suppressed section(s) %s",
+                resolved,
+                ", ".join(removed),
+            )
+            recap = trimmed
+        return IssueBody(narrator="template", recap=recap)
+
+    if not llm_enabled:
+        return _template_issue()
+
+    # When llm_enabled is True the run list held a real league, so the voice and
+    # model config were loaded and validated before the loop.
+    assert voice is not None and llm_config is not None
+    from commishdesk.narrate import narrate_draft_recap
+
+    attempts = 0
+    while True:
+        attempts += 1
+        result = narrate_draft_recap(narration, voice, llm_config, llm_enabled=True)
+        if result.narrator == "template":
+            # every provider attempt failed inside narrate_draft_recap
+            return _template_issue()
+
+        text = sanitize_completion(result.text)
+        if not structural_ok(text):
+            logger.warning(
+                "league %s: LLM narration is not the expected six-section shape "
+                "(attempt %d); using the template narrator",
+                resolved,
+                attempts,
+            )
+            return _template_issue()
+
+        report = check_narration(text, narration, voice=voice)
+        decision = classify(report, narrator_is_template=False)
+        _log_filtered_findings(report, decision)
+
+        if decision.hold:
+            _emit_alerts(decision.alerts)
+            raise _hold(decision.hold_reasons)
+
+        if decision.regenerate and attempts == 1:
+            logger.warning(
+                "league %s: content-safety regeneration of the LLM narration "
+                "(one attempt permitted — AD-12 Layer 3)",
+                resolved,
+            )
+            continue
+
+        if decision.regenerate or decision.suppress:
+            _emit_alerts(decision.alerts)
+            logger.warning(
+                "league %s: LLM narration still unclean after %d attempt(s); "
+                "using the template narrator",
+                resolved,
+                attempts,
+            )
+            return _template_issue()
+
+        return IssueBody(narrator=result.narrator, llm_text=text)
 
 
 def main() -> None:

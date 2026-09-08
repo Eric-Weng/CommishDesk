@@ -3,9 +3,10 @@
 ``check_narration(text, narration, *, voice=None)`` runs a fixed, credential-free
 pipeline over the prose *any* narrator produced — the template narrator, the LLM
 narrator, or the demo path alike — and returns a :class:`SafetyReport` of
-:class:`SafetyFinding`\\ s. It **returns findings; it does not act** — the CLI
-(``cli.py``) is what holds a league on a ``hold_issue`` finding and warns on the
-rest. Story 3.5 owns the graded tiered response and narrator *selection*.
+:class:`SafetyFinding`\\ s. It **returns findings; it does not act** —
+``narrate/response.py`` (AD-12 Layer 3) turns the report into a graded decision
+(suppress the offending section / one LLM regeneration / hold the whole Issue)
+and ``cli.py`` applies it alongside narrator *selection*.
 
 Import fence (AD-4 / I4): this module imports **stdlib +
 ``commishdesk.facts.schema`` + ``commishdesk.voices`` + ``commishdesk.errors``
@@ -73,8 +74,11 @@ SafetyCategory = Literal[
 ]
 SafetySeverity = Literal["hold_issue", "regenerate", "suppress_section"]
 
-#: Story 3.4's best-guess tier map — exported so Story 3.5 consumes or overrides
-#: it. The CLI gate collapses it to binary (hold vs. warn) on purpose.
+#: The AD-12 tier map: each category's severity, stamped onto every
+#: :class:`SafetyFinding` at construction. ``narrate/response.py`` reads
+#: ``finding.severity`` to grade its response — ``hold_issue`` holds the whole
+#: Issue, ``regenerate`` earns one LLM regeneration, ``suppress_section`` drops
+#: the offending section (or degrades LLM prose to the template).
 CATEGORY_SEVERITY: dict[SafetyCategory, SafetySeverity] = {
     "named_person_proximity": "hold_issue",
     "banned_topic": "suppress_section",
@@ -116,7 +120,10 @@ class SafetyReport(_Frozen):
 
     @property
     def held(self) -> bool:
-        """At least one ``hold_issue`` finding — the CLI blocks the league."""
+        """At least one ``hold_issue`` finding. Convenience predicate only —
+        ``narrate/response.py``'s :func:`classify` is the authority on what a
+        report means (it can, for one, ignore a template narrator's
+        false-positive ``hallucination``)."""
         return any(f.severity == "hold_issue" for f in self.findings)
 
 

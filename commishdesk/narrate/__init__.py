@@ -20,22 +20,36 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from .response import (
+    SECTION_HEADINGS,
+    TieredResponse,
+    classify,
+    sanitize_completion,
+    structural_ok,
+    suppress_sections,
+)
 from .safety import SafetyFinding, SafetyReport, check_narration
 from .template import Recap, Section, recap_to_text, render_draft_recap
 
 __all__ = [
+    "SECTION_HEADINGS",
     "LLMClient",
     "NarrationResult",
     "Recap",
     "SafetyFinding",
     "SafetyReport",
     "Section",
+    "TieredResponse",
     "build_narration_payload",
     "check_narration",
+    "classify",
     "narrate_draft_recap",
     "narrate_with_llm",
     "recap_to_text",
     "render_draft_recap",
+    "sanitize_completion",
+    "structural_ok",
+    "suppress_sections",
 ]
 
 _LAZY = {

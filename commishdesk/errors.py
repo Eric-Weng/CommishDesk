@@ -54,6 +54,16 @@ reaches the caller (AD-8 / I3). (2) A malformed ``COMMISHDESK_LLM_*`` value (an
 unknown provider token, a spec that is not ``<provider>:<model_id>``) raises it
 from ``commishdesk/llmconfig.py::load_llm_config`` at startup, by design —
 misconfiguration fails loud rather than silently narrating with the wrong model.
+
+``ContentSafetyError`` is the seventh: the CLI raises it when the AD-12 Layer 3
+tiered response (``commishdesk/narrate/response.py``) decides a narration cannot
+ship — a manager's name in the same sentence as a banned-category term or a
+personal-insult-lexicon hit, a section suppression so broad it would drop **The
+Lead** or leave fewer than two sections, or a ``suppress`` finding that maps to no
+section at all. It is a ``CommishDeskError`` caught by the per-league ``except``
+(one-line stderr, exit 1, no HTML — AD-9); it exists as its own class so an
+operator can tell a content-review hold from an infra retry. The raising happens
+in ``commishdesk/cli.py``, not here.
 """
 
 from __future__ import annotations
@@ -62,6 +72,7 @@ __all__ = [
     "AdapterError",
     "CommishDeskError",
     "ConsensusError",
+    "ContentSafetyError",
     "IngestError",
     "NarratorError",
     "SchemaValidationError",
@@ -81,18 +92,25 @@ class ConsensusError(CommishDeskError):
     """No external consensus ranking could be fetched or parsed from any source."""
 
 
+class ContentSafetyError(CommishDeskError):
+    """The AD-12 Layer 3 tiered response held the whole Issue for content review.
+
+    Raised by ``commishdesk/cli.py`` when ``narrate/response.py`` classifies a
+    narration as un-shippable — a manager's name in the same sentence as a
+    banned-category term or a personal-insult-lexicon hit, a section suppression
+    that would drop **The Lead** or leave fewer than two sections, or a
+    ``suppress`` finding that maps to no section at all. A distinct class (not
+    ``NarratorError``) so an operator can tell a content review from an infra
+    retry. Caught per league like any other fault (AD-9).
+    """
+
+
 class IngestError(CommishDeskError):
     """A raw platform bundle could not be turned into a valid ``LeagueModel``."""
 
 
 class NarratorError(CommishDeskError):
-    """An LLM narrator provider adapter is unusable, or both providers failed.
-
-    Also raised by the CLI's deterministic content-safety gate (Story 3.4) when
-    ``narrate/safety.py`` returns a ``hold_issue`` finding: that league is
-    skipped like any other per-league fault (one-line stderr, exit 1, no HTML —
-    AD-9). No behaviour change to the LLM-narrator paths above.
-    """
+    """An LLM narrator provider adapter is unusable, or both providers failed."""
 
 
 class SchemaValidationError(CommishDeskError):
