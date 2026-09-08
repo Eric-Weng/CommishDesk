@@ -11,20 +11,29 @@ error, the unknown key silently dropped on read.
 the major. The editorial prose fields (``superlatives.*.note`` /
 ``teams[].grade.rationale``) are the narrator's and are modelled
 ``str | None = None`` — the Story 2.5 builder emits ``None``. ``lead_candidates``
-is populated by Story 2.6 with a deterministic factual ``hook`` per angle (still a
-``0.1.x`` additive payload, not a shape change); ``storyline_candidates`` stays
-``[]`` until Story 3.1. Both serialize as ``[]`` when empty, never omitted.
+is populated by Story 2.6 with a deterministic factual ``hook`` per angle;
+``storyline_candidates`` is populated by Story 3.1 from the deterministic
+storyline lifecycle in ``facts/storylines.py``. Both serialize as ``[]`` when
+empty, never omitted.
+
+Story 3.1 also widened the contract additively (``0.1.0`` -> ``0.2.0``): a
+schema-only ``week`` / :class:`WeeklyFacts` placeholder for the Epic-5 weekly
+issue (no builder emits it yet), :data:`NARRATION_TOKEN_CAP` bounding the
+narrator projection, and :class:`Storyline` — the persisted narrative-memory
+record — relocated here from ``store.py`` so ``facts/`` owns its shape
+(``store.py`` imports it back for its read/write port).
 
 This module imports stdlib + pydantic only — no engine package.
 """
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Final, Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 __all__ = [
+    "NARRATION_TOKEN_CAP",
     "SCHEMA_VERSION",
     "BoardPick",
     "BoldestSwing",
@@ -51,17 +60,34 @@ __all__ = [
     "RBRunSummary",
     "RoundConcentration",
     "Source",
+    "Storyline",
     "StorylineCandidate",
     "Superlatives",
     "SuperlativePick",
     "TERunSummary",
     "TeamRow",
+    "WeeklyFacts",
 ]
 
-SCHEMA_VERSION = "0.1.0"
-"""Semver contract version. Additive key -> minor bump; shape change -> major."""
+SCHEMA_VERSION = "0.2.0"
+"""Semver contract version. Additive key -> minor bump; shape change -> major.
+``0.1.0`` -> ``0.2.0`` (Story 3.1): additive ``week`` / ``weekly`` placeholders,
+no shape change to any existing field."""
 
 _ISSUE_TYPE: Literal["draft_recap"] = "draft_recap"
+_IssueType = Literal["draft_recap", "weekly"]
+"""``"weekly"`` is a schema-only placeholder — no builder emits a weekly issue
+until Epic 5."""
+
+NARRATION_TOKEN_CAP: Final[int] = 20_000
+"""Char-proxy ceiling on ``len(Narration.model_dump_json())`` (~5k tokens). Chosen
+generous enough that no real or fixture league is ever truncated — the demo
+fixture's narration serializes to well under half this — while still bounding a
+synthetic oversized league. Enforced by the fixed reduction ladder in
+``facts/build.py::_apply_narration_cap``: drop board / history detail -> drop
+per-team grade rationale (the grade letter always survives) -> keep only the lead
+``storyline_candidates`` entry. ``lead_candidates`` and every team's grade are
+never dropped."""
 
 
 class _Doc(BaseModel):
@@ -377,13 +403,48 @@ class LeadCandidate(_Doc):
 
 
 class StorylineCandidate(_Doc):
-    """A "still arguing about it in December" angle. Populated by Story 3.1;
-    ``[]`` here."""
+    """A "still arguing about it in December" angle — the narrator projection of an
+    *active* :class:`Storyline`. Populated by Story 3.1's
+    ``facts/storylines.py::project_storyline_candidates``: ``id`` is
+    ``"<kind>:<roster_id>"``, ``kind`` is one of
+    ``storylines.STORYLINE_KIND_PRIORITY``, ``roster_ids`` attributes the thread,
+    and ``hook`` is the thread's one-sentence summary."""
 
     id: str
     kind: str
     roster_ids: list[str] = []
     hook: str | None = None
+
+
+class Storyline(BaseModel):
+    """A running narrative thread the facts builder opens, updates, and closes
+    across a league's weeks (AD-14). Relocated from ``store.py`` in Story 3.1 so
+    ``facts/`` owns the definition; ``commishdesk.store`` imports it back for its
+    ``read_storylines`` / ``write_storylines`` port. Internal engine state,
+    evolvable per story — deliberately **not** part of the versioned Facts
+    contract and carries no ``schema_version``.
+
+    ``id`` is ``"<kind>:<roster_id>"`` (the encoding
+    ``project_storyline_candidates`` decodes); ``headline`` is the one-sentence
+    summary the narrator may surface; ``first_week`` / ``last_week`` bound the
+    thread's life (a draft recap anchors both at week 1)."""
+
+    id: str
+    league_id: str
+    headline: str
+    status: Literal["active", "resolved"]
+    first_week: int = Field(ge=1, le=18)
+    last_week: int = Field(ge=1, le=18)
+    notes: str = ""
+
+    @model_validator(mode="after")
+    def _week_span_ordered(self) -> Storyline:
+        """A thread cannot close before it opened."""
+        if self.last_week < self.first_week:
+            raise ValueError(
+                f"last_week ({self.last_week}) precedes first_week ({self.first_week})"
+            )
+        return self
 
 
 # --------------------------------------------------------------------------- #
@@ -428,10 +489,11 @@ class NarrationTeam(_Doc):
 
 
 class Narration(_Doc):
-    """The sanitized projection the LLM narrator sees — never a raw roster or a
-    board column it does not need. No token cap yet (Story 3.1)."""
+    """The sanitized projection the narrators see — never a raw roster or a board
+    column it does not need. The builder holds this under
+    :data:`NARRATION_TOKEN_CAP` via a fixed reduction ladder (Story 3.1)."""
 
-    issue_type: Literal["draft_recap"] = _ISSUE_TYPE
+    issue_type: _IssueType = _ISSUE_TYPE
     league: NarrationLeague
     headline_numbers: HeadlineNumbers
     board_round1: list[BoardPick] = []
@@ -443,19 +505,36 @@ class Narration(_Doc):
 
 
 # --------------------------------------------------------------------------- #
+# weekly issue — schema-only placeholder (Epic 5 fills it in)
+# --------------------------------------------------------------------------- #
+
+
+class WeeklyFacts(_Doc):
+    """Schema-only placeholder for the Epic-5 weekly issue's stats (power rank,
+    blowout, luck index, coaching efficiency). Intentionally empty at
+    :data:`SCHEMA_VERSION` ``0.2.0`` — no builder emits it, and ``weekly`` is
+    ``None`` on every ``draft_recap`` document. Present so downstream consumers
+    can already name the type."""
+
+
+# --------------------------------------------------------------------------- #
 # root
 # --------------------------------------------------------------------------- #
 
 
 class DraftRecapFacts(_Doc):
-    """The whole ``draft_recap`` Facts JSON — the one published contract every
-    narrator and renderer downstream of ``facts/`` reads (AD-2). Top-level key
-    order matches ``brief/phase-0/draft-recap-facts.json``."""
+    """The whole Facts JSON — the one published contract every narrator and
+    renderer downstream of ``facts/`` reads (AD-2). Top-level key order matches
+    ``brief/phase-0/draft-recap-facts.json``; ``week`` / ``weekly`` are the Story
+    3.1 additive placeholders for the not-yet-built weekly issue."""
 
     schema_version: str = SCHEMA_VERSION
     generated_at: str
     provisional: bool = True
-    issue_type: Literal["draft_recap"] = _ISSUE_TYPE
+    issue_type: _IssueType = _ISSUE_TYPE
+    #: The NFL week for an ``issue_type == "weekly"`` document; ``None`` for a
+    #: draft recap. Bounded ``1..18`` to match :attr:`Storyline.first_week`.
+    week: int | None = Field(default=None, ge=1, le=18)
     source: Source
     consensus_source: ConsensusSource
     league: LeagueRef
@@ -468,3 +547,18 @@ class DraftRecapFacts(_Doc):
     lead_candidates: list[LeadCandidate] = []
     storyline_candidates: list[StorylineCandidate] = []
     narration: Narration
+    #: Schema-only until Epic 5 — always ``None`` on a ``draft_recap`` document.
+    weekly: WeeklyFacts | None = None
+
+    @model_validator(mode="after")
+    def _issue_type_consistency(self) -> DraftRecapFacts:
+        """A ``draft_recap`` carries no ``week`` and no ``weekly`` block; a
+        ``weekly`` issue must name its week."""
+        if self.issue_type == "draft_recap":
+            if self.week is not None or self.weekly is not None:
+                raise ValueError(
+                    "draft_recap document must have week=None and weekly=None"
+                )
+        elif self.issue_type == "weekly" and self.week is None:
+            raise ValueError("weekly document must have a week (1..18)")
+        return self

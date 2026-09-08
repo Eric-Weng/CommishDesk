@@ -15,8 +15,10 @@ top of. Two calls on one ``narration`` return an equal ``model_dump()``.
 
 The small integer-to-words helper :func:`_spell` is a copy of
 ``commishdesk.facts.leads._spell`` — copied, not imported, so the fence holds.
-The "December" section is derived from ``superlatives`` + ``lead_candidates``
-(there are no ``storyline_candidates`` until Story 3.1).
+The "December" section is derived from ``superlatives`` + ``narration.storyline_candidates``
+(the deterministic threads Story 3.1's facts builder opened), skipping any hook
+that duplicates the lead candidate's and any ``boldest_swing`` thread (the swing
+already has its own sentence from ``superlatives`` in that section).
 """
 
 from __future__ import annotations
@@ -348,9 +350,9 @@ def _positional_section(runs: PositionalRunsSummary) -> Section:
 
 
 def _december_section(narration: Narration) -> Section:
-    # Story 3.1: real ``storyline_candidates`` replace these derived sentences.
     superlatives = narration.superlatives
     blocks: list[str] = []
+    lead_hooks = {c.hook for c in narration.lead_candidates if c.hook}
 
     swing = superlatives.boldest_swing
     if swing and len(swing.picks) >= 2:
@@ -369,6 +371,19 @@ def _december_section(narration: Narration) -> Section:
             f"The board's biggest reach{who}: {reach.player} at {reach.board_label}, "
             f"{_count(abs(reach.delta), 'slot')} ahead of consensus."
         )
+
+    # Story 3.1: each active storyline thread's hook, as its own sentence —
+    # skipping any that duplicates the lead candidate's hook (the same de-dup the
+    # lead section relies on) or a sentence already written above. ``boldest_swing``
+    # threads are skipped here: the swing sentence above already covers that pick
+    # from ``superlatives``, and repeating it under a second wording reads as a
+    # near-duplicate.
+    for storyline in narration.storyline_candidates:
+        hook = storyline.hook
+        if storyline.kind == "boldest_swing":
+            continue
+        if hook and hook not in lead_hooks and hook not in blocks:
+            blocks.append(hook)
 
     if not blocks:
         blocks.append("Nothing here is settled yet — check back in December.")

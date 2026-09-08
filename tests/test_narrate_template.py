@@ -137,6 +137,34 @@ def test_december_section_derives_from_superlatives(narration: Narration) -> Non
     assert narration.lead_candidates[0].hook not in section.blocks
 
 
+def test_december_section_renders_the_storyline_hooks(narration: Narration) -> None:
+    """Story 3.1: the deterministic storyline threads the facts builder opened
+    surface in the rendered December section, each hook its own sentence.
+    ``boldest_swing`` threads are the one exception — the section already carries
+    a swing sentence from ``superlatives``, so the thread is intentionally
+    skipped to avoid a near-duplicate."""
+    assert narration.storyline_candidates, "the demo board should fire threads"
+    section = _section(
+        render_draft_recap(narration), "The Picks We'll Be Arguing About in December"
+    )
+    rendered = list(section.blocks)
+    lead_hooks = {c.hook for c in narration.lead_candidates}
+    shown = [
+        c.hook
+        for c in narration.storyline_candidates
+        if c.hook and c.hook not in lead_hooks and c.kind != "boldest_swing"
+    ]
+    assert shown, "at least one non-swing storyline hook is not a lead duplicate"
+    for hook in shown:
+        assert hook in rendered
+    # the swing thread is present in the data but deliberately not rendered here
+    swing_hooks = [
+        c.hook for c in narration.storyline_candidates if c.kind == "boldest_swing"
+    ]
+    for hook in swing_hooks:
+        assert hook not in rendered
+
+
 def test_render_is_deterministic(narration: Narration) -> None:
     assert (
         render_draft_recap(narration).model_dump()
