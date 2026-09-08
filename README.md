@@ -16,8 +16,13 @@ uv run commishdesk --league <sleeper_league_id> --draft-recap
 
 That command will ingest the league's draft, compute the board metrics and grades,
 write the recap with the zero-credential template narrator, and print it to stdout
-plus a local HTML file. No keys. No config. Add an `LLM_API_KEY` later and the same
-command will produce voiced prose instead.
+plus a local HTML file. No keys. No config. Once the opt-in LLM narrator is wired up
+(Epic 3, in progress), installing the LLM extra
+(`pip install 'commishdesk[llm]'`, or `uv sync --extra llm`) and exporting a provider key
+(`ANTHROPIC_API_KEY` / `LLM_API_KEY` / `GEMINI_API_KEY` / `GOOGLE_API_KEY`) will let the
+same command produce voiced prose instead — one model call per league, through the default
+"beat writer" voice. `--no-llm` forces the template narrator; `--league demo` always uses
+the template narrator regardless of any key.
 
 > **Status:** early build — this is the target shape, not yet the shipped behavior. The
 > MVP (`v0.5`, a draft recap for a single league, Discord delivery) is under

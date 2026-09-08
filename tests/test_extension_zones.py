@@ -2,7 +2,8 @@
 
 One test per I/O & Edge-Case Matrix row, plus the ``_count_impls`` helper's own unit test.
 Story 1.6 shipped zero reference implementations; Story 2.2 (Epic 2) landed the first —
-`adapters/sleeper.py` — so `adapters` now counts 1 and the other three zones stay at 0.
+`adapters/sleeper.py` — and Story 3.3 (Epic 3) landed `voices/beat_writer.py`, so
+`adapters` and `voices` each count 1 while `themes` / `statmods` stay at 0.
 """
 
 from __future__ import annotations
@@ -156,11 +157,19 @@ def test_protocol_member_surfaces_match_the_v0_spec() -> None:
     protos = _live_protocols()
     assert _protocol_members(protos["Adapter"]) == ["fetch"]
     assert _protocol_members(protos["Renderer"]) == ["render"]
-    assert _protocol_members(protos["Voice"]) == ["banned_topics", "system_prompt"]
+    # Voice gained voice_id when its reference impl (the beat-writer default) landed
+    # in Story 3.3 — blessed by the Story 1.6 deferral audit.
+    assert _protocol_members(protos["Voice"]) == [
+        "banned_topics",
+        "system_prompt",
+        "voice_id",
+    ]
     assert _protocol_members(protos["StatModule"]) == ["compute", "module_id"]
-    # "one or two members, no more" (frozen Always)
+    # "one or two members, no more" (frozen Always) — Voice is the lone exception
+    # at three; the other three zones stay bounded at two.
     for name, cls in protos.items():
-        assert 1 <= len(_protocol_members(cls)) <= 2, name
+        upper = 3 if name == "Voice" else 2
+        assert 1 <= len(_protocol_members(cls)) <= upper, name
 
 
 def test_protocol_annotations_match_the_spec() -> None:
@@ -176,6 +185,7 @@ def test_protocol_annotations_match_the_spec() -> None:
     voice_hints = get_type_hints(protos["Voice"])
     assert voice_hints["system_prompt"] is str
     assert voice_hints["banned_topics"] == frozenset[str]
+    assert voice_hints["voice_id"] is str
     assert get_type_hints(protos["StatModule"])["module_id"] is str
 
 
@@ -200,10 +210,13 @@ def test_zone_holds_at_most_one_reference_implementation(zone: str) -> None:
     assert count <= 1, f"commishdesk/{zone}/ holds {count} reference impls (max 1)"
 
 
-def test_every_zone_ships_zero_reference_impls_in_this_story() -> None:
+def test_zone_reference_impl_counts_match_the_epics_landed_so_far() -> None:
+    """``adapters`` landed its one impl in Epic 2 (Story 2.2); ``voices`` landed
+    the beat-writer default in Epic 3 (Story 3.3); ``themes`` / ``statmods`` are
+    still to come (Epics 4-5 / v1)."""
     assert {zone: _count_impls(PKG_ROOT / zone) for zone in ZONES} == {
         "adapters": 1,
-        "voices": 0,
+        "voices": 1,
         "themes": 0,
         "statmods": 0,
     }
