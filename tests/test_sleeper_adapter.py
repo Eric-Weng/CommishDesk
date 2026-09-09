@@ -163,7 +163,19 @@ def test_happy_path_completed_draft_two_hop_chain() -> None:
 # --------------------------------------------------------------------------- #
 
 
+def test_history_depth_cap_is_pinned_to_ten_for_fr40() -> None:
+    """FR-40 (Story 3.6): the draft-history depth cap is a hard 10, defined once
+    in ``_MAX_HISTORY_HOPS``. A crafted ``previous_league_id`` chain cannot
+    balloon one league's fetch past this. Changing the value is a deliberate
+    FR-40 renegotiation, not a tweak — this guard makes that explicit."""
+    from commishdesk.adapters.sleeper import _MAX_HISTORY_HOPS
+
+    assert _MAX_HISTORY_HOPS == 10
+
+
 def test_long_chain_of_fifteen_hops_stops_at_ten() -> None:
+    from commishdesk.adapters.sleeper import _MAX_HISTORY_HOPS  # FR-40 depth cap
+
     long_chain = HISTORY["long_chain"]
     first_hop = next(iter(sorted(long_chain)))
     league = _league_with_previous(first_hop)
@@ -182,13 +194,13 @@ def test_long_chain_of_fifteen_hops_stops_at_ten() -> None:
     bundle = adapter.fetch(league["league_id"])
 
     assert len(long_chain) == 15  # sanity: the fixture really is a 15-hop chain
-    assert len(bundle["previous_league_ids"]) == 10
+    assert len(bundle["previous_league_ids"]) == _MAX_HISTORY_HOPS == 10
     assert all(isinstance(pid, str) for pid in bundle["previous_league_ids"])
 
     history_calls = [
         r for r in requests if r.url.path.startswith("/v1/league/id_histchain")
     ]
-    assert len(history_calls) == 10  # exactly 10 extra GET /league/* calls
+    assert len(history_calls) == _MAX_HISTORY_HOPS  # exactly 10 extra GET /league/* calls
 
 
 # --------------------------------------------------------------------------- #

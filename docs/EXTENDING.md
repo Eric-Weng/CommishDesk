@@ -32,9 +32,13 @@ not tickets — see [`unclaimed-territory.md`](unclaimed-territory.md).
 
 `fetch(self, league_id: str) -> Mapping[str, Any]` returns one league's raw platform data.
 `ingest/` sanitizes every league-supplied string at its boundary (AD-24), so an adapter
-returns the platform's shape unmodified. Evaluation material — recorded platform responses,
-replay fixtures — goes in `tests/eval/adapters/`. The reference `Adapter`, `SleeperAdapter`
-in `commishdesk/adapters/sleeper.py`, landed in Epic 2 (Story 2.2).
+returns the platform's shape unmodified. An `Adapter` must hard-cap any history- or
+pagination-chain walk it follows so a crafted chain cannot balloon one fetch (FR-40); the
+reference `SleeperAdapter` caps its `previous_league_id` walk at 10 prior seasons (the
+origin league is not counted as a hop). Evaluation
+material — recorded platform responses, replay fixtures — goes in `tests/eval/adapters/`.
+The reference `Adapter`, `SleeperAdapter` in `commishdesk/adapters/sleeper.py`, landed in
+Epic 2 (Story 2.2).
 
 ### `Voice` — `commishdesk/voices/`
 
@@ -75,8 +79,12 @@ provider adapters (Anthropic, Google — no aggregator, AD-15). It is opt-in: in
 extra (`pip install 'commishdesk[llm]'`) and export a provider key (`ANTHROPIC_API_KEY` /
 `LLM_API_KEY` / `GEMINI_API_KEY` / `GOOGLE_API_KEY`). `commishdesk --draft-recap` then runs
 one model call per league through the default voice — `primary → fallback → template`, so a
-provider outage silently falls back to the deterministic template recap. `--no-llm` forces
-the template narrator even with a key set; `--league demo` is always the template narrator.
+provider outage silently falls back to the deterministic template recap. A transient
+provider fault (request timeout, transport error, HTTP 429 / 5xx) is retried on the same
+provider up to `RETRY_CAP` (2) more times — immediately, no backoff — before falling
+through; the per-attempt request timeout is `COMMISHDESK_LLM_TIMEOUT` seconds (default 60).
+`--no-llm` forces the template narrator even with a key set; `--league demo` is always the
+template narrator.
 
 **Tiered failure response.** `commishdesk/narrate/response.py` (AD-12 Layer 3) turns a
 `narrate/safety.py` report into a decision the CLI acts on, graded by the finding's tier:
