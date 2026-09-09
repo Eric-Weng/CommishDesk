@@ -97,6 +97,17 @@ def run(
     out_dir: Path = typer.Option(  # noqa: B008 -- canonical typer idiom
         Path("."), "--out-dir", help="Directory to write the recap HTML file into."
     ),
+    allow_content_hold: bool | None = typer.Option(
+        None,
+        "--allow-content-hold/--no-allow-content-hold",
+        help=(
+            "Ship the Issue anyway when a content-safety check would hold it. The "
+            "hold is logged at error and echoed to stderr instead of failing the "
+            "league. Operator override for a false positive. Default: off, unless "
+            "COMMISHDESK_ALLOW_CONTENT_HOLD is set; --no-allow-content-hold forces "
+            "the hold back on for one run regardless of the environment."
+        ),
+    ),
     verbose: bool = typer.Option(
         False, "--verbose", help="Increase output verbosity."
     ),
@@ -123,7 +134,11 @@ def run(
             logger.debug("cli invoked: mode=draft recap")
             try:
                 exit_code = _run_draft_recap(
-                    league, out_dir, logger, llm_enabled=_llm_enabled(llm)
+                    league,
+                    out_dir,
+                    logger,
+                    llm_enabled=_llm_enabled(llm),
+                    allow_content_hold=_allow_content_hold(allow_content_hold),
                 )
             except (CommishDeskError, OSError) as exc:
                 typer.echo(_one_line(exc), err=True)
@@ -165,8 +180,47 @@ def _llm_enabled(cli_flag: bool | None) -> bool:
     return any((os.environ.get(name) or "").strip() for name in _LLM_KEY_VARS)
 
 
+#: The environment equivalent of ``--allow-content-hold``, for an unattended run
+#: that cannot pass a flag (a cron / CI job).
+_ALLOW_CONTENT_HOLD_VAR = "COMMISHDESK_ALLOW_CONTENT_HOLD"
+
+#: Values of :data:`_ALLOW_CONTENT_HOLD_VAR` that mean "off". Unlike
+#: :func:`_llm_enabled` — where the variables are *keys*, so mere presence is the
+#: signal — this one is a switch, and ``=0`` must not read as "on".
+_FALSY = frozenset({"0", "false", "no", "off"})
+
+
+def _allow_content_hold(cli_flag: bool | None) -> bool:
+    """Resolve the AD-12 Layer-3 operator override, exactly as
+    :func:`_llm_enabled` resolves narrator selection: an explicit
+    ``--allow-content-hold`` / ``--no-allow-content-hold`` wins either way;
+    otherwise :data:`_ALLOW_CONTENT_HOLD_VAR` set to anything non-blank outside
+    :data:`_FALSY`.
+
+    The negative form is not decoration: once the variable is exported in a shell
+    profile or baked into a CI image there must still be a way to force the
+    fail-closed behaviour back on for a single run.
+
+    When on, a content-safety **hold** is downgraded to a loud ``logger.error`` +
+    a stderr line and the best available body ships (the untrimmed template
+    ``Recap``, or the validated LLM text). It is the operator's escape hatch from
+    a deterministic false positive — the Epic 3 retro found several — and it
+    bypasses **nothing else**: a provider fault, a structural failure, and the
+    AD-9 per-league catch are all untouched.
+    """
+    if cli_flag is not None:
+        return cli_flag
+    raw = (os.environ.get(_ALLOW_CONTENT_HOLD_VAR) or "").strip()
+    return bool(raw) and raw.lower() not in _FALSY
+
+
 def _run_draft_recap(
-    league: str, out_dir: Path, logger: logging.Logger, *, llm_enabled: bool
+    league: str,
+    out_dir: Path,
+    logger: logging.Logger,
+    *,
+    llm_enabled: bool,
+    allow_content_hold: bool,
 ) -> int:
     """Derive the run list (the one Generation Set constructor) and build a recap
     for each activated league. Returns the process exit code: ``0`` when every
@@ -226,6 +280,7 @@ def _run_draft_recap(
                 voice=voice,
                 llm_config=llm_config,
                 llm_enabled=llm_enabled,
+                allow_content_hold=allow_content_hold,
             )
         except (CommishDeskError, OSError) as exc:
             logger.debug("league %s faulted: %s", resolved, _one_line(exc))
@@ -245,6 +300,7 @@ def _recap_one_league(
     voice: Voice | None,
     llm_config: LLMConfig | None,
     llm_enabled: bool,
+    allow_content_hold: bool,
 ) -> None:
     """Chain the five pipeline stages for one league and emit the recap to stdout
     plus a local HTML file."""
@@ -348,7 +404,13 @@ def _recap_one_league(
     # cleanly repaired. A hold raises ``ContentSafetyError`` — caught per league
     # in ``_run_draft_recap`` → one-line stderr, exit 1, no HTML (AD-9).
     body = _produce_issue(
-        doc, voice, llm_config, llm_enabled=llm_enabled, logger=logger, resolved=resolved
+        doc,
+        voice,
+        llm_config,
+        llm_enabled=llm_enabled,
+        logger=logger,
+        resolved=resolved,
+        allow_content_hold=allow_content_hold,
     )
 
     if body.narrator == "template":
@@ -378,6 +440,7 @@ def _produce_issue(
     llm_enabled: bool,
     logger: logging.Logger,
     resolved: str,
+    allow_content_hold: bool,
 ) -> IssueBody:
     """Narrator selection + AD-12 Layer 3 tiered response for one league.
 
@@ -395,6 +458,14 @@ def _produce_issue(
     tier; a ``suppress`` tier or a ``structural_ok`` failure degrades to the
     template with no retry. ``narrate_draft_recap`` is invoked at most twice for
     one league-week (the CLI-level ceiling above I3's single paid call).
+
+    ``allow_content_hold=True`` (``--allow-content-hold`` /
+    ``COMMISHDESK_ALLOW_CONTENT_HOLD``) downgrades every **hold** here to a loud
+    ``logger.error`` carrying ``OVERRIDDEN`` plus every reason, a distinct stderr
+    echo, and the best available body — the untrimmed template ``Recap``, or the
+    validated LLM text. It changes nothing else: the alerts still fire, the
+    checks still run, and a provider fault / structural failure / the AD-9
+    per-league catch behave exactly as before.
     """
     from commishdesk.errors import ContentSafetyError
     from commishdesk.narrate import (
@@ -416,10 +487,31 @@ def _produce_issue(
             logger.error("league %s content-safety: %s", resolved, line)
             typer.echo(f"content-safety alert for league {resolved}: {line}", err=True)
 
-    def _hold(reasons: tuple[str, ...]) -> ContentSafetyError:
-        return ContentSafetyError(
-            f"content-safety hold for league {resolved}: " + "; ".join(reasons)
+    def _hold(reasons: tuple[str, ...]) -> ContentSafetyError | None:
+        """The hold, unless the operator overrode it.
+
+        Returns the :class:`~commishdesk.errors.ContentSafetyError` for the caller
+        to ``raise``, or ``None`` when ``allow_content_hold`` is set — in which
+        case it has already logged the override at ``error`` (with ``OVERRIDDEN``
+        and every reason) and echoed a stderr line distinct from both the AD-9
+        fault line and the per-finding ``_emit_alerts`` lines. The caller then
+        ships the best available body."""
+        joined = "; ".join(reasons)
+        if not allow_content_hold:
+            return ContentSafetyError(
+                f"content-safety hold for league {resolved}: {joined}"
+            )
+        logger.error(
+            "league %s content-safety hold OVERRIDDEN (--allow-content-hold): %s",
+            resolved,
+            joined,
         )
+        typer.echo(
+            f"content-safety hold OVERRIDDEN for league {resolved} "
+            f"(--allow-content-hold): {joined}",
+            err=True,
+        )
+        return None
 
     def _log_filtered_findings(report: SafetyReport, decision: TieredResponse) -> None:
         """Findings ``classify`` dropped (today only template-narrator
@@ -452,27 +544,38 @@ def _produce_issue(
                 "a regenerate-tier finding on the template narrator, which has no "
                 "regeneration to spend",
             )
-            raise _hold(reasons)
+            held = _hold(reasons)
+            if held is not None:
+                raise held
+            return IssueBody(narrator="template", recap=recap)
         if decision.suppress:
             _emit_alerts(decision.alerts)
             trimmed, removed = suppress_sections(recap, report)
             if not removed:
                 # a suppress-tier finding that maps to no section: the flagged
                 # phrase is still in the recap (title / dateline / a split
-                # artefact). Un-localizable → never ship it.
-                raise _hold(
+                # artefact). Un-localizable → never ship it (unless overridden).
+                held = _hold(
                     (
                         "a suppress-tier content-safety finding could not be "
                         "localized to a section",
                     )
                 )
+                if held is not None:
+                    raise held
+                return IssueBody(narrator="template", recap=recap)
             if trimmed is None:
-                raise _hold(
+                held = _hold(
                     (
                         "section suppression would remove The Lead or leave fewer "
                         f"than two sections (offending: {', '.join(removed)})",
                     )
                 )
+                if held is not None:
+                    raise held
+                # the override ships the *untrimmed* recap: the trimmed one is
+                # unshippable by construction (no Lead / fewer than two sections).
+                return IssueBody(narrator="template", recap=recap)
             logger.warning(
                 "league %s content-safety: suppressed section(s) %s",
                 resolved,
@@ -513,7 +616,10 @@ def _produce_issue(
 
         if decision.hold:
             _emit_alerts(decision.alerts)
-            raise _hold(decision.hold_reasons)
+            held = _hold(decision.hold_reasons)
+            if held is not None:
+                raise held
+            return IssueBody(narrator=result.narrator, llm_text=text)
 
         if decision.regenerate and attempts == 1:
             logger.warning(

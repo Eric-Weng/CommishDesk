@@ -21,6 +21,7 @@ from typer.testing import CliRunner
 import commishdesk
 from commishdesk.cli import app
 from commishdesk.errors import CommishDeskError
+from commishdesk.narrate import safety
 
 runner = CliRunner()
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -35,6 +36,18 @@ SECTION_HEADINGS = (
     "Positional Read",
     "The Picks We'll Be Arguing About in December",
 )
+
+
+@pytest.fixture(autouse=True)
+def _no_ambient_content_hold_override(monkeypatch) -> None:
+    """``COMMISHDESK_ALLOW_CONTENT_HOLD`` must never leak in from the developer's
+    shell or a CI image — ``.env.example`` now tells operators to export it, and
+    every fail-closed assertion in this module (the hold tests) would silently
+    invert if it were set. Each test opts in explicitly instead.
+
+    ``monkeypatch.delenv`` edits ``os.environ``, so the ``_run`` subprocess helper
+    inherits the cleaned environment too."""
+    monkeypatch.delenv("COMMISHDESK_ALLOW_CONTENT_HOLD", raising=False)
 
 
 def _run(*args: str, cwd: Path | None = None) -> subprocess.CompletedProcess:
@@ -934,3 +947,323 @@ def test_llm_completion_is_sanitized_on_the_ship_path(
     for blob in (result.stdout, body):
         assert "bold bit" in blob and "bell are cleaned." in blob
         assert "\x1b" not in blob and "\x07" not in blob and "[1m" not in blob
+
+
+# --------------------------------------------------------------------------- #
+# Pre-4.1 calibration gate — the --allow-content-hold operator override (D1)
+# --------------------------------------------------------------------------- #
+
+_HOLD_PHRASE = "Pull-Guard Pumas clearly drafted hungover this year."
+
+
+def test_a_suppressible_section_that_names_the_league_still_localizes(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """P1 — the offending sentence also carries the league name, so the check
+    matched it masked. The finding must still report the *unmasked* sentence, or
+    ``suppress_sections`` finds no section, ``removed`` comes back empty, and the
+    Issue is held instead of being trimmed."""
+    _fake_real_league(monkeypatch)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
+    for var in _KEY_VARS:
+        monkeypatch.delenv(var, raising=False)
+    _stub_template_recap(
+        monkeypatch,
+        offending_heading="Superlatives",
+        phrase="Trench Warfare saw the betting line on this pick go absurd.",
+    )
+    result = runner.invoke(
+        app, ["--league", "89", "--draft-recap", "--no-llm", "--out-dir", str(tmp_path)]
+    )
+    assert result.exit_code == 0, result.output
+    assert "content-safety hold" not in result.output
+    assert "suppressed section(s) Superlatives" in result.stderr
+    body = (tmp_path / "commishdesk-89-draft-recap.html").read_text(encoding="utf-8")
+    assert "<h2>The Lead</h2>" in body
+    assert "<h2>Superlatives</h2>" not in body
+
+
+@pytest.mark.parametrize(
+    "flag, env",
+    [
+        (["--allow-content-hold"], {}),
+        ([], {"COMMISHDESK_ALLOW_CONTENT_HOLD": "1"}),
+    ],
+)
+def test_allow_content_hold_ships_a_held_issue(
+    tmp_path: Path, monkeypatch, flag: list[str], env: dict[str, str]
+) -> None:
+    """A real ``named_person_proximity`` hold on the template path ships anyway:
+    exit 0, HTML written, the hold logged + echoed with ``OVERRIDDEN`` and its
+    reason. Both the flag and the env var reach the same resolver."""
+    _fake_real_league(monkeypatch)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
+    for key, value in env.items():
+        monkeypatch.setenv(key, value)
+    for var in _KEY_VARS:
+        monkeypatch.delenv(var, raising=False)
+    _stub_template_recap(
+        monkeypatch, offending_heading="Team Grades", phrase=_HOLD_PHRASE
+    )
+    result = runner.invoke(
+        app,
+        ["--league", "90", "--draft-recap", "--no-llm", "--out-dir", str(tmp_path), *flag],
+    )
+    assert result.exit_code == 0, result.output
+    assert "OVERRIDDEN" in result.stderr
+    assert "hungover" in result.stderr  # every hold reason is named
+    # the per-finding operator alerts still fire alongside the override line
+    assert "content-safety alert for league 90" in result.stderr
+    assert "named_person_proximity/hold_issue" in result.stderr
+    assert "Traceback" not in result.output
+    body = (tmp_path / "commishdesk-90-draft-recap.html").read_text(encoding="utf-8")
+    # the untrimmed recap shipped — every section, offending one included
+    assert "<h2>Team Grades</h2>" in body
+    assert "<h2>The Lead</h2>" in body
+
+
+@pytest.mark.parametrize(
+    "flag, env",
+    [
+        ([], {}),
+        # the explicit negative form beats an ambient environment variable
+        (["--no-allow-content-hold"], {"COMMISHDESK_ALLOW_CONTENT_HOLD": "1"}),
+    ],
+)
+def test_the_same_input_without_the_override_still_holds(
+    tmp_path: Path, monkeypatch, flag: list[str], env: dict[str, str]
+) -> None:
+    """The regression anchor for the row above: no override in force → unchanged
+    ``ContentSafetyError``, exit 1, no HTML."""
+    _fake_real_league(monkeypatch)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
+    for key, value in env.items():
+        monkeypatch.setenv(key, value)
+    for var in _KEY_VARS:
+        monkeypatch.delenv(var, raising=False)
+    _stub_template_recap(
+        monkeypatch, offending_heading="Team Grades", phrase=_HOLD_PHRASE
+    )
+    result = runner.invoke(
+        app,
+        ["--league", "91", "--draft-recap", "--no-llm", "--out-dir", str(tmp_path), *flag],
+    )
+    assert result.exit_code == 1
+    assert "content-safety hold" in result.output
+    assert "OVERRIDDEN" not in result.output
+    assert not (tmp_path / "commishdesk-91-draft-recap.html").is_file()
+
+
+def test_allow_content_hold_ships_the_llm_text_on_the_llm_path(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """On the LLM path the override ships the validated completion itself, not a
+    degraded template render."""
+    _fake_real_league(monkeypatch)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+    _stub_narrator(monkeypatch, _six_section_llm_text(_HOLD_PHRASE))
+    result = runner.invoke(
+        app,
+        [
+            "--league", "92", "--draft-recap",
+            "--allow-content-hold", "--out-dir", str(tmp_path),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert "OVERRIDDEN" in result.stderr
+    body = (tmp_path / "commishdesk-92-draft-recap.html").read_text(encoding="utf-8")
+    assert _HOLD_PHRASE in body
+    # the bare LLM dump, not the structured template render
+    assert "Grades weigh each pick against the consensus board" not in body
+
+
+def test_allow_content_hold_ships_an_unlocalizable_suppress_finding(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """The other hold path: a suppress-tier finding that maps to no section.
+    Overridden, the untrimmed recap ships."""
+    _fake_real_league(monkeypatch)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
+    for var in _KEY_VARS:
+        monkeypatch.delenv(var, raising=False)
+    _stub_template_recap(
+        monkeypatch,
+        title="The betting line on this whole draft was a joke. Trench Warfare Recap",
+    )
+    result = runner.invoke(
+        app,
+        [
+            "--league", "93", "--draft-recap", "--no-llm",
+            "--allow-content-hold", "--out-dir", str(tmp_path),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert "OVERRIDDEN" in result.stderr
+    assert (tmp_path / "commishdesk-93-draft-recap.html").is_file()
+
+
+def test_allow_content_hold_ships_a_lead_removing_suppression(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """The third hold path, and the one with teeth: suppression that would drop
+    **The Lead**. Overridden, ``_produce_issue`` must return the *untrimmed*
+    recap — if it ever returned the ``None`` trimmed one instead,
+    ``_recap_one_league``'s ``assert body.recap is not None`` fires an
+    ``AssertionError``, which the AD-9 ``except (CommishDeskError, OSError)``
+    does **not** catch: a traceback in place of an Issue."""
+    _fake_real_league(monkeypatch)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
+    for var in _KEY_VARS:
+        monkeypatch.delenv(var, raising=False)
+    _stub_template_recap(
+        monkeypatch,
+        offending_heading="The Lead",
+        phrase="The betting line on this whole draft was absurd.",
+    )
+    result = runner.invoke(
+        app,
+        [
+            "--league", "96", "--draft-recap", "--no-llm",
+            "--allow-content-hold", "--out-dir", str(tmp_path),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert "Traceback" not in result.output
+    assert "OVERRIDDEN" in result.stderr
+    body = (tmp_path / "commishdesk-96-draft-recap.html").read_text(encoding="utf-8")
+    assert "<h2>The Lead</h2>" in body  # the untrimmed recap, Lead included
+
+
+def test_allow_content_hold_does_not_bypass_a_per_league_fault(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """The override touches ``ContentSafetyError`` and nothing else. A typed
+    fault raised **inside** the league loop still lands in the AD-9 per-league
+    catch: one line on stderr, exit 1, no HTML — with the flag on."""
+    from commishdesk.errors import AdapterError
+
+    _fake_real_league(monkeypatch)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
+    for var in _KEY_VARS:
+        monkeypatch.delenv(var, raising=False)
+
+    class _BrokenAdapter:
+        def __init__(self, *a: object, **k: object) -> None: ...
+
+        def fetch(self, league_id: str) -> dict:
+            raise AdapterError("sleeper is unreachable")
+
+        def close(self) -> None: ...
+
+    monkeypatch.setattr("commishdesk.adapters.sleeper.SleeperAdapter", _BrokenAdapter)
+    result = runner.invoke(
+        app,
+        [
+            "--league", "94", "--draft-recap", "--no-llm",
+            "--allow-content-hold", "--out-dir", str(tmp_path),
+        ],
+    )
+    assert result.exit_code == 1
+    assert "sleeper is unreachable" in result.output
+    assert "Traceback" not in result.output
+    assert "OVERRIDDEN" not in result.output
+    assert not list(tmp_path.glob("*.html"))
+
+
+def test_allow_content_hold_does_not_bypass_a_pre_loop_fault(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """And a malformed ``COMMISHDESK_LLM_*`` still aborts before the league loop
+    even with the flag on."""
+    _fake_real_league(monkeypatch)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
+    monkeypatch.setenv("COMMISHDESK_LLM_PRIMARY", "bogus-no-colon")
+    result = runner.invoke(
+        app,
+        [
+            "--league", "97", "--draft-recap",
+            "--allow-content-hold", "--out-dir", str(tmp_path),
+        ],
+    )
+    assert result.exit_code == 1
+    assert not list(tmp_path.iterdir())
+
+
+@pytest.mark.parametrize(
+    "flag, env, expected",
+    [
+        # an explicit flag wins either way, exactly like --llm / --no-llm
+        (True, {}, True),
+        (True, {"COMMISHDESK_ALLOW_CONTENT_HOLD": "0"}, True),
+        (False, {}, False),
+        (False, {"COMMISHDESK_ALLOW_CONTENT_HOLD": "1"}, False),
+        (False, {"COMMISHDESK_ALLOW_CONTENT_HOLD": "yes"}, False),
+        # unset flag: the environment decides
+        (None, {}, False),
+        (None, {"COMMISHDESK_ALLOW_CONTENT_HOLD": "1"}, True),
+        (None, {"COMMISHDESK_ALLOW_CONTENT_HOLD": "yes"}, True),
+        (None, {"COMMISHDESK_ALLOW_CONTENT_HOLD": "  "}, False),
+        (None, {"COMMISHDESK_ALLOW_CONTENT_HOLD": "0"}, False),
+        (None, {"COMMISHDESK_ALLOW_CONTENT_HOLD": "false"}, False),
+        (None, {"COMMISHDESK_ALLOW_CONTENT_HOLD": "OFF"}, False),
+    ],
+)
+def test_allow_content_hold_helper(flag, env, expected, monkeypatch) -> None:
+    from commishdesk.cli import _allow_content_hold
+
+    for key, value in env.items():
+        monkeypatch.setenv(key, value)
+    assert _allow_content_hold(flag) is expected
+
+
+def test_a_league_named_after_a_banned_term_still_produces_an_issue(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """D1 end to end — "The Sportsbook League" on the zero-credential template
+    path needs no flag at all: exit 0, HTML written, and the real league name
+    still in the title and the dateline."""
+    from commishdesk import demo
+
+    _fake_real_league(monkeypatch)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
+    for var in _KEY_VARS:
+        monkeypatch.delenv(var, raising=False)
+
+    bundle = demo.load_demo_bundle()
+    # AD-24: ingest/sanitize.py passes this through untouched, so it reaches the
+    # Facts JSON — and, before this gate, every safety check — verbatim.
+    league_name = "The Sportsbook League"
+
+    def _renamed(league_id: str) -> dict:
+        renamed = dict(bundle)
+        renamed["league"] = {**bundle["league"], "name": league_name}
+        return renamed
+
+    class _FakeAdapter:
+        def __init__(self, *a: object, **k: object) -> None: ...
+
+        def fetch(self, league_id: str) -> dict:
+            return _renamed(league_id)
+
+        def close(self) -> None: ...
+
+    monkeypatch.setattr("commishdesk.adapters.sleeper.SleeperAdapter", _FakeAdapter)
+
+    result = runner.invoke(
+        app, ["--league", "95", "--draft-recap", "--no-llm", "--out-dir", str(tmp_path)]
+    )
+    assert result.exit_code == 0, result.output
+    assert "content-safety" not in result.stderr
+    body = (tmp_path / "commishdesk-95-draft-recap.html").read_text(encoding="utf-8")
+    assert f"<h1>{league_name}" in body
+    assert body.count(league_name) >= 2  # title + dateline
+    # the mask lives in the check's working copy only: the two places the league
+    # name is rendered carry the real name, never the placeholder. (The template
+    # narrator writes the words "the league" in its own method sentence, so a
+    # whole-document check would be meaningless.)
+    title_line = next(line for line in body.splitlines() if "<h1>" in line)
+    dateline = next(line for line in body.splitlines() if "season" in line)
+    for line in (title_line, dateline):
+        assert league_name in line, line
+        assert safety._LEAGUE_PLACEHOLDER not in line, line

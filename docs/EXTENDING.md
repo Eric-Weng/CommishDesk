@@ -45,16 +45,28 @@ Epic 2 (Story 2.2).
 A `Voice` supplies `system_prompt: str`, `banned_topics: frozenset[str]`, and
 `voice_id: str` — all three members are required. The banned topics merge into the
 deterministic content-safety check (`commishdesk/narrate/safety.py`, AD-12) as extracted
-keyword patterns: each phrase is lowercased, reduced to its words of four or more letters
-(a small stop-set of generic words dropped), and each surviving word is matched
-`\bword\b`, case-insensitively, under a synthetic `voice:<voice_id>` category on top of
-the base `commishdesk/narrate/safety_lists.toml` lists.
+**multi-word phrase** patterns — never bare single words. Each phrase is lowercased and
+split on commas / semicolons / `or` / `and`; each fragment is reduced to its words with
+leading determiners and possessive owners dropped (`"a player's …"`); a fragment is kept
+only if it still carries **two or more** words, at least one of them outside a small
+stop-set of generic football scaffolding. A fragment longer than two words also arms its
+trailing two-word head-noun core. Each surviving phrase is matched
+`\bw1[\s-]+w2…\b`, case-insensitively, under a synthetic `voice:<voice_id>` category on
+top of the base `commishdesk/narrate/safety_lists.toml` lists.
 
 Worked example — a voice with
-`banned_topics = {"a manager's politics, religion, or nationality"}` yields the patterns
-`\bpolitics\b`, `\breligion\b`, `\bnationality\b` (`"a"`, `"or"` are too short;
-`"manager"` is in the stop-set). A recap sentence "he would not stop talking about his
-politics" then produces a finding.
+`banned_topics = {"a player's real-life injury history or medical status"}` yields
+`\breal[\s-]+life[\s-]+injury[\s-]+history\b`, its head-noun core
+`\binjury[\s-]+history\b`, and `\bmedical[\s-]+status\b`. A recap sentence "he kept
+bringing up the injury history" then produces a finding.
+
+`banned_topics = {"politics, religion, or nationality"}` yields **nothing**: every
+fragment is a single word, and the curated `politics_religion` category in
+`safety_lists.toml` already owns those terms. That rule is deliberate. Lifting bare words
+out of a voice's prose re-armed exactly the terms the curated lists had excluded on
+purpose — `injury`, `physical`, `trouble` — and they fired on ordinary scouting talk
+("took the injury-prone back", "the physical tools are there"). Single-term topics belong
+in `safety_lists.toml`, where they can be calibrated; a voice contributes phrases.
 
 **A voice-keyword hit can only ever warn, never hold.** Even in the same sentence as a
 manager's name it produces a `banned_topic` (warn) finding, not a `hold_issue` — crude
@@ -92,7 +104,8 @@ template narrator.
 - **`hold_issue`** (a manager's name in the same sentence as a banned-category term *or* a
   personal-insult-lexicon hit; also a section suppression that would drop *The Lead* /
   leave fewer than two sections / not localize to any section) — hold the whole Issue:
-  `ContentSafetyError`, exit 1, no HTML.
+  `ContentSafetyError`, exit 1, no HTML — unless the operator passed
+  `--allow-content-hold` (see below).
 - **`regenerate`** (a hallucination — a proper noun / number absent from the payload, LLM
   narrator only) — regenerate the LLM narration **once**, then degrade to the template if
   still unclean. This is the single retry the whole layer permits.
@@ -105,6 +118,27 @@ the template with no retry. The template narrator is the degradation floor under
 it — any LLM prose that cannot be cleanly repaired is replaced by the template recap, so a
 league always gets a complete Issue. `sanitize_completion` + `structural_ok` run on the
 LLM completion before the safety check.
+
+**The operator override.** `--allow-content-hold` (or `COMMISHDESK_ALLOW_CONTENT_HOLD` set
+to any non-blank value other than `0` / `false` / `no` / `off`) downgrades every
+`hold_issue` above: instead of raising `ContentSafetyError`, the CLI logs one
+`logger.error` line containing `OVERRIDDEN` and every hold reason, echoes a distinct
+stderr line, and ships the best available body — the *untrimmed* template `Recap`, or the
+validated LLM text. Exit 0, HTML written. `--no-allow-content-hold` forces the fail-closed
+behaviour back on for a single run even when the environment variable is set. The override
+touches **nothing else**: a provider fault, a `structural_ok` failure, and the AD-9
+per-league fault catch all behave exactly as they do without it. It exists because a
+deterministic pattern list has false positives, and an operator staring at one needs a way
+to ship this week's Issue that is not "edit the TOML and redeploy".
+
+**The league name is never the reason for a hold.** Before any check runs, `check_narration`
+replaces whole-token occurrences of `narration.league.name` with the inert placeholder
+`"the league"` — in its internal working copy only. A league called "The Sportsbook League"
+or "Politics League" would otherwise trip a curated pattern on every run and could never
+produce an Issue at all. The rendered recap keeps the real name everywhere, and findings
+report the *unmasked* sentence so section suppression still localizes. Masking is skipped
+when the league name contains a manager's name (that would defeat the proximity check) and
+for a single-word name that is an ordinary English word.
 
 ### `Renderer` — `commishdesk/themes/`
 

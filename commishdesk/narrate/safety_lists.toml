@@ -30,6 +30,13 @@
 # injury-prone back", "a clueless approach from Marcus" must all pass. Ambiguous
 # words (pathetic / clueless / incompetent / a drafted player's injury history)
 # are therefore kept out of the bare lists or required to be person-directed.
+#
+# The same rule, re-applied after the Epic 3 retrospective (findings D2): a bare
+# `gambl*`, a bare `charged with`, and `gut` in the possessive appearance pattern
+# all fired on ordinary football prose — "gambling on upside", "charged with
+# rebuilding the backfield", "went with his gut". Each is now either gone or
+# required to carry its abusive object ("gambling problem", "charged with a
+# felony"). These three sentences beside a manager's name must not hold.
 
 personal_insults = [
   '\bidiot(s|ic)?\b',
@@ -82,7 +89,11 @@ injury_medical = [
 legal = [
   '\barrest(ed|s)?\b',
   '\bindict(ed|ment)\b',
-  '\bcharged with\b',
+  # Requires a crime object: "charged with a felony" is abuse of a person,
+  # "charged with rebuilding the backfield" is ordinary football prose.
+  # The object list is wide on purpose — a handful of nouns silently dropped
+  # "charged with murder" / "theft" / "robbery" / "two felonies".
+  '\bcharged with (a |an |the |two |three |several |multiple )?(felon(y|ies)|misdemeanou?rs?|crimes?|murder|homicide|manslaughter|assaults?|batter(y|ies)|dui|dwi|possession|fraud|theft|robbery|burglary|drugs?|weapons?|domestic (violence|abuse|assault))\b',
   '\blawsuit\b',
   '\bcourt (date|case|appearance)\b',
   '\bprobation\b',
@@ -111,7 +122,8 @@ appearance = [
   '\bobese\b',
   '\bbald(ing)?\b',
   '\b(he|she|they) (is|are|looks?) (fat|ugly|hideous)\b',
-  '\b(his|her|their) (weight|gut|physique)\b',
+  # No "gut": "went with his gut" is a draft-approach idiom, not a body comment.
+  '\b(his|her|their) (weight|physique)\b',
 ]
 politics_religion = [
   '\bpolitic(s|al|ians?)\b',
@@ -134,7 +146,12 @@ gambling = [
   '\bwager(s|ing|ed)?\b',
   '\bprop bet\b',
   '\b(draftkings|fanduel)\b',
-  '\bgambl(e|ing|er)\b',
+  # No bare "gambl*" — "gambling on upside" describes a pick, not a person. But
+  # the noun and the third-person verb are *only* ever about the person, so they
+  # stay: "a degenerate gambler", "he gambles every week".
+  '\bgambling (problem|addiction|debts?|advice)\b',
+  '\bgamblers?\b',
+  '\bgambles\b',
   '\bvegas (has|likes?|line)\b',
 ]
 substances = [

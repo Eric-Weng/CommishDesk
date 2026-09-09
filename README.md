@@ -24,6 +24,12 @@ same command produce voiced prose instead — one model call per league, through
 "beat writer" voice. `--no-llm` forces the template narrator; `--league demo` always uses
 the template narrator regardless of any key.
 
+Every narrator's output passes a deterministic content-safety check before it ships, and a
+finding severe enough to be un-repairable *holds* the whole Issue (exit 1, no HTML). When
+that fires on a false positive, `--allow-content-hold` (or
+`COMMISHDESK_ALLOW_CONTENT_HOLD=1`) logs the hold loudly and ships the Issue anyway;
+`--no-allow-content-hold` forces the fail-closed default back on for one run.
+
 > **Status:** early build — this is the target shape, not yet the shipped behavior. The
 > MVP (`v0.5`, a draft recap for a single league, Discord delivery) is under
 > construction — see the milestone notes. Epic 1 is complete, and Epic 2 now runs the
