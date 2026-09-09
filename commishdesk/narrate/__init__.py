@@ -28,7 +28,12 @@ from .response import (
     structural_ok,
     suppress_sections,
 )
-from .safety import SafetyFinding, SafetyReport, check_narration
+from .safety import (
+    SafetyFinding,
+    SafetyReport,
+    check_narration,
+    closed_world_tokens,
+)
 from .template import Recap, Section, recap_to_text, render_draft_recap
 
 __all__ = [
@@ -43,6 +48,7 @@ __all__ = [
     "build_narration_payload",
     "check_narration",
     "classify",
+    "closed_world_tokens",
     "narrate_draft_recap",
     "narrate_with_llm",
     "recap_to_text",

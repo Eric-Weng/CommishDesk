@@ -8,24 +8,31 @@ in [`__init__.py`](../../../commishdesk/voices/__init__.py), reference impl
 
 | File | Purpose |
 |---|---|
-| `beat-writer.md` | A recorded expected-tone draft recap in the default "beat writer" voice, derived from the committed demo league — the recorded sample the heuristic scorer is checked against (not a semantic ground truth). |
+| `beat-writer.md` | A recorded expected-tone draft recap in the default "beat writer" voice, derived from the committed demo league — the recorded sample the scorer is checked against (not a semantic ground truth). |
 | `.gitkeep` | Keeps the directory in git even when a checkout has nothing else here. |
 
 ## The rubric
 
 The scorer that grades a recap against this material lives in
-[`tests/test_voices.py`](../../test_voices.py) (`_score_recap`). It is a
-`tests/`-local **heuristic**, deliberately lighter than Story 3.4's
-`narrate/safety.py` (the real closed-world safety gate on every Issue). It checks
-two things:
+[`tests/test_voices.py`](../../test_voices.py) (`_score_recap`). Its closed-world
+half is **not** a heuristic of its own: it calls
+`commishdesk.narrate.closed_world_tokens` — the same normalize → league-name-mask
+→ closed-world pipeline the real safety gate (`narrate/safety.py`) runs on every
+Issue. This module used to carry its own copy, the copy drifted, and the eval
+harness started certifying samples the shipping gate would have flagged. One
+implementation, called from both places. It checks two things:
 
-1. **Closed world.** Every capitalised or numeric token in the recap — minus a
-   small stop set of scaffolding and section-heading words — must appear,
-   case-folded, as a substring of the narration payload
-   (`Narration.model_dump_json()`). A recap may not name a player, team, manager,
-   draft slot, grade, or number that is not in the supplied facts.
+1. **Closed world** (`narrate/safety.closed_world_tokens`). Every capitalised or
+   numeric token in the recap — minus a curated stop set of scaffolding and
+   section-heading words — must be a **member** of the token set built from the
+   narration payload (`Narration.model_dump_json()`); exact membership, not
+   substring containment, so "202" does not pass on the strength of "2025". A
+   letter grade is checked case-folded against the grades actually awarded. A
+   recap may not name a player, team, manager, draft slot, grade, or number that
+   is not in the supplied facts.
 2. **Length.** The recap's character count must be within **±15%** of
-   `REFERENCE_TARGET_CHARS`.
+   `REFERENCE_TARGET_CHARS`. This half *is* `tests/`-local — the production gate
+   has no opinion about length.
 
 `REFERENCE_TARGET_CHARS = 9400` — the raw character length of the body of the
 phase-0 draft-recap reference newsletter (`brief/phase-0/`, a planning artifact

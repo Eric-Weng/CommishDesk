@@ -157,12 +157,19 @@ self-hosters inherit them and CI enforces them.
   demo alike); a manager's name in the same sentence as a banned-category term **or** a
   personal-insult-lexicon hit holds the entire Issue. Safety lists are version-controlled
   data in `narrate/safety_lists.toml`, editable without a code change, and a `Voice`'s
-  `banned_topics` prose merges in as extracted keyword patterns (warn tier only — never a
-  hold). `narrate/response.py` turns that report into the Layer 3 tiered response —
-  suppress the offending section, regenerate the LLM narration **once** (only on the
-  `regenerate`/hallucination tier), or hold the whole Issue (`ContentSafetyError`) —
-  degrading to the template narrator whenever LLM prose cannot be cleanly repaired; that
-  single safety-triggered regeneration is the one exception to I3.
+  `banned_topics` prose merges in as extracted **multi-word phrase** patterns — never bare
+  single words, which re-arm the terms the curated lists deliberately exclude — at the warn
+  tier only, never a hold. The league's own name is masked out of the check's internal
+  working copy first, so a league called "The Sportsbook League" cannot brick its own
+  Issue; findings still report the unmasked sentence. `narrate/response.py` turns that
+  report into the Layer 3 tiered response — suppress the offending section, regenerate the
+  LLM narration **once** (only on the `regenerate`/hallucination tier), or hold the whole
+  Issue (`ContentSafetyError`) — degrading to the template narrator whenever LLM prose
+  cannot be cleanly repaired; that single safety-triggered regeneration is the one
+  exception to I3. A hold is the default, and it is the operator's to override:
+  `--allow-content-hold` / `COMMISHDESK_ALLOW_CONTENT_HOLD` downgrades it to a loud
+  `logger.error` + stderr line and ships the best available body, and overrides nothing
+  else (`--no-allow-content-hold` forces fail-closed back on for one run).
 - **Power ranking (AD-13).** `stats/` emits `model_rank` only; `narrate/` owns
   `published_rank` end to end, bounded to ±`POWER_NUDGE_CAP` (2) with every deviation
   citing a Facts-JSON fact.

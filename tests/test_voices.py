@@ -9,25 +9,26 @@ Groups, one per Tasks & Acceptance bullet:
   ``voice_id == "beat-writer"``, a non-empty ``system_prompt`` that names the six
   section headings and the closed-world rule, a non-empty ``frozenset[str]``
   ``banned_topics``;
-* ``_score_recap`` — the ``tests/``-local heuristic scorer — plus its unit tests
-  (a clean sample passes; an invented proper noun, number, or letter grade fails
-  closed-world; a length outside ±15% fails);
+* ``_score_recap`` — the eval scorer — plus its unit tests (a clean sample
+  passes; an invented proper noun, number, or letter grade fails closed-world; a
+  length outside ±15% fails);
 * the committed ``beat-writer.md`` sample scored against a freshly built demo
   narration;
 * an **opt-in** live test that scores a real model generation — it makes a billed
   provider call and runs only when ``COMMISHDESK_LIVE_LLM`` is set, so a plain
   ``pytest`` run (developer laptop or CI) always skips it.
 
-The scorer here is deliberately lighter than Story 3.4's ``narrate/safety.py``
-(the real closed-world gate on every Issue). It only certifies the recorded
-sample and a live smoke output.
+The scorer's closed-world verdict is **not** a second implementation: it calls
+``commishdesk.narrate.safety._closed_world`` — the same gate every Issue passes
+through in production — so the eval harness and the shipping gate cannot drift
+apart (the pre-4.1 calibration gate, retro action item A3; the two copies had
+already diverged). Only the ±15 % length band is scored here.
 """
 
 from __future__ import annotations
 
 import ast
 import os
-import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -38,7 +39,7 @@ from commishdesk.facts import build_draft_recap_facts
 from commishdesk.facts.schema import Narration
 from commishdesk.ingest import build_league_model
 from commishdesk.llmconfig import load_llm_config
-from commishdesk.narrate import narrate_draft_recap
+from commishdesk.narrate import narrate_draft_recap, safety
 from commishdesk.narrate.llm import build_client
 from commishdesk.stats import (
     compute_board_metrics,
@@ -182,50 +183,6 @@ def test_voices_zone_module_keeps_the_v0_marker_and_imports_only_the_local_proto
 # (c) the scorer + its unit tests
 # --------------------------------------------------------------------------- #
 
-_TOKEN = re.compile(r"[A-Za-z0-9][A-Za-z0-9.’'%$+/-]*")
-
-#: Small stop set: scaffolding and section-heading words that are capitalised or
-#: numeric in prose but are not proper nouns / facts to trace (Design Notes:
-#: "section headings, Round, Best, Reach, …"). Kept deliberately short.
-_STOP: frozenset[str] = frozenset(
-    {
-        # articles / conjunctions / prepositions / pronouns / demonstratives
-        "a", "an", "and", "or", "but", "nor", "so", "yet", "for", "of", "in", "on",
-        "at", "to", "by", "as", "with", "from", "into", "than", "then", "that",
-        "this", "these", "those", "there", "their", "them", "they", "it", "its",
-        "he", "his", "him", "she", "her", "we", "we'll", "us", "our", "you",
-        "your", "i", "if", "is", "was", "were", "be", "been", "being",
-        "not", "no",
-        # common sentence-openers / adverbs
-        "the", "now", "here", "how", "when", "where", "what", "who", "whom",
-        "which", "while", "after", "before", "once", "still", "also", "even",
-        "just", "only", "both", "each", "every", "some", "any", "all", "most",
-        "more", "less", "nobody", "everyone", "someone", "nothing", "everything",
-        "because", "since", "until", "about", "over", "under", "between", "whether",
-        # section-heading / scaffolding words
-        "round", "board", "lead", "superlatives", "grades", "grade", "team",
-        "teams", "positional", "read", "picks", "pick", "december", "arguing",
-        "best", "reach", "value", "swing", "swings", "boldest", "biggest",
-        "runner-up", "consensus", "draft", "recap", "season", "waiting",
-        "early", "window", "later", "run", "runs",
-        # position nouns not spelled out in the narration projection
-        "quarterback", "quarterbacks", "receiver", "receivers", "wideout",
-        "wideouts", "tight", "flex", "kicker", "defense",
-        # spelled integers used as plain scaffolding (matched case-folded, so a
-        # capitalised "Seventeen" at a sentence start is stopped too)
-        "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
-        "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen",
-        "seventeen", "eighteen", "nineteen", "twenty", "thirty", "forty", "fifty",
-        "hundred",
-    }
-)
-
-#: A letter-grade token (``A`` / ``B+`` / ``D-``). Verified as a substring of the
-#: payload *before* the generic strip runs — otherwise ``A+`` / ``B+`` collapse to
-#: ``a`` / ``b`` and a hallucinated grade sails through.
-_GRADE = re.compile(r"^[A-F][+-]?$")
-
-
 @dataclass(frozen=True)
 class RecapScore:
     """The heuristic verdict on one recap against a narration payload."""
@@ -238,31 +195,20 @@ class RecapScore:
 
 
 def _score_recap(text: str, narration: Narration, *, target_chars: int) -> RecapScore:
-    """A ``tests/``-local heuristic: every capitalised or numeric token in *text*
-    (minus a small stop set) must appear, case-folded, as a substring of the
-    narration payload's JSON; and the recap's length must be within ±15% of
-    *target_chars*.
+    """Score one recap: closed-world by **the production gate**
+    (:func:`commishdesk.narrate.safety.closed_world_tokens`, which owns the whole
+    normalize → league-name-mask → closed-world pipeline ``check_narration``
+    runs), plus a ``tests/``-local length band of ±15% around *target_chars*.
+
+    The closed-world half owns no logic at all — not a regex, not a stop set, not
+    even the choice of which preprocessing steps to apply. This module used to
+    carry a copy of that logic; the copy drifted (it matched a grade as a bare
+    JSON substring, and never learned the token-set tightening or the ordinal /
+    hyphen splitting), so the eval harness certified samples the shipping gate
+    would have flagged. Retro action item A3: one implementation, one entry
+    point, called from both places.
     """
-    haystack = narration.model_dump_json().lower()
-    unknown: list[str] = []
-    for raw in _TOKEN.findall(text):
-        # drop trailing sentence punctuation but keep a grade's +/- suffix
-        trimmed = raw.strip(".,;:!?()[]\"'’")
-        if _GRADE.match(trimmed):
-            if trimmed.lower() not in haystack:
-                unknown.append(trimmed)
-            continue
-        token = trimmed.strip("%$+/-")
-        if not token:
-            continue
-        checkworthy = token[:1].isupper() or any(ch.isdigit() for ch in token)
-        if not checkworthy:
-            continue
-        folded = token.lower()
-        if folded in _STOP:
-            continue
-        if folded not in haystack:
-            unknown.append(token)
+    unknown = safety.closed_world_tokens(text, narration)
     char_count = len(text)
     length_ok = abs(char_count - target_chars) <= round(0.15 * target_chars)
     return RecapScore(
@@ -270,8 +216,44 @@ def _score_recap(text: str, narration: Narration, *, target_chars: int) -> Recap
         target_chars=target_chars,
         length_ok=length_ok,
         closed_world_ok=not unknown,
-        unknown_tokens=tuple(dict.fromkeys(unknown)),
+        unknown_tokens=unknown,
     )
+
+
+def test_scorer_delegates_closed_world_to_the_production_entry_point(
+    narration: Narration, monkeypatch
+) -> None:
+    """A3 — the real invariant, not a name check: whatever the production entry
+    point says is out of world *is* the scorer's verdict. A reintroduced local
+    copy (under any name) would fail here."""
+    seen: dict[str, object] = {}
+
+    def _spy(text: str, payload: Narration) -> tuple[str, ...]:
+        seen["text"] = text
+        seen["narration"] = payload
+        return ("SENTINEL",)
+
+    monkeypatch.setattr(safety, "closed_world_tokens", _spy)
+    score = _score_recap("Pull-Guard Pumas took Ashton Jeanty.", narration, target_chars=35)
+    assert seen["text"] == "Pull-Guard Pumas took Ashton Jeanty."
+    assert seen["narration"] is narration
+    assert score.unknown_tokens == ("SENTINEL",)
+    assert not score.closed_world_ok
+
+
+def test_the_production_entry_point_masks_the_league_name_too(
+    narration: Narration,
+) -> None:
+    """The scorer sees exactly the text the gate sees — league-name mask
+    included. Reaching past ``closed_world_tokens`` into ``_closed_world`` would
+    silently skip that step and score a different string."""
+    data = narration.model_dump()
+    data["league"]["name"] = "Fakename Kings"
+    renamed = Narration.model_validate(data)
+    # "Fakename" is out of world for the *original* payload...
+    assert "Fakename" in safety.closed_world_tokens("Fakename Kings drafted.", narration)
+    # ...and masked away for the league that is actually called that
+    assert not safety.closed_world_tokens("Fakename Kings drafted.", renamed)
 
 
 def test_scorer_passes_a_clean_in_world_sample(narration: Narration) -> None:
