@@ -13,13 +13,20 @@ This module is the *only* place the engine talks to a model provider. It:
   (:func:`build_narration_payload` — AD-1); it never sees a ``LeagueModel``,
   ``BoardMetrics``, a raw roster, or a box score;
 * runs the fixed selection order ``primary -> fallback -> template``
-  (:func:`narrate_draft_recap`): the primary is tried once, the fallback only on
-  a primary failure, for **at most one successful** generation call per
-  invocation regardless of member count (AD-8 / I3). All generation flows
-  through the single ``client.generate(...)`` call site in
-  :func:`narrate_with_llm`.
+  (:func:`narrate_draft_recap`): each provider is tried, on a *transient* fault
+  (request/connect timeout, transport error, HTTP 429 / 5xx) retried on the same
+  provider up to :data:`RETRY_CAP` more times — immediately, no backoff — then
+  the fallback, then the template. A non-transient fault (missing SDK, missing
+  key, truncated / empty completion, other 4xx) falls through on the first
+  failure. Retrying a *failed* call spends nothing and yields no extra
+  *successful* generation, so there is still **at most one successful**
+  generation call per invocation regardless of member count (AD-8 / I3). All
+  generation flows through the single ``client.generate(...)`` call site in
+  :func:`narrate_with_llm`, which owns the retry loop and stays SDK-free;
+  transient classification lives in the provider adapters.
 
-Model ids and endpoints are **not** here — they live in
+Model ids, endpoints, and the per-attempt request timeout
+(``COMMISHDESK_LLM_TIMEOUT``, default 60s) are **not** here — they live in
 :mod:`commishdesk.llmconfig`. Changing the config changes no file under
 ``narrate/``.
 """
@@ -60,7 +67,24 @@ _LOGGER = logging.getLogger("commishdesk")
 #: produces is comfortably smaller, so this is a generous hard stop, not a budget.
 _MAX_OUTPUT_TOKENS = 8192
 
+#: How many *extra* attempts a transient provider fault buys on the *same*
+#: provider before the selector falls through to the next one (FR-40 / Story
+#: 3.6). Each provider is therefore attempted at most ``1 + RETRY_CAP`` times.
+#: Retries are immediate — no backoff, no sleep, no clock dependency: the
+#: independent fallback provider (AD-15) is the resilience mechanism for a
+#: sustained outage; this only absorbs a momentary blip. A retried *failed* call
+#: spends nothing and yields no extra *successful* generation, so I3 holds.
+RETRY_CAP = 2
+
 _LLMNarrator = Literal["llm-primary", "llm-fallback"]
+
+
+class _TransientProviderError(NarratorError):
+    """A retryable provider fault — a request/connect timeout, a transport error,
+    or an HTTP 429 / 5xx. Raised by a provider adapter (where the SDK is
+    imported) and caught by :func:`narrate_with_llm`'s retry loop. Every other
+    fault is a plain :class:`~commishdesk.errors.NarratorError` (or propagates)
+    and is *not* retried. Module-private: not exported, not a public signal."""
 
 
 # --------------------------------------------------------------------------- #
@@ -112,6 +136,65 @@ def _env_key(*names: str, env: Mapping[str, str] | None = None) -> str | None:
     return None
 
 
+def _is_transport_fault(exc: BaseException) -> bool:
+    """True for a raw transport-layer fault (connect / read / write / timeout)
+    from either SDK's underlying HTTP client. ``httpx`` is a hard dependency, but
+    the import stays local so ``import commishdesk.narrate`` still pulls in
+    nothing (I4 / the no-``httpx``-on-import guard)."""
+    try:
+        import httpx
+    except ImportError:  # pragma: no cover - httpx is a hard dependency
+        return False
+    return isinstance(exc, httpx.TransportError)
+
+
+def _raise_if_transient_anthropic(exc: Exception, anthropic: object) -> None:
+    """Re-raise *exc* as :class:`_TransientProviderError` when it is a retryable
+    Anthropic fault (request/connect timeout, transport error, HTTP 429, HTTP
+    >= 500); return silently otherwise so the caller re-raises it unchanged
+    (non-transient — falling through is always safe)."""
+    transient_types = tuple(
+        t
+        for t in (
+            getattr(anthropic, "APITimeoutError", None),
+            getattr(anthropic, "APIConnectionError", None),
+            getattr(anthropic, "RateLimitError", None),
+        )
+        if isinstance(t, type)
+    )
+    if transient_types and isinstance(exc, transient_types):
+        raise _TransientProviderError(f"Anthropic transient fault: {exc!r}") from exc
+
+    status_error = getattr(anthropic, "APIStatusError", None)
+    if isinstance(status_error, type) and isinstance(exc, status_error):
+        code = getattr(exc, "status_code", None)
+        if code in (408, 429) or (isinstance(code, int) and 500 <= code < 600):
+            raise _TransientProviderError(f"Anthropic HTTP {code}: {exc!r}") from exc
+
+    if _is_transport_fault(exc):
+        raise _TransientProviderError(f"Anthropic transport fault: {exc!r}") from exc
+
+
+def _raise_if_transient_google(exc: Exception, errors: object) -> None:
+    """Google-genai counterpart of :func:`_raise_if_transient_anthropic`.
+
+    *errors* is ``google.genai.errors`` (or ``None`` when it cannot be imported —
+    then only the raw transport check applies)."""
+    if errors is not None:
+        server_error = getattr(errors, "ServerError", None)
+        if isinstance(server_error, type) and isinstance(exc, server_error):
+            raise _TransientProviderError(f"Google server error: {exc!r}") from exc
+
+        api_error = getattr(errors, "APIError", None)
+        if isinstance(api_error, type) and isinstance(exc, api_error):
+            code = getattr(exc, "code", None)
+            if code in (408, 429) or (isinstance(code, int) and 500 <= code < 600):
+                raise _TransientProviderError(f"Google HTTP {code}: {exc!r}") from exc
+
+    if _is_transport_fault(exc):
+        raise _TransientProviderError(f"Google transport fault: {exc!r}") from exc
+
+
 @dataclass(frozen=True, slots=True)
 class AnthropicClient:
     """Direct ``anthropic`` adapter. Key: ``ANTHROPIC_API_KEY`` or ``LLM_API_KEY``.
@@ -123,6 +206,9 @@ class AnthropicClient:
     model_id: str
     endpoint: str | None = None
     env: Mapping[str, str] | None = None
+    #: Per-attempt request timeout in seconds (``COMMISHDESK_LLM_TIMEOUT``);
+    #: ``None`` leaves the SDK default alone.
+    timeout: float | None = None
 
     def generate(self, payload: str, voice: Voice) -> str:
         try:
@@ -141,14 +227,20 @@ class AnthropicClient:
         kwargs: dict[str, object] = {"api_key": api_key}
         if self.endpoint is not None:
             kwargs["base_url"] = self.endpoint
+        if self.timeout is not None:
+            kwargs["timeout"] = self.timeout
         client = anthropic.Anthropic(**kwargs)
 
-        message = client.messages.create(
-            model=self.model_id,
-            max_tokens=_MAX_OUTPUT_TOKENS,
-            system=voice.system_prompt,
-            messages=[{"role": "user", "content": payload}],
-        )
+        try:
+            message = client.messages.create(
+                model=self.model_id,
+                max_tokens=_MAX_OUTPUT_TOKENS,
+                system=voice.system_prompt,
+                messages=[{"role": "user", "content": payload}],
+            )
+        except Exception as exc:  # a transient fault is retryable; the rest falls through
+            _raise_if_transient_anthropic(exc, anthropic)
+            raise
         if getattr(message, "stop_reason", None) == "max_tokens":
             raise NarratorError("Anthropic completion was truncated (max_tokens)")
         parts = [
@@ -173,6 +265,9 @@ class GoogleClient:
     model_id: str
     endpoint: str | None = None
     env: Mapping[str, str] | None = None
+    #: Per-attempt request timeout in seconds (``COMMISHDESK_LLM_TIMEOUT``);
+    #: ``None`` leaves the SDK default alone. google-genai wants milliseconds.
+    timeout: float | None = None
 
     def generate(self, payload: str, voice: Voice) -> str:
         try:
@@ -188,19 +283,34 @@ class GoogleClient:
                 "no Google API key (set GEMINI_API_KEY or GOOGLE_API_KEY)"
             )
 
-        kwargs: dict[str, object] = {"api_key": api_key}
+        http_options: dict[str, object] = {}
         if self.endpoint is not None:
-            kwargs["http_options"] = {"base_url": self.endpoint}
+            http_options["base_url"] = self.endpoint
+        if self.timeout is not None:
+            # seconds -> ms, floored at 1: a sub-ms timeout must not become 0,
+            # which google-genai reads as "no timeout".
+            http_options["timeout"] = max(1, round(self.timeout * 1000))
+        kwargs: dict[str, object] = {"api_key": api_key}
+        if http_options:
+            kwargs["http_options"] = http_options
         client = genai.Client(**kwargs)
 
-        response = client.models.generate_content(
-            model=self.model_id,
-            contents=payload,
-            config={
-                "system_instruction": voice.system_prompt,
-                "max_output_tokens": _MAX_OUTPUT_TOKENS,
-            },
-        )
+        try:
+            response = client.models.generate_content(
+                model=self.model_id,
+                contents=payload,
+                config={
+                    "system_instruction": voice.system_prompt,
+                    "max_output_tokens": _MAX_OUTPUT_TOKENS,
+                },
+            )
+        except Exception as exc:  # a transient fault is retryable; the rest falls through
+            try:
+                from google.genai import errors as genai_errors
+            except ImportError:
+                genai_errors = None  # type: ignore[assignment]
+            _raise_if_transient_google(exc, genai_errors)
+            raise
         finish = _google_finish_reason(response)
         if finish is not None and finish != "STOP":
             raise NarratorError(f"Google completion did not finish cleanly ({finish})")
@@ -226,9 +336,13 @@ def _google_finish_reason(response: object) -> str | None:
 def build_client(cfg: LLMModelConfig) -> LLMClient:
     """The adapter for *cfg*'s provider. ``llmconfig`` already validated the token."""
     if cfg.provider == "anthropic":
-        return AnthropicClient(model_id=cfg.model_id, endpoint=cfg.endpoint)
+        return AnthropicClient(
+            model_id=cfg.model_id, endpoint=cfg.endpoint, timeout=cfg.timeout
+        )
     if cfg.provider == "google":
-        return GoogleClient(model_id=cfg.model_id, endpoint=cfg.endpoint)
+        return GoogleClient(
+            model_id=cfg.model_id, endpoint=cfg.endpoint, timeout=cfg.timeout
+        )
     assert_never(cfg.provider)
 
 
@@ -244,14 +358,18 @@ def narrate_with_llm(
     *,
     client_factory: Callable[[LLMModelConfig], LLMClient] = build_client,
 ) -> tuple[str, _LLMNarrator]:
-    """Try the primary once, then the fallback once. Return ``(text, tag)``.
+    """Try the primary, then the fallback. Return ``(text, tag)``.
 
-    ``tag`` is ``"llm-primary"`` or ``"llm-fallback"``. At most two generation
-    attempts total, all through the one ``client.generate(...)`` call site below.
-    A provider that raises, returns a non-``str``, or returns an empty/whitespace
-    completion counts as a failed attempt. Raises
-    :class:`~commishdesk.errors.NarratorError` (chained from the last underlying
-    exception) only when *both* attempts fail.
+    ``tag`` is ``"llm-primary"`` or ``"llm-fallback"``. Each provider is attempted
+    at most ``1 + RETRY_CAP`` times: a :class:`_TransientProviderError` (timeout /
+    transport / 429 / 5xx) retries the *same* provider immediately (no backoff);
+    any other exception, or a non-``str`` / empty / whitespace completion, is a
+    non-transient failure that falls straight through to the next provider —
+    today's behaviour, unchanged. Every attempt runs through the one
+    ``client.generate(...)`` call site below. A retried *failed* call yields no
+    extra *successful* generation, so I3 (one paid call per league-week) holds.
+    Raises :class:`~commishdesk.errors.NarratorError` (chained from the last
+    underlying exception) only when *every* attempt fails.
     """
     try:
         payload = build_narration_payload(narration)
@@ -267,18 +385,34 @@ def narrate_with_llm(
         label = f"{tag} ({model_cfg.provider}:{model_cfg.model_id})"
         try:
             client = client_factory(model_cfg)
-            text = client.generate(payload, voice)
-        except Exception as exc:  # one call site: record the fault, then fall through
+        except Exception as exc:  # building the adapter failed -> next provider
             last_exc = exc
             _LOGGER.warning("llm narrator %s failed: %s", label, exc)
             continue
-        if not isinstance(text, str) or not text.strip():
-            last_exc = NarratorError(
-                f"{label} returned an unusable completion ({type(text).__name__})"
-            )
-            _LOGGER.warning("llm narrator %s returned an unusable completion", label)
-            continue
-        return text, tag
+        for attempt in range(1 + RETRY_CAP):
+            try:
+                text = client.generate(payload, voice)  # the one call site
+            except _TransientProviderError as exc:  # retry the same provider, no backoff
+                last_exc = exc
+                _LOGGER.warning(
+                    "llm narrator %s transient fault (attempt %d/%d): %s",
+                    label,
+                    attempt + 1,
+                    1 + RETRY_CAP,
+                    exc,
+                )
+                continue
+            except Exception as exc:  # non-transient: record it, fall through
+                last_exc = exc
+                _LOGGER.warning("llm narrator %s failed: %s", label, exc)
+                break
+            if not isinstance(text, str) or not text.strip():
+                last_exc = NarratorError(
+                    f"{label} returned an unusable completion ({type(text).__name__})"
+                )
+                _LOGGER.warning("llm narrator %s returned an unusable completion", label)
+                break
+            return text, tag
     raise NarratorError("both LLM providers failed to generate narration") from last_exc
 
 

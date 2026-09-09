@@ -85,10 +85,14 @@ is called out per-invariant below.
   Layer-4 safety classifier is unpaid and does not count. **One** safety-triggered
   regeneration is permitted on top (AD-12 Layer 3, Story 3.5): when a QA check on
   the generated Recap fails on the `regenerate` tier, `cli.py` re-enters
-  `narrate_draft_recap` once — which may itself try primary → fallback — so the
-  worst case is ~4 provider attempts for one league-week, hard-capped, before
-  degrading to the template. Still one Recap per league, reused for everyone.
-  Directly engine-testable against a fake `LLMClient`.
+  `narrate_draft_recap` once. Each pass tries primary → fallback, and a
+  *transient* provider fault (timeout / 429 / 5xx) is retried on the same
+  provider up to `RETRY_CAP` (2) more times with no backoff (FR-40 / Story 3.6),
+  so the worst case is `2 regen passes × 2 providers × (1 + RETRY_CAP)` = 12
+  provider *attempts* for one league-week — hard-capped, clock-free — before
+  degrading to the template. A retried *failed* call spends nothing and yields no
+  extra *successful* generation: still one paid Recap per league, reused for
+  everyone. Directly engine-testable against a fake `LLMClient`.
 
 - **I4 — Deterministic output requires no credentials and no paid resources.**
   `ingest → stats → facts → narrate(template) → render` runs with zero credentials and
@@ -166,6 +170,12 @@ self-hosters inherit them and CI enforces them.
   `ingest/sanitize.py` strips control chars, neutralizes URLs, NFKC-normalizes, and
   length-caps `league.name` / `team_name` / `display_name` **before** they enter the
   Facts JSON. Downstream then treats Facts JSON strings as trusted.
+- **Retry and depth are hard-capped (FR-40).** Draft-history traversal is capped
+  at 10 prior seasons (`adapters/sleeper.py::_MAX_HISTORY_HOPS`, single source of
+  truth) so a crafted `previous_league_id` chain cannot balloon one fetch; a
+  transient LLM provider fault is retried at most `RETRY_CAP` (2) times per
+  provider, immediately, before falling through (`narrate/llm.py`), and the
+  per-attempt LLM request timeout is bounded to 600s.
 - **Extension zones are contracts, not specs (AD-23).** `adapters/`, `voices/`,
   `themes/`, `statmods/` (distinct from the `stats/` pipeline compute package) each carry
   a documented protocol + an eval-fixture location + **at most one** reference

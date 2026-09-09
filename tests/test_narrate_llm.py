@@ -49,7 +49,15 @@ from commishdesk.narrate import (
     recap_to_text,
     render_draft_recap,
 )
-from commishdesk.narrate.llm import AnthropicClient, GoogleClient, build_client
+from commishdesk.narrate.llm import (
+    RETRY_CAP,
+    AnthropicClient,
+    GoogleClient,
+    _raise_if_transient_anthropic,
+    _raise_if_transient_google,
+    _TransientProviderError,
+    build_client,
+)
 from commishdesk.stats import (
     compute_board_metrics,
     compute_consensus_metrics,
@@ -92,6 +100,26 @@ class BoomClient:
     def generate(self, payload: str, voice: object) -> str:
         self.calls.append(payload)
         raise RuntimeError("provider is down")
+
+
+@dataclass
+class TransientClient:
+    """Raises a transient provider fault ``fail_times`` times, then returns ``reply``.
+
+    Stands in for a provider that times out / 429s a few times before recovering
+    — the retry loop's unit-level fake. The real adapter-side classification of an
+    SDK exception into ``_TransientProviderError`` is covered separately.
+    """
+
+    fail_times: int
+    reply: str = "recovered prose"
+    calls: list[str] = field(default_factory=list)
+
+    def generate(self, payload: str, voice: object) -> str:
+        self.calls.append(payload)
+        if len(self.calls) <= self.fail_times:
+            raise _TransientProviderError("simulated request timeout")
+        return self.reply
 
 
 @dataclass
@@ -320,6 +348,368 @@ def test_narrate_with_llm_raises_when_both_fail_chained(narration: Narration) ->
             client_factory=SeqFactory(BoomClient(), BoomClient()),
         )
     assert isinstance(excinfo.value.__cause__, RuntimeError)
+
+
+# --------------------------------------------------------------------------- #
+# Matrix: transient provider fault -> retried on the same provider (FR-40 / 3.6)
+# --------------------------------------------------------------------------- #
+
+
+def test_retry_cap_is_a_named_module_constant() -> None:
+    from commishdesk.narrate import llm
+
+    assert isinstance(llm.RETRY_CAP, int)
+    assert llm.RETRY_CAP == 2
+    assert "RETRY_CAP = 2" in LLM_PKG.read_text(encoding="utf-8")
+
+
+def test_retry_loop_is_immediate_no_backoff_no_clock() -> None:
+    """The Never-clause: retries carry no ``sleep`` / backoff / clock dep. Pinned
+    structurally so a future 'just add a small sleep' cannot slip in."""
+    src = LLM_PKG.read_text(encoding="utf-8")
+    tree = ast.parse(src)
+    imported = {
+        alias.name.split(".")[0]
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Import)
+        for alias in node.names
+    } | {
+        (node.module or "").split(".")[0]
+        for node in ast.walk(tree)
+        if isinstance(node, ast.ImportFrom)
+    }
+    assert imported.isdisjoint({"time", "asyncio", "datetime"})
+    # no call to *.sleep(...) or a bare sleep(...) anywhere in the module
+    calls = [
+        node.func
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+    ]
+    names = {f.attr for f in calls if isinstance(f, ast.Attribute)} | {
+        f.id for f in calls if isinstance(f, ast.Name)
+    }
+    assert "sleep" not in names
+
+
+def test_transient_primary_fault_is_retried_exactly_at_the_cap_then_succeeds(
+    narration: Narration,
+) -> None:
+    """Boundary: fails on every attempt but the last permitted one — an
+    off-by-one in ``range(1 + RETRY_CAP)`` would regress here."""
+    primary = TransientClient(fail_times=RETRY_CAP, reply="recovered at the cap")
+    factory = SeqFactory(primary)
+    result = narrate_draft_recap(
+        narration, FakeVoice(), CONFIG, llm_enabled=True, client_factory=factory
+    )
+    assert result == NarrationResult(
+        text="recovered at the cap", narrator="llm-primary"
+    )
+    assert len(primary.calls) == 1 + RETRY_CAP
+    assert factory.seen == [CONFIG.primary]
+
+
+def test_transient_primary_fault_is_retried_then_succeeds(narration: Narration) -> None:
+    primary = TransientClient(fail_times=1, reply="primary recovered")
+    factory = SeqFactory(primary)
+    result = narrate_draft_recap(
+        narration, FakeVoice(), CONFIG, llm_enabled=True, client_factory=factory
+    )
+    assert result == NarrationResult(text="primary recovered", narrator="llm-primary")
+    assert len(primary.calls) == 2  # one transient fault + one success
+    assert factory.seen == [CONFIG.primary]  # never advanced to the fallback
+
+
+def test_transient_primary_every_attempt_falls_through_to_fallback(
+    narration: Narration,
+) -> None:
+    primary = TransientClient(fail_times=99)
+    fallback = FakeClient("fallback prose")
+    factory = SeqFactory(primary, fallback)
+    result = narrate_draft_recap(
+        narration, FakeVoice(), CONFIG, llm_enabled=True, client_factory=factory
+    )
+    assert result == NarrationResult(text="fallback prose", narrator="llm-fallback")
+    assert len(primary.calls) == 1 + RETRY_CAP  # exactly the cap, then give up
+    assert len(fallback.calls) == 1
+    assert factory.seen == [CONFIG.primary, CONFIG.fallback]  # one build per provider
+
+
+def test_transient_on_both_providers_degrades_to_template(narration: Narration) -> None:
+    primary, fallback = TransientClient(fail_times=99), TransientClient(fail_times=99)
+    result = narrate_draft_recap(
+        narration,
+        FakeVoice(),
+        CONFIG,
+        llm_enabled=True,
+        client_factory=SeqFactory(primary, fallback),
+    )
+    assert result.narrator == "template"
+    assert result.text == recap_to_text(render_draft_recap(narration))
+    assert len(primary.calls) == 1 + RETRY_CAP
+    assert len(fallback.calls) == 1 + RETRY_CAP
+
+
+def test_transient_both_raises_chained_from_the_transient_signal(
+    narration: Narration,
+) -> None:
+    with pytest.raises(NarratorError) as excinfo:
+        narrate_with_llm(
+            narration,
+            FakeVoice(),
+            CONFIG,
+            client_factory=SeqFactory(
+                TransientClient(fail_times=99), TransientClient(fail_times=99)
+            ),
+        )
+    assert isinstance(excinfo.value.__cause__, _TransientProviderError)
+
+
+def test_non_transient_primary_fault_is_not_retried(narration: Narration) -> None:
+    """Pins today's behaviour: a non-transient error (here a plain ``RuntimeError``)
+    is tried exactly once before the fallback — no retry, no change from baseline."""
+    primary, fallback = BoomClient(), FakeClient("fallback prose")
+    factory = SeqFactory(primary, fallback)
+    result = narrate_draft_recap(
+        narration, FakeVoice(), CONFIG, llm_enabled=True, client_factory=factory
+    )
+    assert result == NarrationResult(text="fallback prose", narrator="llm-fallback")
+    assert len(primary.calls) == 1  # exactly once
+    assert factory.seen == [CONFIG.primary, CONFIG.fallback]
+
+
+def test_unusable_completion_is_not_retried(narration: Narration) -> None:
+    """An empty / non-``str`` completion is non-transient: one attempt, fall through."""
+    primary = BadReturnClient(value="   ")
+    fallback = FakeClient("fallback prose")
+    factory = SeqFactory(primary, fallback)
+    result = narrate_draft_recap(
+        narration, FakeVoice(), CONFIG, llm_enabled=True, client_factory=factory
+    )
+    assert result.narrator == "llm-fallback"
+    assert len(primary.calls) == 1
+
+
+# --------------------------------------------------------------------------- #
+# COMMISHDESK_LLM_TIMEOUT -> forwarded to each provider SDK client (FR-40 / 3.6)
+# --------------------------------------------------------------------------- #
+
+
+def test_timeout_is_forwarded_to_the_anthropic_sdk_client(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    sink: dict[str, list[dict[str, object]]] = {}
+    _install_fake_anthropic(monkeypatch, sink=sink)
+    AnthropicClient("m", env={"LLM_API_KEY": "k"}, timeout=30.0).generate(
+        "{}", FakeVoice()
+    )
+    assert sink["client"][0]["timeout"] == 30.0
+
+
+def test_timeout_is_converted_to_ms_for_the_google_sdk_client(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    sink: dict[str, list[dict[str, object]]] = {}
+    _install_fake_genai(monkeypatch, sink=sink)
+    GoogleClient("m", env={"GEMINI_API_KEY": "k"}, timeout=30.0).generate(
+        "{}", FakeVoice()
+    )
+    assert sink["client"][0]["http_options"] == {"timeout": 30000}
+
+
+def test_google_sub_millisecond_timeout_floors_to_one_ms(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A tiny timeout must not round to 0 ms — google-genai reads 0 as "no timeout"."""
+    sink: dict[str, list[dict[str, object]]] = {}
+    _install_fake_genai(monkeypatch, sink=sink)
+    GoogleClient("m", env={"GEMINI_API_KEY": "k"}, timeout=0.0004).generate(
+        "{}", FakeVoice()
+    )
+    assert sink["client"][0]["http_options"]["timeout"] == 1
+
+
+def test_google_endpoint_and_timeout_merge_into_one_http_options(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    sink: dict[str, list[dict[str, object]]] = {}
+    _install_fake_genai(monkeypatch, sink=sink)
+    GoogleClient(
+        "m", endpoint="https://gw/google", env={"GOOGLE_API_KEY": "k"}, timeout=30.0
+    ).generate("{}", FakeVoice())
+    assert sink["client"][0]["http_options"] == {
+        "base_url": "https://gw/google",
+        "timeout": 30000,
+    }
+
+
+def test_no_timeout_leaves_the_sdk_default_alone(monkeypatch: pytest.MonkeyPatch) -> None:
+    sink: dict[str, list[dict[str, object]]] = {}
+    _install_fake_anthropic(monkeypatch, sink=sink)
+    AnthropicClient("m", env={"LLM_API_KEY": "k"}).generate("{}", FakeVoice())
+    assert "timeout" not in sink["client"][0]
+
+
+def test_build_client_threads_timeout_from_config() -> None:
+    cfg = load_llm_config({"COMMISHDESK_LLM_TIMEOUT": "45"})
+    assert build_client(cfg.primary).timeout == 45.0  # type: ignore[union-attr]
+    assert build_client(cfg.fallback).timeout == 45.0  # type: ignore[union-attr]
+
+
+# --------------------------------------------------------------------------- #
+# Matrix: an SDK exception is classified transient (429 / 5xx / timeout / transport)
+# or non-transient (other 4xx / anything unrecognized -> falls through, always safe)
+# --------------------------------------------------------------------------- #
+
+
+class _FakeAPITimeoutError(Exception):
+    pass
+
+
+class _FakeAPIConnectionError(Exception):
+    pass
+
+
+class _FakeRateLimitError(Exception):
+    pass
+
+
+class _FakeAPIStatusError(Exception):
+    def __init__(self, status_code: int) -> None:
+        super().__init__(f"HTTP {status_code}")
+        self.status_code = status_code
+
+
+_FAKE_ANTHROPIC = types.SimpleNamespace(
+    APITimeoutError=_FakeAPITimeoutError,
+    APIConnectionError=_FakeAPIConnectionError,
+    RateLimitError=_FakeRateLimitError,
+    APIStatusError=_FakeAPIStatusError,
+)
+
+
+@pytest.mark.parametrize(
+    "exc",
+    [
+        _FakeAPITimeoutError("slow"),
+        _FakeAPIConnectionError("reset"),
+        _FakeRateLimitError("429"),
+        _FakeAPIStatusError(408),
+        _FakeAPIStatusError(429),
+        _FakeAPIStatusError(503),
+        _FakeAPIStatusError(500),
+    ],
+)
+def test_anthropic_transient_faults_are_reraised_as_transient(exc: Exception) -> None:
+    with pytest.raises(_TransientProviderError):
+        _raise_if_transient_anthropic(exc, _FAKE_ANTHROPIC)
+
+
+@pytest.mark.parametrize(
+    "exc",
+    [_FakeAPIStatusError(400), _FakeAPIStatusError(404), RuntimeError("weird")],
+)
+def test_anthropic_non_transient_faults_return_silently(exc: Exception) -> None:
+    # returns without raising -> the adapter re-raises the original, no retry
+    _raise_if_transient_anthropic(exc, _FAKE_ANTHROPIC)
+
+
+class _FakeServerError(Exception):
+    pass
+
+
+class _FakeGoogleAPIError(Exception):
+    def __init__(self, code: int) -> None:
+        super().__init__(f"HTTP {code}")
+        self.code = code
+
+
+_FAKE_GENAI_ERRORS = types.SimpleNamespace(
+    ServerError=_FakeServerError, APIError=_FakeGoogleAPIError
+)
+
+
+@pytest.mark.parametrize(
+    "exc",
+    [
+        _FakeServerError("boom"),
+        _FakeGoogleAPIError(408),
+        _FakeGoogleAPIError(429),
+        _FakeGoogleAPIError(502),
+    ],
+)
+def test_google_transient_faults_are_reraised_as_transient(exc: Exception) -> None:
+    with pytest.raises(_TransientProviderError):
+        _raise_if_transient_google(exc, _FAKE_GENAI_ERRORS)
+
+
+@pytest.mark.parametrize("exc", [_FakeGoogleAPIError(400), RuntimeError("weird")])
+def test_google_non_transient_faults_return_silently(exc: Exception) -> None:
+    _raise_if_transient_google(exc, _FAKE_GENAI_ERRORS)
+    _raise_if_transient_google(exc, None)  # errors module unimportable -> still safe
+
+
+def test_raw_httpx_transport_fault_is_transient_for_either_provider() -> None:
+    import httpx
+
+    fault = httpx.ConnectError("connection refused")
+    with pytest.raises(_TransientProviderError):
+        _raise_if_transient_anthropic(fault, _FAKE_ANTHROPIC)
+    with pytest.raises(_TransientProviderError):
+        _raise_if_transient_google(fault, _FAKE_GENAI_ERRORS)
+
+
+def test_anthropic_adapter_maps_an_sdk_timeout_to_a_transient_fault(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """End to end through the adapter: the SDK call raises, the adapter classifies
+    it, and ``narrate_with_llm`` would retry it."""
+    module = types.ModuleType("anthropic")
+    module.APITimeoutError = _FakeAPITimeoutError  # type: ignore[attr-defined]
+
+    class _Messages:
+        def create(self, **kwargs: object) -> object:
+            raise _FakeAPITimeoutError("request timed out")
+
+    class _Anthropic:
+        def __init__(self, **kwargs: object) -> None:
+            self.messages = _Messages()
+
+    module.Anthropic = _Anthropic  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "anthropic", module)
+
+    with pytest.raises(_TransientProviderError):
+        AnthropicClient("m", env={"LLM_API_KEY": "k"}).generate("{}", FakeVoice())
+
+
+def test_google_adapter_maps_an_sdk_error_to_a_transient_fault(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """End to end through the adapter: a ``google.genai`` ``ServerError`` from the
+    SDK call is classified transient — pins the ``except`` block in
+    ``GoogleClient.generate`` (deleting it would not otherwise fail the suite)."""
+    genai = types.ModuleType("google.genai")
+    errors_mod = types.ModuleType("google.genai.errors")
+    errors_mod.ServerError = _FakeServerError  # type: ignore[attr-defined]
+    errors_mod.APIError = _FakeGoogleAPIError  # type: ignore[attr-defined]
+
+    class _Models:
+        def generate_content(self, **kwargs: object) -> object:
+            raise _FakeServerError("upstream 503")
+
+    class _Client:
+        def __init__(self, **kwargs: object) -> None:
+            self.models = _Models()
+
+    genai.Client = _Client  # type: ignore[attr-defined]
+    genai.errors = errors_mod  # type: ignore[attr-defined]
+    google_pkg = types.ModuleType("google")
+    google_pkg.genai = genai  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "google", google_pkg)
+    monkeypatch.setitem(sys.modules, "google.genai", genai)
+    monkeypatch.setitem(sys.modules, "google.genai.errors", errors_mod)
+
+    with pytest.raises(_TransientProviderError):
+        GoogleClient("m", env={"GEMINI_API_KEY": "k"}).generate("{}", FakeVoice())
 
 
 # --------------------------------------------------------------------------- #

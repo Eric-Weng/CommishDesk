@@ -39,6 +39,11 @@ __all__ = ["SleeperAdapter"]
 
 _DEFAULT_CONTACT_URL = "https://github.com/Eric-Weng/CommishDesk"
 _DEFAULT_TIMEOUT = 10.0
+# FR-40 / Story 3.6: the single source of truth for the draft-history depth cap.
+# At most this many prior seasons are followed (the origin league is not counted
+# as a hop), so a crafted `previous_league_id` chain cannot balloon one league's
+# fetch. `_walk_history` enforces it (plus a repeated-id stop, retro finding C3);
+# pinned by a guard test in `tests/test_sleeper_adapter.py`.
 _MAX_HISTORY_HOPS = 10
 _API_BASE = "https://api.sleeper.app/v1"
 
@@ -147,9 +152,11 @@ class SleeperAdapter:
 
     def _walk_history(self, previous_league_id: Any) -> list[str]:
         """Follow ``previous_league_id`` one hop at a time via a real
-        ``GET /league/{id}`` per hop, capped at ``_MAX_HISTORY_HOPS``. Returns
-        the visited ids in traversal order (``[]`` if there is no history).
-        Raises ``AdapterError`` if a hop response isn't an object.
+        ``GET /league/{id}`` per hop, capped at ``_MAX_HISTORY_HOPS`` prior
+        seasons (the FR-40 depth cap — Story 2.2, pinned to FR-40 in Story 3.6;
+        the origin league is not counted as a hop). Returns the visited ids in
+        traversal order (``[]`` if there is no history). Raises ``AdapterError``
+        if a hop response isn't an object.
 
         Stops on a repeated id (retro finding C3) as well as on the hop cap: a
         self-referencing or cyclic ``previous_league_id`` chain would otherwise
