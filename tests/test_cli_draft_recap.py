@@ -86,6 +86,20 @@ def test_demo_draft_recap_runs_end_to_end(tmp_path: Path) -> None:
     assert "<h1" in body and "<h2>" in body
     assert body.count("<style>") == 1 and "<svg" in body  # the Story 4.1 designed page
 
+    # Story 4.2: the email-safe HTML + the text/plain alternative, both echoed
+    email_html = tmp_path / "commishdesk-demo-draft-recap.email.html"
+    email_text = tmp_path / "commishdesk-demo-draft-recap.txt"
+    assert email_html.is_file() and str(email_html) in result.stdout
+    assert email_text.is_file() and str(email_text) in result.stdout
+    email_body = email_html.read_text(encoding="utf-8")
+    assert email_body.startswith("<!DOCTYPE html>")
+    assert '<table role="presentation"' in email_body
+    for token in ("<svg", "<img", "<script", "var(--", "url("):
+        assert token not in email_body, token
+    text_body = email_text.read_text(encoding="utf-8")
+    assert "THE BOARD" in text_body and "PICKS PER TEAM" in text_body
+    assert text_body.strip()
+
 
 def test_two_demo_runs_are_byte_identical_modulo_generated_at(tmp_path: Path) -> None:
     out_a, out_b = tmp_path / "a", tmp_path / "b"
@@ -104,6 +118,14 @@ def test_two_demo_runs_are_byte_identical_modulo_generated_at(tmp_path: Path) ->
     assert _STAMP.sub("<STAMP>", html1) == _STAMP.sub("<STAMP>", html2)
     # and the timestamp really is present (so the mask is not masking nothing)
     assert _STAMP.search(html1)
+
+    # Story 4.2: the email HTML and the text/plain part both carry the generation
+    # stamp and are byte-deterministic modulo it
+    for name in ("commishdesk-demo-draft-recap.email.html", "commishdesk-demo-draft-recap.txt"):
+        a = (out_a / name).read_text(encoding="utf-8")
+        b = (out_b / name).read_text(encoding="utf-8")
+        assert _STAMP.sub("<STAMP>", a) == _STAMP.sub("<STAMP>", b), name
+        assert _STAMP.search(a), name
 
 
 def test_demo_writes_the_designed_self_contained_page(tmp_path: Path) -> None:
@@ -126,6 +148,9 @@ def test_demo_writes_the_designed_self_contained_page(tmp_path: Path) -> None:
     for target in re.findall(r'href="([^"]*)"', body):
         assert target.startswith("#"), target
     assert b"\r\n" not in path.read_bytes()  # LF-only
+    # Story 4.2: the two email surfaces are LF-only on disk too
+    assert b"\r\n" not in (tmp_path / "commishdesk-demo-draft-recap.email.html").read_bytes()
+    assert b"\r\n" not in (tmp_path / "commishdesk-demo-draft-recap.txt").read_bytes()
 
 
 def test_draft_recap_with_week_is_a_usage_error() -> None:
@@ -647,6 +672,19 @@ def test_llm_narrator_path_emits_text_and_the_designed_html(
     raw = html_path.read_bytes()
     assert b"\r\n" not in raw  # LF-only on disk
     raw.decode("utf-8")  # valid UTF-8, no surrogate escapes
+
+    # Story 4.2: the LLM narrator path also writes the email HTML + text part,
+    # with the LLM prose as the body and the title still from facts.league
+    email_body = (tmp_path / "commishdesk-77-draft-recap.email.html").read_text(
+        encoding="utf-8"
+    )
+    assert email_body.startswith("<!DOCTYPE html>")
+    assert "<title>Trench Warfare — 2025 Draft Recap</title>" in email_body
+    assert "Jeanty went 1.01, and it only got weirder." in email_body
+    assert "<svg" not in email_body and "var(--" not in email_body
+    text_body = (tmp_path / "commishdesk-77-draft-recap.txt").read_text(encoding="utf-8")
+    assert "Jeanty went 1.01, and it only got weirder." in text_body
+    assert "THE BOARD" in text_body
 
 
 # --------------------------------------------------------------------------- #

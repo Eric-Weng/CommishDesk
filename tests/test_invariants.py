@@ -278,7 +278,7 @@ def test_I4(monkeypatch: pytest.MonkeyPatch) -> None:
     from commishdesk.facts import build_draft_recap_facts
     from commishdesk.ingest import build_league_model
     from commishdesk.narrate import recap_to_text, render_draft_recap
-    from commishdesk.render import recap_to_html, render_web
+    from commishdesk.render import recap_to_html, render_email, render_web
     from commishdesk.stats import (
         compute_board_metrics,
         compute_consensus_metrics,
@@ -313,7 +313,13 @@ def test_I4(monkeypatch: pytest.MonkeyPatch) -> None:
             output_id="demo",
             generated_at="2026-09-09T00:00:00.000Z",
         )
-        return recap_to_text(recap), recap_to_html(recap) + web
+        # render_email is a pure function of its arguments too (I4 / AD-2): fold
+        # both of its parts — the email-safe HTML and the text/plain body — into
+        # the determinism chain.
+        email = render_email(
+            doc, recap=recap, generated_at="2026-09-09T00:00:00.000Z"
+        )
+        return recap_to_text(recap), recap_to_html(recap) + web + email.html + email.text
 
     text1, html1 = _demo_chain()
     text2, html2 = _demo_chain()

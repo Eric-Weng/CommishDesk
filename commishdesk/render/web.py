@@ -25,9 +25,6 @@ controls stripped first.
 
 from __future__ import annotations
 
-import html
-import re
-
 from commishdesk.facts.schema import (
     DraftRecapFacts,
     PickRow,
@@ -36,6 +33,12 @@ from commishdesk.facts.schema import (
     TERunSummary,
 )
 from commishdesk.narrate import Recap
+from commishdesk.render._body import (
+    _esc,
+    _sections_from_llm,
+    _sections_from_recap,
+    _surname,
+)
 from commishdesk.render.style import (
     POSITION_VAR,
     POSITIONS,
@@ -45,21 +48,6 @@ from commishdesk.render.style import (
 )
 
 __all__ = ["render_web"]
-
-#: A Markdown ATX heading line with real text after the marker (``## The Lead``).
-#: A bare marker (``##`` / ``## ``) does not match — it falls through to a ``<p>``.
-_HEADING_LINE = re.compile(r"^#{1,6}[ \t]+(\S.*?)\s*$")
-
-#: Name suffixes that are kept attached to the surname ("Marvin Harrison Jr.").
-_NAME_SUFFIXES = {"jr", "sr", "ii", "iii", "iv", "v"}
-#: Nobiliary / lowercase particles kept attached to the surname ("Amon-Ra St. Brown").
-_NAME_PARTICLES = {"van", "von", "de", "del", "der", "la", "le", "ter", "di", "da"}
-
-#: Unicode bidirectional control characters — stripped from every interpolated
-#: value so a lone directional mark cannot reorder surrounding markup / labels.
-_BIDI_CONTROLS = dict.fromkeys(
-    [0x200E, 0x200F, *range(0x202A, 0x202F), *range(0x2066, 0x206A)]
-)
 
 # Grid geometry (px, in the SVG's own coordinate space).
 _G_GUT = 46
@@ -82,12 +70,6 @@ _T_TRACK = 640
 _T_PAD = 14
 
 
-def _esc(value: object) -> str:
-    """Strip Unicode bidi controls from ``value`` then HTML/SVG-escape it (``<``,
-    ``>``, ``&``, quotes)."""
-    return html.escape(str(value).translate(_BIDI_CONTROLS), quote=True)
-
-
 def _effective_rounds(facts: DraftRecapFacts, picks: list[PickRow]) -> int:
     """The round count the board must span: the declared ``draft.rounds`` when it
     is a positive int, widened to the largest real pick round so a missing / zero
@@ -100,45 +82,6 @@ def _effective_rounds(facts: DraftRecapFacts, picks: list[PickRow]) -> int:
 # --------------------------------------------------------------------------- #
 # Narrated body
 # --------------------------------------------------------------------------- #
-
-
-def _sections_from_recap(recap: Recap) -> list[tuple[str | None, list[str]]]:
-    return [(section.heading, list(section.blocks)) for section in recap.sections]
-
-
-def _sections_from_llm(text: str) -> list[tuple[str | None, list[str]]]:
-    """Parse the LLM narrator's plain-text prose into ``(heading, blocks)`` runs.
-
-    Newlines normalised to ``\\n``; a ``#``-``######`` line with text after the
-    marker opens a new section; every other blank-line-separated run of prose is a
-    block (wrapped lines joined with a single space). The first line is **body
-    prose**, never the title — a leading untitled empty run is dropped.
-    """
-    normalized = text.replace("\r\n", "\n").replace("\r", "\n")
-    sections: list[tuple[str | None, list[str]]] = [(None, [])]
-    paragraph: list[str] = []
-
-    def flush() -> None:
-        if paragraph:
-            sections[-1][1].append(" ".join(paragraph))
-            paragraph.clear()
-
-    for raw in normalized.split("\n"):
-        line = raw.strip()
-        if not line:
-            flush()
-            continue
-        heading = _HEADING_LINE.match(line)
-        if heading:
-            flush()
-            sections.append((heading.group(1), []))
-        else:
-            paragraph.append(line)
-    flush()
-
-    if sections and sections[0][0] is None and not sections[0][1]:
-        sections.pop(0)
-    return sections
 
 
 def _render_body(sections: list[tuple[str | None, list[str]]]) -> str:
@@ -240,25 +183,6 @@ def _empty_figure(eyebrow: str, note: str) -> str:
             "</figure>",
         ]
     )
-
-
-def _surname(name: str) -> str:
-    """The display surname for a grid cell: the last token, pulling in a trailing
-    nobiliary particle ("Amon-Ra St. Brown" -> "St. Brown") and keeping a
-    generational suffix attached ("Marvin Harrison Jr." -> "Harrison Jr.")."""
-    parts = [token for token in name.split() if token]
-    if not parts:
-        return name
-
-    def is_particle(token: str) -> bool:
-        return token.endswith(".") or token.lower() in _NAME_PARTICLES
-
-    if len(parts) >= 2 and parts[-1].lower().strip(".") in _NAME_SUFFIXES:
-        start = -3 if len(parts) >= 3 and is_particle(parts[-3]) else -2
-        return " ".join(parts[start:])
-    if len(parts) >= 2 and is_particle(parts[-2]):
-        return " ".join(parts[-2:])
-    return parts[-1]
 
 
 def _is_snake(picks: list[PickRow], team_count: int) -> bool:
