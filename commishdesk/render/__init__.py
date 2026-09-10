@@ -1,11 +1,15 @@
 """Stage 5 — one content model, three surfaces: a self-contained web page, a
 dark-mode-safe email, and a Discord post with a rendered image.
 
-At MVP this is a bare, unstyled local HTML dump of the template narrator's
-:class:`~commishdesk.narrate.Recap` — a literal ``<h1>``/``<h2>``/``<p>``
-transcription with every value ``html.escape``-d, no CSS and no script. The
-designed inline-SVG render is Story 4.1. This module imports only the narrator's
-output type + the standard library (AD-1).
+The bare, unstyled local HTML dump of the template narrator's
+:class:`~commishdesk.narrate.Recap` (:func:`recap_to_html`) and of the LLM
+narrator's plain text (:func:`narrated_text_to_html`) — a literal
+``<h1>``/``<h2>``/``<p>`` transcription with every value ``html.escape``-d, no CSS
+and no script — is kept as-is (Story 4.2 decides its fate). The designed
+inline-SVG render is :func:`~commishdesk.render.web.render_web` (Story 4.1), which
+the CLI writes. This module imports the narrator output type,
+``commishdesk.facts`` schema types (via ``render/web.py``), and the standard
+library only (AD-1).
 """
 
 from __future__ import annotations
@@ -15,10 +19,12 @@ import re
 from pathlib import Path
 
 from commishdesk.narrate import Recap
+from commishdesk.render.web import render_web
 
 __all__ = [
     "narrated_text_to_html",
     "recap_to_html",
+    "render_web",
     "write_draft_recap",
     "write_html_file",
 ]

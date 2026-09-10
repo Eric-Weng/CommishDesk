@@ -278,7 +278,7 @@ def test_I4(monkeypatch: pytest.MonkeyPatch) -> None:
     from commishdesk.facts import build_draft_recap_facts
     from commishdesk.ingest import build_league_model
     from commishdesk.narrate import recap_to_text, render_draft_recap
-    from commishdesk.render import recap_to_html
+    from commishdesk.render import recap_to_html, render_web
     from commishdesk.stats import (
         compute_board_metrics,
         compute_consensus_metrics,
@@ -304,7 +304,16 @@ def test_I4(monkeypatch: pytest.MonkeyPatch) -> None:
             consensus_as_of="2025-05",
         )
         recap = render_draft_recap(doc.narration)
-        return recap_to_text(recap), recap_to_html(recap)
+        # render_web is a pure function of its arguments (I4 / AD-2): the only time
+        # value is the caller-supplied generated_at string, pinned here so two runs
+        # on one frozen input are byte-identical.
+        web = render_web(
+            doc,
+            recap=recap,
+            output_id="demo",
+            generated_at="2026-09-09T00:00:00.000Z",
+        )
+        return recap_to_text(recap), recap_to_html(recap) + web
 
     text1, html1 = _demo_chain()
     text2, html2 = _demo_chain()

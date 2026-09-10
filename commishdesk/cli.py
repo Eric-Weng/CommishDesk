@@ -310,11 +310,7 @@ def _recap_one_league(
     from commishdesk.facts.storylines import DRAFT_RECAP_WEEK, advance_storylines
     from commishdesk.ingest import build_league_model
     from commishdesk.narrate import recap_to_text
-    from commishdesk.render import (
-        narrated_text_to_html,
-        write_draft_recap,
-        write_html_file,
-    )
+    from commishdesk.render import render_web, write_html_file
     from commishdesk.stats import (
         compute_board_metrics,
         compute_consensus_metrics,
@@ -419,16 +415,22 @@ def _recap_one_league(
             update={"dateline": f"{body.recap.dateline} · generated {doc.generated_at}"}
         )
         typer.echo(recap_to_text(recap))
-        written = write_draft_recap(recap, dest)
     else:
         assert body.llm_text is not None
         logger.debug("llm narrator produced prose (%s)", body.narrator)
         typer.echo(f"generated {doc.generated_at}\n\n{body.llm_text}")
-        written = write_html_file(
-            narrated_text_to_html(body.llm_text, generated_at=str(doc.generated_at)),
-            dest,
-        )
 
+    # Story 4.1: both narrator paths write the one designed, self-contained page.
+    written = write_html_file(
+        render_web(
+            doc,
+            recap=body.recap,
+            llm_text=body.llm_text,
+            output_id=resolved,
+            generated_at=str(doc.generated_at),
+        ),
+        dest,
+    )
     typer.echo(str(written))
 
 
