@@ -17,8 +17,11 @@ __all__ = [
     "FONT_MONO",
     "FONT_SANS",
     "FONT_SERIF",
+    "LIGHT_HEX",
     "POSITIONS",
     "POSITION_VAR",
+    "REACH_HEX",
+    "VALUE_HEX",
     "build_style",
     "fmt_signed",
     "ordinal",
@@ -158,6 +161,20 @@ _DARK_TOKENS: dict[str, str] = {
     "--pos-te": "#BCAD8C",
     "--shadow": "0 1px 0 #ffffff0a inset, 0 1px 2px #00000040",
 }
+
+
+#: The **light-theme** palette as literal hex, keyed without the ``--`` prefix
+#: (``LIGHT_HEX["ink-2"]``). Email cannot use ``var(--*)`` — every colour has to be
+#: an inline literal — so the email render reads its palette from here rather than
+#: re-typing the values. One source of truth with :data:`_LIGHT_TOKENS`.
+LIGHT_HEX: dict[str, str] = {
+    name.removeprefix("--"): value for name, value in _LIGHT_TOKENS.items()
+}
+
+#: Reach (red) and value (green) as literal hex, for the email verdict chips /
+#: bars where ``var(--reach)`` / ``var(--value)`` cannot resolve.
+REACH_HEX: str = _LIGHT_TOKENS["--reach"]
+VALUE_HEX: str = _LIGHT_TOKENS["--value"]
 
 
 def _emit_tokens(tokens: dict[str, str], indent: str = "  ") -> str:

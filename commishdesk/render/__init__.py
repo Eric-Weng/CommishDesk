@@ -5,11 +5,14 @@ The bare, unstyled local HTML dump of the template narrator's
 :class:`~commishdesk.narrate.Recap` (:func:`recap_to_html`) and of the LLM
 narrator's plain text (:func:`narrated_text_to_html`) — a literal
 ``<h1>``/``<h2>``/``<p>`` transcription with every value ``html.escape``-d, no CSS
-and no script — is kept as-is (Story 4.2 decides its fate). The designed
-inline-SVG render is :func:`~commishdesk.render.web.render_web` (Story 4.1), which
-the CLI writes. This module imports the narrator output type,
-``commishdesk.facts`` schema types (via ``render/web.py``), and the standard
-library only (AD-1).
+and no script — is kept as-is (``test_I4`` still folds in ``recap_to_html``). The
+designed inline-SVG render is :func:`~commishdesk.render.web.render_web` (Story
+4.1); the email-deliverable render — client-safe ``<table>`` HTML plus a
+``text/plain`` alternative — is :func:`~commishdesk.render.email.render_email`
+(Story 4.2), returning an :class:`~commishdesk.render.email.EmailParts` pair. The
+CLI writes all three files. This module imports the narrator output type,
+``commishdesk.facts`` schema types (via ``render/web.py`` / ``render/email.py``),
+and the standard library only (AD-1).
 """
 
 from __future__ import annotations
@@ -19,14 +22,18 @@ import re
 from pathlib import Path
 
 from commishdesk.narrate import Recap
+from commishdesk.render.email import EmailParts, render_email
 from commishdesk.render.web import render_web
 
 __all__ = [
+    "EmailParts",
     "narrated_text_to_html",
     "recap_to_html",
+    "render_email",
     "render_web",
     "write_draft_recap",
     "write_html_file",
+    "write_text_file",
 ]
 
 #: A Markdown ATX heading line with real text after the marker (``## Superlatives``).
@@ -142,6 +149,17 @@ def write_html_file(document: str, dest: Path) -> Path:
     """Write an HTML *document* string to *dest* as UTF-8 with ``\\n`` newlines,
     creating parent directories, and return the path written. The one file-write
     contract shared by every HTML surface in this stage."""
+    dest = Path(dest)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_text(document, encoding="utf-8", newline="\n")
+    return dest
+
+
+def write_text_file(document: str, dest: Path) -> Path:
+    """Write a plain-text *document* string to *dest* as UTF-8 with ``\\n``
+    newlines, creating parent directories, and return the path written — the
+    ``text/plain`` sibling of :func:`write_html_file` (Story 4.2's
+    ``render_email`` returns an ``(html, text)`` pair; the CLI writes both)."""
     dest = Path(dest)
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(document, encoding="utf-8", newline="\n")

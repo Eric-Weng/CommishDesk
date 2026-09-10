@@ -310,7 +310,12 @@ def _recap_one_league(
     from commishdesk.facts.storylines import DRAFT_RECAP_WEEK, advance_storylines
     from commishdesk.ingest import build_league_model
     from commishdesk.narrate import recap_to_text
-    from commishdesk.render import render_web, write_html_file
+    from commishdesk.render import (
+        render_email,
+        render_web,
+        write_html_file,
+        write_text_file,
+    )
     from commishdesk.stats import (
         compute_board_metrics,
         compute_consensus_metrics,
@@ -432,6 +437,26 @@ def _recap_one_league(
         dest,
     )
     typer.echo(str(written))
+
+    # Story 4.2: the same content model, rendered for email — client-safe HTML
+    # plus a text/plain alternative. No delivery here (Stories 4.3-4.6); the CLI
+    # just writes the two files next to the web page.
+    email_parts = render_email(
+        doc,
+        recap=body.recap,
+        llm_text=body.llm_text,
+        generated_at=str(doc.generated_at),
+    )
+    email_html = write_html_file(
+        email_parts.html,
+        Path(out_dir) / f"commishdesk-{resolved}-draft-recap.email.html",
+    )
+    email_text = write_text_file(
+        email_parts.text,
+        Path(out_dir) / f"commishdesk-{resolved}-draft-recap.txt",
+    )
+    typer.echo(str(email_html))
+    typer.echo(str(email_text))
 
 
 def _produce_issue(
