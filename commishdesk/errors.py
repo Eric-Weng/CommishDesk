@@ -66,6 +66,18 @@ section at all. It is a ``CommishDeskError`` caught by the per-league ``except``
 (one-line stderr, exit 1, no HTML — AD-9); it exists as its own class so an
 operator can tell a content-review hold from an infra retry. The raising happens
 in ``commishdesk/cli.py``, not here.
+
+``DeliveryError`` is the eighth: any failure posting an Issue to a delivery
+channel — a webhook URL that is not a Discord webhook, a ``content`` payload over
+Discord's 2000-character limit, a non-2xx response from the webhook, or a
+transport failure reaching it — surfaces as a ``DeliveryError`` chained (where an
+underlying exception exists) from ``httpx.HTTPError`` / ``RuntimeError``. It is a
+``CommishDeskError`` caught by the ``_run_draft_recap`` per-league
+``except (CommishDeskError, OSError)`` and by the ``verify-webhook`` subcommand
+(one-line stderr, exit 1, no traceback). This module still imports only stdlib +
+pydantic + commishdesk; the wrapping happens at the call site in
+``commishdesk/deliver/discord.py``, not here — and the webhook token is never put
+in the message.
 """
 
 from __future__ import annotations
@@ -75,6 +87,7 @@ __all__ = [
     "CommishDeskError",
     "ConsensusError",
     "ContentSafetyError",
+    "DeliveryError",
     "IngestError",
     "NarratorError",
     "SchemaValidationError",
@@ -105,6 +118,12 @@ class ContentSafetyError(CommishDeskError):
     ``NarratorError``) so an operator can tell a content review from an infra
     retry. Caught per league like any other fault (AD-9).
     """
+
+
+class DeliveryError(CommishDeskError):
+    """An Issue could not be posted to a delivery channel (wrapped at the call
+    site in ``commishdesk/deliver/discord.py``; the webhook token is never in the
+    message)."""
 
 
 class IngestError(CommishDeskError):

@@ -247,6 +247,22 @@ def test_discord_webhook_url_is_redacted():
     assert "[redacted]" in record["msg"]
 
 
+def test_discord_webhook_url_via_error_and_context_is_redacted():
+    """Story 4.3: the webhook URL is a secret. A raw URL that reaches
+    ``logger.error`` — or is bound into ``log_context`` — comes out ``[redacted]``,
+    token and all."""
+    url = "https://canary.discordapp.com/api/webhooks/998877665544/S3cr3t-Tok3nTok3n"
+    stream = FakeStream(tty=False)
+    logger = _log(stream)
+    with log_context(league_id=url):
+        logger.error("verify-webhook failed for %s", url)
+    (record,) = _json_lines(stream)
+    assert "998877665544" not in json.dumps(record)
+    assert "S3cr3t-Tok3nTok3n" not in json.dumps(record)
+    assert record["msg"] == "verify-webhook failed for [redacted]"
+    assert record["league_id"] == "[redacted]"
+
+
 def test_exc_info_is_redacted_in_json():
     stream = FakeStream(tty=False)
     logger = _log(stream)

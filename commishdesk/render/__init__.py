@@ -22,6 +22,7 @@ import re
 from pathlib import Path
 
 from commishdesk.narrate import Recap
+from commishdesk.render.discord import render_discord_summary
 from commishdesk.render.email import EmailParts, render_email
 from commishdesk.render.web import render_web
 
@@ -29,6 +30,7 @@ __all__ = [
     "EmailParts",
     "narrated_text_to_html",
     "recap_to_html",
+    "render_discord_summary",
     "render_email",
     "render_web",
     "write_draft_recap",
