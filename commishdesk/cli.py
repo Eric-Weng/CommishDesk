@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 import typer
 
 from commishdesk import __version__
-from commishdesk.errors import CommishDeskError
+from commishdesk.errors import CommishDeskError, DeliveryError
 from commishdesk.logconfig import configure_logging, log_context
 
 if TYPE_CHECKING:
@@ -72,6 +72,7 @@ def _cache_dir() -> Path:
 
 @app.callback(invoke_without_command=True)
 def run(
+    ctx: typer.Context,
     league: str | None = typer.Option(
         None, "--league", help="Sleeper league id to build a recap for (or 'demo')."
     ),
@@ -121,7 +122,15 @@ def run(
     ),
 ) -> None:
     """Configure logging, bind the league/week log context, and dispatch to the
-    draft-recap pipeline (or the not-yet-implemented weekly recap)."""
+    draft-recap pipeline (or the not-yet-implemented weekly recap).
+
+    Adding the first ``@app.command`` (``verify-webhook``) flips Click into group
+    mode, so this callback also fires ahead of a subcommand — return immediately
+    in that case and let the subcommand own the run. Every bare
+    ``commishdesk --league …`` invocation still lands here unchanged.
+    """
+    if ctx.invoked_subcommand is not None:
+        return
     logger = configure_logging(verbose)
     with log_context(league_id=league, week=week):
         if draft_recap and week is not None:
@@ -158,6 +167,92 @@ def run(
 def _one_line(exc: Exception) -> str:
     """A single-line, traceback-free message for a caught fault."""
     return str(exc) or exc.__class__.__name__
+
+
+#: The Discord channel webhook the MVP delivers to. A secret — read from the
+#: process environment only, never a file or a committed ``leagues/*.toml``.
+_DISCORD_WEBHOOK_VAR = "COMMISHDESK_DISCORD_WEBHOOK_URL"
+
+
+@app.command("verify-webhook")
+def verify_webhook(
+    league: str = typer.Option(
+        ...,
+        "--league",
+        help="Sleeper league id to name in the test post (or 'demo').",
+    ),
+    verbose: bool = typer.Option(
+        False, "--verbose", help="Increase output verbosity."
+    ),
+) -> None:
+    """Post a visible test message to the configured Discord webhook and accept
+    the destination only if Discord accepts the post (FR-25).
+
+    Reads the webhook URL from the COMMISHDESK_DISCORD_WEBHOOK_URL environment
+    variable (a secret — never a file or committed config) and names the league in
+    the message so you can see it land in the right channel. A missing variable, a
+    non-Discord URL, a webhook the API rejects, or an unreachable host each print
+    one line to stderr and exit 1 with no traceback; the destination is not
+    accepted.
+    """
+    # Lazy import: keeps ``httpx`` off the default CLI import path (I4 / test_I4).
+    from commishdesk.deliver.discord import post_discord_text, webhook_id
+
+    logger = configure_logging(verbose)
+    with log_context(league_id=league):
+        url = (os.environ.get(_DISCORD_WEBHOOK_VAR) or "").strip()
+        if not url:
+            typer.echo(
+                f"set {_DISCORD_WEBHOOK_VAR} to the league's Discord channel webhook "
+                "URL before running verify-webhook",
+                err=True,
+            )
+            raise typer.Exit(code=1)
+
+        try:
+            name = _resolve_league_name(league, logger)
+        except (CommishDeskError, OSError) as exc:
+            typer.echo(_one_line(exc), err=True)
+            raise typer.Exit(code=1) from exc
+
+        try:
+            post_discord_text(
+                url, f"CommishDesk test post — {name}. Webhook is working."
+            )
+        except DeliveryError as exc:
+            typer.echo(_one_line(exc), err=True)
+            raise typer.Exit(code=1) from exc
+
+        logger.info(
+            "verify-webhook accepted Discord webhook id %s for league %s",
+            webhook_id(url),
+            league,
+        )
+        typer.echo(
+            f"Discord webhook accepted — a test post naming {name!r} is in the channel."
+        )
+
+
+def _resolve_league_name(league: str, logger: logging.Logger) -> str:
+    """The league's display name, for the verify-webhook test post. ``demo``
+    resolves offline against the committed fixture; a real id is fetched from
+    Sleeper (adapter lifecycle per :func:`_recap_one_league`)."""
+    from commishdesk.demo import DEMO_LEAGUE_ID, load_demo_bundle
+    from commishdesk.ingest import build_league_model
+
+    if league == DEMO_LEAGUE_ID:
+        logger.debug("resolving the demo league name offline")
+        return build_league_model(load_demo_bundle()).name
+
+    from commishdesk.adapters.sleeper import SleeperAdapter
+
+    logger.debug("fetching the league name from Sleeper")
+    adapter = SleeperAdapter()
+    try:
+        bundle = adapter.fetch(league)
+    finally:
+        adapter.close()
+    return build_league_model(bundle).name
 
 
 #: Any one of these, set and non-blank, turns the LLM narrator on by default.
