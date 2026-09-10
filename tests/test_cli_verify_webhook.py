@@ -14,6 +14,7 @@ import pytest
 from typer.testing import CliRunner
 
 from commishdesk.cli import app
+from commishdesk.deliver.discord import webhook_id
 from commishdesk.errors import DeliveryError
 
 runner = CliRunner()
@@ -30,11 +31,12 @@ def _scrub_webhook_env(monkeypatch) -> None:
 
 
 def _fake_post(monkeypatch, sink: list | None = None, raises: Exception | None = None):
-    def fake(url: str, content: str, *, client: object = None) -> None:
+    def fake(url: str, content: str, *, client: object = None) -> str:
         if sink is not None:
             sink.append((url, content))
         if raises is not None:
             raise raises
+        return webhook_id(url)
 
     monkeypatch.setattr("commishdesk.deliver.discord.post_discord_text", fake)
 

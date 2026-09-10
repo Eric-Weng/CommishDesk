@@ -196,7 +196,7 @@ def verify_webhook(
     accepted.
     """
     # Lazy import: keeps ``httpx`` off the default CLI import path (I4 / test_I4).
-    from commishdesk.deliver.discord import post_discord_text, webhook_id
+    from commishdesk.deliver.discord import post_discord_text
 
     logger = configure_logging(verbose)
     with log_context(league_id=league):
@@ -216,7 +216,7 @@ def verify_webhook(
             raise typer.Exit(code=1) from exc
 
         try:
-            post_discord_text(
+            accepted_id = post_discord_text(
                 url, f"CommishDesk test post — {name}. Webhook is working."
             )
         except DeliveryError as exc:
@@ -225,7 +225,7 @@ def verify_webhook(
 
         logger.info(
             "verify-webhook accepted Discord webhook id %s for league %s",
-            webhook_id(url),
+            accepted_id,
             league,
         )
         typer.echo(
