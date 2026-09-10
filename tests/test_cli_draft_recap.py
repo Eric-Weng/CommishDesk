@@ -83,7 +83,8 @@ def test_demo_draft_recap_runs_end_to_end(tmp_path: Path) -> None:
     assert str(html_file) in result.stdout
     body = html_file.read_text(encoding="utf-8")
     assert body.startswith("<!doctype html>")
-    assert "<h1>" in body and "<h2>" in body
+    assert "<h1" in body and "<h2>" in body
+    assert body.count("<style>") == 1 and "<svg" in body  # the Story 4.1 designed page
 
 
 def test_two_demo_runs_are_byte_identical_modulo_generated_at(tmp_path: Path) -> None:
@@ -103,6 +104,28 @@ def test_two_demo_runs_are_byte_identical_modulo_generated_at(tmp_path: Path) ->
     assert _STAMP.sub("<STAMP>", html1) == _STAMP.sub("<STAMP>", html2)
     # and the timestamp really is present (so the mask is not masking nothing)
     assert _STAMP.search(html1)
+
+
+def test_demo_writes_the_designed_self_contained_page(tmp_path: Path) -> None:
+    """Story 4.1 — the written HTML is the designed page: one ``<!doctype html>``
+    document, one inline ``<style>``, three inline ``<svg>`` charts, LF-only on
+    disk, and no external sub-resource construct anywhere."""
+    result = _run("--league", "demo", "--draft-recap", "--out-dir", str(tmp_path))
+    assert result.returncode == 0, result.stderr
+    path = tmp_path / "commishdesk-demo-draft-recap.html"
+    body = path.read_text(encoding="utf-8")
+    assert body.startswith("<!doctype html>")
+    assert body.count("<style>") == 1 and "<script" not in body
+    assert body.count("<svg") == 3  # grid + pick-count bar + positional timeline
+    # no actual sub-resource construct (not a blunt "no http anywhere")
+    assert "<link " not in body and " src=" not in body and " srcset=" not in body
+    assert "@import" not in body
+    style = body.split("<style>", 1)[1].split("</style>", 1)[0]
+    assert "url(" not in style and "http://" not in style and "https://" not in style
+    assert not re.search(r'=\s*"[^"]*//[^"/]', body)  # no protocol-relative host in an attr
+    for target in re.findall(r'href="([^"]*)"', body):
+        assert target.startswith("#"), target
+    assert b"\r\n" not in path.read_bytes()  # LF-only
 
 
 def test_draft_recap_with_week_is_a_usage_error() -> None:
@@ -579,12 +602,14 @@ def test_demo_draft_recap_passes_the_safety_gate(tmp_path: Path) -> None:
     assert (tmp_path / "commishdesk-demo-draft-recap.html").is_file()
 
 
-def test_llm_narrator_path_emits_text_and_a_bare_html_dump(
+def test_llm_narrator_path_emits_text_and_the_designed_html(
     tmp_path: Path, monkeypatch
 ) -> None:
     """Key present + a working provider: stdout is the LLM prose behind the
-    ``generated <ts>`` stamp, and the HTML file is the bare ``narrated_text_to_html``
-    dump (``<h1>``/``<h2>``, no ``<style>``) — not the structured template render."""
+    ``generated <ts>`` stamp, and the HTML file is the Story 4.1 designed page
+    (masthead from ``facts.league``, inline ``<style>`` + inline ``<svg>``) with
+    the LLM prose as the body — not the structured template render, and the LLM
+    ``## `` headings survive as ``<h2>`` section headers."""
     _fake_real_league(monkeypatch)
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
     for var in _KEY_VARS:
@@ -606,11 +631,17 @@ def test_llm_narrator_path_emits_text_and_a_bare_html_dump(
     html_path = tmp_path / "commishdesk-77-draft-recap.html"
     body = html_path.read_text(encoding="utf-8")
     assert body.startswith("<!doctype html>")
-    assert "<h1>Trench Warfare Draft Recap</h1>" in body
-    assert "<h2>The Lead</h2>" in body
-    assert "<p>generated " in body  # provenance stamp on the bare dump too
-    assert "<style>" not in body and "<script" not in body
-    # the bare LLM dump, never the template narrator's fixed method sentence
+    # masthead title from facts.league, never parsed out of llm_text
+    assert '<h1 class="nameplate">Trench Warfare</h1>' in body
+    assert "<title>Trench Warfare — 2025 Draft Recap</title>" in body
+    assert "<h2>The Lead</h2>" in body  # the LLM heading survives as a section header
+    assert "Jeanty went 1.01, and it only got weirder." in body  # LLM prose is the body
+    assert "generated " in body  # provenance stamp in the footer
+    # the designed page: exactly one inline <style>, inline <svg>, no script
+    assert body.count("<style>") == 1 and "<script" not in body
+    assert "<svg" in body
+    assert "http://" not in body and "https://" not in body
+    # the LLM prose shipped, never the template narrator's fixed method sentence
     assert "Grades weigh each pick against the consensus board" not in body
 
     raw = html_path.read_bytes()
@@ -1256,14 +1287,13 @@ def test_a_league_named_after_a_banned_term_still_produces_an_issue(
     assert result.exit_code == 0, result.output
     assert "content-safety" not in result.stderr
     body = (tmp_path / "commishdesk-95-draft-recap.html").read_text(encoding="utf-8")
-    assert f"<h1>{league_name}" in body
-    assert body.count(league_name) >= 2  # title + dateline
+    assert f'<h1 class="nameplate">{league_name}</h1>' in body
+    assert body.count(league_name) >= 2  # <title> + masthead <h1>
     # the mask lives in the check's working copy only: the two places the league
-    # name is rendered carry the real name, never the placeholder. (The template
-    # narrator writes the words "the league" in its own method sentence, so a
-    # whole-document check would be meaningless.)
-    title_line = next(line for line in body.splitlines() if "<h1>" in line)
-    dateline = next(line for line in body.splitlines() if "season" in line)
-    for line in (title_line, dateline):
+    # name is rendered carry the real name, never the placeholder. (render_web's
+    # own footer prose deliberately avoids the words "the league".)
+    title_line = next(line for line in body.splitlines() if "<title>" in line)
+    h1_line = next(line for line in body.splitlines() if "<h1" in line)
+    for line in (title_line, h1_line):
         assert league_name in line, line
         assert safety._LEAGUE_PLACEHOLDER not in line, line
