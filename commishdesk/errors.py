@@ -78,6 +78,17 @@ underlying exception exists) from ``httpx.HTTPError`` / ``RuntimeError``. It is 
 pydantic + commishdesk; the wrapping happens at the call site in
 ``commishdesk/deliver/discord.py``, not here — and the webhook token is never put
 in the message.
+
+``CostCeilingExceededError``: ``commishdesk/cli.py`` raises it
+before any paid LLM call when the pre-call worst-case cost estimate
+(``commishdesk/narrate/pricing.py::estimate_cost_usd``) exceeds
+``LLMConfig.cost_ceiling_usd`` (``COMMISHDESK_COST_CEILING_USD``), and
+``narrate/pricing.py`` itself raises it when a model id has no
+``MODEL_PRICES`` entry — an unpriced model fails closed rather than silently
+skipping pricing. A ``CommishDeskError`` caught by the same per-league
+``except (CommishDeskError, OSError)`` as every other engine fault (AD-9); no new
+catch site. The estimate is a worst-case bound, never an average — see
+``narrate/pricing.py`` for the char-proxy token approximation.
 """
 
 from __future__ import annotations
@@ -87,6 +98,7 @@ __all__ = [
     "CommishDeskError",
     "ConsensusError",
     "ContentSafetyError",
+    "CostCeilingExceededError",
     "DeliveryError",
     "IngestError",
     "NarratorError",
@@ -118,6 +130,12 @@ class ContentSafetyError(CommishDeskError):
     ``NarratorError``) so an operator can tell a content review from an infra
     retry. Caught per league like any other fault (AD-9).
     """
+
+
+class CostCeilingExceededError(CommishDeskError):
+    """A pre-call cost estimate exceeded ``LLMConfig.cost_ceiling_usd``, or a
+    model id has no ``narrate/pricing.py::MODEL_PRICES`` entry to price against.
+    Raised before any paid call — fail closed, zero spend."""
 
 
 class DeliveryError(CommishDeskError):

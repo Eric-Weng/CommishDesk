@@ -8,6 +8,7 @@ error when the demo fixture is absent.
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import subprocess
@@ -20,7 +21,7 @@ from typer.testing import CliRunner
 
 import commishdesk
 from commishdesk.cli import app
-from commishdesk.errors import CommishDeskError
+from commishdesk.errors import CommishDeskError, DeliveryError
 from commishdesk.narrate import safety
 
 runner = CliRunner()
@@ -1335,3 +1336,496 @@ def test_a_league_named_after_a_banned_term_still_produces_an_issue(
     for line in (title_line, h1_line):
         assert league_name in line, line
         assert safety._LEAGUE_PLACEHOLDER not in line, line
+
+
+# --------------------------------------------------------------------------- #
+# Story 4.6 — --post (idempotent Discord delivery) + the pre-call cost estimate
+# --------------------------------------------------------------------------- #
+
+_FAKE_WEBHOOK_URL = "https://discord.com/api/webhooks/111111111111111111/faketoken"
+
+
+def _stub_post_discord_text(monkeypatch, *, fail: Exception | None = None) -> list:
+    """Replace ``commishdesk.deliver.discord.post_discord_text`` (the CLI's lazy
+    import picks this up at call time) with a recording fake — no real network
+    call. Returns the list of ``(url, content)`` calls made."""
+    calls: list[tuple[str, str]] = []
+
+    def _fake(url: str, content: str, **_kw: object) -> str:
+        calls.append((url, content))
+        if fail is not None:
+            raise fail
+        return "111111111111111111"
+
+    monkeypatch.setattr("commishdesk.deliver.discord.post_discord_text", _fake)
+    return calls
+
+
+def test_fmt_usd_shows_enough_precision_to_distinguish_near_ceiling_values() -> None:
+    """review-loop 1: a naive two-decimal rounding made an over-ceiling error
+    message show the exact same two numbers as the ceiling it exceeded."""
+    from commishdesk.cli import _fmt_usd
+
+    assert _fmt_usd(1.001) != _fmt_usd(1.000)
+
+
+def test_post_without_draft_recap_is_a_usage_error() -> None:
+    result = runner.invoke(app, ["--league", "demo", "--post"])
+    assert result.exit_code == 2
+    assert "Traceback" not in result.output
+    assert "--post" in result.output
+
+
+@pytest.mark.parametrize("webhook_value", [None, "", "   "])
+def test_post_without_a_webhook_fails_before_any_sleeper_fetch(
+    tmp_path: Path, monkeypatch, webhook_value: str | None
+) -> None:
+    """The --post-specific webhook check runs before any Sleeper / consensus /
+    LLM work for the league — proven by an adapter that raises if it is ever
+    reached at all."""
+    if webhook_value is None:
+        monkeypatch.delenv("COMMISHDESK_DISCORD_WEBHOOK_URL", raising=False)
+    else:
+        monkeypatch.setenv("COMMISHDESK_DISCORD_WEBHOOK_URL", webhook_value)
+
+    class _MustNotFetchAdapter:
+        def __init__(self, *a: object, **k: object) -> None: ...
+
+        def fetch(self, league_id: str) -> dict:
+            raise AssertionError("Sleeper must not be fetched before the --post webhook check")
+
+        def close(self) -> None: ...
+
+    monkeypatch.setattr("commishdesk.adapters.sleeper.SleeperAdapter", _MustNotFetchAdapter)
+    result = runner.invoke(
+        app, ["--league", "170", "--draft-recap", "--post", "--out-dir", str(tmp_path)]
+    )
+    assert result.exit_code == 1
+    assert "Traceback" not in result.output
+    assert "COMMISHDESK_DISCORD_WEBHOOK_URL" in result.output
+    assert not list(tmp_path.iterdir())
+
+
+def test_post_without_a_webhook_on_the_demo_path_also_fails(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.delenv("COMMISHDESK_DISCORD_WEBHOOK_URL", raising=False)
+    result = runner.invoke(
+        app, ["--league", "demo", "--draft-recap", "--post", "--out-dir", str(tmp_path)]
+    )
+    assert result.exit_code == 1
+    assert not list(tmp_path.iterdir())
+
+
+def test_post_with_a_malformed_webhook_url_fails_before_any_paid_call(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """review-loop 2, finding 1: a non-blank but non-Discord-shaped webhook URL
+    must fail the same fail-fast way a blank one does — before any Sleeper
+    fetch or paid LLM call, not after burning the full narration cost."""
+    monkeypatch.setenv("COMMISHDESK_DISCORD_WEBHOOK_URL", "https://example.com/not-a-webhook")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+
+    class _MustNotFetchAdapter:
+        def __init__(self, *a: object, **k: object) -> None: ...
+
+        def fetch(self, league_id: str) -> dict:
+            raise AssertionError(
+                "Sleeper must not be fetched before the --post webhook check"
+            )
+
+        def close(self) -> None: ...
+
+    monkeypatch.setattr("commishdesk.adapters.sleeper.SleeperAdapter", _MustNotFetchAdapter)
+    result = runner.invoke(
+        app, ["--league", "171", "--draft-recap", "--post", "--out-dir", str(tmp_path)]
+    )
+    assert result.exit_code == 1
+    assert "Traceback" not in result.output
+    assert "not a Discord webhook" in result.output
+    assert "estimated cost" not in result.output  # never reached the cost-estimate block
+    assert not list(tmp_path.iterdir())
+
+
+def test_post_first_run_posts_once_and_writes_every_file(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.setenv("COMMISHDESK_DISCORD_WEBHOOK_URL", _FAKE_WEBHOOK_URL)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+    calls = _stub_post_discord_text(monkeypatch)
+    result = runner.invoke(
+        app, ["--league", "demo", "--draft-recap", "--post", "--out-dir", str(tmp_path)]
+    )
+    assert result.exit_code == 0, result.output
+    assert len(calls) == 1
+    assert calls[0][0] == _FAKE_WEBHOOK_URL
+    assert "posted to Discord" in result.output
+    assert (tmp_path / "commishdesk-demo-draft-recap.html").is_file()
+    assert (tmp_path / "commishdesk-demo-draft-recap.email.html").is_file()
+    assert (tmp_path / "commishdesk-demo-draft-recap.txt").is_file()
+
+    from commishdesk.store import FileStore
+
+    store = FileStore(tmp_path / "cache" / "commishdesk")
+    ledger = store.read_ledger("demo", 1)  # DRAFT_RECAP_WEEK
+    assert len(ledger) == 1 and ledger[0].channel == "discord"
+
+
+def test_post_second_identical_run_skips_discord_but_rewrites_files(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.setenv("COMMISHDESK_DISCORD_WEBHOOK_URL", _FAKE_WEBHOOK_URL)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+    calls = _stub_post_discord_text(monkeypatch)
+
+    r1 = runner.invoke(
+        app, ["--league", "demo", "--draft-recap", "--post", "--out-dir", str(tmp_path)]
+    )
+    assert r1.exit_code == 0, r1.output
+    assert len(calls) == 1
+
+    r2 = runner.invoke(
+        app, ["--league", "demo", "--draft-recap", "--post", "--out-dir", str(tmp_path)]
+    )
+    assert r2.exit_code == 0, r2.output
+    assert len(calls) == 1  # no second Discord post
+    assert "already confirmed" in r2.output
+    assert (tmp_path / "commishdesk-demo-draft-recap.html").is_file()  # rewritten regardless
+
+
+def test_post_on_demo_creates_a_store_but_never_persists_storylines(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """review-loop 1 regression: --post gives the demo path a Store (for the
+    Send Ledger), which must NOT re-enable storyline persistence for demo."""
+    monkeypatch.setenv("COMMISHDESK_DISCORD_WEBHOOK_URL", _FAKE_WEBHOOK_URL)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+    _stub_post_discord_text(monkeypatch)
+    result = runner.invoke(
+        app, ["--league", "demo", "--draft-recap", "--post", "--out-dir", str(tmp_path)]
+    )
+    assert result.exit_code == 0, result.output
+
+    from commishdesk.store import FileStore
+
+    store = FileStore(tmp_path / "cache" / "commishdesk")
+    assert store.read_storylines("demo") == []  # never written
+    assert store.read_ledger("demo", 1) != []  # but the ledger WAS written
+
+
+def test_post_discord_failure_is_exit_1_with_no_ledger_entry(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.setenv("COMMISHDESK_DISCORD_WEBHOOK_URL", _FAKE_WEBHOOK_URL)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+    _stub_post_discord_text(monkeypatch, fail=DeliveryError("discord rejected the webhook"))
+    result = runner.invoke(
+        app, ["--league", "demo", "--draft-recap", "--post", "--out-dir", str(tmp_path)]
+    )
+    assert result.exit_code == 1
+    assert "Traceback" not in result.output
+    assert "discord rejected the webhook" in result.output
+    # rendering already happened before delivery was attempted
+    assert (tmp_path / "commishdesk-demo-draft-recap.html").is_file()
+
+    from commishdesk.store import FileStore
+
+    store = FileStore(tmp_path / "cache" / "commishdesk")
+    assert store.read_ledger("demo", 1) == []
+
+
+def test_post_real_league_full_flow_with_llm_narration(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """The full acceptance criterion: a working webhook, an estimate under
+    ceiling, all three surfaces rendered, and one Discord post."""
+    _fake_real_league(monkeypatch)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+    monkeypatch.setenv("COMMISHDESK_DISCORD_WEBHOOK_URL", _FAKE_WEBHOOK_URL)
+    calls = _stub_post_discord_text(monkeypatch)
+    _stub_narrator(monkeypatch, _six_section_llm_text("posted with the LLM narrator."))
+
+    result = runner.invoke(
+        app, ["--league", "169", "--draft-recap", "--post", "--out-dir", str(tmp_path)]
+    )
+    assert result.exit_code == 0, result.output
+    assert "estimated cost: $" in result.output
+    assert len(calls) == 1
+    assert "Trench Warfare" in calls[0][1]  # the league name, in the Discord summary
+    assert (tmp_path / "commishdesk-169-draft-recap.html").is_file()
+    assert (tmp_path / "commishdesk-169-draft-recap.email.html").is_file()
+    assert (tmp_path / "commishdesk-169-draft-recap.txt").is_file()
+
+
+def test_content_safety_hold_with_post_makes_no_discord_post_or_ledger_entry(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """Defensive regression (review-loop 1): a held Issue must never reach the
+    --post block — structurally guaranteed by ``_produce_issue`` raising before
+    ``if post:``, but untested at review-loop 0."""
+    _fake_real_league(monkeypatch)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+    monkeypatch.setenv("COMMISHDESK_DISCORD_WEBHOOK_URL", _FAKE_WEBHOOK_URL)
+    calls = _stub_post_discord_text(monkeypatch)
+    _stub_narrator(
+        monkeypatch,
+        _six_section_llm_text("Pull-Guard Pumas clearly drafted hungover this year."),
+    )
+    result = runner.invoke(
+        app, ["--league", "168", "--draft-recap", "--post", "--out-dir", str(tmp_path)]
+    )
+    assert result.exit_code == 1
+    assert "content-safety hold" in result.output
+    assert not calls
+    assert not (tmp_path / "commishdesk-168-draft-recap.html").is_file()
+
+    from commishdesk.store import FileStore
+
+    store = FileStore(tmp_path / "commishdesk")
+    assert store.read_ledger("168", 1) == []
+
+
+def test_post_run_every_json_log_line_carries_league_id(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """The league_id log_context binding (bound once in run()) must cover the
+    whole --post path, Discord call included — one shared binding site, not a
+    second one scoped narrower (pattern: tests/test_logging.py:53)."""
+    monkeypatch.setenv("COMMISHDESK_DISCORD_WEBHOOK_URL", _FAKE_WEBHOOK_URL)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+    _stub_post_discord_text(monkeypatch)
+    result = runner.invoke(
+        app,
+        [
+            "--league", "demo", "--draft-recap", "--post",
+            "--out-dir", str(tmp_path), "--verbose",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    records = [
+        json.loads(line) for line in result.stderr.splitlines() if line.strip().startswith("{")
+    ]
+    assert records, result.stderr
+    assert all(r.get("league_id") == "demo" for r in records)
+    # proves the Discord/ledger area itself is in scope, not just the bookends
+    assert any("confirmed delivery" in r.get("msg", "") for r in records)
+
+
+def test_cost_estimate_under_ceiling_prints_before_produce_issue_and_proceeds(
+    tmp_path: Path, monkeypatch
+) -> None:
+    _fake_real_league(monkeypatch)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+    _stub_narrator(monkeypatch, _six_section_llm_text("cost estimate happy path."))
+    result = runner.invoke(
+        app, ["--league", "160", "--draft-recap", "--out-dir", str(tmp_path)]
+    )
+    assert result.exit_code == 0, result.output
+    assert "estimated cost: $" in result.output
+    assert "(ceiling $1.0000)" in result.output
+    assert result.output.index("estimated cost") < result.output.index(
+        "cost estimate happy path."
+    )
+    body = (tmp_path / "commishdesk-160-draft-recap.html").read_text(encoding="utf-8")
+    assert "cost estimate happy path." in body
+
+
+def test_cost_estimate_over_ceiling_aborts_before_any_paid_call(
+    tmp_path: Path, monkeypatch
+) -> None:
+    _fake_real_league(monkeypatch)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+    monkeypatch.setenv("COMMISHDESK_COST_CEILING_USD", "0.000001")
+    calls = _stub_narrator(monkeypatch, _six_section_llm_text("must never appear."))
+    result = runner.invoke(
+        app, ["--league", "161", "--draft-recap", "--out-dir", str(tmp_path)]
+    )
+    assert result.exit_code == 1
+    assert "Traceback" not in result.output
+    assert "estimated cost: $" in result.output  # printed either way
+    assert "exceeds the ceiling" in result.output
+    assert calls["n"] == 0  # narrate_draft_recap never ran — no paid call
+    assert not (tmp_path / "commishdesk-161-draft-recap.html").is_file()
+    assert "must never appear." not in result.output
+
+
+def test_cost_estimate_unknown_model_id_raises_naming_the_model(
+    tmp_path: Path, monkeypatch
+) -> None:
+    _fake_real_league(monkeypatch)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+    monkeypatch.setenv("COMMISHDESK_LLM_PRIMARY", "anthropic:claude-totally-unpriced")
+    calls = _stub_narrator(monkeypatch, _six_section_llm_text("must never appear."))
+    result = runner.invoke(
+        app, ["--league", "162", "--draft-recap", "--out-dir", str(tmp_path)]
+    )
+    assert result.exit_code == 1
+    assert "anthropic:claude-totally-unpriced" in result.output
+    assert calls["n"] == 0
+    assert not (tmp_path / "commishdesk-162-draft-recap.html").is_file()
+
+
+def test_cost_estimate_uses_the_pricier_of_primary_or_fallback(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """review-loop 1: swap the two priced defaults so the *fallback* is the
+    pricier model — the ceiling check must still use the higher figure. A
+    regression that priced ``llm_config.primary`` alone would pass this
+    scenario's cheap primary and proceed; the fix must not."""
+    _fake_real_league(monkeypatch)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+    monkeypatch.setenv("COMMISHDESK_LLM_PRIMARY", "google:gemini-3.5-flash")
+    monkeypatch.setenv("COMMISHDESK_LLM_FALLBACK", "anthropic:claude-sonnet-5")
+    monkeypatch.setenv("COMMISHDESK_COST_CEILING_USD", "0.05")
+    calls = _stub_narrator(monkeypatch, _six_section_llm_text("must never appear."))
+    result = runner.invoke(
+        app, ["--league", "163", "--draft-recap", "--out-dir", str(tmp_path)]
+    )
+    assert result.exit_code == 1
+    assert "exceeds the ceiling" in result.output
+    assert calls["n"] == 0
+    assert not (tmp_path / "commishdesk-163-draft-recap.html").is_file()
+
+
+def test_cost_estimate_includes_the_voice_system_prompt(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """review-loop 2, finding 2: every real provider call also sends
+    ``voice.system_prompt`` as the system message (``AnthropicClient.generate`` /
+    ``GoogleClient.generate``, ``narrate/llm.py``) — a worst-case bound that only
+    prices the narration payload silently under-counts every real call. The
+    printed estimate must be measurably larger than pricing the narration
+    payload alone would produce."""
+    from datetime import UTC, datetime
+
+    from commishdesk.demo import demo_consensus_slots, load_demo_bundle
+    from commishdesk.facts import build_draft_recap_facts
+    from commishdesk.ingest import build_league_model
+    from commishdesk.llmconfig import load_llm_config
+    from commishdesk.narrate import (
+        MAX_OUTPUT_TOKENS,
+        build_narration_payload,
+        estimate_cost_usd,
+    )
+    from commishdesk.stats import (
+        compute_board_metrics,
+        compute_consensus_metrics,
+        compute_draft_grades,
+    )
+    from commishdesk.voices import load_default_voice
+
+    _fake_real_league(monkeypatch)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+    _stub_narrator(monkeypatch, _six_section_llm_text("nothing special here."))
+
+    result = runner.invoke(
+        app, ["--league", "175", "--draft-recap", "--out-dir", str(tmp_path)]
+    )
+    assert result.exit_code == 0, result.output
+    printed_line = next(
+        line for line in result.output.splitlines() if line.startswith("estimated cost: ")
+    )
+    printed_amount = float(re.search(r"\$([\d.]+)", printed_line).group(1))
+
+    # Reconstruct the same Facts doc the run actually built (mirroring
+    # _fake_real_league's fixed source/as_of) to compute, independently, what
+    # the estimate would be if it priced ONLY the narration payload — no
+    # voice.system_prompt.
+    bundle = load_demo_bundle()
+    model = build_league_model(bundle)
+    slots = demo_consensus_slots()
+    board = compute_board_metrics(model)
+    consensus = compute_consensus_metrics(model, slots)
+    grades = compute_draft_grades(model, consensus)
+    doc = build_draft_recap_facts(
+        model, board, consensus, grades,
+        generated_at=datetime.now(tz=UTC), draft_id=model.draft.id,
+        consensus_source_name="fantasycalc", consensus_as_of="2099-07",
+        previous_storylines=[],
+    )
+    narration_only_payload = build_narration_payload(doc.narration)
+    llm_config = load_llm_config({})
+    per_call_narration_only = max(
+        estimate_cost_usd(
+            narration_only_payload, llm_config.primary, max_output_tokens=MAX_OUTPUT_TOKENS
+        ),
+        estimate_cost_usd(
+            narration_only_payload, llm_config.fallback, max_output_tokens=MAX_OUTPUT_TOKENS
+        ),
+    )
+    narration_only_total = per_call_narration_only * 2  # _MAX_BILLABLE_NARRATION_ATTEMPTS
+
+    voice = load_default_voice()
+    assert voice.system_prompt  # sanity: there is something to add
+    assert printed_amount > narration_only_total
+
+
+def test_cost_estimate_reflects_the_two_attempt_multiplier(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """review-loop 1: the printed number is per_call * _MAX_BILLABLE_NARRATION_ATTEMPTS
+    (2), not per_call alone — proven by comparing the real run against the same
+    run with the multiplier patched to 1."""
+    import commishdesk.cli as cli_mod
+
+    def _estimate_line(league_id: str) -> str:
+        result = runner.invoke(
+            app, ["--league", league_id, "--draft-recap", "--out-dir", str(tmp_path)]
+        )
+        assert result.exit_code == 0, result.output
+        return next(
+            line for line in result.output.splitlines() if line.startswith("estimated cost: ")
+        )
+
+    _fake_real_league(monkeypatch)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+    _stub_narrator(monkeypatch, _six_section_llm_text("nothing special here."))
+
+    assert cli_mod._MAX_BILLABLE_NARRATION_ATTEMPTS == 2
+    line_at_2x = _estimate_line("165")
+
+    monkeypatch.setattr(cli_mod, "_MAX_BILLABLE_NARRATION_ATTEMPTS", 1)
+    line_at_1x = _estimate_line("166")
+
+    assert line_at_2x != line_at_1x
+    amount_2x = float(re.search(r"\$([\d.]+)", line_at_2x).group(1))
+    amount_1x = float(re.search(r"\$([\d.]+)", line_at_1x).group(1))
+    # each figure is independently rounded to 4 decimals for display, so an
+    # absolute (not relative) tolerance absorbs up to 0.0001 of rounding on
+    # each side without masking a real multiplier regression
+    assert amount_2x == pytest.approx(amount_1x * 2, abs=2e-4)
+
+
+def test_stale_pricing_table_warns_once_through_the_cli(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """review-loop 1: review-loop 0 only unit-tested is_pricing_stale() in
+    isolation, never through cli.py — this proves the call site (args, logic,
+    and that it is actually reached) all still work."""
+    from datetime import date, timedelta
+
+    from commishdesk.narrate import pricing as narrate_pricing
+
+    _fake_real_league(monkeypatch)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+    _stub_narrator(monkeypatch, _six_section_llm_text("nothing special here."))
+
+    updated = date.fromisoformat(narrate_pricing.PRICING_UPDATED)
+    far_future = updated + timedelta(days=narrate_pricing.PRICING_REVIEW_INTERVAL_DAYS + 1)
+    monkeypatch.setattr(narrate_pricing, "_today", lambda: far_future)
+
+    result = runner.invoke(
+        app, ["--league", "167", "--draft-recap", "--out-dir", str(tmp_path)]
+    )
+    assert result.exit_code == 0, result.output
+    assert "price table was last reviewed" in result.stderr
+    assert (tmp_path / "commishdesk-167-draft-recap.html").is_file()  # staleness never blocks
