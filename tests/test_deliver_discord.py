@@ -1,8 +1,8 @@
 """Story 4.3 — ``post_discord_text`` + ``webhook_id`` (raw ``httpx`` webhook POST).
 
 An injected ``httpx.Client`` backed by ``httpx.MockTransport`` stands in for
-Discord: a 204 returns ``None``; a 401 / 404 and a transport error chain a
-``DeliveryError``; a malformed URL and an oversized ``content`` raise
+Discord: a 204 returns the non-secret webhook id; a 401 / 404 and a transport
+error chain a ``DeliveryError``; a malformed URL and an oversized ``content`` raise
 ``DeliveryError`` with the transport never touched; the request body is exactly
 ``{"content": ..., "allowed_mentions": {"parse": []}}`` — no ``embeds`` / ``files``,
 every ping suppressed; unicode round-trips; and
@@ -26,6 +26,7 @@ from commishdesk.errors import CommishDeskError, DeliveryError
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 _GOOD_URL = "https://discord.com/api/webhooks/123456789012345678/aB_cD-3fToKeNtOkEn"
+_GOOD_ID = "123456789012345678"
 
 #: ``allowed_mentions`` with an empty ``parse`` list suppresses every ping.
 _NO_PINGS = {"parse": []}
@@ -51,10 +52,10 @@ def _recording_handler(status: int, sink: dict):
 # --------------------------------------------------------------------------- #
 
 
-def test_204_returns_none_and_posts_exactly_content() -> None:
+def test_204_returns_the_webhook_id_and_posts_exactly_content() -> None:
     sink: dict = {}
     client = _client(_recording_handler(204, sink))
-    assert post_discord_text(_GOOD_URL, "Draft recap is up.", client=client) is None
+    assert post_discord_text(_GOOD_URL, "Draft recap is up.", client=client) == _GOOD_ID
     assert sink["method"] == "POST"
     assert sink["url"] == _GOOD_URL
     assert json.loads(sink["body"]) == {
@@ -72,7 +73,15 @@ def test_any_2xx_is_accepted() -> None:
     sink: dict = {}
     assert (
         post_discord_text(_GOOD_URL, "ok", client=_client(_recording_handler(200, sink)))
-        is None
+        == _GOOD_ID
+    )
+    assert (
+        post_discord_text(
+            "https://canary.discordapp.com/api/webhooks/42/tok-tok",
+            "ok",
+            client=_client(_recording_handler(201, {})),
+        )
+        == "42"
     )
 
 
@@ -269,7 +278,7 @@ def test_owned_client_is_built_and_closed(monkeypatch: pytest.MonkeyPatch) -> No
             return super().post(url, json=json, timeout=timeout)
 
     monkeypatch.setattr(httpx, "Client", _RecordingClient)
-    assert post_discord_text(_GOOD_URL, "hi") is None
+    assert post_discord_text(_GOOD_URL, "hi") == _GOOD_ID
     assert len(built) == 1 and built[0].closed is True
     assert posted["url"] == _GOOD_URL
     assert posted["json"] == {"content": "hi", "allowed_mentions": _NO_PINGS}
@@ -293,7 +302,7 @@ def test_a_rendered_summary_posts_through_unchanged() -> None:
     sink: dict = {}
     assert (
         post_discord_text(_GOOD_URL, summary, client=_client(_recording_handler(204, sink)))
-        is None
+        == _GOOD_ID
     )
     assert json.loads(sink["body"])["content"] == summary
 

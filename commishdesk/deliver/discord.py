@@ -5,16 +5,20 @@ JSON body of ``{"content": <str>, "allowed_mentions": {"parse": []}}`` only — 
 ``allowed_mentions`` block suppresses every ping (``@everyone`` / ``@here`` /
 role / user) that a league name or a narrated line might contain, and there is
 still no ``embeds``, ``files``/multipart, ``username``, or ``avatar_url``. Discord
-answers a successful post with ``204``; any ``2xx`` is accepted. Every fault is
-wrapped **at the call site** in :class:`~commishdesk.errors.DeliveryError` — a
-webhook URL that is not a Discord webhook and a ``content`` over Discord's
-2000-character limit are both rejected here with **no network call**.
+answers a successful post with ``204``; any ``2xx`` is accepted and the
+non-secret numeric webhook id is returned — the value a Discord delivery run
+records as its Send Ledger ``recipient`` (Story 4.6), and what
+:func:`verify_webhook` logs without a second parse. Every fault is wrapped **at
+the call site** in
+:class:`~commishdesk.errors.DeliveryError` — a webhook URL that is not a Discord
+webhook and a ``content`` over Discord's 2000-character limit are both rejected
+here with **no network call**.
 
 The webhook URL is a secret (CLAUDE.md §1): it is read only from
 ``COMMISHDESK_DISCORD_WEBHOOK_URL`` by the caller, never written to a file, never
 passed to ``log_context``, never logged raw. :func:`webhook_id` returns the
-non-secret numeric id from the URL path — a stable value Story 4.4's Send Ledger
-can use as its ``recipient`` without storing the token.
+non-secret numeric id from the URL path — a stable value a Discord delivery run
+can record as its Send Ledger ``recipient`` without storing the token.
 
 **Pipeline fence (AD-1).** Standard library + ``httpx`` +
 :mod:`commishdesk.errors` + :mod:`commishdesk.logconfig` only.
@@ -54,9 +58,9 @@ _TIMEOUT = 15.0
 
 def webhook_id(url: str) -> str:
     """Return the numeric id segment of a Discord webhook ``url`` — a non-secret,
-    forward-compatible value (Story 4.4's ledger ``recipient``). Raises
-    :class:`~commishdesk.errors.DeliveryError` when ``url`` is not a Discord
-    webhook URL."""
+    forward-compatible value (the ``recipient`` a Discord delivery run records in
+    the Send Ledger). Raises :class:`~commishdesk.errors.DeliveryError` when
+    ``url`` is not a Discord webhook URL."""
     match = _WEBHOOK_RE.fullmatch(url)
     if match is None:
         raise DeliveryError(f"not a Discord webhook URL — {_URL_SHAPE}")
@@ -65,9 +69,9 @@ def webhook_id(url: str) -> str:
 
 def post_discord_text(
     webhook_url: str, content: str, *, client: httpx.Client | None = None
-) -> None:
-    """POST ``{"content": content}`` to ``webhook_url`` and return ``None`` on any
-    ``2xx``.
+) -> str:
+    """POST ``{"content": content}`` to ``webhook_url`` and return the non-secret
+    numeric webhook id on any ``2xx``.
 
     A ``webhook_url`` that is not a Discord webhook, a ``content`` longer than
     2000 characters, and an empty / whitespace-only ``content`` are each rejected
@@ -81,6 +85,9 @@ def post_discord_text(
     ``username``, or ``avatar_url``. ``client`` follows the
     ``commishdesk/consensus.py`` shape: an injected client is the caller's to
     close; one built here is closed in a ``finally``.
+
+    Returns the numeric webhook id parsed from ``webhook_url`` — non-secret, and
+    the value a Discord delivery run records as its Send Ledger ``recipient``.
     """
     hook_id = webhook_id(webhook_url)  # URL-shape check — raises before any network call
     if len(content) > _MAX_CONTENT:
@@ -115,6 +122,8 @@ def post_discord_text(
             f"Discord did not accept the post (HTTP {response.status_code}) for "
             f"webhook {hook_id}"
         )
+
+    return hook_id
 
 
 def _fault_message(hook_id: str, exc: Exception) -> str:
