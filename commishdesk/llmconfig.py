@@ -23,9 +23,14 @@ unset or blank):
   both provider adapters to their SDK client so a hung endpoint fails fast
   instead of stalling the one league-week narration for the SDK default
   (FR-40 / Story 3.6).
+* ``COMMISHDESK_COST_CEILING_USD`` — the hard-abort ceiling (float, USD, default
+  ``1.00``, must be ``> 0`` and finite) that ``commishdesk/cli.py`` checks a
+  pre-call worst-case cost estimate against before any paid narration call
+  (Story 4.6). Over the ceiling the run hard-aborts with zero spend.
 
-An unknown provider token, a value that is not ``<provider>:<model_id>``, or a
-non-numeric / non-positive / over-600 ``COMMISHDESK_LLM_TIMEOUT`` raises
+An unknown provider token, a value that is not ``<provider>:<model_id>``, a
+non-numeric / non-positive / over-600 ``COMMISHDESK_LLM_TIMEOUT``, or a
+non-numeric / non-positive ``COMMISHDESK_COST_CEILING_USD`` raises
 :class:`~commishdesk.errors.NarratorError` at load.
 """
 
@@ -57,6 +62,11 @@ _DEFAULT_TIMEOUT_SECONDS = 60.0
 #: 10 minutes is already the order of magnitude of the SDK's own default.
 _MAX_TIMEOUT_SECONDS = 600.0
 
+#: Hard-abort cost ceiling (USD) when ``COMMISHDESK_COST_CEILING_USD`` is unset
+#: or blank. A budget-smoke-alarm default, not a prediction of typical spend
+#: (Story 4.6 / epic-4-context.md "Budget cap is a smoke alarm, not a daemon").
+_DEFAULT_COST_CEILING_USD = 1.00
+
 
 @dataclass(frozen=True, slots=True)
 class LLMModelConfig:
@@ -76,10 +86,18 @@ class LLMModelConfig:
 
 @dataclass(frozen=True, slots=True)
 class LLMConfig:
-    """The two models the selector tries, in order: ``primary`` then ``fallback``."""
+    """The two models the selector tries, in order: ``primary`` then ``fallback``.
+
+    ``cost_ceiling_usd`` (Story 4.6) is the hard-abort ceiling
+    :func:`load_llm_config` always sets (default :data:`_DEFAULT_COST_CEILING_USD`);
+    a hand-built config in a test that omits it gets that same default, so an
+    older direct ``LLMConfig(primary=..., fallback=...)`` construction still
+    compares equal to ``load_llm_config({})``.
+    """
 
     primary: LLMModelConfig
     fallback: LLMModelConfig
+    cost_ceiling_usd: float = _DEFAULT_COST_CEILING_USD
 
 
 def _parse_model_spec(
@@ -132,6 +150,31 @@ def _parse_timeout(raw: str | None) -> float:
     return value
 
 
+def _parse_cost_ceiling(raw: str | None) -> float:
+    """``COMMISHDESK_COST_CEILING_USD`` as a positive, finite float of US dollars.
+
+    Unset / blank -> :data:`_DEFAULT_COST_CEILING_USD`. Non-numeric, ``<= 0``, or
+    non-finite -> :class:`~commishdesk.errors.NarratorError` (fail loud at load —
+    the same validation shape as :func:`_parse_timeout`, with no upper bound: a
+    cost ceiling has no analogue to FR-40's multi-hour-stall concern).
+    """
+    if raw is None:
+        return _DEFAULT_COST_CEILING_USD
+    try:
+        value = float(raw)
+    except ValueError:
+        raise NarratorError(
+            f"COMMISHDESK_COST_CEILING_USD must be a positive number of US "
+            f"dollars, got {raw!r}"
+        ) from None
+    if not math.isfinite(value) or value <= 0:
+        raise NarratorError(
+            f"COMMISHDESK_COST_CEILING_USD must be a positive, finite number of "
+            f"US dollars, got {raw!r}"
+        )
+    return value
+
+
 def load_llm_config(env: Mapping[str, str] = os.environ) -> LLMConfig:
     """Build the :class:`LLMConfig` from *env* (default :data:`os.environ`).
 
@@ -144,6 +187,7 @@ def load_llm_config(env: Mapping[str, str] = os.environ) -> LLMConfig:
         return value.strip() or None if value is not None else None
 
     timeout = _parse_timeout(_get("COMMISHDESK_LLM_TIMEOUT"))
+    cost_ceiling = _parse_cost_ceiling(_get("COMMISHDESK_COST_CEILING_USD"))
 
     return LLMConfig(
         primary=_parse_model_spec(
@@ -158,4 +202,5 @@ def load_llm_config(env: Mapping[str, str] = os.environ) -> LLMConfig:
             endpoint=_get("COMMISHDESK_LLM_FALLBACK_ENDPOINT"),
             timeout=timeout,
         ),
+        cost_ceiling_usd=cost_ceiling,
     )

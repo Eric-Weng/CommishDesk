@@ -120,3 +120,45 @@ def test_model_config_is_frozen() -> None:
     cfg = load_llm_config({})
     with pytest.raises((AttributeError, TypeError)):
         cfg.primary.model_id = "x"  # type: ignore[misc]
+
+
+# --------------------------------------------------------------------------- #
+# Story 4.6 — COMMISHDESK_COST_CEILING_USD
+# --------------------------------------------------------------------------- #
+
+
+def test_cost_ceiling_defaults_to_one_dollar() -> None:
+    cfg = load_llm_config({})
+    assert cfg.cost_ceiling_usd == 1.00
+
+
+def test_cost_ceiling_override() -> None:
+    cfg = load_llm_config({"COMMISHDESK_COST_CEILING_USD": "5.50"})
+    assert cfg.cost_ceiling_usd == 5.50
+
+
+def test_cost_ceiling_blank_falls_back_to_default() -> None:
+    cfg = load_llm_config({"COMMISHDESK_COST_CEILING_USD": "  "})
+    assert cfg.cost_ceiling_usd == 1.00
+
+
+@pytest.mark.parametrize("bad", ["soon", "nope", "0", "-5", "0.0", "nan", "inf", "-inf"])
+def test_invalid_cost_ceiling_raises_narrator_error(bad: str) -> None:
+    with pytest.raises(NarratorError):
+        load_llm_config({"COMMISHDESK_COST_CEILING_USD": bad})
+
+
+def test_cost_ceiling_has_no_upper_bound() -> None:
+    """Unlike ``COMMISHDESK_LLM_TIMEOUT``, a cost ceiling has no FR-40-style
+    multi-hour-stall concern to bound against."""
+    cfg = load_llm_config({"COMMISHDESK_COST_CEILING_USD": "1000000"})
+    assert cfg.cost_ceiling_usd == 1_000_000.0
+
+
+def test_llm_config_constructed_without_cost_ceiling_matches_the_loader_default() -> None:
+    """A pre-Story-4.6 direct ``LLMConfig(primary=..., fallback=...)`` (the
+    ``test_narrate_llm.py`` ``CONFIG`` fixture, e.g.) must stay equal to
+    ``load_llm_config({})`` — the new field's dataclass default has to match the
+    loader's parsed default exactly."""
+    cfg = load_llm_config({})
+    assert LLMConfig(primary=cfg.primary, fallback=cfg.fallback) == cfg

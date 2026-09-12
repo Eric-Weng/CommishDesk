@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 import typer
 
 from commishdesk import __version__
-from commishdesk.errors import CommishDeskError, DeliveryError
+from commishdesk.errors import CommishDeskError, CostCeilingExceededError, DeliveryError
 from commishdesk.logconfig import configure_logging, log_context
 
 if TYPE_CHECKING:
@@ -86,6 +86,15 @@ def run(
     draft_recap: bool = typer.Option(
         False, "--draft-recap", help="Build the draft recap instead of a weekly recap."
     ),
+    post: bool = typer.Option(
+        False,
+        "--post",
+        help=(
+            "Deliver the rendered Issue to Discord after rendering (requires "
+            "--draft-recap and COMMISHDESK_DISCORD_WEBHOOK_URL). Idempotent — a "
+            "recipient already confirmed for this league-week is not re-sent."
+        ),
+    ),
     llm: bool | None = typer.Option(
         None,
         "--llm/--no-llm",
@@ -137,6 +146,8 @@ def run(
             raise typer.BadParameter(
                 "--draft-recap builds the draft recap and cannot be combined with --week"
             )
+        if post and not draft_recap:
+            raise typer.BadParameter("--post requires --draft-recap")
         if draft_recap:
             if not league:
                 raise typer.BadParameter("--draft-recap requires --league")
@@ -148,6 +159,7 @@ def run(
                     logger,
                     llm_enabled=_llm_enabled(llm),
                     allow_content_hold=_allow_content_hold(allow_content_hold),
+                    post=post,
                 )
             except (CommishDeskError, OSError) as exc:
                 typer.echo(_one_line(exc), err=True)
@@ -169,9 +181,26 @@ def _one_line(exc: Exception) -> str:
     return str(exc) or exc.__class__.__name__
 
 
+def _fmt_usd(value: float) -> str:
+    """A USD amount at enough precision that two values within a cent of each
+    other still read as visibly different (review-loop 1 — a naive two-decimal
+    rounding made an over-ceiling error message show the same two numbers as the
+    ceiling it exceeded)."""
+    return f"${value:.4f}"
+
+
 #: The Discord channel webhook the MVP delivers to. A secret — read from the
 #: process environment only, never a file or a committed ``leagues/*.toml``.
 _DISCORD_WEBHOOK_VAR = "COMMISHDESK_DISCORD_WEBHOOK_URL"
+
+#: Per league-week, at most two narration *attempts* can each yield one
+#: successful, fully-billed completion: the initial attempt, and the single
+#: ``regenerate``-tier re-narration ``_produce_issue`` permits (I3
+#: reconciliation, epic-3-retro-item-44 / sprint-status.yaml: "at most one
+#: successful generation per narration attempt, at most two narration attempts
+#: per league-week"). ``RETRY_CAP``-driven transient retries never produce a
+#: billed completion, so they need no multiplier here.
+_MAX_BILLABLE_NARRATION_ATTEMPTS = 2
 
 
 @app.command("verify-webhook")
@@ -316,6 +345,7 @@ def _run_draft_recap(
     *,
     llm_enabled: bool,
     allow_content_hold: bool,
+    post: bool,
 ) -> int:
     """Derive the run list (the one Generation Set constructor) and build a recap
     for each activated league. Returns the process exit code: ``0`` when every
@@ -376,6 +406,7 @@ def _run_draft_recap(
                 llm_config=llm_config,
                 llm_enabled=llm_enabled,
                 allow_content_hold=allow_content_hold,
+                post=post,
             )
         except (CommishDeskError, OSError) as exc:
             logger.debug("league %s faulted: %s", resolved, _one_line(exc))
@@ -396,9 +427,10 @@ def _recap_one_league(
     llm_config: LLMConfig | None,
     llm_enabled: bool,
     allow_content_hold: bool,
+    post: bool,
 ) -> None:
     """Chain the five pipeline stages for one league and emit the recap to stdout
-    plus a local HTML file."""
+    plus a local HTML file; optionally deliver it to Discord (Story 4.6)."""
     from commishdesk.demo import demo_consensus_slots, load_demo_bundle
     from commishdesk.facts import build_draft_recap_facts
     from commishdesk.facts.schema import Storyline
@@ -418,16 +450,38 @@ def _recap_one_league(
     )
     from commishdesk.store import FileStore
 
+    # --post fails fast on a missing/blank/malformed webhook before any Sleeper /
+    # consensus / LLM work for this league (mirrors verify-webhook's own check)
+    # — zero wasted work, zero spend, on a misconfigured destination.
+    # ``webhook_id`` validates the URL shape too (not just non-blank) and hands
+    # back the recipient id the Discord block below reuses — computed once here,
+    # never recomputed.
+    webhook_url: str | None = None
+    recipient_id: str | None = None
+    if post:
+        from commishdesk.deliver.discord import webhook_id
+
+        webhook_url = (os.environ.get(_DISCORD_WEBHOOK_VAR) or "").strip()
+        if not webhook_url:
+            raise DeliveryError(
+                f"set {_DISCORD_WEBHOOK_VAR} to the league's Discord channel "
+                "webhook URL before running --post"
+            )
+        recipient_id = webhook_id(webhook_url)
+
     generated_at = datetime.now(tz=UTC)
 
     # Storyline persistence bridge — mirrors the consensus bridge below: the Store
     # I/O lives here in the CLI, never in ``facts/`` (import fence). The demo path
-    # stays side-effect-free and offline, so it never touches the store and
-    # ``previous_storylines`` stays empty for it.
+    # stays side-effect-free and offline for storylines specifically, so
+    # ``previous_storylines`` stays empty for it regardless of ``post`` — see
+    # ``is_demo`` below, which gates the write, not ``store is not None`` (a
+    # ``--post`` demo run still gets a ``store``, for the Send Ledger only).
+    is_demo = resolved == demo_id
     store: FileStore | None = None
     previous_storylines: list[Storyline] = []
 
-    if resolved == demo_id:
+    if is_demo:
         logger.debug("loading committed demo fixture")
         model = build_league_model(load_demo_bundle())
         slots = demo_consensus_slots()
@@ -438,6 +492,11 @@ def _recap_one_league(
         if llm_enabled:
             logger.info("--league demo always uses the template narrator")
         llm_enabled = False
+        if post:
+            # --post needs a Store for the Send Ledger even on the demo path —
+            # this must NOT re-enable storyline persistence for demo (see the
+            # ``is_demo`` guard below, not ``store is not None``).
+            store = FileStore(_cache_dir())
     else:
         from commishdesk.adapters.sleeper import SleeperAdapter
         from commishdesk.consensus import build_consensus_rank
@@ -475,7 +534,7 @@ def _recap_one_league(
         previous_storylines=previous_storylines,
     )
 
-    if store is not None:
+    if store is not None and not is_demo:
         logger.debug("persisting storylines")
         next_storylines = [
             storyline.model_copy(update={"league_id": resolved})
@@ -490,6 +549,58 @@ def _recap_one_league(
             )
         ]
         store.write_storylines(resolved, next_storylines)
+
+    if llm_enabled:
+        assert llm_config is not None  # loaded before the loop whenever llm_enabled holds
+        assert voice is not None  # loaded alongside llm_config, same guard
+        from commishdesk.narrate import (
+            MAX_OUTPUT_TOKENS,
+            build_narration_payload,
+            estimate_cost_usd,
+            is_pricing_stale,
+        )
+        from commishdesk.narrate import pricing as narrate_pricing
+
+        if is_pricing_stale():
+            logger.warning(
+                "narrate/pricing.py's price table was last reviewed %s (more "
+                "than %d days ago) — cost estimates may be stale; refresh "
+                "MODEL_PRICES",
+                narrate_pricing.PRICING_UPDATED,
+                narrate_pricing.PRICING_REVIEW_INTERVAL_DAYS,
+            )
+
+        # Priced for length only — this concatenation is never sent anywhere as
+        # a real payload. Both AnthropicClient.generate and GoogleClient.generate
+        # (narrate/llm.py) send voice.system_prompt as the system message on
+        # every real call, so the worst-case bound must count it too, or it is
+        # not actually a worst-case bound.
+        payload = build_narration_payload(doc.narration) + voice.system_prompt
+        # Worst case: whichever of the two selectable models is pricier, times
+        # the two narration attempts one league-week can actually bill (the
+        # initial attempt plus the one permitted regeneration — see
+        # _MAX_BILLABLE_NARRATION_ATTEMPTS). max_output_tokens is imported from
+        # narrate.llm (via the narrate package re-export), not duplicated, so
+        # the two can never silently desync.
+        per_call_estimate = max(
+            estimate_cost_usd(
+                payload, llm_config.primary, max_output_tokens=MAX_OUTPUT_TOKENS
+            ),
+            estimate_cost_usd(
+                payload, llm_config.fallback, max_output_tokens=MAX_OUTPUT_TOKENS
+            ),
+        )
+        estimate = per_call_estimate * _MAX_BILLABLE_NARRATION_ATTEMPTS
+        typer.echo(
+            f"estimated cost: {_fmt_usd(estimate)} (ceiling "
+            f"{_fmt_usd(llm_config.cost_ceiling_usd)})"
+        )
+        if estimate > llm_config.cost_ceiling_usd:
+            raise CostCeilingExceededError(
+                f"estimated cost {_fmt_usd(estimate)} for league {resolved} "
+                f"exceeds the ceiling {_fmt_usd(llm_config.cost_ceiling_usd)} — "
+                "no paid call made"
+            )
 
     logger.debug("narrating and rendering local HTML")
     dest = Path(out_dir) / f"commishdesk-{resolved}-draft-recap.html"
@@ -534,8 +645,8 @@ def _recap_one_league(
     typer.echo(str(written))
 
     # Story 4.2: the same content model, rendered for email — client-safe HTML
-    # plus a text/plain alternative. No delivery here (Stories 4.3-4.6); the CLI
-    # just writes the two files next to the web page.
+    # plus a text/plain alternative. The CLI writes the two files next to the
+    # web page; delivery (Discord, below) is separate from rendering.
     email_parts = render_email(
         doc,
         recap=body.recap,
@@ -552,6 +663,39 @@ def _recap_one_league(
     )
     typer.echo(str(email_html))
     typer.echo(str(email_text))
+
+    # Story 4.6: --post chains Story 4.4's idempotent Send Ledger through
+    # Story 4.3's Discord webhook delivery. Lazy imports (mirrors the
+    # verify-webhook comment above) keep httpx off the default --post-less
+    # import path.
+    if post:
+        from commishdesk.deliver import send_issue
+        from commishdesk.deliver.discord import post_discord_text
+        from commishdesk.render import render_discord_summary
+
+        assert webhook_url is not None  # checked fail-fast at the top of this function
+        assert recipient_id is not None  # computed alongside webhook_url, same guard
+        assert store is not None  # post=True guarantees a store on every path, demo included
+        url = webhook_url  # a plain local narrows the closure below for mypy
+
+        summary = render_discord_summary(doc, recap=body.recap, llm_text=body.llm_text)
+        report = send_issue(
+            store,
+            league_id=resolved,
+            week=DRAFT_RECAP_WEEK,
+            channel="discord",
+            recipients={recipient_id: summary},
+            sender=lambda _recipient, content: post_discord_text(url, content),
+        )
+        if report.failed:
+            _, message = report.failed[0]  # a single recipient — no partial-success case
+            raise DeliveryError(message)
+        if report.delivered:
+            typer.echo(f"posted to Discord (webhook {recipient_id})")
+        else:
+            typer.echo(
+                f"Discord post already confirmed for webhook {recipient_id} — skipped"
+            )
 
 
 def _produce_issue(

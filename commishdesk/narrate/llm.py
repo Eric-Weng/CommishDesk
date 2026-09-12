@@ -50,6 +50,7 @@ if TYPE_CHECKING:
     from commishdesk.facts.schema import Narration
 
 __all__ = [
+    "MAX_OUTPUT_TOKENS",
     "AnthropicClient",
     "GoogleClient",
     "LLMClient",
@@ -65,7 +66,11 @@ _LOGGER = logging.getLogger("commishdesk")
 #: Output ceiling for one narration. The ``narration`` projection is held under
 #: ``facts.schema.NARRATION_TOKEN_CAP`` (~5k tokens) upstream; the recap it
 #: produces is comfortably smaller, so this is a generous hard stop, not a budget.
-_MAX_OUTPUT_TOKENS = 8192
+#: Public (Story 4.6): ``narrate/pricing.py``'s worst-case cost estimate must
+#: price the same ceiling the provider adapters below actually send, so it is
+#: imported — never duplicated as a second literal — at the ``cli.py`` call
+#: site, via ``narrate/__init__.py``'s eager re-export.
+MAX_OUTPUT_TOKENS = 8192
 
 #: How many *extra* attempts a transient provider fault buys on the *same*
 #: provider before the selector falls through to the next one (FR-40 / Story
@@ -234,7 +239,7 @@ class AnthropicClient:
         try:
             message = client.messages.create(
                 model=self.model_id,
-                max_tokens=_MAX_OUTPUT_TOKENS,
+                max_tokens=MAX_OUTPUT_TOKENS,
                 system=voice.system_prompt,
                 messages=[{"role": "user", "content": payload}],
             )
@@ -301,7 +306,7 @@ class GoogleClient:
                 contents=payload,
                 config={
                     "system_instruction": voice.system_prompt,
-                    "max_output_tokens": _MAX_OUTPUT_TOKENS,
+                    "max_output_tokens": MAX_OUTPUT_TOKENS,
                 },
             )
         except Exception as exc:  # a transient fault is retryable; the rest falls through

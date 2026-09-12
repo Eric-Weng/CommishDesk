@@ -747,10 +747,17 @@ def test_build_client_maps_provider_to_adapter() -> None:
 
 
 def test_config_override_changes_no_narrate_file() -> None:
+    """A model swap must stay a config-only change under ``narrate/`` — with one
+    narrow, documented exception (Story 4.6 / Spec Change Log): ``pricing.py``'s
+    ``MODEL_PRICES`` necessarily names the two ``llmconfig`` defaults literally so
+    an unpriced model can fail closed *by name* rather than silently mis-price.
+    Every other file under ``narrate/`` still carries no model-id literal."""
     cfg = load_llm_config({"COMMISHDESK_LLM_FALLBACK": "anthropic:claude-haiku-4-5"})
     assert isinstance(build_client(cfg.fallback), AnthropicClient)
     forbidden = ("claude-sonnet-5", "gemini-3.5-flash", "claude-haiku-4-5", "gemini-")
     for path in sorted(NARRATE_DIR.glob("*.py")):
+        if path.name == "pricing.py":
+            continue
         src = path.read_text(encoding="utf-8")
         assert not any(token in src for token in forbidden), path.name
 
