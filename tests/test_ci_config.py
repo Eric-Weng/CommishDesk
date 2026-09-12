@@ -34,7 +34,14 @@ PYPROJECT = REPO_ROOT / "pyproject.toml"
 CONTRIBUTING = REPO_ROOT / "CONTRIBUTING.md"
 
 # Actions allowed by the spec (frozen "Ask First": anything else needs a renegotiation).
-ALLOWED_ACTIONS = {"actions/checkout", "astral-sh/setup-uv"}
+# Story 4.7 adds the `actions/cache` restore/save sub-actions for the Send Ledger's
+# cache-ratchet persistence.
+ALLOWED_ACTIONS = {
+    "actions/checkout",
+    "astral-sh/setup-uv",
+    "actions/cache/restore",
+    "actions/cache/save",
+}
 
 _USES_RE = re.compile(r"^\s*-?\s*uses:\s*(\S+)", re.MULTILINE)
 _SHA_RE = re.compile(r"^[0-9a-f]{40}$")
@@ -329,18 +336,105 @@ def test_no_workflow_uses_pull_request_target() -> None:
         assert "pull_request_target" not in text, f"{name}: uses pull_request_target"
 
 
+def _is_fork_reachable(text: str) -> bool:
+    """A workflow is reachable by an external contributor's pull request only when its
+    ``on:`` block declares ``pull_request`` -- ``pull_request_target`` is separately and
+    unconditionally banned by ``test_no_workflow_uses_pull_request_target`` regardless of
+    secret use, and a bare ``pull_request`` from a fork never receives repository
+    secrets from GitHub itself. ``schedule`` and ``workflow_dispatch`` alone are not
+    fork-reachable: a scheduled run always executes the base branch's own workflow file,
+    and ``workflow_dispatch`` requires someone with repo write access to fire it.
+
+    Fails **closed**: a trigger shape ``_on_block_top_keys`` cannot parse (flow-style
+    ``on: {push, pull_request}``, list-form ``on: [push, pull_request]``, ...) is treated
+    as "might be fork-reachable" rather than silently exempted from the secret scan --
+    round-2 review found the opposite (fail-open) default let a genuinely fork-reachable
+    workflow in an unparsed shape skip the check entirely."""
+    try:
+        return "pull_request" in _on_block_top_keys(text)
+    except AssertionError:
+        return True
+
+
+# Bulk-leak violation messages from ``_secret_violations`` -- these expose EVERY
+# repository secret at once (not just a named one) and stay banned in every workflow
+# regardless of fork-reachability, unlike the named-secret dot/index-form checks below.
+_BULK_LEAK_MARKERS = ("toJSON", "inherit", "bare")
+
+
+def _secret_violations_for_workflow(text: str) -> list[str]:
+    """``_secret_violations(text)``, narrowed to the checks that actually apply given
+    *text*'s fork-reachability. Named-secret references (dot/index form) are only a
+    violation in a fork-reachable workflow; the bulk-leak patterns (``toJSON(secrets)``,
+    ``secrets: inherit``, a bare ``${{ secrets }}``) expose every repository secret at
+    once and stay a violation everywhere, fork-reachable or not. Shared by the guard and
+    its tripwire so the two cannot drift (round-2 review: the fork-reachability
+    narrowing must not also loosen the file-wide bulk-leak ban)."""
+    violations = _secret_violations(text)
+    if not _is_fork_reachable(text):
+        violations = [v for v in violations if any(m in v for m in _BULK_LEAK_MARKERS)]
+    return violations
+
+
 def test_no_workflow_references_a_repository_secret_other_than_github_token() -> None:
     """Frozen Never / CLAUDE.md §4: no secret exposed to a fork-triggered workflow. Only
-    the auto-provisioned ``secrets.GITHUB_TOKEN`` is permitted anywhere.
+    the auto-provisioned ``secrets.GITHUB_TOKEN`` is permitted, as a *named* reference, in
+    a workflow an external contributor's pull request can reach. A
+    ``schedule``/``workflow_dispatch``-only workflow (Story 4.7's scheduled run,
+    operator-triggered against the operator's own league) is never fork-triggered, so it
+    may reference the operator's own named secrets (Discord webhook, LLM provider key,
+    healthchecks.io ping URL).
 
     retro A1(b) + P2: matches the index form ``secrets['NAME']`` / ``secrets["NAME"]``
-    (any inner whitespace) alongside ``secrets.NAME``, and also rejects
+    (any inner whitespace) alongside ``secrets.NAME``. The *bulk*-leak patterns --
     ``${{ toJSON(secrets) }}``, ``secrets: inherit``, and a bare ``${{ secrets }}`` --
-    each leaks every repository secret. Only ``GITHUB_TOKEN`` is allowed, in either form.
-    """
+    expose every repository secret at once regardless of which workflow carries them, so
+    those stay banned in every workflow, fork-reachable or not."""
     for name, text in _all_workflows():
-        violations = _secret_violations(text)
+        violations = _secret_violations_for_workflow(text)
         assert not violations, f"{name}: {violations}"
+
+
+def test_secret_violations_for_workflow_tripwire() -> None:
+    """Committed regression test (round-2 review) for ``_secret_violations_for_workflow``
+    -- proves the fork-reachability narrowing added by Story 4.7 does NOT also exempt a
+    non-fork-reachable workflow from the bulk-leak ban, only from the named-secret ban."""
+    non_fork_reachable = "on:\n  workflow_dispatch: {}\njobs:\n  x:\n    steps: []\n"
+    fork_reachable = "on:\n  pull_request: {}\njobs:\n  x:\n    steps: []\n"
+
+    # a named secret is exempt on a non-fork-reachable workflow ...
+    assert _secret_violations_for_workflow(non_fork_reachable + "    secrets.PYPI_TOKEN\n") == []
+    # ... but still banned on a fork-reachable one.
+    assert _secret_violations_for_workflow(fork_reachable + "    secrets.PYPI_TOKEN\n")
+
+    # bulk-leak patterns are banned on BOTH, regardless of fork-reachability.
+    assert _secret_violations_for_workflow(non_fork_reachable + "    secrets: inherit\n")
+    assert _secret_violations_for_workflow(fork_reachable + "    secrets: inherit\n")
+    assert _secret_violations_for_workflow(non_fork_reachable + "    run: echo ${{ toJSON(secrets) }}\n")
+    assert _secret_violations_for_workflow(non_fork_reachable + "    run: echo ${{ secrets }}\n")
+
+
+def test_fork_reachable_tripwire() -> None:
+    """Committed regression test for ``_is_fork_reachable`` (Story 4.7) -- exercised
+    directly against hand-written ``on:`` blocks so the scope-narrowing this story added
+    to the secret-scan guard cannot silently widen back to exempt a real fork-triggered
+    workflow, or narrow to also exempt one it shouldn't."""
+    assert _is_fork_reachable("on:\n  pull_request: {}\njobs:\n  x:\n    steps: []\n")
+    assert _is_fork_reachable(
+        "on:\n  push:\n    branches: [main]\n  pull_request: {}\njobs:\n  x:\n    steps: []\n"
+    )
+    assert not _is_fork_reachable("on:\n  schedule:\n    - cron: '0 23 * * *'\n  workflow_dispatch: {}\n")
+    assert not _is_fork_reachable("on:\n  push:\n    branches: [main]\n  workflow_dispatch: {}\n")
+    # round-2 review: a trigger shape `_on_block_top_keys` cannot parse -- flow-style
+    # `on: {push, pull_request}` (used here) or list-form `on: [push, pull_request]` --
+    # must fail CLOSED (treated as fork-reachable), not silently exempted. This shape IS
+    # genuinely fork-reachable (it declares pull_request), so True is also the correct
+    # answer on the merits, not just the safe default.
+    assert _is_fork_reachable("on: {push, pull_request}\njobs:\n  x:\n    steps: []\n")
+    # an inline `on: push` form (no block-form mapping, and not fork-reachable on the
+    # merits either) still fails closed to True -- the unparseable-shape default applies
+    # uniformly, not just when it happens to agree with the real answer.
+    assert _is_fork_reachable("on: push\njobs:\n  x:\n    steps: []\n")
 
 
 def test_secret_scan_tripwire() -> None:
