@@ -1,0 +1,123 @@
+name: scheduled-draft-recap
+
+# Story 4.7: an unattended cron for the author's own league. A readiness gate
+# (two unauthenticated Sleeper API calls) decides whether there is anything to
+# do before `commishdesk` is ever invoked, so a pre-draft run is a no-op, not a
+# placeholder post that would burn the Send Ledger's one-time-send slot. The
+# Send Ledger's on-disk state (`~/.cache/commishdesk`) is restored/saved via
+# `actions/cache` so idempotency survives across stateless runner instances.
+# A healthchecks.io dead-man's-switch is pinged on every outcome (success,
+# expected skip, or failure/cancellation) so the operator never has to poll.
+
+on:
+  schedule:
+    # 23:00 UTC = 7:00pm ET (EDT, UTC-4, Mar-Nov) / 6:00pm ET (EST, UTC-5, the
+    # rest of the year -- the November DST shift moves the local time by an
+    # hour, the UTC expression itself never changes).
+    - cron: '0 23 * * *'
+  workflow_dispatch: {}
+
+# Least privilege: this workflow only reads the checked-out tree and talks to
+# Sleeper/Discord/healthchecks.io over HTTP. It never writes to the repo.
+permissions:
+  contents: read
+
+concurrency:
+  group: scheduled-draft-recap
+  # A real in-flight Discord post must never be cancelled by an overlapping
+  # scheduled trigger (e.g. a manual workflow_dispatch during the daily cron).
+  cancel-in-progress: false
+
+jobs:
+  scheduled-draft-recap:
+    runs-on: ubuntu-24.04
+    # A hung step is reported as `cancelled`, not `failed` -- the final ping
+    # step below checks both so the dead-man's-switch still fires.
+    timeout-minutes: 15
+    env:
+      # Job-level: the readiness-gate step also needs the league id. The delivery
+      # secrets below are scoped to only the "Run draft recap" step that needs them
+      # (matching HEALTHCHECKS_PING_URL's step-level scoping on the ping steps) --
+      # checkout/setup-uv/the readiness curl/both cache steps have no business seeing
+      # the Discord webhook or an LLM provider key.
+      COMMISHDESK_LEAGUE_ID: ${{ vars.COMMISHDESK_LEAGUE_ID }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d  # v10.0.1
+        with:
+          version: "0.12.6"
+          enable-cache: true
+          python-version: "3.12"
+
+      # Readiness gate: is the draft actually complete yet? A league with no
+      # Sleeper draft object at all (pre-season) is treated the same as
+      # pre_draft/drafting -- not ready, not a fetch failure -- without ever
+      # attempting the second request, so a 404 there can't fail the job.
+      - name: Check Sleeper draft readiness
+        id: readiness
+        run: |
+          draft_id=$(curl -fsS -m 10 --retry 3 "https://api.sleeper.app/v1/league/${COMMISHDESK_LEAGUE_ID}" | jq -r .draft_id)
+          if [ -z "$draft_id" ] || [ "$draft_id" = "null" ]; then
+            echo "no Sleeper draft object yet for league $COMMISHDESK_LEAGUE_ID -- not ready"
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          status=$(curl -fsS -m 10 --retry 3 "https://api.sleeper.app/v1/draft/${draft_id}" | jq -r .status)
+          echo "draft $draft_id status: $status"
+          if [ "$status" = "complete" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Cache ratchet (see Design Notes in the spec): the restore key is
+      # always unique (suffixed with the run id) so it always misses on
+      # purpose; `restore-keys` resolves to the most recently *saved* entry,
+      # giving append-then-read-latest semantics on top of immutable cache
+      # entries.
+      - name: Restore Send Ledger cache
+        id: ledger-cache-restore
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ~/.cache/commishdesk
+          key: commishdesk-ledger-${{ github.run_id }}
+          restore-keys: commishdesk-ledger-
+
+      - name: Run draft recap
+        if: steps.readiness.outputs.ready == 'true'
+        run: uv run --frozen --extra llm commishdesk --league "$COMMISHDESK_LEAGUE_ID" --draft-recap --post
+        env:
+          COMMISHDESK_DISCORD_WEBHOOK_URL: ${{ secrets.COMMISHDESK_DISCORD_WEBHOOK_URL }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+
+      # Always saved (even on failure) under the same key the restore step
+      # computed, so it is always a brand-new entry the next run's
+      # `restore-keys` prefix match will find.
+      - name: Save Send Ledger cache
+        if: always()
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ~/.cache/commishdesk
+          key: commishdesk-ledger-${{ github.run_id }}
+
+      # A skip (draft not ready yet) is normal operation, same as a real post
+      # -- both ping success so the operator isn't trained to ignore false
+      # alarms every day of the pre-season.
+      - name: Ping healthchecks.io on success
+        if: success()
+        run: curl -fsS -m 10 --retry 5 "$HEALTHCHECKS_PING_URL"
+        env:
+          HEALTHCHECKS_PING_URL: ${{ secrets.HEALTHCHECKS_PING_URL }}
+
+      # `cancelled()` is required alongside `failure()`: GitHub Actions marks
+      # a `timeout-minutes` timeout as cancelled, not failed, and that "it
+      # hung" scenario is exactly what this dead-man's-switch exists to catch.
+      - name: Ping healthchecks.io on failure or cancellation
+        if: failure() || cancelled()
+        run: curl -fsS -m 10 --retry 5 "$HEALTHCHECKS_PING_URL/fail"
+        env:
+          HEALTHCHECKS_PING_URL: ${{ secrets.HEALTHCHECKS_PING_URL }}
