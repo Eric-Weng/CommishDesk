@@ -54,22 +54,30 @@ personal_insults = [
   '\bwaste of a (roster|seat|keyboard)\b',
 ]
 
+# Recalibrated 2026-09-13: the original list below was mostly genuine, if
+# tired, real sports-writing idiom ("make no mistake", "for the ages", "it is
+# what it is", "game-changer" — columnists say these constantly, unironically)
+# rather than a distinctive AI-generated tell. Punishing real columnist
+# register the same way a hallucinated fact is punished was pure cost for no
+# quality gain — every hit here discards the *entire* narration to the dry
+# template (suppress_section), even when the only "problem" was authentic
+# voice. This list instead targets phrasing that is disproportionately an LLM
+# habit and essentially never appears in a beat writer's actual copy: vague
+# corporate/expository throat-clearing, not color or hype.
 slop = [
-  '\bmake no mistake\b',
-  '\bbuckle up\b',
-  '\bstrap in\b',
-  '\bhold on to your (hats?|butts?)\b',
-  '\blet that sink in\b',
-  '\bneedless to say\b',
-  '\bat the end of the day\b',
-  '\bwhen all is said and done\b',
-  '\bwhen the dust settle[sd]\b',
-  '\bfor the ages\b',
-  '\bone for the record books\b',
-  '\bit is what it is\b',
-  '\bgame[- ]changer\b',
-  '\bmove the needle\b',
-  '\bin today.?s day and age\b',
+  '\bdelve(s|d)? into\b',
+  '\ba testament to\b',
+  '\btapestry\b',
+  '\bunderscor(e|es|ed|ing)\b',
+  '\bnavigate(s|d)? the\b',
+  '\bthe (draft |fantasy )?landscape\b',
+  '\bin the world of\b',
+  '\bwhether you.?re a\b',
+  '\bit.?s (worth noting|important to note) that\b',
+  '\bin conclusion\b',
+  '\bunlocks? (his|her|their|its) (full )?(potential|upside|ceiling)\b',
+  '\belevate[sd]? (their|the|his|her) (game|roster|floor|ceiling)\b',
+  '\ba rollercoaster of emotions\b',
 ]
 
 [banned_topics]

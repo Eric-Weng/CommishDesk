@@ -534,6 +534,84 @@ def _voice_patterns(voice: Voice | None) -> dict[str, tuple[re.Pattern[str], ...
 
 _TOKEN = re.compile(r"[A-Za-z0-9][A-Za-z0-9.’'%$+/-]*")
 
+#: A sentence-ending mark followed by whitespace or end-of-string — used to
+#: find where a *new* sentence opens, not to split the text into pieces.
+_SENTENCE_END = re.compile(r"[.!?](?=\s|\Z)")
+
+#: A small, closed list of common irregular past participles — the ``-en`` /
+#: ``-own`` / ``-orn`` shapes ``str.endswith("ed")`` cannot catch. Bounded and
+#: reviewable, unlike "every English word that can open a sentence": this is
+#: the finite class of one specific verb inflection, not an attempt to
+#: enumerate the vocabulary itself.
+_IRREGULAR_PARTICIPLES: frozenset[str] = frozenset(
+    {
+        "driven", "taken", "given", "written", "chosen", "broken", "spoken",
+        "shown", "known", "grown", "thrown", "torn", "worn", "sworn", "frozen",
+        "stolen", "hidden", "ridden", "forgotten", "gotten", "beaten", "woken",
+        "risen", "fallen", "arisen", "eaten", "seen", "gone", "done", "born",
+    }
+)
+
+
+def _looks_like_ordinary_prose(folded: str) -> bool:
+    """True for a word *shape* that ordinary English grammar, not a proper
+    name, produces: an ``-ly`` adverb, an ``-ing`` present participle /
+    gerund, an ``-ed`` regular past participle, or one of
+    :data:`_IRREGULAR_PARTICIPLES`. Deliberately narrow — this is the gate
+    that keeps the sentence-start exemption below from also swallowing a
+    genuinely hallucinated bare name that happens to open a sentence (a real
+    name essentially never takes one of these three inflections)."""
+    return (
+        folded.endswith("ly")
+        or folded.endswith("ing")
+        or folded.endswith("ed")
+        or folded in _IRREGULAR_PARTICIPLES
+    )
+
+
+def _sentence_start_positions(text: str) -> frozenset[int]:
+    """Character offsets in *text* where a fresh sentence opens: the first
+    non-whitespace character of the whole text; immediately after ``.``/``!``/
+    ``?`` plus whitespace; and the first non-whitespace (and non-quote,
+    non-``*``) character of any line that follows a blank line, a Markdown
+    heading (``#…``), or a bold-wrapped label line (``**…**``) — a heading or
+    label line is never a mid-sentence continuation, so whatever paragraph
+    follows one always opens a new sentence, regardless of the words the
+    heading/label itself contains (which a pure backward character-scan
+    cannot tell apart from ordinary running prose)."""
+    starts: set[int] = set()
+    n = len(text)
+
+    i = 0
+    while i < n and text[i].isspace():
+        i += 1
+    if i < n:
+        starts.add(i)
+
+    for m in _SENTENCE_END.finditer(text):
+        j = m.end()
+        while j < n and text[j].isspace():
+            j += 1
+        if j < n:
+            starts.add(j)
+
+    offset = 0
+    prev_is_boundary = True  # start of the document counts as one
+    for line in text.split("\n"):
+        stripped = line.strip()
+        is_heading = stripped.startswith("#")
+        is_label = stripped.startswith("**") and stripped.endswith("**") and len(stripped) > 4
+        is_blank = stripped == ""
+        if prev_is_boundary and not is_blank:
+            k = 0
+            while k < len(line) and (line[k].isspace() or line[k] in "\"'’‘“*"):
+                k += 1
+            if k < len(line):
+                starts.add(offset + k)
+        prev_is_boundary = is_blank or is_heading or is_label
+        offset += len(line) + 1  # +1 for the '\n' this split() consumed
+    return frozenset(starts)
+
 #: A letter-grade token (``A`` / ``B+`` / ``d-``). Checked against the grades
 #: actually awarded *before* the generic strip runs — otherwise ``A+`` / ``B+``
 #: collapse to ``a`` / ``b`` and a hallucinated grade sails through.
@@ -568,17 +646,31 @@ _STOP: frozenset[str] = frozenset(
         "he", "his", "him", "she", "her", "we", "we'll", "us", "our", "you",
         "your", "i", "if", "is", "was", "were", "be", "been", "being",
         "not", "no",
+        # remaining auxiliary / modal verbs — a closed class, like the
+        # prepositions above (a rhetorical-question opener: "Did they corner
+        # the market, or was it a market inefficiency?")
+        "am", "are", "do", "does", "did", "has", "have", "had", "will",
+        "would", "shall", "should", "can", "could", "may", "might", "must",
         # common sentence-openers / adverbs
         "the", "now", "here", "how", "when", "where", "what", "who", "whom",
         "which", "while", "after", "before", "once", "still", "also", "even",
         "just", "only", "both", "each", "every", "some", "any", "all", "most",
         "more", "less", "nobody", "everyone", "someone", "nothing", "everything",
         "because", "since", "until", "about", "over", "under", "between", "whether",
+        # remaining common prepositions — a genuinely closed class in English
+        # (unlike the open-ended adverb/participle set the sentence-start +
+        # morphology exemption above handles instead)
+        "among", "amongst", "amid", "amidst", "despite", "toward", "towards",
+        "upon", "against", "beyond", "underneath", "beneath", "outside",
+        "inside", "atop", "throughout", "across", "along", "behind", "near",
+        "within", "without", "through", "during", "off", "up", "down", "out",
         # capitalised sentence-opener adverbs / conjuncts (Story 3.4)
         "meanwhile", "however", "granted", "remarkably", "elsewhere", "instead",
         "overall", "ultimately", "regardless", "admittedly", "notably",
         "curiously", "predictably", "otherwise", "besides", "conversely",
         "importantly", "frankly", "honestly", "arguably", "presumably",
+        "though", "although", "nonetheless", "nevertheless",
+        "likewise", "accordingly", "consequently", "hence", "thus",
         # section-heading / scaffolding words
         "round", "board", "lead", "superlatives", "grades", "grade", "team",
         "teams", "positional", "read", "picks", "pick", "december", "arguing",
@@ -654,11 +746,34 @@ def _closed_world(text: str, narration: Narration) -> list[str]:
     a lowercase "a+" nobody earned is caught, and a lowercase "a+" that *was*
     awarded is not. A token is split on internal ``-`` / ``/`` and stripped of an
     ordinal suffix before the lookup so "12-team", "4.5/PPR" and "11th" do not
-    flag."""
+    flag.
+
+    The *first* split-piece of a token is exempt from the capitalisation check
+    when it **both** opens a sentence (:func:`_sentence_start_positions`) **and**
+    has the shape of ordinary prose, not a name (:func:`_looks_like_ordinary_prose`).
+    English capitalises the first word of every sentence whether or not that
+    word is a proper noun, and the curated ``_STOP`` set can only ever
+    enumerate a finite sample of the words that can open one (confirmed live:
+    an otherwise-clean generation opened sentences with "Finally", "Passing",
+    "Backed", "Driven" — ordinary prose, not hallucination, none of them
+    pre-existing ``_STOP`` entries, each a fresh instance of the same
+    unbounded class ``_STOP``'s own "capitalised sentence-opener" comments
+    were already patching one word at a time). Sentence position *alone* is
+    not a safe exemption: a bare hallucinated name ("Marc left the draft
+    early.") is exactly as capitalised as an ordinary sentence-opener and
+    would slip through unnoticed — the morphology gate is what keeps this
+    exemption from re-opening that hole (a real name essentially never ends
+    ``-ly`` / ``-ing`` / ``-ed`` or matches an irregular past participle).
+    This also does not weaken detection of a genuine hallucinated multi-word
+    **entity**: only the sentence-initial *first* word of a phrase can ever be
+    exempt — every other word of it, and every occurrence anywhere else in
+    the text, is still checked normally."""
     payload = _payload_tokens(narration)
     awarded = {team.grade.upper() for team in narration.teams}
+    sentence_starts = _sentence_start_positions(text)
     unknown: list[str] = []
-    for raw in _TOKEN.findall(text):
+    for match in _TOKEN.finditer(text):
+        raw = match.group()
         trimmed = raw.strip(".,;:!?()[]\"'’")
         if _GRADE.match(trimmed):
             upper = trimmed.upper()
@@ -667,11 +782,17 @@ def _closed_world(text: str, narration: Narration) -> list[str]:
             ):
                 unknown.append(trimmed)
             continue
-        for token in _split_token(raw):
+        for index, token in enumerate(_split_token(raw)):
             if not (token[:1].isupper() or any(ch.isdigit() for ch in token)):
                 continue
             folded = token.lower()
             if folded in _STOP or folded in payload:
+                continue
+            if (
+                index == 0
+                and match.start() in sentence_starts
+                and _looks_like_ordinary_prose(folded)
+            ):
                 continue
             unknown.append(token)
     return list(dict.fromkeys(unknown))

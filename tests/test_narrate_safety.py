@@ -160,10 +160,10 @@ def test_unicode_evasion_is_normalized_then_still_holds(narration: Narration) ->
 
 
 def test_slop_warns_and_proceeds(narration: Narration) -> None:
-    report = check_narration("make no mistake, buckle up", narration)
+    report = check_narration("this draft team delved into the landscape.", narration)
     assert not report.held
     slop = [f for f in report.findings if f.category == "slop"]
-    assert {f.matched for f in slop} == {"make no mistake", "buckle up"}
+    assert {f.matched for f in slop} == {"delved into", "the landscape"}
 
 
 def test_voice_banned_topics_merge_by_keyword(narration: Narration) -> None:
@@ -720,6 +720,113 @@ def test_closed_world_stops_capitalised_sentence_adverbs(narration: Narration) -
     assert not any(f.category == "hallucination" for f in report.findings), report.findings
 
 
+def test_closed_world_stops_capitalised_sentence_conjuncts(narration: Narration) -> None:
+    """Live-confirmed: a real generation opened a sentence with "Though" — a
+    conjunction/adverb absent from the curated set above, closed the same way."""
+    report = check_narration("Though, Although, Nonetheless, Nevertheless.", narration)
+    assert not any(f.category == "hallucination" for f in report.findings), report.findings
+
+
+# --------------------------------------------------------------------------- #
+# Sentence-initial capitalisation — live-confirmed false-positive class
+# --------------------------------------------------------------------------- #
+#
+# A real generation opened sentences with ordinary words absent from _STOP
+# ("Finally", "Passing", "Similarly") and false-positived. _STOP can only ever
+# enumerate a finite sample of the words English allows to open a sentence, so
+# the fix is sentence-boundary detection, not another literal word added to
+# the set every time a new one is discovered live.
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Passing up on consensus values is always a polarizing move.",
+        "Backed by a deep receiving corps, the offense should hum.",
+        "Driven by need at running back, the manager reached early.",
+        "Taking the safe pick here paid off by December.",
+    ],
+)
+def test_closed_world_exempts_an_uncurated_sentence_opener(
+    narration: Narration, text: str
+) -> None:
+    """None of these opening words are in ``_STOP`` — each is exactly the class
+    of ordinary prose a real generation produced and that a finite curated set
+    can never fully enumerate in advance."""
+    assert not safety._closed_world(text, narration)
+
+
+def test_closed_world_exempts_a_sentence_opener_mid_paragraph(
+    narration: Narration,
+) -> None:
+    """The exemption is sentence-aware, not just paragraph-initial: the second
+    sentence of one paragraph, following ". ", opens fresh too."""
+    text = (
+        "We will be debating this pick for months. "
+        "Passing judgment early is always a mistake."
+    )
+    assert not safety._closed_world(text, narration)
+
+
+def test_closed_world_exempts_a_paragraph_opener_after_a_heading(
+    narration: Narration,
+) -> None:
+    """A Markdown heading or bold-wrapped label line is never a mid-sentence
+    continuation, so whatever paragraph follows one opens a new sentence
+    regardless of the words the heading/label line itself contains."""
+    text = "## The Lead\n\nFinally, the board is set for next season."
+    assert not safety._closed_world(text, narration)
+
+
+def test_closed_world_still_catches_a_mid_sentence_hallucination(
+    narration: Narration,
+) -> None:
+    """The exemption does not weaken detection of a genuine hallucinated
+    entity that is not sentence-initial — the dominant real-world shape, since
+    a name in this domain almost always appears inside a sentence, not as its
+    very first word."""
+    text = "The manager took Watson Elite in round two, a total surprise."
+    unknown = safety._closed_world(text, narration)
+    assert "Watson" in unknown
+    assert "Elite" in unknown
+
+
+def test_closed_world_still_catches_the_second_word_of_a_sentence_initial_hallucination(
+    narration: Narration,
+) -> None:
+    """Even when a hallucinated *multi*-word entity opens a sentence, only its
+    first word is exempt — the second word is not sentence-initial and is
+    still checked, so the claim as a whole still surfaces a finding."""
+    text = "Watson Elite headlined the whole draft class."
+    unknown = safety._closed_world(text, narration)
+    assert "Elite" in unknown
+
+
+def test_closed_world_still_catches_a_bare_hallucinated_name_at_sentence_start(
+    narration: Narration,
+) -> None:
+    """The morphology gate is what makes the sentence-start exemption safe:
+    without it, a bare hallucinated name at the start of a sentence would be
+    exactly as capitalised as an ordinary sentence-opener and would slip
+    through unnoticed. "Watson" ends in none of the exempted shapes, so it is
+    still flagged even though it opens the sentence."""
+    text = "Watson led the way at the very top of the board."
+    assert "Watson" in safety._closed_world(text, narration)
+
+
+def test_closed_world_rejects_a_name_that_is_only_a_substring_at_sentence_start(
+    narration: Narration,
+) -> None:
+    """Regression guard for the exact shape ``test_closed_world_rejects_a_name_
+    that_is_only_a_substring`` covers, restated as a direct sentence-start case:
+    a bare hallucinated name opening a sentence must not be swallowed by the
+    sentence-start exemption just because it is capitalised the same way an
+    ordinary sentence-opener would be."""
+    n = _with_managers(narration, "Marcus")
+    text = "Marc left the draft early."
+    assert "Marc" in safety._closed_world(text, n)
+
+
 def test_closed_world_grade_check_is_against_the_awarded_set(narration: Narration) -> None:
     awarded = {t.grade for t in narration.teams}
     assert "F-" not in awarded
@@ -760,7 +867,7 @@ def test_category_severity_map_shape() -> None:
 
 def test_check_is_byte_identical_across_calls(narration: Narration) -> None:
     n = _with_managers(narration, "Marcus", "Dana")
-    text = "Marcus drafted hungover. Dana is an idiot. make no mistake."
+    text = "Marcus drafted hungover. Dana is an idiot. In conclusion, wow."
     a = check_narration(text, n, voice=load_default_voice())
     b = check_narration(text, n, voice=load_default_voice())
     assert a.model_dump_json() == b.model_dump_json()

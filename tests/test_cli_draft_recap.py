@@ -586,7 +586,7 @@ def test_slop_on_llm_output_degrades_to_template_with_an_alert(
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
     calls = _stub_narrator(
         monkeypatch,
-        _six_section_llm_text("Honestly, make no mistake, this draft had chaos."),
+        _six_section_llm_text("Honestly, in conclusion, this draft had chaos."),
     )
     result = runner.invoke(
         app, ["--league", "71", "--draft-recap", "--out-dir", str(tmp_path)]
@@ -985,7 +985,7 @@ def test_content_safety_alert_is_on_stderr_not_stdout(
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
     _stub_narrator(
         monkeypatch,
-        _six_section_llm_text("Honestly, make no mistake, this draft had chaos."),
+        _six_section_llm_text("Honestly, in conclusion, this draft had chaos."),
     )
     result = runner.invoke(
         app, ["--league", "86", "--draft-recap", "--out-dir", str(tmp_path)]
