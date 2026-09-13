@@ -573,13 +573,19 @@ _COMMON_OPENERS: frozenset[str] = frozenset(
         "unusual", "impressive", "decent", "fine", "nice", "great", "poor",
         "bad", "worse", "worst", "last", "same", "different", "similar",
         "new", "old", "key", "irrelevant", "relevant", "critical", "vital",
-        "crucial", "essential", "minor", "major", "modest", "sizable",
+        "crucial", "essential", "minor", "major", "modest", "sizable", "next",
+        # common nouns
+        "day",
         # quantifiers / determiners not already in _STOP
         "another", "several", "various",
-        # bare-verb sentence openers (imperative or plain present)
+        # bare-verb sentence openers (imperative or plain present) -- "buckle"
+        # specifically because the voice prompt now explicitly invites "buckle
+        # up" as authentic register (Story 3.4 recalibration), so the model
+        # reaches for it more, not less
         "come", "go", "look", "make", "take", "add", "drop", "cut", "check",
         "consider", "note", "remember", "imagine", "picture", "meet",
         "expect", "forget", "let", "keep", "give", "call", "credit", "blame",
+        "buckle",
     }
 )
 
@@ -696,7 +702,7 @@ _STOP: frozenset[str] = frozenset(
         "am", "are", "do", "does", "did", "has", "have", "had", "will",
         "would", "shall", "should", "can", "could", "may", "might", "must",
         # common sentence-openers / adverbs
-        "the", "now", "here", "how", "when", "where", "what", "who", "whom",
+        "the", "now", "here", "how", "when", "where", "what", "who", "whom", "why",
         "which", "while", "after", "before", "once", "still", "also", "even",
         "just", "only", "both", "each", "every", "some", "any", "all", "most",
         "more", "less", "nobody", "everyone", "someone", "nothing", "everything",
@@ -708,6 +714,7 @@ _STOP: frozenset[str] = frozenset(
         "upon", "against", "beyond", "underneath", "beneath", "outside",
         "inside", "atop", "throughout", "across", "along", "behind", "near",
         "within", "without", "through", "during", "off", "up", "down", "out",
+        "alongside",
         # capitalised sentence-opener adverbs / conjuncts (Story 3.4)
         "meanwhile", "however", "granted", "remarkably", "elsewhere", "instead",
         "overall", "ultimately", "regardless", "admittedly", "notably",

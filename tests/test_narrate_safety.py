@@ -839,6 +839,11 @@ def test_closed_world_still_catches_a_bare_hallucinated_name_at_sentence_start(
         "Close to the top, the run continued.",
         "Key to the whole draft was patience at the position.",
         "Let the record show this was a run on running backs.",
+        "Next up is the tight end position.",
+        "Alongside the running backs, receivers went early too.",
+        "Day one belonged to the running backs.",
+        "Buckle up for this recap.",
+        "Why the board fell this way is anyone's guess.",
     ],
 )
 def test_closed_world_exempts_a_common_adjective_or_verb_opener(
