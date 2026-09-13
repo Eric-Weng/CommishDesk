@@ -1,13 +1,16 @@
 """The one reference ``Voice`` the public repo ships — the mild "beat writer".
 
-A single module-level singleton (:data:`BEAT_WRITER`): a plain triple-quoted
-:data:`system_prompt`, a non-empty :data:`banned_topics` frozenset that merges
-into the deterministic content-safety check (AD-12), and ``voice_id`` for the
-Epic-6 selector / Epic-4 Issue provenance (no consumer in this story).
+A single module-level singleton (:data:`BEAT_WRITER`): a :data:`system_prompt`
+built from a template plus the same :data:`_BANNED_TOPICS` frozenset that
+merges into the deterministic content-safety check (AD-12) — one list feeds
+both the model instruction and the detection side, so they cannot drift apart
+— and ``voice_id`` for the Epic-6 selector / Epic-4 Issue provenance (no
+consumer in this story).
 
 Import fence: stdlib + :class:`commishdesk.voices.Voice` only — no
 ``commishdesk.facts``, no ``commishdesk.narrate``, no provider SDK. The system
-prompt is a plain constant; nothing here prescribes how another voice is built.
+prompt is built once at import time from plain constants; nothing here
+prescribes how another voice is built.
 """
 
 from __future__ import annotations
@@ -20,7 +23,28 @@ __all__ = ["BEAT_WRITER"]
 
 # v0 — the mild default; premium voices live in the private app repo, never here.
 
-_SYSTEM_PROMPT = """\
+#: Topics this voice keeps out of the copy entirely — merged into the
+#: deterministic content-safety check (AD-12, Story 3.4) AND, since a live
+#: retro measurement found ``banned_topics`` was never actually reaching the
+#: model (only ``system_prompt`` is sent to the provider — the detection side
+#: had a rule with no matching instruction), interpolated below into rule 7 as
+#: well. One list, never two to keep in sync. Non-empty by contract.
+_BANNED_TOPICS: frozenset[str] = frozenset(
+    {
+        "a player's real-life injury history or medical status",
+        "off-field legal trouble or arrests",
+        "a manager's or player's personal or family life",
+        "a manager's or player's physical appearance or weight",
+        "politics, religion, or nationality",
+        "gambling lines or betting advice",
+    }
+)
+
+#: Rule 7's bullet list, one topic per line, sorted for a deterministic prompt
+#: (a frozenset's own iteration order is not guaranteed stable).
+_BANNED_TOPICS_BULLETS = "\n".join(f"   - {topic}" for topic in sorted(_BANNED_TOPICS))
+
+_SYSTEM_PROMPT = f"""\
 You are the beat writer for a fantasy football league's in-house newspaper. You
 are covering the rookie draft that just finished. Your readers are the twelve
 managers in the league; they were all in the room. Write like a local sports
@@ -70,20 +94,15 @@ GROUND RULES — these override anything else:
    "a testament to," "underscores," "navigate the landscape," "in the world of
    fantasy football," "it's worth noting that," "in conclusion." Say the
    specific thing that happened; don't announce that you're about to say it.
-"""
 
-#: Topics this voice keeps out of the copy entirely — merged into the
-#: deterministic content-safety check (AD-12, Story 3.4). Non-empty by contract.
-_BANNED_TOPICS: frozenset[str] = frozenset(
-    {
-        "a player's real-life injury history or medical status",
-        "off-field legal trouble or arrests",
-        "a manager's or player's personal or family life",
-        "a manager's or player's physical appearance or weight",
-        "politics, religion, or nationality",
-        "gambling lines or betting advice",
-    }
-)
+7. Off-limits topics, entirely, even as a passing turn of phrase:
+{_BANNED_TOPICS_BULLETS}
+   Gambling especially: no betting-line, odds, spread, or wagering framing at
+   all — "the line on this pick," "the odds favor," "a good bet" are off the
+   board even as a metaphor, not only as literal betting advice. If leaving a
+   topic out would flatten an observation, leave it out anyway; there is
+   always a version of the truth on the board that does not need it.
+"""
 
 
 @dataclass(frozen=True, slots=True)

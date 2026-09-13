@@ -814,6 +814,58 @@ def test_closed_world_still_catches_a_bare_hallucinated_name_at_sentence_start(
     assert "Watson" in safety._closed_world(text, narration)
 
 
+# --------------------------------------------------------------------------- #
+# _COMMON_OPENERS / _TITLES — the open-class gap, live-measured 2026-09-13
+# --------------------------------------------------------------------------- #
+#
+# Two consecutive live sampling batches (COMMISHDESK_LIVE_LLM against Gemini)
+# measured that roughly half of real generations were still degrading to
+# template solely because the morphology gate (-ly/-ing/-ed/irregular
+# participles) doesn't cover bare adjectives, quantifiers, or verb-imperative
+# sentence openers -- a genuinely different part of speech with no shared
+# suffix to test for. Each case below is a real token a live generation
+# produced, not a hypothetical.
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Good thing they waited on that pick.",
+        "Right away, the board tilted toward receivers.",
+        "Another team took the same approach.",
+        "Come December, this pick will matter more.",
+        "Add to that the depth at tight end.",
+        "Look at how the board fell after that.",
+        "Close to the top, the run continued.",
+        "Key to the whole draft was patience at the position.",
+    ],
+)
+def test_closed_world_exempts_a_common_adjective_or_verb_opener(
+    narration: Narration, text: str
+) -> None:
+    """None of these are in _STOP and none match the morphology gate (no
+    shared -ly/-ing/-ed suffix) -- a live generation produced each verbatim."""
+    assert not safety._closed_world(text, narration)
+
+
+def test_closed_world_exempts_a_title_at_any_position(narration: Narration) -> None:
+    """"Mr. Irrelevant" is the real, traditional NFL-draft nickname for the
+    last pick -- not itself in the Facts JSON, and not a hallucination either.
+    A bare title carries no information on its own, so it is exempt wherever
+    it appears, not only at a sentence boundary."""
+    text = "In a nod to tradition, Mr. Irrelevant went in the final round."
+    assert not safety._closed_world(text, narration)
+
+
+def test_closed_world_title_exemption_does_not_cover_the_name_it_attaches_to(
+    narration: Narration,
+) -> None:
+    """The title itself carries no content; the name still does. A
+    hallucinated name right after a real title must still be caught."""
+    text = "Mr. Fictitious went in the final round."
+    assert "Fictitious" in safety._closed_world(text, narration)
+
+
 def test_closed_world_rejects_a_name_that_is_only_a_substring_at_sentence_start(
     narration: Narration,
 ) -> None:

@@ -553,19 +553,63 @@ _IRREGULAR_PARTICIPLES: frozenset[str] = frozenset(
 )
 
 
+#: Common English adjectives, quantifiers/determiners, and bare-verb openers
+#: that live-testing kept surfacing as sentence-initial false positives after
+#: the morphology gate alone (2026-09-13, Epic 4 retro follow-up: 'Good',
+#: 'Right', 'Key', 'Another', 'Close', 'Make', 'Look', 'Add', 'Come',
+#: 'Next'). Unlike adverbs/participles these have no shared suffix to test
+#: for, so this is a direct, curated word list instead — the same principle
+#: as :data:`_STOP`, just aimed at a different part of speech. Not a claim of
+#: completeness: this closes the specific gap live testing found, not every
+#: adjective/verb English has.
+_COMMON_OPENERS: frozenset[str] = frozenset(
+    {
+        # adjectives
+        "good", "right", "close", "easy", "hard", "simple", "rare", "clear",
+        "safe", "smart", "bold", "wild", "odd", "fair", "lucky", "risky",
+        "obvious", "quiet", "loud", "strong", "weak", "tough", "sharp",
+        "steady", "solid", "smooth", "deep", "wide", "small", "big", "huge",
+        "tiny", "certain", "particular", "specific", "typical", "usual",
+        "unusual", "impressive", "decent", "fine", "nice", "great", "poor",
+        "bad", "worse", "worst", "last", "same", "different", "similar",
+        "new", "old", "key", "irrelevant", "relevant", "critical", "vital",
+        "crucial", "essential", "minor", "major", "modest", "sizable",
+        # quantifiers / determiners not already in _STOP
+        "another", "several", "various",
+        # bare-verb sentence openers (imperative or plain present)
+        "come", "go", "look", "make", "take", "add", "drop", "cut", "check",
+        "consider", "note", "remember", "imagine", "picture", "meet",
+        "expect", "forget",
+    }
+)
+
+#: Titles / honorifics — never themselves the hallucinated content: a title
+#: carries no information on its own (only the name it attaches to would),
+#: so it is exempt at ANY position, not only sentence-start. Live-confirmed
+#: real usage this closes: "Mr. Irrelevant", the actual traditional NFL-draft
+#: nickname for the last pick, which is not itself in the Facts JSON but is
+#: not a hallucination either.
+_TITLES: frozenset[str] = frozenset(
+    {"mr", "mrs", "ms", "miss", "dr", "sir", "coach", "captain", "commissioner"}
+)
+
+
 def _looks_like_ordinary_prose(folded: str) -> bool:
     """True for a word *shape* that ordinary English grammar, not a proper
     name, produces: an ``-ly`` adverb, an ``-ing`` present participle /
-    gerund, an ``-ed`` regular past participle, or one of
-    :data:`_IRREGULAR_PARTICIPLES`. Deliberately narrow — this is the gate
-    that keeps the sentence-start exemption below from also swallowing a
+    gerund, an ``-ed`` regular past participle, one of
+    :data:`_IRREGULAR_PARTICIPLES`, or a member of :data:`_COMMON_OPENERS`
+    (adjectives, quantifiers, and bare-verb openers, which share no common
+    suffix to test for instead). Deliberately narrow — this is the gate that
+    keeps the sentence-start exemption below from also swallowing a
     genuinely hallucinated bare name that happens to open a sentence (a real
-    name essentially never takes one of these three inflections)."""
+    name essentially never matches any of these)."""
     return (
         folded.endswith("ly")
         or folded.endswith("ing")
         or folded.endswith("ed")
         or folded in _IRREGULAR_PARTICIPLES
+        or folded in _COMMON_OPENERS
     )
 
 
@@ -767,7 +811,12 @@ def _closed_world(text: str, narration: Narration) -> list[str]:
     This also does not weaken detection of a genuine hallucinated multi-word
     **entity**: only the sentence-initial *first* word of a phrase can ever be
     exempt — every other word of it, and every occurrence anywhere else in
-    the text, is still checked normally."""
+    the text, is still checked normally.
+
+    Separately, :data:`_TITLES` (Mr, Dr, Coach, ...) is exempt at *any*
+    position — a bare title carries no information on its own, so it can never
+    itself be the hallucinated content (the name it attaches to still would
+    be, and still is checked)."""
     payload = _payload_tokens(narration)
     awarded = {team.grade.upper() for team in narration.teams}
     sentence_starts = _sentence_start_positions(text)
@@ -786,7 +835,7 @@ def _closed_world(text: str, narration: Narration) -> list[str]:
             if not (token[:1].isupper() or any(ch.isdigit() for ch in token)):
                 continue
             folded = token.lower()
-            if folded in _STOP or folded in payload:
+            if folded in _STOP or folded in payload or folded in _TITLES:
                 continue
             if (
                 index == 0
