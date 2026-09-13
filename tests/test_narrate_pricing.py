@@ -47,6 +47,29 @@ def test_model_prices_covers_the_two_llmconfig_defaults() -> None:
     assert _DEFAULT_FALLBACK in MODEL_PRICES
 
 
+def test_model_prices_match_the_provider_price_pages_literally() -> None:
+    """Retro finding F3 (Epic 4): every other pricing test reads its expected
+    value back out of MODEL_PRICES itself, so a wrong entry (input/output
+    confused, a stale rate) would pass the whole suite silently. This asserts
+    the real, current numbers directly, taken from each provider's own
+    pricing page (2026-09-13) rather than reconstructed from the table under
+    test. google:gemini-3.5-flash was actually WRONG in this table before
+    this date -- $0.075 / $0.30 per 1k, roughly 20x / 30x under real price
+    ($1.50 / $9.00 per 1M) -- caught only by comparing against the source,
+    not by any test already in this file."""
+    sonnet = MODEL_PRICES["anthropic:claude-sonnet-5"]
+    assert sonnet.input_usd_per_1k == pytest.approx(0.003)
+    assert sonnet.output_usd_per_1k == pytest.approx(0.015)
+
+    flash_35 = MODEL_PRICES["google:gemini-3.5-flash"]
+    assert flash_35.input_usd_per_1k == pytest.approx(0.0015)
+    assert flash_35.output_usd_per_1k == pytest.approx(0.009)
+
+    flash_38 = MODEL_PRICES["google:gemini-3.8-flash"]
+    assert flash_38.input_usd_per_1k == pytest.approx(0.00075)
+    assert flash_38.output_usd_per_1k == pytest.approx(0.00375)
+
+
 def test_pricing_updated_is_a_valid_iso_date_and_interval_is_positive() -> None:
     date.fromisoformat(PRICING_UPDATED)  # does not raise
     assert PRICING_REVIEW_INTERVAL_DAYS > 0
