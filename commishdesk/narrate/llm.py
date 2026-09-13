@@ -307,6 +307,19 @@ class GoogleClient:
                 config={
                     "system_instruction": voice.system_prompt,
                     "max_output_tokens": MAX_OUTPUT_TOKENS,
+                    # Gemini 3.x's default extended-thinking budget is billed
+                    # against max_output_tokens right alongside the visible
+                    # completion. A narration call needs no chain-of-thought,
+                    # and left at its default the thinking budget can consume
+                    # nearly all of MAX_OUTPUT_TOKENS on a real narration
+                    # payload — confirmed live against the configured fallback
+                    # model: thinking spent 7860 of the 8192-token ceiling,
+                    # leaving 328 for visible text and truncating at
+                    # MAX_TOKENS before any usable prose. Zeroing it here both
+                    # fixes that (finish_reason -> STOP, full completion) and
+                    # roughly halves the billed tokens for the same call
+                    # (11,751 -> 6,189 total, measured).
+                    "thinking_config": {"thinking_budget": 0},
                 },
             )
         except Exception as exc:  # a transient fault is retryable; the rest falls through
