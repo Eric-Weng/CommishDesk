@@ -838,6 +838,7 @@ def test_closed_world_still_catches_a_bare_hallucinated_name_at_sentence_start(
         "Look at how the board fell after that.",
         "Close to the top, the run continued.",
         "Key to the whole draft was patience at the position.",
+        "Let the record show this was a run on running backs.",
     ],
 )
 def test_closed_world_exempts_a_common_adjective_or_verb_opener(

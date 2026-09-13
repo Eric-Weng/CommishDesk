@@ -579,7 +579,7 @@ _COMMON_OPENERS: frozenset[str] = frozenset(
         # bare-verb sentence openers (imperative or plain present)
         "come", "go", "look", "make", "take", "add", "drop", "cut", "check",
         "consider", "note", "remember", "imagine", "picture", "meet",
-        "expect", "forget",
+        "expect", "forget", "let", "keep", "give", "call", "credit", "blame",
     }
 )
 
