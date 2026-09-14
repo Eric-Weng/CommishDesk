@@ -166,6 +166,7 @@ def _install_fake_anthropic(
     reply: str = "anthropic prose",
     stop_reason: str = "end_turn",
     sink: dict[str, list[dict[str, object]]],
+    usage: object = None,
 ) -> None:
     module = types.ModuleType("anthropic")
 
@@ -175,6 +176,7 @@ def _install_fake_anthropic(
             return types.SimpleNamespace(
                 stop_reason=stop_reason,
                 content=[types.SimpleNamespace(type="text", text=reply)],
+                usage=usage,
             )
 
     class _Anthropic:
@@ -192,6 +194,7 @@ def _install_fake_genai(
     reply: str = "google prose",
     finish_reason: str | None = "STOP",
     sink: dict[str, list[dict[str, object]]],
+    usage_metadata: object = None,
 ) -> None:
     genai = types.ModuleType("google.genai")
 
@@ -204,7 +207,7 @@ def _install_fake_genai(
                     else types.SimpleNamespace(name=finish_reason)
                 )
             )
-            return types.SimpleNamespace(text=reply, candidates=[candidate])
+            return types.SimpleNamespace(text=reply, candidates=[candidate], usage_metadata=usage_metadata)
 
     class _Client:
         def __init__(self, **kwargs: object) -> None:
@@ -1074,3 +1077,167 @@ def test_importing_commishdesk_narrate_pulls_in_no_sdk_or_httpx() -> None:
     )
     assert probe.returncode == 0, probe.stderr
     assert probe.stdout.strip() == "ok"
+
+
+# --------------------------------------------------------------------------- #
+# usage recording — measured, not estimated
+# --------------------------------------------------------------------------- #
+
+_USAGE_VOICE = types.SimpleNamespace(system_prompt="s", banned_topics=frozenset(), voice_id="v")
+
+
+def test_anthropic_usage_is_recorded_as_billed(monkeypatch: pytest.MonkeyPatch) -> None:
+    from commishdesk.narrate.llm import AnthropicClient, recording_usage
+    from commishdesk.narrate.pricing import MODEL_PRICES
+
+    sink: dict[str, list[dict[str, object]]] = {}
+    _install_fake_anthropic(
+        monkeypatch, sink=sink, usage=types.SimpleNamespace(input_tokens=7000, output_tokens=2600)
+    )
+    with recording_usage() as usage:
+        AnthropicClient("claude-sonnet-5", env={"ANTHROPIC_API_KEY": "k"}).generate("p", _USAGE_VOICE)
+    (call,) = usage
+    assert (call.provider, call.model_id, call.input_tokens, call.output_tokens) == (
+        "anthropic",
+        "claude-sonnet-5",
+        7000,
+        2600,
+    )
+    price = MODEL_PRICES["anthropic:claude-sonnet-5"]
+    assert call.usd() == pytest.approx(7 * price.input_usd_per_1k + 2.6 * price.output_usd_per_1k)
+
+
+def test_google_thinking_tokens_are_recorded_and_billed_as_output(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The hidden-reasoning cost that doubled a day's output bill must show up."""
+    from commishdesk.narrate.llm import GoogleClient, recording_usage
+    from commishdesk.narrate.pricing import MODEL_PRICES
+
+    sink: dict[str, list[dict[str, object]]] = {}
+    meta = types.SimpleNamespace(prompt_token_count=7200, candidates_token_count=2600, thoughts_token_count=2200)
+    _install_fake_genai(monkeypatch, sink=sink, usage_metadata=meta)
+    with recording_usage() as usage:
+        GoogleClient("gemini-3.8-flash", env={"GEMINI_API_KEY": "k"}).generate("p", _USAGE_VOICE)
+    (call,) = usage
+    assert call.thinking_tokens == 2200
+    assert call.billed_output_tokens == 4800
+    price = MODEL_PRICES["google:gemini-3.8-flash"]
+    assert call.usd() == pytest.approx(7.2 * price.input_usd_per_1k + 4.8 * price.output_usd_per_1k)
+
+
+def test_a_truncated_completion_is_still_recorded(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A MAX_TOKENS completion is rejected, but it was billed, so it counts."""
+    from commishdesk.errors import NarratorError
+    from commishdesk.narrate.llm import GoogleClient, recording_usage
+
+    sink: dict[str, list[dict[str, object]]] = {}
+    meta = types.SimpleNamespace(prompt_token_count=100, candidates_token_count=8192, thoughts_token_count=0)
+    _install_fake_genai(monkeypatch, sink=sink, finish_reason="MAX_TOKENS", usage_metadata=meta)
+    with recording_usage() as usage, pytest.raises(NarratorError):
+        GoogleClient("gemini-3.8-flash", env={"GEMINI_API_KEY": "k"}).generate("p", _USAGE_VOICE)
+    assert len(usage) == 1
+    assert usage[0].output_tokens == 8192
+
+
+def test_unreported_usage_is_unknown_not_zero(monkeypatch: pytest.MonkeyPatch) -> None:
+    from commishdesk.narrate.llm import AnthropicClient, recording_usage
+
+    sink: dict[str, list[dict[str, object]]] = {}
+    _install_fake_anthropic(monkeypatch, sink=sink)  # the SDK response carries no usage at all
+    with recording_usage() as usage:
+        AnthropicClient("claude-sonnet-5", env={"ANTHROPIC_API_KEY": "k"}).generate("p", _USAGE_VOICE)
+    (call,) = usage
+    assert call.input_tokens is None
+    assert call.usd() is None
+
+
+def test_usage_is_collected_only_inside_its_own_block(monkeypatch: pytest.MonkeyPatch) -> None:
+    from commishdesk.narrate.llm import AnthropicClient, recording_usage
+
+    sink: dict[str, list[dict[str, object]]] = {}
+    _install_fake_anthropic(monkeypatch, sink=sink, usage=types.SimpleNamespace(input_tokens=1, output_tokens=1))
+    client = AnthropicClient("claude-sonnet-5", env={"ANTHROPIC_API_KEY": "k"})
+    client.generate("p", _USAGE_VOICE)  # outside any block: logged, collected nowhere, no error
+    with recording_usage() as outer:
+        client.generate("p", _USAGE_VOICE)
+        with recording_usage() as inner:
+            client.generate("p", _USAGE_VOICE)
+    assert len(outer) == 1
+    assert len(inner) == 1
+
+
+# --------------------------------------------------------------------------- #
+# an exhausted account is not a transient fault
+# --------------------------------------------------------------------------- #
+
+
+def _google_error(code: int, message: str) -> _FakeGoogleAPIError:
+    exc = _FakeGoogleAPIError(code)
+    exc.args = (message,)
+    return exc
+
+
+_DEPLETED = (
+    "429 RESOURCE_EXHAUSTED. Your prepayment credits are depleted. Please go to AI Studio to "
+    "manage your project and billing."
+)
+_RATE_LIMITED = "429 RESOURCE_EXHAUSTED. Resource has been exhausted (e.g. check quota)."
+
+
+def test_google_depleted_prepaid_credits_are_not_retried() -> None:
+    # returns silently -> the adapter re-raises it as-is -> no retry against an empty account
+    _raise_if_transient_google(_google_error(429, _DEPLETED), _FAKE_GENAI_ERRORS)
+
+
+def test_google_an_ordinary_rate_limit_is_still_transient() -> None:
+    with pytest.raises(_TransientProviderError):
+        _raise_if_transient_google(_google_error(429, _RATE_LIMITED), _FAKE_GENAI_ERRORS)
+
+
+def test_anthropic_a_billing_block_is_not_retried() -> None:
+    _raise_if_transient_anthropic(_FakeRateLimitError("Your credit balance is too low"), _FAKE_ANTHROPIC)
+
+
+def _install_fake_genai_raising(monkeypatch: pytest.MonkeyPatch, exc: Exception, sink: dict[str, int]) -> None:
+    genai = types.ModuleType("google.genai")
+    errors_mod = types.ModuleType("google.genai.errors")
+    errors_mod.ServerError = _FakeServerError  # type: ignore[attr-defined]
+    errors_mod.APIError = _FakeGoogleAPIError  # type: ignore[attr-defined]
+
+    class _Models:
+        def generate_content(self, **kwargs: object) -> object:
+            sink["calls"] = sink.get("calls", 0) + 1
+            raise exc
+
+    class _Client:
+        def __init__(self, **kwargs: object) -> None:
+            self.models = _Models()
+
+    genai.Client = _Client  # type: ignore[attr-defined]
+    genai.errors = errors_mod  # type: ignore[attr-defined]
+    google_pkg = types.ModuleType("google")
+    google_pkg.genai = genai  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "google", google_pkg)
+    monkeypatch.setitem(sys.modules, "google.genai", genai)
+    monkeypatch.setitem(sys.modules, "google.genai.errors", errors_mod)
+
+
+@pytest.mark.parametrize(("message", "expected_calls_offset"), [(_DEPLETED, 0), (_RATE_LIMITED, None)])
+def test_an_empty_account_costs_one_attempt_while_a_rate_limit_retries_to_the_cap(
+    monkeypatch: pytest.MonkeyPatch, message: str, expected_calls_offset: int | None
+) -> None:
+    """End to end through the real adapter and the one call site."""
+    from commishdesk.errors import NarratorError
+    from commishdesk.llmconfig import LLMModelConfig
+    from commishdesk.narrate.llm import RETRY_CAP, GoogleClient, extract_with_llm
+
+    sink: dict[str, int] = {}
+    _install_fake_genai_raising(monkeypatch, _google_error(429, message), sink)
+    with pytest.raises(NarratorError):
+        extract_with_llm(
+            "prose",
+            _USAGE_VOICE,
+            LLMModelConfig("google", "gemini-3.8-flash"),
+            client_factory=lambda cfg: GoogleClient(cfg.model_id, env={"GEMINI_API_KEY": "k"}),
+        )
+    expected = 1 if expected_calls_offset == 0 else 1 + RETRY_CAP
+    assert sink["calls"] == expected

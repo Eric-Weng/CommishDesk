@@ -8,7 +8,7 @@ attempts can one run actually make" (the ``regenerate`` tier's one re-narration)
 and "which of the two selectable models" (primary vs. fallback) both live at the
 ``cli.py`` call site — not here (Spec Change Log, Loopback 1).
 
-**Worst-case, not expected-value.** ``input_tokens = ceil(len(payload)/4)`` — the
+**Worst-case, not expected-value.** ``input_tokens = ceil(len(payload) / CHARS_PER_TOKEN)`` — the
 same char-proxy approximation style as ``facts.schema.NARRATION_TOKEN_CAP`` — and
 output is priced at the full ``max_output_tokens`` ceiling the caller passes,
 never an average actual. This is a ceiling on what a call *could* cost, not a
@@ -121,15 +121,26 @@ def is_pricing_stale() -> bool:
     return (_today() - updated).days > PRICING_REVIEW_INTERVAL_DAYS
 
 
+#: Characters of payload per estimated input token. Measured, not assumed: on
+#: 2026-09-13 a day of live runs sent ~4.28M characters (Facts JSON plus the
+#: system prompt) and was billed 1.5M input tokens — 2.85 characters a token,
+#: because dense JSON (short keys, digits, punctuation) tokenizes far tighter
+#: than English prose's ~4. The old ``/ 4`` under-priced input by ~1.4x. 2.5
+#: keeps this a worst-case bound rather than an average.
+CHARS_PER_TOKEN = 2.5
+
+
 def estimate_cost_usd(
     payload: str, model: LLMModelConfig, *, max_output_tokens: int = 8192
 ) -> float:
     """A worst-case USD bound for one call to *model* with *payload* as the
     input.
 
-    ``input_tokens = ceil(len(payload)/4)`` (a char-proxy estimate — no live
+    ``input_tokens = ceil(len(payload) / CHARS_PER_TOKEN)`` (a char-proxy estimate — no live
     provider token-counting call); output is priced at the full
-    *max_output_tokens* ceiling, never an average actual. Callers pricing an
+    *max_output_tokens* ceiling, never an average actual. That ceiling already
+    bounds hidden reasoning: Gemini bills thinking tokens as output and counts
+    them against ``max_output_tokens``, so a thinking model cannot out-spend it. Callers pricing an
     LLM narrator call should pass ``narrate.llm.MAX_OUTPUT_TOKENS`` explicitly
     rather than relying on this default matching it by coincidence.
 
@@ -145,7 +156,7 @@ def estimate_cost_usd(
             "MODEL_PRICES; add one before using this model, or the cost "
             "estimate cannot fail closed by name"
         )
-    input_tokens = math.ceil(len(payload) / 4)
+    input_tokens = math.ceil(len(payload) / CHARS_PER_TOKEN)
     return (
         (input_tokens / 1000) * price.input_usd_per_1k
         + (max_output_tokens / 1000) * price.output_usd_per_1k

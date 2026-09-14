@@ -28,6 +28,7 @@ if TYPE_CHECKING:
     from commishdesk.facts.schema import DraftRecapFacts
     from commishdesk.llmconfig import LLMConfig
     from commishdesk.narrate import Recap, SafetyReport, TieredResponse
+    from commishdesk.narrate.llm import CallUsage
     from commishdesk.voices import Voice
 
 
@@ -193,6 +194,12 @@ _DISCORD_WEBHOOK_VAR = "COMMISHDESK_DISCORD_WEBHOOK_URL"
 #: per league-week"). ``RETRY_CAP``-driven transient retries never produce a
 #: billed completion, so they need no multiplier here.
 _MAX_BILLABLE_NARRATION_ATTEMPTS = 2
+
+#: Per league-week, at most one claim-verification call (content-safety P1).
+#: ``_produce_issue`` verifies only the prose it is about to ship, and both of its
+#: LLM ship paths return through that one check — so a regeneration never buys a
+#: second verification, and member count never enters into it.
+_MAX_BILLABLE_VERIFICATION_CALLS = 1
 
 
 @app.command("verify-webhook")
@@ -571,6 +578,21 @@ def _recap_one_league(
             estimate_cost_usd(payload, llm_config.fallback, max_output_tokens=MAX_OUTPUT_TOKENS),
         )
         estimate = per_call_estimate * _MAX_BILLABLE_NARRATION_ATTEMPTS
+        if llm_config.verifier is not None:
+            from commishdesk.narrate.pricing import CHARS_PER_TOKEN
+            from commishdesk.narrate.verify import EXTRACTOR_VOICE
+
+            # The claim verifier reads the finished prose — at most one completion
+            # long, so MAX_OUTPUT_TOKENS tokens at the estimator's CHARS_PER_TOKEN — plus its own
+            # system prompt, and its reply is priced at the same output ceiling.
+            # Priced for length only, like the narration payload above; an
+            # unpriced verifier model fails closed here by name, as an unpriced
+            # narrator does.
+            verifier_input = "x" * int(MAX_OUTPUT_TOKENS * CHARS_PER_TOKEN) + EXTRACTOR_VOICE.system_prompt
+            estimate += (
+                estimate_cost_usd(verifier_input, llm_config.verifier, max_output_tokens=MAX_OUTPUT_TOKENS)
+                * _MAX_BILLABLE_VERIFICATION_CALLS
+            )
         typer.echo(f"estimated cost: {_fmt_usd(estimate)} (ceiling {_fmt_usd(llm_config.cost_ceiling_usd)})")
         if estimate > llm_config.cost_ceiling_usd:
             raise CostCeilingExceededError(
@@ -587,15 +609,24 @@ def _recap_one_league(
     # Issue), and degrade to the template narrator whenever LLM prose cannot be
     # cleanly repaired. A hold raises ``ContentSafetyError`` — caught per league
     # in ``_run_draft_recap`` → one-line stderr, exit 1, no HTML (AD-9).
-    body = _produce_issue(
-        doc,
-        voice,
-        llm_config,
-        llm_enabled=llm_enabled,
-        logger=logger,
-        resolved=resolved,
-        allow_content_hold=allow_content_hold,
-    )
+    from commishdesk.narrate.llm import recording_usage
+
+    # Every paid call _produce_issue makes — narration, the one permitted
+    # regeneration, claim verification — records the provider's own token
+    # counts. Reported even when the Issue is then held: that spend happened.
+    with recording_usage() as usage:
+        try:
+            body = _produce_issue(
+                doc,
+                voice,
+                llm_config,
+                llm_enabled=llm_enabled,
+                logger=logger,
+                resolved=resolved,
+                allow_content_hold=allow_content_hold,
+            )
+        finally:
+            _report_actual_spend(usage, logger=logger, resolved=resolved)
 
     if body.narrator == "template":
         assert body.recap is not None
@@ -669,6 +700,29 @@ def _recap_one_league(
             typer.echo(f"posted to Discord (webhook {recipient_id})")
         else:
             typer.echo(f"Discord post already confirmed for webhook {recipient_id} — skipped")
+
+
+def _report_actual_spend(usage: list[CallUsage], *, logger: logging.Logger, resolved: str) -> None:
+    """Echo what this league's LLM calls actually billed, summed from the
+    providers' own token counts — the figure the pre-spend estimate is a
+    worst-case bound on. Silent when no paid call came back. A call whose
+    provider reported no counts, or whose model has no price entry, is shown as
+    unpriced rather than as zero."""
+    if not usage:
+        return
+    input_tokens = sum(call.input_tokens or 0 for call in usage)
+    output_tokens = sum(call.output_tokens or 0 for call in usage)
+    thinking_tokens = sum(call.thinking_tokens or 0 for call in usage)
+    costs = [call.usd() for call in usage]
+    priced = sum(cost for cost in costs if cost is not None)
+    unpriced = sum(1 for cost in costs if cost is None)
+    amount = _fmt_usd(priced) + (f" + {unpriced} unpriced call(s)" if unpriced else "")
+    line = (
+        f"actual LLM spend: {amount} ({len(usage)} call(s): {input_tokens:,} input, "
+        f"{output_tokens:,} output, {thinking_tokens:,} thinking tokens)"
+    )
+    typer.echo(line)
+    logger.info("league %s %s", resolved, line)
 
 
 def _produce_issue(
@@ -815,6 +869,61 @@ def _produce_issue(
             recap = trimmed
         return IssueBody(narrator="template", recap=recap)
 
+    def _verified_llm_text(candidate: str) -> str | None:
+        """Content-safety P1 — the last gate before LLM prose ships.
+
+        One claim-verification call over *candidate*, the prose exactly as it
+        would ship. Both LLM ship paths below return through here, so it runs at
+        most once per league-week. It fails open: a switched-off, unreachable or
+        garbled verifier returns *candidate* unchanged, to ship on the
+        deterministic checks alone. A refuted claim gets the same free repair as
+        a deterministic finding — its sentence is excised and the result
+        rechecked. Returns the text to ship, or ``None`` when that repair is
+        refused and the Issue must degrade to the template; never a regeneration,
+        which would ship prose that was never verified.
+        """
+        from commishdesk.narrate.verify import verify_narration
+
+        assert llm_config is not None  # the LLM branch loaded it
+        outcome = verify_narration(candidate, narration, llm_config.verifier)
+        if not outcome.ran:
+            if outcome.error is not None:
+                logger.warning(
+                    "league %s: claim verification did not run; shipping on the deterministic checks: %s",
+                    resolved,
+                    outcome.error,
+                )
+            return candidate
+
+        share = outcome.unverifiable_share
+        logger.info(
+            "league %s claim verification: %d supported, %d refuted, %d unverifiable (%s unreachable)",
+            resolved,
+            len(outcome.supported),
+            len(outcome.refuted),
+            len(outcome.unverifiable),
+            "n/a" if share is None else f"{share:.0%}",
+        )
+        refutations = outcome.report()
+        if not refutations.findings:
+            return candidate
+
+        for finding in refutations.findings:
+            logger.warning("league %s content-safety: %s", resolved, finding.message)
+        repaired, excised = excise_offending_sentences(candidate, refutations)
+        if repaired is not None and excised:
+            recheck = classify(check_narration(repaired, narration, voice=voice), narrator_is_template=False)
+            if not (recheck.hold or recheck.regenerate or recheck.suppress):
+                logger.warning(
+                    "league %s: claim verification excised %d sentence(s) carrying refuted claims",
+                    resolved,
+                    len(excised),
+                )
+                return repaired
+        _emit_alerts(tuple(f"{f.category}/{f.severity}: {f.message}" for f in refutations.findings))
+        logger.warning("league %s: refuted claims could not be repaired; using the template narrator", resolved)
+        return None
+
     if not llm_enabled:
         return _template_issue()
 
@@ -878,7 +987,10 @@ def _produce_issue(
                     )
                     for sentence in excised:
                         logger.info("league %s content-safety excised: %s", resolved, sentence)
-                    return IssueBody(narrator=result.narrator, llm_text=repaired)
+                    shipped = _verified_llm_text(repaired)
+                    if shipped is None:
+                        return _template_issue()
+                    return IssueBody(narrator=result.narrator, llm_text=shipped)
 
         if decision.regenerate and attempts == 1:
             logger.warning(
@@ -896,7 +1008,10 @@ def _produce_issue(
             )
             return _template_issue()
 
-        return IssueBody(narrator=result.narrator, llm_text=text)
+        shipped = _verified_llm_text(text)
+        if shipped is None:
+            return _template_issue()
+        return IssueBody(narrator=result.narrator, llm_text=shipped)
 
 
 def main() -> None:

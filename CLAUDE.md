@@ -93,6 +93,12 @@ is called out per-invariant below.
   degrading to the template. A retried *failed* call spends nothing and yields no
   extra *successful* generation: still one paid Recap per league, reused for
   everyone. Directly engine-testable against a fake `LLMClient`.
+  Content-safety P1 adds one more bounded call: before LLM prose ships, **at most
+  one** claim-verification call (`narrate/verify.py`, on the cheap
+  `COMMISHDESK_LLM_VERIFIER` model) reads the finished prose. It is fixed per
+  league-week — never per member, never per narration attempt, so a regeneration
+  does not buy a second — it fails open, and it bills through the same single
+  `generate` call site as narration.
 
 - **I4 — Deterministic output requires no credentials and no paid resources.**
   `ingest → stats → facts → narrate(template) → render` runs with zero credentials and
@@ -149,24 +155,31 @@ self-hosters inherit them and CI enforces them.
   layers on top.
 - **Storage is a port (AD-5).** `Store` ABC + `FileStore` only. No cloud SDK in engine
   code. Every `Store` implementation guarantees read-after-write consistency.
-- **One paid LLM call per league-week (AD-8 / I3).** primary → fallback → template.
+- **One paid LLM call per league-week (AD-8 / I3).** primary → fallback → template, then
+  at most one fail-open claim-verification call before LLM prose ships.
 - **A fault skips one league, never the batch (AD-9).** Typed exceptions under
   `CommishDeskError`, caught per league. No bare `except`.
 - **Content safety is enforced in code, not just the prompt (AD-12).** `narrate/safety.py`
   runs a deterministic, credential-free check over every narrator's output (template, LLM,
-  demo alike); a manager's name in the same sentence as a banned-category term **or** a
-  personal-insult-lexicon hit holds the entire Issue. Safety lists are version-controlled
+  demo alike); a manager's name in the same sentence as a personal-insult-lexicon hit, or as a
+  banned-category term listed in `escalate_to_hold` (politics, personal life,
+  appearance, substances, legal trouble, person-directed gambling), holds the entire
+  Issue; an injury or a betting *metaphor* beside a name only warns. Safety lists are version-controlled
   data in `narrate/safety_lists.toml`, editable without a code change, and a `Voice`'s
   `banned_topics` prose merges in as extracted **multi-word phrase** patterns — never bare
   single words, which re-arm the terms the curated lists deliberately exclude — at the warn
   tier only, never a hold. The league's own name is masked out of the check's internal
   working copy first, so a league called "The Sportsbook League" cannot brick its own
   Issue; findings still report the unmasked sentence. `narrate/response.py` turns that
-  report into the Layer 3 tiered response — suppress the offending section, regenerate the
-  LLM narration **once** (only on the `regenerate`/hallucination tier), or hold the whole
-  Issue (`ContentSafetyError`) — degrading to the template narrator whenever LLM prose
-  cannot be cleanly repaired; that single safety-triggered regeneration is the one
-  exception to I3. A hold is the default, and it is the operator's to override:
+  report into the Layer 3 tiered response. On LLM prose a finding is **repaired first** —
+  its sentence excised for free (`excise_offending_sentences`) — and only an unrepairable
+  one regenerates the narration **once** or holds the whole Issue (`ContentSafetyError`),
+  degrading to the template narrator whenever prose cannot be cleanly repaired. Before
+  LLM prose ships, `narrate/verify.py` makes one cheap claim-verification call: a model
+  extracts the prose's factual claims *without seeing the Facts*, and pure Python refutes
+  any the `narration` payload contradicts, excising them the same way; it fails open.
+  That regeneration and that verification call are the two exceptions to I3. A hold is
+  the default, and it is the operator's to override:
   `--allow-content-hold` / `COMMISHDESK_ALLOW_CONTENT_HOLD` downgrades it to a loud
   `logger.error` + stderr line and ships the best available body, and overrides nothing
   else (`--no-allow-content-hold` forces fail-closed back on for one run).

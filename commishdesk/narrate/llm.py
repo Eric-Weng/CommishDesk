@@ -22,7 +22,9 @@ This module is the *only* place the engine talks to a model provider. It:
   *successful* generation, so there is still **at most one successful**
   generation call per invocation regardless of member count (AD-8 / I3). All
   generation flows through the single ``client.generate(...)`` call site in
-  :func:`narrate_with_llm`, which owns the retry loop and stays SDK-free;
+  :func:`_generate_first_success`, which owns the retry loop and stays SDK-free
+  (the content-safety claim verifier, :func:`extract_with_llm`, bills through
+  that same site);
   transient classification lives in the provider adapters.
 
 Model ids, endpoints, and the per-attempt request timeout
@@ -35,7 +37,9 @@ from __future__ import annotations
 
 import logging
 import os
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterator, Mapping, Sequence
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal, Protocol, assert_never, runtime_checkable
 
@@ -52,13 +56,16 @@ if TYPE_CHECKING:
 __all__ = [
     "MAX_OUTPUT_TOKENS",
     "AnthropicClient",
+    "CallUsage",
     "GoogleClient",
     "LLMClient",
     "NarrationResult",
     "build_client",
     "build_narration_payload",
+    "extract_with_llm",
     "narrate_draft_recap",
     "narrate_with_llm",
+    "recording_usage",
 ]
 
 _LOGGER = logging.getLogger("commishdesk")
@@ -132,6 +139,91 @@ def build_narration_payload(narration: Narration) -> str:
 # --------------------------------------------------------------------------- #
 
 
+# --------------------------------------------------------------------------- #
+# Usage — what each call actually billed, measured rather than estimated
+# --------------------------------------------------------------------------- #
+
+
+@dataclass(frozen=True, slots=True)
+class CallUsage:
+    """The token usage one provider call reported, as the provider bills it.
+
+    Recorded for every completion that comes back — including one then rejected
+    as truncated, because a truncated completion is still billed.
+    ``thinking_tokens`` is reasoning the model never returned but still billed as
+    output (Gemini's ``thoughts_token_count``). ``None`` means the provider
+    reported no figure, never zero.
+
+    It exists because estimates were not enough. On 2026-09-13 a day of live
+    testing was estimated from character counts at ~1.07M input / ~0.55M output
+    tokens; the provider billed 1.5M / 1.0M. Dense JSON tokenizes nearer 3
+    characters a token than 4, and hidden thinking roughly doubled the output.
+    """
+
+    provider: str
+    model_id: str
+    input_tokens: int | None
+    output_tokens: int | None
+    thinking_tokens: int | None = None
+
+    @property
+    def billed_output_tokens(self) -> int | None:
+        """Visible output plus thinking — everything billed at the output rate."""
+        if self.output_tokens is None and self.thinking_tokens is None:
+            return None
+        return (self.output_tokens or 0) + (self.thinking_tokens or 0)
+
+    def usd(self) -> float | None:
+        """List-price cost from ``narrate/pricing.py``, or ``None`` when the model
+        is unpriced or the provider reported no token counts."""
+        from commishdesk.narrate.pricing import MODEL_PRICES
+
+        price = MODEL_PRICES.get(f"{self.provider}:{self.model_id}")
+        output = self.billed_output_tokens
+        if price is None or self.input_tokens is None or output is None:
+            return None
+        return self.input_tokens / 1000 * price.input_usd_per_1k + output / 1000 * price.output_usd_per_1k
+
+
+_USAGE: ContextVar[list[CallUsage] | None] = ContextVar("commishdesk_llm_usage", default=None)
+
+
+@contextmanager
+def recording_usage() -> Iterator[list[CallUsage]]:
+    """Collect every :class:`CallUsage` recorded inside the ``with`` block.
+
+    Context-local, so concurrent runs on separate threads never mix figures, and
+    a nested block collects only its own calls. Outside any block, usage is still
+    logged — it is just not collected.
+    """
+    bucket: list[CallUsage] = []
+    token = _USAGE.set(bucket)
+    try:
+        yield bucket
+    finally:
+        _USAGE.reset(token)
+
+
+def _record_usage(usage: CallUsage) -> None:
+    usd = usage.usd()
+    _LOGGER.info(
+        "llm usage %s:%s input=%s output=%s thinking=%s usd=%s",
+        usage.provider,
+        usage.model_id,
+        usage.input_tokens,
+        usage.output_tokens,
+        usage.thinking_tokens,
+        "unknown" if usd is None else f"{usd:.5f}",
+    )
+    bucket = _USAGE.get()
+    if bucket is not None:
+        bucket.append(usage)
+
+
+def _int_or_none(value: object) -> int | None:
+    return value if isinstance(value, int) and not isinstance(value, bool) else None
+
+
 def _env_key(*names: str, env: Mapping[str, str] | None = None) -> str | None:
     source = os.environ if env is None else env
     for name in names:
@@ -153,11 +245,27 @@ def _is_transport_fault(exc: BaseException) -> bool:
     return isinstance(exc, httpx.TransportError)
 
 
+#: Phrases that mark a provider error as an exhausted account rather than a
+#: rate limit. A rate limit clears on its own and earns an immediate retry;
+#: depleted prepaid credits or a billing block do not, and retrying only repeats
+#: a rejected request (live, 2026-09-13: every verifier call was tried three
+#: times against "Your prepayment credits are depleted"). Deliberately narrow —
+#: a bare "quota" also appears in Google's ordinary per-minute rate-limit message.
+_BILLING_EXHAUSTED_MARKERS = ("prepayment", "credit", "billing")
+
+
+def _is_billing_exhaustion(exc: BaseException) -> bool:
+    text = str(exc).casefold()
+    return any(marker in text for marker in _BILLING_EXHAUSTED_MARKERS)
+
+
 def _raise_if_transient_anthropic(exc: Exception, anthropic: object) -> None:
     """Re-raise *exc* as :class:`_TransientProviderError` when it is a retryable
     Anthropic fault (request/connect timeout, transport error, HTTP 429, HTTP
     >= 500); return silently otherwise so the caller re-raises it unchanged
     (non-transient — falling through is always safe)."""
+    if _is_billing_exhaustion(exc):
+        return  # an exhausted account, not a transient fault: never retried
     transient_types = tuple(
         t
         for t in (
@@ -185,6 +293,8 @@ def _raise_if_transient_google(exc: Exception, errors: object) -> None:
 
     *errors* is ``google.genai.errors`` (or ``None`` when it cannot be imported —
     then only the raw transport check applies)."""
+    if _is_billing_exhaustion(exc):
+        return  # depleted credits / billing block, not a rate limit: never retried
     if errors is not None:
         server_error = getattr(errors, "ServerError", None)
         if isinstance(server_error, type) and isinstance(exc, server_error):
@@ -246,6 +356,15 @@ class AnthropicClient:
         except Exception as exc:  # a transient fault is retryable; the rest falls through
             _raise_if_transient_anthropic(exc, anthropic)
             raise
+        usage = getattr(message, "usage", None)
+        _record_usage(
+            CallUsage(
+                provider="anthropic",
+                model_id=self.model_id,
+                input_tokens=_int_or_none(getattr(usage, "input_tokens", None)),
+                output_tokens=_int_or_none(getattr(usage, "output_tokens", None)),
+            )
+        )
         if getattr(message, "stop_reason", None) == "max_tokens":
             raise NarratorError("Anthropic completion was truncated (max_tokens)")
         parts = [
@@ -329,6 +448,16 @@ class GoogleClient:
                 genai_errors = None  # type: ignore[assignment]
             _raise_if_transient_google(exc, genai_errors)
             raise
+        meta = getattr(response, "usage_metadata", None)
+        _record_usage(
+            CallUsage(
+                provider="google",
+                model_id=self.model_id,
+                input_tokens=_int_or_none(getattr(meta, "prompt_token_count", None)),
+                output_tokens=_int_or_none(getattr(meta, "candidates_token_count", None)),
+                thinking_tokens=_int_or_none(getattr(meta, "thoughts_token_count", None)),
+            )
+        )
         finish = _google_finish_reason(response)
         if finish is not None and finish != "STOP":
             raise NarratorError(f"Google completion did not finish cleanly ({finish})")
@@ -384,7 +513,7 @@ def narrate_with_llm(
     any other exception, or a non-``str`` / empty / whitespace completion, is a
     non-transient failure that falls straight through to the next provider —
     today's behaviour, unchanged. Every attempt runs through the one
-    ``client.generate(...)`` call site below. A retried *failed* call yields no
+    ``client.generate(...)`` call site in :func:`_generate_first_success`. A retried *failed* call yields no
     extra *successful* generation, so I3 (one paid call per league-week) holds.
     Raises :class:`~commishdesk.errors.NarratorError` (chained from the last
     underlying exception) only when *every* attempt fails.
@@ -398,6 +527,42 @@ def narrate_with_llm(
         ("llm-primary", config.primary),
         ("llm-fallback", config.fallback),
     )
+    return _generate_first_success(
+        payload,
+        voice,
+        attempts,
+        client_factory=client_factory,
+        role="narrator",
+        failure_message="both LLM providers failed to generate narration",
+    )
+
+
+def _generate_first_success[Tag: str](
+    payload: str,
+    voice: Voice,
+    attempts: Sequence[tuple[Tag, LLMModelConfig]],
+    *,
+    client_factory: Callable[[LLMModelConfig], LLMClient],
+    role: str,
+    failure_message: str,
+) -> tuple[str, Tag]:
+    """Try each ``(tag, model)`` in order and return ``(text, tag)`` for the first
+    usable completion — **the package's one and only ``generate`` call site**.
+
+    Every paid call routes through here: narration (primary -> fallback) and,
+    since content-safety P1, the claim verifier (a single provider). I3's
+    structural guard counts ``.generate(`` call sites across the whole package
+    and allows exactly one, so a second billing path cannot appear without
+    tripping it.
+
+    Each provider gets ``1 + RETRY_CAP`` attempts: a :class:`_TransientProviderError`
+    retries the same provider immediately; any other exception, or a non-``str``
+    / empty completion, falls through to the next provider. *role* only labels
+    the log lines — ``"narrator"`` reproduces the pre-P1 messages exactly.
+    Raises :class:`~commishdesk.errors.NarratorError` (``failure_message``,
+    chained from the last underlying exception) when every attempt fails.
+    """
+    prefix = f"llm {role}"
     last_exc: Exception | None = None
     for tag, model_cfg in attempts:
         label = f"{tag} ({model_cfg.provider}:{model_cfg.model_id})"
@@ -405,7 +570,7 @@ def narrate_with_llm(
             client = client_factory(model_cfg)
         except Exception as exc:  # building the adapter failed -> next provider
             last_exc = exc
-            _LOGGER.warning("llm narrator %s failed: %s", label, exc)
+            _LOGGER.warning(prefix + " %s failed: %s", label, exc)
             continue
         for attempt in range(1 + RETRY_CAP):
             try:
@@ -413,7 +578,7 @@ def narrate_with_llm(
             except _TransientProviderError as exc:  # retry the same provider, no backoff
                 last_exc = exc
                 _LOGGER.warning(
-                    "llm narrator %s transient fault (attempt %d/%d): %s",
+                    prefix + " %s transient fault (attempt %d/%d): %s",
                     label,
                     attempt + 1,
                     1 + RETRY_CAP,
@@ -422,16 +587,43 @@ def narrate_with_llm(
                 continue
             except Exception as exc:  # non-transient: record it, fall through
                 last_exc = exc
-                _LOGGER.warning("llm narrator %s failed: %s", label, exc)
+                _LOGGER.warning(prefix + " %s failed: %s", label, exc)
                 break
             if not isinstance(text, str) or not text.strip():
                 last_exc = NarratorError(
                     f"{label} returned an unusable completion ({type(text).__name__})"
                 )
-                _LOGGER.warning("llm narrator %s returned an unusable completion", label)
+                _LOGGER.warning(prefix + " %s returned an unusable completion", label)
                 break
             return text, tag
-    raise NarratorError("both LLM providers failed to generate narration") from last_exc
+    raise NarratorError(failure_message) from last_exc
+
+
+def extract_with_llm(
+    prose: str,
+    voice: Voice,
+    config: LLMModelConfig,
+    *,
+    client_factory: Callable[[LLMModelConfig], LLMClient] = build_client,
+) -> str:
+    """The content-safety claim-verification call (P1): one extraction over the
+    finished prose, billed through :func:`_generate_first_success` — the same
+    single call site and transient-retry policy as narration.
+
+    One provider only, deliberately: there is no fallback, because
+    ``narrate/verify.py`` fails *open* when this raises rather than buying a
+    second provider's call. Raises :class:`~commishdesk.errors.NarratorError`
+    when no usable completion comes back.
+    """
+    text, _tag = _generate_first_success(
+        prose,
+        voice,
+        (("verifier", config),),
+        client_factory=client_factory,
+        role="verifier",
+        failure_message="the claim-verification provider failed",
+    )
+    return text
 
 
 def narrate_draft_recap(

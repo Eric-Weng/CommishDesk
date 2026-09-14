@@ -27,6 +27,14 @@ unset or blank):
   ``1.00``, must be ``> 0`` and finite) that ``commishdesk/cli.py`` checks a
   pre-call worst-case cost estimate against before any paid narration call
   (Story 4.6). Over the ceiling the run hard-aborts with zero spend.
+* ``COMMISHDESK_LLM_VERIFIER`` — the content-safety claim verifier (P1),
+  ``"<provider>:<model_id>"``. Default ``google:gemini-3.8-flash``, the cheapest
+  priced model: the verifier only extracts claims, and the pre-call cost estimate
+  fails closed on an unpriced model. ``off`` (or ``none`` / ``disabled`` /
+  ``false`` / ``0`` / ``no``) switches verification off. A verifier whose provider
+  has no API key does not abort anything — it fails open and the Issue ships on
+  the deterministic checks.
+* ``COMMISHDESK_LLM_VERIFIER_ENDPOINT`` — optional base-URL override for it.
 
 An unknown provider token, a value that is not ``<provider>:<model_id>``, a
 non-numeric / non-positive / over-600 ``COMMISHDESK_LLM_TIMEOUT``, or a
@@ -51,6 +59,9 @@ _PROVIDERS: frozenset[str] = frozenset(get_args(Provider))
 
 _DEFAULT_PRIMARY = "anthropic:claude-sonnet-5"
 _DEFAULT_FALLBACK = "google:gemini-3.5-flash"
+
+#: Values of ``COMMISHDESK_LLM_VERIFIER`` that switch claim verification off.
+_VERIFIER_OFF: frozenset[str] = frozenset({"off", "none", "disabled", "false", "0", "no"})
 
 #: Per-attempt request timeout (seconds) when ``COMMISHDESK_LLM_TIMEOUT`` is unset
 #: or blank. A generous ceiling, not a budget — the point is that a hung endpoint
@@ -84,6 +95,15 @@ class LLMModelConfig:
     timeout: float | None = None
 
 
+#: The content-safety claim verifier when ``COMMISHDESK_LLM_VERIFIER`` is unset. It
+#: only extracts claims, so it runs on the cheapest model in
+#: ``narrate/pricing.py``'s table — which it has to be in, or the pre-call cost
+#: estimate fails closed by name.
+_DEFAULT_VERIFIER_CONFIG = LLMModelConfig(
+    provider="google", model_id="gemini-3.8-flash", timeout=_DEFAULT_TIMEOUT_SECONDS
+)
+
+
 @dataclass(frozen=True, slots=True)
 class LLMConfig:
     """The two models the selector tries, in order: ``primary`` then ``fallback``.
@@ -98,6 +118,11 @@ class LLMConfig:
     primary: LLMModelConfig
     fallback: LLMModelConfig
     cost_ceiling_usd: float = _DEFAULT_COST_CEILING_USD
+    #: The content-safety claim verifier (P1), or ``None`` when switched off. The
+    #: dataclass default is exactly what :func:`load_llm_config` builds from an
+    #: empty environment, so a hand-built ``LLMConfig(primary=..., fallback=...)``
+    #: still compares equal to ``load_llm_config({})``.
+    verifier: LLMModelConfig | None = _DEFAULT_VERIFIER_CONFIG
 
 
 def _parse_model_spec(
@@ -189,6 +214,19 @@ def load_llm_config(env: Mapping[str, str] = os.environ) -> LLMConfig:
     timeout = _parse_timeout(_get("COMMISHDESK_LLM_TIMEOUT"))
     cost_ceiling = _parse_cost_ceiling(_get("COMMISHDESK_COST_CEILING_USD"))
 
+    raw_verifier = _get("COMMISHDESK_LLM_VERIFIER")
+    verifier: LLMModelConfig | None
+    if raw_verifier is not None and raw_verifier.casefold() in _VERIFIER_OFF:
+        verifier = None
+    else:
+        default_spec = f"{_DEFAULT_VERIFIER_CONFIG.provider}:{_DEFAULT_VERIFIER_CONFIG.model_id}"
+        verifier = _parse_model_spec(
+            raw_verifier or default_spec,
+            var="COMMISHDESK_LLM_VERIFIER",
+            endpoint=_get("COMMISHDESK_LLM_VERIFIER_ENDPOINT"),
+            timeout=timeout,
+        )
+
     return LLMConfig(
         primary=_parse_model_spec(
             _get("COMMISHDESK_LLM_PRIMARY") or _DEFAULT_PRIMARY,
@@ -203,4 +241,5 @@ def load_llm_config(env: Mapping[str, str] = os.environ) -> LLMConfig:
             timeout=timeout,
         ),
         cost_ceiling_usd=cost_ceiling,
+        verifier=verifier,
     )

@@ -167,7 +167,15 @@ def test_I2() -> None:
 
 def test_I3() -> None:
     """I3 — LLM cost per league-week is exactly one call. Regardless of member
-    count. The Recap is generated once per league and reused for every recipient."""
+    count. The Recap is generated once per league and reused for every recipient.
+
+    Content-safety P1 adds one bounded exception, recorded below the frozen
+    headline the way Stories 3.5/3.6 recorded regeneration and retries: after
+    narration, at most **one** claim-verification call reads the finished prose.
+    It is a fixed cost per league-week — never per member and never per
+    narration attempt — it fails open, and it bills through the same single
+    ``generate`` call site the structural guard below pins, so that guard still
+    allows exactly one."""
     import commishdesk
     from commishdesk.facts.schema import (
         HeadlineNumbers,
@@ -249,6 +257,35 @@ def test_I3() -> None:
         client_factory=lambda _cfg: _FakeClient(),
     )
     assert result.narrator == "template"
+    assert calls["attempts"] == 0
+
+    # content-safety P1: exactly one verification call whatever the member count,
+    # and none at all with the verifier switched off
+    from commishdesk.narrate.verify import verify_narration
+
+    class _FakeVerifierClient:
+        def generate(self, payload: str, voice: object) -> str:
+            calls["attempts"] += 1
+            calls["n"] += 1
+            return '{"claims": []}'
+
+    assert config.verifier is not None
+    for n_teams in (4, 250):
+        calls["n"] = calls["attempts"] = 0
+        outcome = verify_narration(
+            "Nothing in this sentence claims anything.",
+            _narration(n_teams),
+            config.verifier,
+            client_factory=lambda _cfg: _FakeVerifierClient(),
+        )
+        assert outcome.ran, (n_teams, outcome.error)
+        assert calls["n"] == 1, (n_teams, calls["n"])
+
+    calls["n"] = calls["attempts"] = 0
+    outcome = verify_narration(
+        "x", _narration(12), None, client_factory=lambda _cfg: _FakeVerifierClient()
+    )
+    assert not outcome.ran and outcome.error is None
     assert calls["attempts"] == 0
 
     # structural (mirrors test_I1): exactly one `.generate(` call site in
