@@ -272,7 +272,7 @@ def _rookie_facts() -> DraftRecapFacts:
 def test_happy_path_shape() -> None:
     doc = _build_minimal()
     dump = doc.model_dump()
-    assert dump["schema_version"] == "0.3.0" == SCHEMA_VERSION
+    assert dump["schema_version"] == "0.4.0" == SCHEMA_VERSION
     assert dump["issue_type"] == "draft_recap"
     assert dump["week"] is None and dump["weekly"] is None
     assert [p["pick_no"] for p in dump["picks"]] == [1, 2]
@@ -357,7 +357,7 @@ def test_unknown_key_on_read_is_dropped() -> None:
     payload["narration"]["future_key"] = {"nested": True}
     doc = DraftRecapFacts.model_validate(payload)
     assert not hasattr(doc, "future_key")
-    assert doc.schema_version == "0.3.0"
+    assert doc.schema_version == "0.4.0"
 
 
 def test_schema_violation_raises_typed_chained_error() -> None:
@@ -379,7 +379,7 @@ def test_malformed_stage_object_is_wrapped_typed(monkeypatch) -> None:
     caught, wrapped in ``SchemaValidationError``, and chained."""
     from commishdesk.facts import build as build_mod
 
-    def _boom(_ref: Any) -> None:
+    def _boom(*_a: Any) -> None:
         raise AttributeError("stage object has no 'delta'")
 
     monkeypatch.setattr(build_mod, "_extreme", _boom)
@@ -651,8 +651,10 @@ def test_reconciles_consensus_fields_with_synthetic_oracle() -> None:
     exp_teams = {t["roster_id"]: t for t in expected["teams"]}
     for row in doc["teams"]:
         e = exp_teams[row["roster_id"]]
-        assert row["best_value_pick"] == e["best_value_pick"]
-        assert row["biggest_reach_pick"] == e["biggest_reach_pick"]
+        # Facts adds ``board_label`` (0.4.0) on top of the stats-layer pick reference
+        for key in ("best_value_pick", "biggest_reach_pick"):
+            built = {k: v for k, v in row[key].items() if k != "board_label"} if row[key] else row[key]
+            assert built == e[key]
 
 
 def test_reconciles_grade_fields_with_synthetic_oracle() -> None:
@@ -1072,10 +1074,10 @@ def test_lead_kind_priority_covers_every_kind_a_detector_can_emit() -> None:
 # --------------------------------------------------------------------------- #
 
 
-def test_schema_version_bumped_additively_to_0_3_0() -> None:
-    assert SCHEMA_VERSION == "0.3.0"
+def test_schema_version_bumped_additively_to_0_4_0() -> None:
+    assert SCHEMA_VERSION == "0.4.0"
     doc = _build_minimal()
-    assert doc.schema_version == "0.3.0"
+    assert doc.schema_version == "0.4.0"
     assert doc.week is None
     assert doc.weekly is None
 
@@ -1475,3 +1477,13 @@ def test_builder_storyline_candidates_match_a_standalone_advance() -> None:
     assert [c.model_dump() for c in project_storyline_candidates(standalone)] == [
         c.model_dump() for c in doc.storyline_candidates
     ]
+
+
+def test_team_value_and_reach_picks_carry_their_board_slot() -> None:
+    """0.4.0 — measured live: with only ``pick_no`` the narrator converted pick 54
+    to a slot itself and wrote 5.04 for a 5.06 pick in three Issues out of ten."""
+    narration = _rookie_facts().narration
+    labels = {p.pick_no: p.board_label for p in narration.players}
+    extremes = [e for t in narration.teams for e in (t.best_value_pick, t.biggest_reach_pick) if e is not None]
+    assert extremes
+    assert all(e.board_label == labels[e.pick_no] for e in extremes)

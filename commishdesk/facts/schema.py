@@ -70,7 +70,7 @@ __all__ = [
     "WeeklyFacts",
 ]
 
-SCHEMA_VERSION = "0.3.0"
+SCHEMA_VERSION = "0.4.0"
 """Semver contract version. Additive key -> minor bump; shape change -> major.
 ``0.1.0`` -> ``0.2.0`` (Story 3.1): additive ``week`` / ``weekly`` placeholders,
 no shape change to any existing field."""
@@ -218,6 +218,10 @@ class PickExtreme(_Doc):
     """A per-team raw extreme — the largest / smallest ``delta`` on the roster."""
 
     pick_no: int
+    #: The pick's round.slot (0.4.0). With only ``pick_no`` a narrator converts
+    #: the slot itself and, measured live, lands two off ("Tai Felton at 5.04"
+    #: for a 5.06 pick, three Issues in ten).
+    board_label: str | None = None
     player: str
     delta: int
 
