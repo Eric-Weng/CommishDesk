@@ -19,6 +19,7 @@ import pytest
 from commishdesk.errors import CostCeilingExceededError
 from commishdesk.llmconfig import _DEFAULT_FALLBACK, _DEFAULT_PRIMARY, LLMModelConfig
 from commishdesk.narrate.pricing import (
+    CHARS_PER_TOKEN,
     MODEL_PRICES,
     PRICING_REVIEW_INTERVAL_DAYS,
     PRICING_UPDATED,
@@ -87,10 +88,10 @@ def test_model_price_is_frozen() -> None:
 
 
 def test_estimate_cost_usd_worst_case_math() -> None:
-    """Exactly the char-proxy formula: input = ceil(len/4), output = the full
+    """Exactly the char-proxy formula: input = ceil(len / CHARS_PER_TOKEN), output = the full
     ceiling — both priced against the table, never an average actual."""
     price = MODEL_PRICES["anthropic:claude-sonnet-5"]
-    payload = "x" * 4000  # exactly 1000 tokens at 4 chars/token
+    payload = "x" * int(1000 * CHARS_PER_TOKEN)  # exactly 1000 tokens
     cost = estimate_cost_usd(payload, _ANTHROPIC, max_output_tokens=1000)
     expected = (1000 / 1000) * price.input_usd_per_1k + (1000 / 1000) * price.output_usd_per_1k
     assert cost == pytest.approx(expected)
@@ -100,7 +101,7 @@ def test_estimate_cost_usd_rounds_input_tokens_up() -> None:
     """``ceil``, not floor or truncate — one extra character buys one extra
     priced token, isolated here with ``max_output_tokens=0``."""
     price = MODEL_PRICES["anthropic:claude-sonnet-5"]
-    payload = "x" * 4001  # just over 1000 tokens -> ceil(1000.25) == 1001
+    payload = "x" * (int(1000 * CHARS_PER_TOKEN) + 1)  # just over 1000 tokens -> 1001
     cost = estimate_cost_usd(payload, _ANTHROPIC, max_output_tokens=0)
     assert cost == pytest.approx((1001 / 1000) * price.input_usd_per_1k)
 
@@ -235,3 +236,10 @@ def test_pricing_module_imports_only_stdlib_and_commishdesk() -> None:
     external = roots - sys.stdlib_module_names
     assert external <= {"commishdesk"}, external
     assert "httpx" not in roots
+
+
+def test_chars_per_token_is_conservative_against_measured_billing() -> None:
+    """2026-09-13: ~4.28M characters sent, 1.5M input tokens billed = 2.85
+    characters a token. A worst-case estimator must never price input at fewer
+    tokens than the provider actually bills."""
+    assert 0 < CHARS_PER_TOKEN <= 2.85

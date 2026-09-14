@@ -268,6 +268,16 @@ def test_real_league_branch_threads_the_mocked_consensus_source(tmp_path: Path, 
     assert (tmp_path / "commishdesk-999-draft-recap.html").is_file()
 
 
+@pytest.fixture(autouse=True)
+def _claim_verifier_off_unless_a_test_opts_in(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep every CLI test hermetic. The claim verifier (content-safety P1) is on
+    by default and bills a real extraction call through whichever provider its
+    config names, so a developer with that provider's key exported would pay for
+    one from an ordinary test run. Tests that exercise verification switch
+    ``COMMISHDESK_LLM_VERIFIER`` back on and stub the extraction call."""
+    monkeypatch.setenv("COMMISHDESK_LLM_VERIFIER", "off")
+
+
 def _fake_real_league(monkeypatch) -> None:
     """Wire the real-league branch to run fully offline off the demo bundle."""
     from commishdesk import consensus, demo
@@ -1740,3 +1750,226 @@ def test_repair_never_launders_a_hold(tmp_path: Path, monkeypatch) -> None:
     assert result.exit_code == 1
     assert "content-safety hold" in result.output
     assert not (tmp_path / "commishdesk-93-draft-recap.html").is_file()
+
+
+# --------------------------------------------------------------------------- #
+# content-safety P1 — claim verification before LLM prose ships
+# --------------------------------------------------------------------------- #
+
+
+def _stub_extractor(monkeypatch, reply: object) -> dict:
+    """Switch the verifier back on and replace its one paid call with a canned
+    completion (a str) or a fault (an Exception). Counts invocations."""
+    monkeypatch.setenv("COMMISHDESK_LLM_VERIFIER", "google:gemini-3.8-flash")
+    calls = {"n": 0}
+
+    def _fake(*_a: object, **_k: object) -> str:
+        calls["n"] += 1
+        if isinstance(reply, Exception):
+            raise reply
+        return str(reply)
+
+    monkeypatch.setattr("commishdesk.narrate.llm.extract_with_llm", _fake)
+    return calls
+
+
+def _college_claims(*triples: tuple[str, str, str]) -> str:
+    """(sentence, player, claimed college) triples as an extractor reply."""
+    return json.dumps(
+        {"claims": [{"kind": "college", "sentence": s, "player": p, "college": c} for s, p, c in triples]}
+    )
+
+
+_CONYERS = "Miami tight end Jalin Conyers was the steal of the final round."
+
+
+def _llm_run(tmp_path: Path, monkeypatch) -> None:
+    _fake_real_league(monkeypatch)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+
+
+def test_refuted_claim_is_excised_before_shipping_with_one_verification_call(tmp_path: Path, monkeypatch) -> None:
+    """The recombination class P1 exists for: every token real (the payload knows
+    both "Miami" and "Jalin Conyers"), the pairing wrong (he is Texas Tech). The
+    deterministic checks pass it; the verifier refutes it; the repair tier cuts
+    that one sentence and the LLM prose still ships. One narration call, one
+    verification call, no regeneration."""
+    _llm_run(tmp_path, monkeypatch)
+    narrations = _stub_narrator(monkeypatch, _padded_six_section(_CONYERS))
+    verifications = _stub_extractor(monkeypatch, _college_claims((_CONYERS, "Jalin Conyers", "Miami")))
+    result = runner.invoke(app, ["--league", "94", "--draft-recap", "--out-dir", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    assert narrations["n"] == 1, narrations
+    assert verifications["n"] == 1, verifications
+    body = (tmp_path / "commishdesk-94-draft-recap.html").read_text(encoding="utf-8")
+    assert "Jalin Conyers" not in body
+    assert "nothing in this paragraph" in body  # LLM prose shipped, not the template
+
+
+def test_a_supported_claim_ships_untouched(tmp_path: Path, monkeypatch) -> None:
+    sentence = "Texas Tech tight end Jalin Conyers was the steal of the final round."
+    _llm_run(tmp_path, monkeypatch)
+    _stub_narrator(monkeypatch, _padded_six_section(sentence))
+    verifications = _stub_extractor(monkeypatch, _college_claims((sentence, "Jalin Conyers", "Texas Tech")))
+    result = runner.invoke(app, ["--league", "95", "--draft-recap", "--out-dir", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    assert verifications["n"] == 1
+    body = (tmp_path / "commishdesk-95-draft-recap.html").read_text(encoding="utf-8")
+    assert "Texas Tech tight end Jalin Conyers" in body
+
+
+def test_a_verifier_fault_fails_open_and_ships_unchanged(tmp_path: Path, monkeypatch) -> None:
+    """Verification must never become a new way for an Issue not to go out."""
+    from commishdesk.errors import NarratorError
+
+    _llm_run(tmp_path, monkeypatch)
+    narrations = _stub_narrator(monkeypatch, _padded_six_section(_CONYERS))
+    verifications = _stub_extractor(monkeypatch, NarratorError("the claim-verification provider failed"))
+    result = runner.invoke(app, ["--league", "96", "--draft-recap", "--out-dir", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    assert narrations["n"] == 1 and verifications["n"] == 1
+    body = (tmp_path / "commishdesk-96-draft-recap.html").read_text(encoding="utf-8")
+    assert "Jalin Conyers" in body  # unverified, shipped on the deterministic checks
+
+
+def test_a_garbled_extraction_fails_open(tmp_path: Path, monkeypatch) -> None:
+    _llm_run(tmp_path, monkeypatch)
+    _stub_narrator(monkeypatch, _padded_six_section(_CONYERS))
+    _stub_extractor(monkeypatch, "Sorry, no JSON for that one.")
+    result = runner.invoke(app, ["--league", "97", "--draft-recap", "--out-dir", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    body = (tmp_path / "commishdesk-97-draft-recap.html").read_text(encoding="utf-8")
+    assert "Jalin Conyers" in body
+
+
+def test_verifier_switched_off_makes_no_extraction_call(tmp_path: Path, monkeypatch) -> None:
+    _llm_run(tmp_path, monkeypatch)
+    _stub_narrator(monkeypatch, _padded_six_section(_CONYERS))
+    verifications = _stub_extractor(monkeypatch, _college_claims((_CONYERS, "Jalin Conyers", "Miami")))
+    monkeypatch.setenv("COMMISHDESK_LLM_VERIFIER", "off")
+    result = runner.invoke(app, ["--league", "98", "--draft-recap", "--out-dir", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    assert verifications["n"] == 0
+
+
+def test_unrepairable_refutations_degrade_to_the_template_without_regenerating(tmp_path: Path, monkeypatch) -> None:
+    """More refuted sentences than the repair tier will cut: the Issue degrades to
+    the template. It does NOT regenerate — a regenerated narration would ship
+    prose that was never verified, and would buy a second verification call."""
+    offenders = (
+        (_CONYERS, "Jalin Conyers", "Miami"),
+        ("USC running back Ashton Jeanty opened the draft.", "Ashton Jeanty", "USC"),
+        ("Boise State back Omarion Hampton followed right behind.", "Omarion Hampton", "Boise State"),
+        ("Michigan tight end Tyler Warren came off early.", "Tyler Warren", "Michigan"),
+    )
+    _llm_run(tmp_path, monkeypatch)
+    narrations = _stub_narrator(monkeypatch, _padded_six_section(" ".join(s for s, _, _ in offenders)))
+    verifications = _stub_extractor(monkeypatch, _college_claims(*offenders))
+    result = runner.invoke(app, ["--league", "99", "--draft-recap", "--out-dir", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    assert narrations["n"] == 1, narrations
+    assert verifications["n"] == 1, verifications
+    body = (tmp_path / "commishdesk-99-draft-recap.html").read_text(encoding="utf-8")
+    assert "<h2>Superlatives</h2>" in body  # the template render
+    assert "USC running back" not in body
+
+
+def test_a_regeneration_does_not_buy_a_second_verification(tmp_path: Path, monkeypatch) -> None:
+    """Verification runs on the prose that ships, not on every narration attempt."""
+    from commishdesk.narrate import NarrationResult
+
+    _llm_run(tmp_path, monkeypatch)
+    replies = iter(
+        [
+            _six_section_llm_text("the board turned on pick 8675309, of all things."),
+            _padded_six_section("the retry reads cleanly."),
+        ]
+    )
+    narrations = {"n": 0}
+
+    def _fake(*_a: object, **_k: object) -> NarrationResult:
+        narrations["n"] += 1
+        return NarrationResult(text=next(replies), narrator="llm-primary")
+
+    monkeypatch.setattr("commishdesk.narrate.llm.narrate_draft_recap", _fake)
+    verifications = _stub_extractor(monkeypatch, '{"claims": []}')
+    result = runner.invoke(app, ["--league", "100", "--draft-recap", "--out-dir", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    assert narrations["n"] == 2, narrations
+    assert verifications["n"] == 1, verifications
+
+
+def test_cost_estimate_prices_the_verification_call(tmp_path: Path, monkeypatch) -> None:
+    """I6's pre-spend estimate must include the verifier, or it is not worst-case."""
+
+    def _estimate(league_id: str) -> float:
+        result = runner.invoke(app, ["--league", league_id, "--draft-recap", "--out-dir", str(tmp_path)])
+        assert result.exit_code == 0, result.output
+        line = next(line for line in result.output.splitlines() if line.startswith("estimated cost: "))
+        return float(line.split("$", 1)[1].split()[0])
+
+    _llm_run(tmp_path, monkeypatch)
+    _stub_narrator(monkeypatch, _padded_six_section("an estimate run."))
+    without_verifier = _estimate("101")
+    _stub_extractor(monkeypatch, '{"claims": []}')
+    with_verifier = _estimate("102")
+    assert with_verifier > without_verifier
+
+
+# --------------------------------------------------------------------------- #
+# measured spend — the providers' own token counts, per league
+# --------------------------------------------------------------------------- #
+
+
+def test_actual_spend_is_reported_from_the_providers_own_token_counts(tmp_path: Path, monkeypatch) -> None:
+    """Measured, not estimated: the usage every provider call records is summed
+    into one line alongside the pre-spend estimate — thinking tokens included."""
+    from commishdesk.narrate import NarrationResult
+    from commishdesk.narrate import llm as llm_mod
+
+    _llm_run(tmp_path, monkeypatch)
+
+    def _fake(*_a: object, **_k: object) -> NarrationResult:
+        llm_mod._record_usage(
+            llm_mod.CallUsage(
+                "google", "gemini-3.8-flash", input_tokens=7200, output_tokens=2600, thinking_tokens=2200
+            )
+        )
+        return NarrationResult(text=_padded_six_section("a measured run."), narrator="llm-primary")
+
+    monkeypatch.setattr("commishdesk.narrate.llm.narrate_draft_recap", _fake)
+    result = runner.invoke(app, ["--league", "103", "--draft-recap", "--out-dir", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    line = next(line for line in result.output.splitlines() if line.startswith("actual LLM spend: "))
+    assert "1 call(s)" in line
+    assert "7,200 input" in line
+    assert "2,600 output" in line
+    assert "2,200 thinking" in line
+
+
+def test_no_actual_spend_line_when_no_paid_call_came_back(tmp_path: Path, monkeypatch) -> None:
+    _llm_run(tmp_path, monkeypatch)
+    _stub_narrator(monkeypatch, _padded_six_section("stubbed, so nothing was billed."))
+    result = runner.invoke(app, ["--league", "104", "--draft-recap", "--out-dir", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    assert "actual LLM spend" not in result.output
+
+
+def test_spend_is_still_reported_when_the_issue_is_held(tmp_path: Path, monkeypatch) -> None:
+    """A held Issue was still paid for; the spend line must not vanish with it."""
+    from commishdesk.narrate import NarrationResult
+    from commishdesk.narrate import llm as llm_mod
+
+    _llm_run(tmp_path, monkeypatch)
+
+    def _fake(*_a: object, **_k: object) -> NarrationResult:
+        llm_mod._record_usage(llm_mod.CallUsage("anthropic", "claude-sonnet-5", input_tokens=10, output_tokens=10))
+        return NarrationResult(
+            text=_padded_six_section("Pull-Guard Pumas clearly drafted hungover this year."), narrator="llm-primary"
+        )
+
+    monkeypatch.setattr("commishdesk.narrate.llm.narrate_draft_recap", _fake)
+    result = runner.invoke(app, ["--league", "105", "--draft-recap", "--out-dir", str(tmp_path)])
+    assert result.exit_code == 1
+    assert "actual LLM spend: " in result.output

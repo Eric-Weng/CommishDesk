@@ -162,3 +162,44 @@ def test_llm_config_constructed_without_cost_ceiling_matches_the_loader_default(
     loader's parsed default exactly."""
     cfg = load_llm_config({})
     assert LLMConfig(primary=cfg.primary, fallback=cfg.fallback) == cfg
+
+
+# --------------------------------------------------------------------------- #
+# content-safety P1 — the claim verifier
+# --------------------------------------------------------------------------- #
+
+
+def test_verifier_defaults_to_the_cheap_priced_model() -> None:
+    assert load_llm_config({}).verifier == LLMModelConfig("google", "gemini-3.8-flash", timeout=60.0)
+
+
+def test_verifier_override_and_endpoint() -> None:
+    cfg = load_llm_config(
+        {
+            "COMMISHDESK_LLM_VERIFIER": "anthropic:claude-haiku-4-5",
+            "COMMISHDESK_LLM_VERIFIER_ENDPOINT": "https://gw.example/verify",
+        }
+    )
+    assert cfg.verifier == LLMModelConfig(
+        "anthropic", "claude-haiku-4-5", endpoint="https://gw.example/verify", timeout=60.0
+    )
+
+
+@pytest.mark.parametrize("token", ["off", "OFF", "none", "disabled", "false", "0", "no", "  off  "])
+def test_verifier_can_be_switched_off(token: str) -> None:
+    assert load_llm_config({"COMMISHDESK_LLM_VERIFIER": token}).verifier is None
+
+
+def test_a_blank_verifier_uses_the_default() -> None:
+    assert load_llm_config({"COMMISHDESK_LLM_VERIFIER": "   "}).verifier == load_llm_config({}).verifier
+
+
+@pytest.mark.parametrize("spec", ["gemini-3.8-flash", "openai:gpt-9", ":nothing"])
+def test_a_malformed_verifier_spec_fails_loud_at_load(spec: str) -> None:
+    with pytest.raises(NarratorError, match="COMMISHDESK_LLM_VERIFIER"):
+        load_llm_config({"COMMISHDESK_LLM_VERIFIER": spec})
+
+
+def test_verifier_shares_the_request_timeout() -> None:
+    cfg = load_llm_config({"COMMISHDESK_LLM_TIMEOUT": "12"})
+    assert cfg.verifier is not None and cfg.verifier.timeout == 12.0
