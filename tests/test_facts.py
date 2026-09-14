@@ -73,11 +73,7 @@ EXPECTED_FACTS_PATH = FACTS_DIR / "expected-draft-recap-facts.json"
 # ``model_dump()`` snapshot derived from the anonymized ``rookie-draft.json``
 # fixture through the same synthetic-slots path the consensus / grade tests use.
 _GOLDEN_PATH = REPO_ROOT.parent / "brief" / "phase-0" / "draft-recap-facts.json"
-GOLDEN = (
-    json.loads(_GOLDEN_PATH.read_text(encoding="utf-8"))
-    if _GOLDEN_PATH.is_file()
-    else None
-)
+GOLDEN = json.loads(_GOLDEN_PATH.read_text(encoding="utf-8")) if _GOLDEN_PATH.is_file() else None
 requires_golden = pytest.mark.skipif(
     GOLDEN is None,
     reason="phase-0 golden is a private planning artifact, not in the tree",
@@ -223,9 +219,7 @@ def _minimal() -> tuple[LeagueModel, BoardMetrics, ConsensusMetrics, DraftGrades
 
 def _build_minimal(**over: Any) -> DraftRecapFacts:
     league, board, consensus, grades = _minimal()
-    return build_draft_recap_facts(
-        league, board, consensus, grades, generated_at=GENERATED_AT, **over
-    )
+    return build_draft_recap_facts(league, board, consensus, grades, generated_at=GENERATED_AT, **over)
 
 
 # --------------------------------------------------------------------------- #
@@ -241,14 +235,13 @@ def _bundle(name: str) -> dict[str, Any]:
         "draft_picks": raw["draft_picks"],
         "rosters": raw["rosters"],
         "users": raw["users"],
+        "players": raw.get("players", {}),
         "previous_league_ids": [],
     }
 
 
 def _synthetic_slots() -> dict[str, int]:
-    board = json.loads(
-        (CONSENSUS_DIR / "fantasycalc-values.json").read_text(encoding="utf-8")
-    )
+    board = json.loads((CONSENSUS_DIR / "fantasycalc-values.json").read_text(encoding="utf-8"))
     ordered = sorted(board, key=lambda e: -e["value"])
     return {e["player"]["sleeperId"]: i for i, e in enumerate(ordered, start=1)}
 
@@ -279,7 +272,7 @@ def _rookie_facts() -> DraftRecapFacts:
 def test_happy_path_shape() -> None:
     doc = _build_minimal()
     dump = doc.model_dump()
-    assert dump["schema_version"] == "0.2.0" == SCHEMA_VERSION
+    assert dump["schema_version"] == "0.3.0" == SCHEMA_VERSION
     assert dump["issue_type"] == "draft_recap"
     assert dump["week"] is None and dump["weekly"] is None
     assert [p["pick_no"] for p in dump["picks"]] == [1, 2]
@@ -324,12 +317,8 @@ def test_happy_path_shape() -> None:
 @pytest.mark.parametrize("field", ["started_at_ms", "completed_at_ms"])
 def test_timestamps_present_convert_to_iso(field: str) -> None:
     league, board, consensus, grades = _minimal()
-    league = league.model_copy(
-        update={"draft": Draft(id="d1", type="linear", rounds=1, **{field: 1747494304432})}
-    )
-    doc = build_draft_recap_facts(
-        league, board, consensus, grades, generated_at=GENERATED_AT
-    )
+    league = league.model_copy(update={"draft": Draft(id="d1", type="linear", rounds=1, **{field: 1747494304432})})
+    doc = build_draft_recap_facts(league, board, consensus, grades, generated_at=GENERATED_AT)
     out_field = field.removesuffix("_ms")
     other = "completed_at" if out_field == "started_at" else "started_at"
     assert getattr(doc.draft, out_field) == "2025-05-17T15:05:04.432Z"
@@ -368,16 +357,14 @@ def test_unknown_key_on_read_is_dropped() -> None:
     payload["narration"]["future_key"] = {"nested": True}
     doc = DraftRecapFacts.model_validate(payload)
     assert not hasattr(doc, "future_key")
-    assert doc.schema_version == "0.2.0"
+    assert doc.schema_version == "0.3.0"
 
 
 def test_schema_violation_raises_typed_chained_error() -> None:
     league, board, consensus, _ = _minimal()
     broken = DraftGrades(teams=[], grade_method=GRADE_METHOD)  # no grade for any roster
     with pytest.raises(SchemaValidationError) as excinfo:
-        build_draft_recap_facts(
-            league, board, consensus, broken, generated_at=GENERATED_AT
-        )
+        build_draft_recap_facts(league, board, consensus, broken, generated_at=GENERATED_AT)
     assert isinstance(excinfo.value, CommishDeskError)
     assert isinstance(excinfo.value.__cause__, ValidationError)
     # fails loud: the message carries a summary, not just the fixed prefix
@@ -398,9 +385,7 @@ def test_malformed_stage_object_is_wrapped_typed(monkeypatch) -> None:
     monkeypatch.setattr(build_mod, "_extreme", _boom)
     league, board, consensus, grades = _minimal()
     with pytest.raises(SchemaValidationError) as excinfo:
-        build_draft_recap_facts(
-            league, board, consensus, grades, generated_at=GENERATED_AT
-        )
+        build_draft_recap_facts(league, board, consensus, grades, generated_at=GENERATED_AT)
     assert isinstance(excinfo.value.__cause__, AttributeError)
     assert "AttributeError" in str(excinfo.value)
 
@@ -422,27 +407,19 @@ def test_builder_performs_the_self_validation_round_trip(monkeypatch) -> None:
     monkeypatch.setattr(build_mod.DraftRecapFacts, "model_validate", _boom)
     league, board, consensus, grades = _minimal()
     with pytest.raises(SchemaValidationError) as excinfo:
-        build_draft_recap_facts(
-            league, board, consensus, grades, generated_at=GENERATED_AT
-        )
+        build_draft_recap_facts(league, board, consensus, grades, generated_at=GENERATED_AT)
     assert excinfo.value.__cause__ is sample
 
 
 def test_generated_at_datetime_normalized_to_z_iso() -> None:
     league, board, consensus, grades = _minimal()
     aware = datetime(2026, 9, 3, 1, 2, 3, tzinfo=UTC)
-    doc = build_draft_recap_facts(
-        league, board, consensus, grades, generated_at=aware
-    )
+    doc = build_draft_recap_facts(league, board, consensus, grades, generated_at=aware)
     assert doc.generated_at == "2026-09-03T01:02:03.000Z"
-    again = build_draft_recap_facts(
-        league, board, consensus, grades, generated_at=aware
-    )
+    again = build_draft_recap_facts(league, board, consensus, grades, generated_at=aware)
     assert doc.model_dump() == again.model_dump()
     # a naive datetime is read as UTC
-    naive = build_draft_recap_facts(
-        league, board, consensus, grades, generated_at=datetime(2026, 9, 3, 1, 2, 3)
-    )
+    naive = build_draft_recap_facts(league, board, consensus, grades, generated_at=datetime(2026, 9, 3, 1, 2, 3))
     assert naive.generated_at == "2026-09-03T01:02:03.000Z"
 
 
@@ -450,9 +427,7 @@ def test_generated_at_datetime_normalized_to_z_iso() -> None:
 def test_generated_at_empty_or_none_rejected(bad: Any) -> None:
     league, board, consensus, grades = _minimal()
     with pytest.raises(SchemaValidationError):
-        build_draft_recap_facts(
-            league, board, consensus, grades, generated_at=bad
-        )
+        build_draft_recap_facts(league, board, consensus, grades, generated_at=bad)
 
 
 def test_determinism_equal_model_dump() -> None:
@@ -525,20 +500,12 @@ def _imported_dotted_names(path: Path) -> set[str]:
             if node.level == 0 and node.module:
                 names.add(node.module)
             elif node.level == 1:
-                names.add(
-                    f"commishdesk.facts.{node.module}"
-                    if node.module
-                    else "commishdesk.facts"
-                )
+                names.add(f"commishdesk.facts.{node.module}" if node.module else "commishdesk.facts")
         elif isinstance(node, ast.Call):
             func = node.func
             fname = getattr(func, "attr", None) or getattr(func, "id", None)
             if fname in {"import_module", "__import__"}:
-                names.update(
-                    a.value
-                    for a in node.args
-                    if isinstance(a, ast.Constant) and isinstance(a.value, str)
-                )
+                names.update(a.value for a in node.args if isinstance(a, ast.Constant) and isinstance(a.value, str))
     return names
 
 
@@ -550,9 +517,7 @@ def test_facts_package_import_fence() -> None:
         offenders = [
             n
             for n in imported
-            if n.split(".")[:1] == ["commishdesk"]
-            and len(n.split(".")) > 1
-            and n.split(".")[1] in forbidden
+            if n.split(".")[:1] == ["commishdesk"] and len(n.split(".")) > 1 and n.split(".")[1] in forbidden
         ]
         assert not offenders, (path.name, offenders)
         # what facts/ IS allowed to reach upstream
@@ -623,10 +588,7 @@ def test_reconciles_with_phase0_golden() -> None:
             g["board_label"],
         )
         assert str(row["roster_id"]) == str(g["roster_id"])
-        assert row["player"] == {
-            k: g["player"][k]
-            for k in ("sleeper_id", "name", "position", "nfl_team")
-        }
+        assert row["player"] == {k: g["player"][k] for k in ("sleeper_id", "name", "position", "nfl_team")}
 
     # teams[] board counts
     golden_team = {str(t["roster_id"]): t for t in GOLDEN["teams"]}
@@ -644,9 +606,7 @@ def test_reconciles_with_phase0_golden() -> None:
     assert ds["first_window_running_backs"] == gds["first11_running_backs"]
     for key in ("pick_no", "player", "board_label"):
         assert [q[key] for q in ds["round1_qbs"]] == [q[key] for q in gds["round1_qbs"]]
-    assert [e["pick_count"] for e in ds["pick_count_rank"]] == [
-        e["pick_count"] for e in gds["pick_count_rank"]
-    ]
+    assert [e["pick_count"] for e in ds["pick_count_rank"]] == [e["pick_count"] for e in gds["pick_count_rank"]]
     assert [(e["round"], e["count"]) for e in ds["round_concentration"]] == [
         (e["round"], e["count"]) for e in gds["round_concentration"]
     ]
@@ -667,12 +627,8 @@ def test_reconciles_with_phase0_golden() -> None:
     assert dhn["first_window_rb_count"] == ghn["first11_rb_count"]
     assert dhn["pick_count_leader"]["pick_count"] == ghn["pick_count_leader"]["pick_count"] == 12
     assert dhn["pick_count_low"]["pick_count"] == ghn["pick_count_low"]["pick_count"] == 3
-    assert [
-        (p["pick_no"], p["board_label"], p["player"], p["position"])
-        for p in doc["narration"]["board_round1"]
-    ] == [
-        (p["pick_no"], p["board_label"], p["player"], p["position"])
-        for p in gnar["board_round1"]
+    assert [(p["pick_no"], p["board_label"], p["player"], p["position"]) for p in doc["narration"]["board_round1"]] == [
+        (p["pick_no"], p["board_label"], p["player"], p["position"]) for p in gnar["board_round1"]
     ]
 
 
@@ -683,9 +639,7 @@ def test_reconciles_with_phase0_golden() -> None:
 
 def test_reconciles_consensus_fields_with_synthetic_oracle() -> None:
     doc = _rookie_facts().model_dump()
-    expected = json.loads(
-        (CONSENSUS_DIR / "expected-consensus-metrics.json").read_text(encoding="utf-8")
-    )
+    expected = json.loads((CONSENSUS_DIR / "expected-consensus-metrics.json").read_text(encoding="utf-8"))
     exp_by_no = {p["pick_no"]: p for p in expected["picks"]}
     for row in doc["picks"]:
         e = exp_by_no[row["pick_no"]]
@@ -703,9 +657,7 @@ def test_reconciles_consensus_fields_with_synthetic_oracle() -> None:
 
 def test_reconciles_grade_fields_with_synthetic_oracle() -> None:
     doc = _rookie_facts().model_dump()
-    expected = json.loads(
-        (GRADES_DIR / "expected-draft-grades.json").read_text(encoding="utf-8")
-    )
+    expected = json.loads((GRADES_DIR / "expected-draft-grades.json").read_text(encoding="utf-8"))
     exp_by_roster = {t["roster_id"]: t for t in expected["teams"]}
     for row in doc["teams"]:
         e = exp_by_roster[row["roster_id"]]
@@ -732,9 +684,7 @@ def test_narration_is_a_trimmed_projection() -> None:
     assert nar.league.name == doc.league.name
     assert nar.league.scoring_label == doc.league.format.scoring_label
     assert nar.headline_numbers.picks_total == len(doc.picks)
-    assert nar.headline_numbers.first_window_rb_count == len(
-        doc.draft_summary.first_window_running_backs
-    )
+    assert nar.headline_numbers.first_window_rb_count == len(doc.draft_summary.first_window_running_backs)
     assert [p.pick_no for p in nar.board_round1] == list(range(1, 13))
     assert len(nar.teams) == len(doc.teams)
     assert nar.positional_runs == doc.draft_summary.positional_runs
@@ -808,9 +758,7 @@ def test_narration_headline_numbers_pinned_values() -> None:
     assert hn.first_window_rb_count == 5
     assert hn.pick_count_leader.pick_count == 12  # most picks
     assert hn.pick_count_low.pick_count == 3  # fewest picks
-    assert [p.pick_no for p in _rookie_facts().narration.board_round1] == list(
-        range(1, 13)
-    )
+    assert [p.pick_no for p in _rookie_facts().narration.board_round1] == list(range(1, 13))
 
 
 # --------------------------------------------------------------------------- #
@@ -831,9 +779,7 @@ def test_empty_draft_builds_and_validates() -> None:
     board = BoardMetrics(teams=[], positional_runs=[])
     consensus = ConsensusMetrics(picks=[], teams=[])
     grades = DraftGrades(teams=[], grade_method=GRADE_METHOD)
-    doc = build_draft_recap_facts(
-        league, board, consensus, grades, generated_at=GENERATED_AT
-    )
+    doc = build_draft_recap_facts(league, board, consensus, grades, generated_at=GENERATED_AT)
     assert doc.picks == [] and doc.teams == []
     assert doc.superlatives == Superlatives()
     assert doc.draft_summary.positional_runs.QB.total == 0
@@ -856,9 +802,7 @@ def test_board_with_no_consensus_yields_empty_superlatives() -> None:
     board = compute_board_metrics(league)
     consensus = compute_consensus_metrics(league, {})  # every pick is no_consensus
     grades = compute_draft_grades(league, consensus)
-    doc = build_draft_recap_facts(
-        league, board, consensus, grades, generated_at=GENERATED_AT
-    )
+    doc = build_draft_recap_facts(league, board, consensus, grades, generated_at=GENERATED_AT)
     assert doc.superlatives == Superlatives()
     assert all(p.flags == ["no_consensus"] for p in doc.picks)
     assert all(p.delta is None for p in doc.picks)
@@ -883,11 +827,7 @@ def test_lazy_reexport_targets_are_inside_the_fence() -> None:
     for name, (module, _attr) in lazy.items():
         parts = module.split(".")
         assert "httpx" not in parts, (name, module)
-        assert not (
-            parts[:1] == ["commishdesk"]
-            and len(parts) > 1
-            and parts[1] in forbidden
-        ), (name, module)
+        assert not (parts[:1] == ["commishdesk"] and len(parts) > 1 and parts[1] in forbidden), (name, module)
 
 
 def test_te_window_ignores_a_gap_before_the_second_te() -> None:
@@ -940,16 +880,30 @@ def test_boldest_swing_requires_a_positive_spread() -> None:
     consensus = ConsensusMetrics(
         picks=[
             PickConsensus(
-                pick_no=1, roster_id="1", player="Player 1",
-                consensus_slot=1, consensus_label="1.01", delta=0, flags=[],
+                pick_no=1,
+                roster_id="1",
+                player="Player 1",
+                consensus_slot=1,
+                consensus_label="1.01",
+                delta=0,
+                flags=[],
             ),
             PickConsensus(
-                pick_no=2, roster_id="1", player="Player 2",
-                consensus_slot=2, consensus_label="1.02", delta=0, flags=[],
+                pick_no=2,
+                roster_id="1",
+                player="Player 2",
+                consensus_slot=2,
+                consensus_label="1.02",
+                delta=0,
+                flags=[],
             ),
             PickConsensus(
-                pick_no=3, roster_id="2", player="Player 3",
-                consensus_slot=None, consensus_label=None, delta=None,
+                pick_no=3,
+                roster_id="2",
+                player="Player 3",
+                consensus_slot=None,
+                consensus_label=None,
+                delta=None,
                 flags=["no_consensus"],
             ),
         ],
@@ -959,9 +913,7 @@ def test_boldest_swing_requires_a_positive_spread() -> None:
         ],
     )
     grades = compute_draft_grades(league, consensus)
-    doc = build_draft_recap_facts(
-        league, board, consensus, grades, generated_at=GENERATED_AT
-    )
+    doc = build_draft_recap_facts(league, board, consensus, grades, generated_at=GENERATED_AT)
     assert doc.superlatives.boldest_swing is None
 
 
@@ -995,16 +947,11 @@ def test_lead_candidates_positional_run_outranks_the_marquee_name() -> None:
 
 def test_lead_candidates_tiny_draft_is_biggest_score_only() -> None:
     cands = _build_minimal().lead_candidates
-    assert [(c.rank, c.kind, tuple(c.roster_ids)) for c in cands] == [
-        (1, "biggest_score", ("1",))
-    ]
+    assert [(c.rank, c.kind, tuple(c.roster_ids)) for c in cands] == [(1, "biggest_score", ("1",))]
 
 
 def test_lead_candidates_are_deterministic() -> None:
-    assert (
-        _rookie_facts().model_dump()["lead_candidates"]
-        == _rookie_facts().model_dump()["lead_candidates"]
-    )
+    assert _rookie_facts().model_dump()["lead_candidates"] == _rookie_facts().model_dump()["lead_candidates"]
 
 
 def test_lead_candidates_skip_an_orphan_roster_that_leads_a_category() -> None:
@@ -1028,9 +975,7 @@ def test_lead_candidates_skip_an_orphan_roster_that_leads_a_category() -> None:
     board = compute_board_metrics(league)
     consensus = compute_consensus_metrics(league, {})
     grades = compute_draft_grades(league, consensus)
-    doc = build_draft_recap_facts(
-        league, board, consensus, grades, generated_at=GENERATED_AT
-    )
+    doc = build_draft_recap_facts(league, board, consensus, grades, generated_at=GENERATED_AT)
     kinds = [c.kind for c in doc.lead_candidates]
     assert "manager_approach" not in kinds and "positional_hoard" not in kinds
     assert "biggest_score" in kinds
@@ -1046,14 +991,10 @@ def test_lead_candidates_reconcile_with_phase0_golden() -> None:
     g = GOLDEN["lead_candidates"]
     assert [c["kind"] for c in built] == [c["kind"] for c in g]
     assert [c["rank"] for c in built] == [c["rank"] for c in g]
-    assert [c["roster_ids"] for c in built] == [
-        [str(r) for r in c["roster_ids"]] for c in g
-    ]
+    assert [c["roster_ids"] for c in built] == [[str(r) for r in c["roster_ids"]] for c in g]
 
 
-def _facts_from_picks(
-    picks: list[Pick], *, teams: list[Team] | None = None, rounds: int = 1
-) -> DraftRecapFacts:
+def _facts_from_picks(picks: list[Pick], *, teams: list[Team] | None = None, rounds: int = 1) -> DraftRecapFacts:
     """Build a Facts JSON from a hand-built pick list through the real compute
     stages — the lightweight path the lead-angle branch tests share."""
     roster_ids = {p.roster_id for p in picks}
@@ -1069,15 +1010,11 @@ def _facts_from_picks(
     board = compute_board_metrics(league)
     consensus = compute_consensus_metrics(league, {})
     grades = compute_draft_grades(league, consensus)
-    return build_draft_recap_facts(
-        league, board, consensus, grades, generated_at=GENERATED_AT
-    )
+    return build_draft_recap_facts(league, board, consensus, grades, generated_at=GENERATED_AT)
 
 
 def test_lead_candidates_positional_run_no_round1_qb_gets_a_terminal_hook() -> None:
-    picks = [_pick(n, str(n), "RB") for n in range(1, 5)] + [
-        _pick(n, str(n), "WR") for n in range(5, 13)
-    ]
+    picks = [_pick(n, str(n), "RB") for n in range(1, 5)] + [_pick(n, str(n), "WR") for n in range(5, 13)]
     run = _facts_from_picks(picks).lead_candidates[0]
     assert run.kind == "positional_run"
     assert run.hook == "Four of the first eleven picks were running backs."
@@ -1108,9 +1045,7 @@ def test_lead_candidates_hoard_passes_an_orphan_leader_to_the_next_real_manager(
 
 
 def test_lead_candidates_manager_approach_needs_a_unique_pick_count_leader() -> None:
-    picks = [_pick(n, "1", "RB") for n in range(1, 5)] + [
-        _pick(n, "2", "WR") for n in range(5, 9)
-    ]
+    picks = [_pick(n, "1", "RB") for n in range(1, 5)] + [_pick(n, "2", "WR") for n in range(5, 9)]
     doc = _facts_from_picks(picks, rounds=4)
     assert "manager_approach" not in [c.kind for c in doc.lead_candidates]
 
@@ -1118,9 +1053,7 @@ def test_lead_candidates_manager_approach_needs_a_unique_pick_count_leader() -> 
 def test_lead_candidates_hoard_hook_handles_a_nonstandard_position() -> None:
     # roster 2 leads pick count (-> manager_approach); roster 1's 4-kicker stack
     # is the positional_hoard, exercising the _POSITION_PLURAL "K" entry.
-    picks = [_pick(n, "1", "K") for n in range(1, 5)] + [
-        _pick(n, "2", "WR") for n in range(5, 11)
-    ]
+    picks = [_pick(n, "1", "K") for n in range(1, 5)] + [_pick(n, "2", "WR") for n in range(5, 11)]
     teams = [Team(roster_id="1", manager="Kicker"), Team(roster_id="2", manager="m2")]
     doc = _facts_from_picks(picks, teams=teams, rounds=1)
     hoard = [c for c in doc.lead_candidates if c.kind == "positional_hoard"]
@@ -1139,10 +1072,10 @@ def test_lead_kind_priority_covers_every_kind_a_detector_can_emit() -> None:
 # --------------------------------------------------------------------------- #
 
 
-def test_schema_version_bumped_additively_to_0_2_0() -> None:
-    assert SCHEMA_VERSION == "0.2.0"
+def test_schema_version_bumped_additively_to_0_3_0() -> None:
+    assert SCHEMA_VERSION == "0.3.0"
     doc = _build_minimal()
-    assert doc.schema_version == "0.2.0"
+    assert doc.schema_version == "0.3.0"
     assert doc.week is None
     assert doc.weekly is None
 
@@ -1154,9 +1087,7 @@ def test_draft_recap_rejects_a_week_or_weekly_block() -> None:
     with pytest.raises(ValidationError):
         DraftRecapFacts.model_validate({**payload, "week": 4})
     with pytest.raises(ValidationError):
-        DraftRecapFacts.model_validate(
-            {**payload, "weekly": WeeklyFacts().model_dump()}
-        )
+        DraftRecapFacts.model_validate({**payload, "weekly": WeeklyFacts().model_dump()})
 
 
 def test_weekly_issue_requires_a_week() -> None:
@@ -1164,13 +1095,9 @@ def test_weekly_issue_requires_a_week() -> None:
 
     payload = _build_minimal().model_dump()
     with pytest.raises(ValidationError):
-        DraftRecapFacts.model_validate(
-            {**payload, "issue_type": "weekly", "week": None}
-        )
+        DraftRecapFacts.model_validate({**payload, "issue_type": "weekly", "week": None})
     # a weekly document with a week and no weekly block validates
-    ok = DraftRecapFacts.model_validate(
-        {**payload, "issue_type": "weekly", "week": 6}
-    )
+    ok = DraftRecapFacts.model_validate({**payload, "issue_type": "weekly", "week": 6})
     assert ok.issue_type == "weekly" and ok.week == 6
 
 
@@ -1210,9 +1137,7 @@ def test_0_1_0_shaped_document_still_loads_under_0_2_0() -> None:
 # --------------------------------------------------------------------------- #
 
 
-def _oversized_narration(
-    *, n_teams: int, n_storylines: int, rationale_len: int, hook_len: int
-):
+def _oversized_narration(*, n_teams: int, n_storylines: int, rationale_len: int, hook_len: int):
     from commishdesk.facts.schema import (
         BoardPick,
         HeadlineNumbers,
@@ -1290,9 +1215,7 @@ def test_narration_cap_holds_and_never_drops_lead_or_grades() -> None:
     from commishdesk.facts.build import _apply_narration_cap
     from commishdesk.facts.schema import NARRATION_TOKEN_CAP
 
-    big = _oversized_narration(
-        n_teams=60, n_storylines=6, rationale_len=300, hook_len=80
-    )
+    big = _oversized_narration(n_teams=60, n_storylines=6, rationale_len=300, hook_len=80)
     assert len(big.model_dump_json()) > NARRATION_TOKEN_CAP  # the input is over
 
     capped = _apply_narration_cap(big)
@@ -1312,9 +1235,7 @@ def test_narration_cap_ladder_fires_tiers_two_and_three() -> None:
     (storyline_candidates trimmed to the lead entry) both fire."""
     from commishdesk.facts.build import _apply_narration_cap
 
-    big = _oversized_narration(
-        n_teams=40, n_storylines=120, rationale_len=500, hook_len=300
-    )
+    big = _oversized_narration(n_teams=40, n_storylines=120, rationale_len=500, hook_len=300)
     capped = _apply_narration_cap(big)
 
     from commishdesk.facts.schema import NARRATION_TOKEN_CAP
@@ -1357,9 +1278,7 @@ def test_realistic_deep_league_never_trips_the_ladder() -> None:
     not fire for a normal league."""
     from commishdesk.facts.schema import NARRATION_TOKEN_CAP
 
-    picks = [
-        _pick(n, str((n - 1) % 12 + 1), "RB" if n % 3 else "WR") for n in range(1, 181)
-    ]
+    picks = [_pick(n, str((n - 1) % 12 + 1), "RB" if n % 3 else "WR") for n in range(1, 181)]
     doc = _facts_from_picks(picks, rounds=15)
     assert len(doc.narration.model_dump_json()) <= NARRATION_TOKEN_CAP
     assert doc.narration.board_round1 != []  # nothing was trimmed
@@ -1431,9 +1350,7 @@ def test_advance_storylines_is_idempotent_per_period() -> None:
     assert dump(twice) == dump(once)
     assert dump(thrice) == dump(once)
     # and the raw JSON the store would persist is byte-identical
-    assert (
-        json.dumps(dump(once), sort_keys=True) == json.dumps(dump(twice), sort_keys=True)
-    )
+    assert json.dumps(dump(once), sort_keys=True) == json.dumps(dump(twice), sort_keys=True)
 
 
 def test_advance_storylines_draft_recap_default_is_no_prior_history() -> None:
@@ -1462,8 +1379,13 @@ def test_round_stack_skips_an_unresolvable_manager_name() -> None:
 
     def _tb(roster_id: str) -> TeamBoard:
         return TeamBoard(
-            roster_id=roster_id, manager="Twin", pick_count=6, pick_nos=[],
-            positional_counts={}, back_to_back=[], zero_positions=[],
+            roster_id=roster_id,
+            manager="Twin",
+            pick_count=6,
+            pick_nos=[],
+            positional_counts={},
+            back_to_back=[],
+            zero_positions=[],
         )
 
     board = BoardMetrics(teams=[_tb("1"), _tb("2")], positional_runs=[])
@@ -1480,8 +1402,13 @@ def test_round_stack_skips_an_unresolvable_manager_name() -> None:
     )
     grades = DraftGrades(teams=[], grade_method=GRADE_METHOD)
     out = advance_storylines(
-        (), week=1, board=board, consensus=ConsensusMetrics(picks=[], teams=[]),
-        grades=grades, draft_summary=ds, superlatives=Superlatives(),
+        (),
+        week=1,
+        board=board,
+        consensus=ConsensusMetrics(picks=[], teams=[]),
+        grades=grades,
+        draft_summary=ds,
+        superlatives=Superlatives(),
     )
     assert [s.id for s in out if s.id.startswith("round_stack")] == []
 
@@ -1500,9 +1427,7 @@ def test_grade_extreme_only_fires_at_a_genuine_scale_end() -> None:
             self.letter = letter
 
     # best A+, worst B+ -> only the top thread fires
-    only_top = _grade_extreme(
-        _NS(teams=[_G("1", "A+"), _G("2", "B+"), _G("3", "B")]), managers
-    )
+    only_top = _grade_extreme(_NS(teams=[_G("1", "A+"), _G("2", "B+"), _G("3", "B")]), managers)
     assert [s.id for s in only_top] == ["grade_extreme:1"]
     assert "top grade" in only_top[0].hook
 
@@ -1511,9 +1436,7 @@ def test_grade_extreme_only_fires_at_a_genuine_scale_end() -> None:
     assert {s.id for s in both} == {"grade_extreme:1", "grade_extreme:2"}
 
     # a garbage letter is the numeric "worst" but is not a real bottom grade
-    garbage = _grade_extreme(
-        _NS(teams=[_G("1", "A+"), _G("2", "ZZ"), _G("3", "C")]), managers
-    )
+    garbage = _grade_extreme(_NS(teams=[_G("1", "A+"), _G("2", "ZZ"), _G("3", "C")]), managers)
     assert [s.id for s in garbage] == ["grade_extreme:1"]
 
 
@@ -1539,9 +1462,7 @@ def test_builder_storyline_candidates_match_a_standalone_advance() -> None:
     board = compute_board_metrics(league)
     consensus = compute_consensus_metrics(league, _synthetic_slots())
     grades = compute_draft_grades(league, consensus)
-    doc = build_draft_recap_facts(
-        league, board, consensus, grades, generated_at=GENERATED_AT
-    )
+    doc = build_draft_recap_facts(league, board, consensus, grades, generated_at=GENERATED_AT)
     standalone = advance_storylines(
         (),
         week=DRAFT_RECAP_WEEK,

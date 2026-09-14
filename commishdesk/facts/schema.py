@@ -34,6 +34,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 __all__ = [
     "NARRATION_TOKEN_CAP",
+    "NarrationPlayer",
     "SCHEMA_VERSION",
     "BoardPick",
     "BoldestSwing",
@@ -69,7 +70,7 @@ __all__ = [
     "WeeklyFacts",
 ]
 
-SCHEMA_VERSION = "0.2.0"
+SCHEMA_VERSION = "0.3.0"
 """Semver contract version. Additive key -> minor bump; shape change -> major.
 ``0.1.0`` -> ``0.2.0`` (Story 3.1): additive ``week`` / ``weekly`` placeholders,
 no shape change to any existing field."""
@@ -79,7 +80,13 @@ _IssueType = Literal["draft_recap", "weekly"]
 """``"weekly"`` is a schema-only placeholder — no builder emits a weekly issue
 until Epic 5."""
 
-NARRATION_TOKEN_CAP: Final[int] = 20_000
+NARRATION_TOKEN_CAP: Final[int] = 40_000
+#: Raised from 20,000 at ``0.3.0``, when the ``players`` block joined the
+#: projection. It is a pathological-input guard, not a budget, and the payload
+#: got legitimately richer on purpose: a 12-team / 15-round league now serializes
+#: to ~32,600 characters against ~3,800 before. Even at the new ceiling the input
+#: side of one generation is well under a cent on a cheap model, while the guard
+#: still stops a malformed league from sending an unbounded payload.
 """Char-proxy ceiling on ``len(Narration.model_dump_json())`` (~5k tokens). Chosen
 generous enough that no real or fixture league is ever truncated — the demo
 fixture's narration serializes to well under half this — while still bounding a
@@ -441,9 +448,7 @@ class Storyline(BaseModel):
     def _week_span_ordered(self) -> Storyline:
         """A thread cannot close before it opened."""
         if self.last_week < self.first_week:
-            raise ValueError(
-                f"last_week ({self.last_week}) precedes first_week ({self.first_week})"
-            )
+            raise ValueError(f"last_week ({self.last_week}) precedes first_week ({self.first_week})")
         return self
 
 
@@ -488,6 +493,50 @@ class NarrationTeam(_Doc):
     back_to_back: list[tuple[int, int]] = []
 
 
+class NarrationPlayer(_Doc):
+    """One drafted player's real, publishable roster facts.
+
+    Added at :data:`SCHEMA_VERSION` ``0.3.0``. The measured reason: a narrator
+    with no player metadata in its payload reaches into its own pretraining for
+    it — a live validation run shipped "Ohio State wide receiver Emeka Egbuka"
+    and "Michigan running back Donovan Edwards", true in the real world and
+    unsupported by the Facts. The engine was already *fetching* every field
+    below and simply not handing them over.
+
+    Projecting them does two things at once: the narrator can cite a player's
+    team or status **grounded**, and the closed-world check gains the tokens to
+    *refute* a wrong one. Banning the vocabulary instead would have bought
+    neither.
+
+    Availability differs by field, and the prompt is conditional rather than
+    absolute because of it: ``nfl_team`` / ``injury_status`` / ``years_exp``
+    ride on the pick's own metadata and are always present; ``college`` is
+    joined from the bundle's ``players`` blob, which the Sleeper adapter
+    deliberately never fetches (AD: no live ``/players/nfl``, so a recap
+    regenerated months later cannot change). On the live path ``college`` is
+    therefore ``None`` — and a narrator told "only what the JSON gives you"
+    simply says nothing about it.
+    """
+
+    name: str
+    #: Where this player went, spelled both ways the copy will want them. Both
+    #: are load-bearing for the closed-world check: a narrator told to cite a
+    #: figure for every claim converts freely between "2.02" and "pick 14", and
+    #: a payload carrying only one of the two reports every correct conversion
+    #: as a hallucination (measured: 81 findings in 40 generations).
+    pick_no: int | None = None
+    board_label: str | None = None
+    manager: str | None = None
+    position: str | None = None
+    nfl_team: str | None = None
+    college: str | None = None
+    #: Sleeper's own status string ("Questionable", "Out", "IR"). ``None`` for a
+    #: healthy player — Sleeper writes "" there, normalized to None at ingest.
+    injury_status: str | None = None
+    #: 0 for a rookie.
+    years_exp: int | None = None
+
+
 class Narration(_Doc):
     """The sanitized projection the narrators see — never a raw roster or a board
     column it does not need. The builder holds this under
@@ -496,6 +545,9 @@ class Narration(_Doc):
     issue_type: _IssueType = _ISSUE_TYPE
     league: NarrationLeague
     headline_numbers: HeadlineNumbers
+    #: One entry per drafted player (0.3.0). Ordered by first pick so two builds
+    #: of one bundle agree byte-for-byte.
+    players: list[NarrationPlayer] = []
     board_round1: list[BoardPick] = []
     superlatives: Superlatives
     teams: list[NarrationTeam] = []
@@ -556,9 +608,7 @@ class DraftRecapFacts(_Doc):
         ``weekly`` issue must name its week."""
         if self.issue_type == "draft_recap":
             if self.week is not None or self.weekly is not None:
-                raise ValueError(
-                    "draft_recap document must have week=None and weekly=None"
-                )
+                raise ValueError("draft_recap document must have week=None and weekly=None")
         elif self.issue_type == "weekly" and self.week is None:
             raise ValueError("weekly document must have a week (1..18)")
         return self

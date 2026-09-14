@@ -98,17 +98,11 @@ def narration() -> Narration:
 
 
 def test_voices_zone_ships_exactly_one_reference_impl() -> None:
-    modules = sorted(
-        p.name
-        for p in VOICES_PKG.glob("*.py")
-        if p.name != "__init__.py" and not p.name.startswith("_")
-    )
+    modules = sorted(p.name for p in VOICES_PKG.glob("*.py") if p.name != "__init__.py" and not p.name.startswith("_"))
     assert modules == ["beat_writer.py"], modules
     # and no non-underscore subpackage sneaking a second impl in
     subpkgs = [
-        p.name
-        for p in VOICES_PKG.iterdir()
-        if p.is_dir() and not p.name.startswith("_") and p.name != "__pycache__"
+        p.name for p in VOICES_PKG.iterdir() if p.is_dir() and not p.name.startswith("_") and p.name != "__pycache__"
     ]
     assert subpkgs == [], subpkgs
 
@@ -174,14 +168,16 @@ def test_voices_zone_module_keeps_the_v0_marker_and_imports_only_the_local_proto
             if module.startswith("commishdesk"):
                 # only the zone package itself (the local Voice protocol) or a
                 # sibling module inside it
-                assert module == "commishdesk.voices" or module.startswith(
-                    "commishdesk.voices."
-                ), (src_path.name, module)
+                assert module == "commishdesk.voices" or module.startswith("commishdesk.voices."), (
+                    src_path.name,
+                    module,
+                )
 
 
 # --------------------------------------------------------------------------- #
 # (c) the scorer + its unit tests
 # --------------------------------------------------------------------------- #
+
 
 @dataclass(frozen=True)
 class RecapScore:
@@ -192,6 +188,19 @@ class RecapScore:
     length_ok: bool
     closed_world_ok: bool
     unknown_tokens: tuple[str, ...]
+    #: Multi-word capitalised phrases the payload cannot account for. The gate
+    #: does **not** block on these (P0.1: the payload can fail to contain a name
+    #: but never contradict one), so the harness is where they are measured.
+    unverified_entities: tuple[str, ...] = ()
+
+    @property
+    def grounded_ok(self) -> bool:
+        """Both grounding signals clean — the bar an eval sample must clear.
+        Strictly stronger than ``closed_world_ok``, which is only the *gating*
+        half. Keeping the two separate is the point: the harness is allowed to
+        be pickier than the gate, and a model comparison wants the pickier
+        number."""
+        return self.closed_world_ok and not self.unverified_entities
 
 
 def _score_recap(text: str, narration: Narration, *, target_chars: int) -> RecapScore:
@@ -209,6 +218,7 @@ def _score_recap(text: str, narration: Narration, *, target_chars: int) -> Recap
     point, called from both places.
     """
     unknown = safety.closed_world_tokens(text, narration)
+    entities = safety.unverified_entities(text, narration)
     char_count = len(text)
     length_ok = abs(char_count - target_chars) <= round(0.15 * target_chars)
     return RecapScore(
@@ -217,12 +227,11 @@ def _score_recap(text: str, narration: Narration, *, target_chars: int) -> Recap
         length_ok=length_ok,
         closed_world_ok=not unknown,
         unknown_tokens=unknown,
+        unverified_entities=entities,
     )
 
 
-def test_scorer_delegates_closed_world_to_the_production_entry_point(
-    narration: Narration, monkeypatch
-) -> None:
+def test_scorer_delegates_closed_world_to_the_production_entry_point(narration: Narration, monkeypatch) -> None:
     """A3 — the real invariant, not a name check: whatever the production entry
     point says is out of world *is* the scorer's verdict. A reintroduced local
     copy (under any name) would fail here."""
@@ -250,9 +259,11 @@ def test_the_production_entry_point_masks_the_league_name_too(
     data = narration.model_dump()
     data["league"]["name"] = "Fakename Kings"
     renamed = Narration.model_validate(data)
-    # "Fakename" is out of world for the *original* payload...
-    assert "Fakename" in safety.closed_world_tokens("Fakename Kings drafted.", narration)
+    # "Fakename Kings" is out of world for the *original* payload...
+    assert "Fakename Kings" in safety.unverified_entities("Fakename Kings drafted.", narration)
     # ...and masked away for the league that is actually called that
+    assert not safety.unverified_entities("Fakename Kings drafted.", renamed)
+    # the gating half is mask-aware on the same string, via the same helper
     assert not safety.closed_world_tokens("Fakename Kings drafted.", renamed)
 
 
@@ -260,8 +271,7 @@ def test_scorer_passes_a_clean_in_world_sample(narration: Narration) -> None:
     text = (
         "Trench Warfare — 2025 Draft Recap\n\n"
         "Pull-Guard Pumas opened with Ashton Jeanty at 1.01. "
-        "Blitz Alpacas found Lan Larison at 6.11, a delta of 17. "
-        + "Gridiron Gophers drafted six running backs. " * 40
+        "Blitz Alpacas found Lan Larison at 6.11, a delta of 17. " + "Gridiron Gophers drafted six running backs. " * 40
     )
     score = _score_recap(text, narration, target_chars=len(text))
     assert score.closed_world_ok, score.unknown_tokens
@@ -274,8 +284,12 @@ def test_scorer_flags_an_invented_proper_noun(narration: Narration) -> None:
         "Jamarcus Fakename, who does not appear anywhere in the board."
     )
     score = _score_recap(text, narration, target_chars=len(text))
-    assert not score.closed_world_ok
-    assert "Fakename" in score.unknown_tokens
+    # P0.1: an invented *name* no longer gates, so the harness catches it on the
+    # entity signal instead — and ``grounded_ok``, not ``closed_world_ok``, is
+    # the bar a sample has to clear.
+    assert score.closed_world_ok
+    assert not score.grounded_ok
+    assert "Jamarcus Fakename" in score.unverified_entities
 
 
 def test_scorer_flags_an_invented_number(narration: Narration) -> None:
@@ -317,6 +331,21 @@ def test_scorer_accepts_a_length_at_the_edge_of_the_band(narration: Narration) -
     for chars in (round(target * 0.85) + 1, round(target * 1.15) - 1):
         score = _score_recap("y" * chars, narration, target_chars=target)
         assert score.length_ok, chars
+
+
+def test_scorer_grounded_ok_is_stricter_than_the_gate(narration: Narration) -> None:
+    """The harness may be pickier than the gate, and here it deliberately is: an
+    invented multi-word name leaves ``closed_world_ok`` true (nothing was
+    refuted) while ``grounded_ok`` goes false (something could not be traced).
+    A model comparison should rank on the pickier number."""
+    clean = "Pull-Guard Pumas took Ashton Jeanty at 1.01."
+    score = _score_recap(clean, narration, target_chars=len(clean))
+    assert score.closed_world_ok and score.grounded_ok
+
+    invented = "Pull-Guard Pumas took Jamarcus Fakename at 1.01."
+    score = _score_recap(invented, narration, target_chars=len(invented))
+    assert score.closed_world_ok
+    assert not score.grounded_ok
 
 
 # --------------------------------------------------------------------------- #

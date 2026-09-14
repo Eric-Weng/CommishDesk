@@ -80,6 +80,35 @@ slop = [
   '\ba rollercoaster of emotions\b',
 ]
 
+# Which [banned_topics] categories escalate to a whole-Issue HOLD when a
+# manager's name shares the sentence. A category left out of this list still
+# warns (and the repair tier excises the sentence) -- it just never withholds
+# the Issue.
+#
+# The line is "is this abuse of, or drama about, a PERSON in this league?" —
+# which is the actual editorial policy: no politics, no insulting managers,
+# nothing that stirs drama past the fantasy football.
+#
+# `injury_medical` is deliberately ABSENT. A player getting hurt is not abuse of
+# a manager, and it is frequently the causal heart of a fantasy week: "the
+# Gazelles lost their back in the second quarter and the week went with him" is
+# the ordinary shape of a weekly recap sentence, not a safety incident. Holding
+# an Issue over it would make the newsletter unable to explain its own results.
+# Medical *specifics* (surgery, a torn ligament, someone's injury history) still
+# warn and still get excised — the event is fair game, the medical file is not.
+#
+# `gambling` is also absent: an errant betting metaphor ("that opening parlay at
+# picks 2 and 3") is a tone slip worth removing, not grounds for withholding an
+# Issue from twelve people.
+escalate_to_hold = [
+  "personal_life",
+  "appearance",
+  "substances",
+  "legal",
+  "politics_religion",
+  "gambling_personal",
+]
+
 [banned_topics]
 # Narrow, phrase-based — no bare "injured" / "injury", which fire on legitimate
 # scouting talk about a pick ("took the injury-prone back").
@@ -131,7 +160,14 @@ appearance = [
   '\bbald(ing)?\b',
   '\b(he|she|they) (is|are|looks?) (fat|ugly|hideous)\b',
   # No "gut": "went with his gut" is a draft-approach idiom, not a body comment.
-  '\b(his|her|their) (weight|physique)\b',
+  # "weight" needed the same treatment, live-confirmed 2026-09-13 (P0.1
+  # validation run): "putting their weight behind three tailbacks" is an idiom
+  # about commitment, not a comment on a body, and the bare possessive
+  # suppressed an otherwise-clean Issue. A real body comment names the body.
+  '\b(his|her|their) physique\b',
+  '\b(his|her|their) (weight|size) (problem|issue)\b',
+  '\b(lost|gained) (a lot of |some )?weight\b',
+  '\bcarrying (extra |too much |the )?weight (around|in the)\b',
 ]
 politics_religion = [
   '\bpolitic(s|al|ians?)\b',
@@ -143,24 +179,34 @@ politics_religion = [
   '\b(left|right)-wing\b',
   '\bchurch-?going\b',
 ]
+# Market/wagering FRAMING applied to picks. A tone slip, not an accusation —
+# non-escalating, so a stray "opening parlay at picks 2 and 3" gets its sentence
+# excised rather than withholding the Issue from twelve people.
 gambling = [
-  '\bbetting (line|odds|advice)\b',
   '\bthe (betting )?line on\b',
   '\bpoint spread\b',
   '\bmoneyline\b',
   '\bover/under\b',
   '\bparlay\b',
+  '\bprop bet\b',
+  '\bvegas (has|likes?|line)\b',
+]
+# Wagering as a claim about a PERSON. This one escalates: it is precisely the
+# drama-past-the-football the policy exists to stop.
+#
+# No bare "gambl*" — "gambling on upside" describes a pick, not a person. But
+# the noun and the third-person verb are *only* ever about the person, so they
+# stay: "a degenerate gambler", "he gambles every week".
+gambling_personal = [
+  # These name actual betting activity, not an odds metaphor about a pick:
+  # "Marcus basically runs a sportsbook" is an accusation.
   '\bsportsbook\b',
   '\bwager(s|ing|ed)?\b',
-  '\bprop bet\b',
   '\b(draftkings|fanduel)\b',
-  # No bare "gambl*" — "gambling on upside" describes a pick, not a person. But
-  # the noun and the third-person verb are *only* ever about the person, so they
-  # stay: "a degenerate gambler", "he gambles every week".
+  '\bbetting (line|odds|advice)\b',
   '\bgambling (problem|addiction|debts?|advice)\b',
   '\bgamblers?\b',
   '\bgambles\b',
-  '\bvegas (has|likes?|line)\b',
 ]
 substances = [
   '\bhungover\b',

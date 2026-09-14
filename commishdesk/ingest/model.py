@@ -85,6 +85,15 @@ class Player(_Frozen):
     name: str
     position: str | None = None
     nfl_team: str | None = None
+    #: Real, publishable roster facts the bundle already carries. They exist so
+    #: the narrator can cite them from the payload instead of reaching into its
+    #: own pretraining for them -- the measured failure that produced "Ohio
+    #: State wide receiver Emeka Egbuka" in copy the Facts could not support.
+    #: ``college`` is joined from the bundle's ``players`` blob; the rest ride
+    #: on the pick's own metadata.
+    college: str | None = None
+    injury_status: str | None = None
+    years_exp: int | None = None
 
 
 class Pick(_Frozen):

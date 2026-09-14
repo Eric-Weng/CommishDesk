@@ -56,8 +56,7 @@ def _run(*args: str, cwd: Path | None = None) -> subprocess.CompletedProcess:
         [
             sys.executable,
             "-c",
-            f"import sys; sys.argv={['commishdesk', *args]!r}; "
-            "from commishdesk.cli import main; main()",
+            f"import sys; sys.argv={['commishdesk', *args]!r}; from commishdesk.cli import main; main()",
         ],
         capture_output=True,
         text=True,
@@ -219,9 +218,7 @@ def test_cli_honours_an_empty_generation_set(tmp_path: Path, monkeypatch) -> Non
         "build_generation_set",
         lambda *a, **k: generation.GenerationSet(()),
     )
-    result = runner.invoke(
-        app, ["--league", "demo", "--draft-recap", "--out-dir", str(tmp_path)]
-    )
+    result = runner.invoke(app, ["--league", "demo", "--draft-recap", "--out-dir", str(tmp_path)])
     assert result.exit_code == 1
     assert "not activated" in result.output
     assert "Traceback" not in result.output
@@ -230,9 +227,7 @@ def test_cli_honours_an_empty_generation_set(tmp_path: Path, monkeypatch) -> Non
     assert not list(tmp_path.iterdir())
 
 
-def test_real_league_branch_threads_the_mocked_consensus_source(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_real_league_branch_threads_the_mocked_consensus_source(tmp_path: Path, monkeypatch) -> None:
     """Exercise the network branch past ``adapter.fetch``: a fake adapter returns
     the demo bundle, a fake ``build_consensus_rank`` supplies known
     ``source`` / ``as_of``, and the CLI must thread those into the Facts JSON."""
@@ -253,9 +248,7 @@ def test_real_league_branch_threads_the_mocked_consensus_source(
 
         def close(self) -> None: ...
 
-    fake_rank = ConsensusRank(
-        source="fantasycalc", as_of="2099-07", slots=demo.demo_consensus_slots()
-    )
+    fake_rank = ConsensusRank(source="fantasycalc", as_of="2099-07", slots=demo.demo_consensus_slots())
     monkeypatch.setattr("commishdesk.adapters.sleeper.SleeperAdapter", _FakeAdapter)
     monkeypatch.setattr(consensus, "build_consensus_rank", lambda *a, **k: fake_rank)
 
@@ -268,9 +261,7 @@ def test_real_league_branch_threads_the_mocked_consensus_source(
 
     monkeypatch.setattr(facts_pkg, "build_draft_recap_facts", _spy)
 
-    result = runner.invoke(
-        app, ["--league", "999", "--draft-recap", "--out-dir", str(tmp_path)]
-    )
+    result = runner.invoke(app, ["--league", "999", "--draft-recap", "--out-dir", str(tmp_path)])
     assert result.exit_code == 0, result.output
     assert seen["consensus_source_name"] == "fantasycalc"
     assert seen["consensus_as_of"] == "2099-07"
@@ -292,9 +283,7 @@ def _fake_real_league(monkeypatch) -> None:
 
         def close(self) -> None: ...
 
-    fake_rank = ConsensusRank(
-        source="fantasycalc", as_of="2099-07", slots=demo.demo_consensus_slots()
-    )
+    fake_rank = ConsensusRank(source="fantasycalc", as_of="2099-07", slots=demo.demo_consensus_slots())
     monkeypatch.setattr("commishdesk.adapters.sleeper.SleeperAdapter", _FakeAdapter)
     monkeypatch.setattr(consensus, "build_consensus_rank", lambda *a, **k: fake_rank)
 
@@ -351,9 +340,7 @@ def test_real_league_id_with_no_network_is_exit_1_no_traceback() -> None:
 _KEY_VARS = ("ANTHROPIC_API_KEY", "LLM_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY")
 
 
-def test_no_llm_flag_suppresses_generation_even_with_a_working_provider(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_no_llm_flag_suppresses_generation_even_with_a_working_provider(tmp_path: Path, monkeypatch) -> None:
     """``--no-llm`` with a key set AND a working (fake) provider: the recap is the
     structured template render, and the fake model's reply appears nowhere — a
     regression that ignored ``--no-llm`` would emit it and fail here."""
@@ -361,9 +348,7 @@ def test_no_llm_flag_suppresses_generation_even_with_a_working_provider(
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-not-a-real-key")
     _install_fake_anthropic(monkeypatch, "FAKE-MODEL-REPLY-SENTINEL should never appear")
-    result = runner.invoke(
-        app, ["--league", "88", "--draft-recap", "--no-llm", "--out-dir", str(tmp_path)]
-    )
+    result = runner.invoke(app, ["--league", "88", "--draft-recap", "--no-llm", "--out-dir", str(tmp_path)])
     assert result.exit_code == 0, result.output
     for heading in SECTION_HEADINGS:
         assert heading in result.output
@@ -394,9 +379,7 @@ def test_llm_enabled_helper(flag, env, expected, monkeypatch) -> None:
     assert _llm_enabled(flag) is expected
 
 
-def test_malformed_llm_config_is_exit_1_before_any_league_runs(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_malformed_llm_config_is_exit_1_before_any_league_runs(tmp_path: Path, monkeypatch) -> None:
     """A bad ``COMMISHDESK_LLM_*`` value raises ``NarratorError`` (a
     ``CommishDeskError``) from ``load_llm_config`` before the league loop — one
     line, exit 1, no recap and no HTML. Tested on a real (faked) league, since
@@ -404,9 +387,7 @@ def test_malformed_llm_config_is_exit_1_before_any_league_runs(
     _fake_real_league(monkeypatch)
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
     monkeypatch.setenv("COMMISHDESK_LLM_PRIMARY", "bogus-no-colon")
-    result = runner.invoke(
-        app, ["--league", "99", "--draft-recap", "--out-dir", str(tmp_path)]
-    )
+    result = runner.invoke(app, ["--league", "99", "--draft-recap", "--out-dir", str(tmp_path)])
     assert result.exit_code == 1
     assert "Traceback" not in result.output
     for heading in SECTION_HEADINGS:
@@ -414,17 +395,13 @@ def test_malformed_llm_config_is_exit_1_before_any_league_runs(
     assert not list(tmp_path.iterdir())  # nothing written — the fault is pre-loop
 
 
-def test_demo_run_tolerates_a_malformed_llm_config_and_warns_once(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_demo_run_tolerates_a_malformed_llm_config_and_warns_once(tmp_path: Path, monkeypatch) -> None:
     """The zero-credential onboarding/smoke path never *depends* on LLM config: a
     broken ``COMMISHDESK_LLM_*`` on ``--league demo`` is not fatal — the run
     still exits 0 and prints the template recap. It is parsed exactly once, only
     to emit a single warning that it is being ignored (Story 3.5)."""
     monkeypatch.setenv("COMMISHDESK_LLM_PRIMARY", "bogus-no-colon")
-    result = runner.invoke(
-        app, ["--league", "demo", "--draft-recap", "--out-dir", str(tmp_path)]
-    )
+    result = runner.invoke(app, ["--league", "demo", "--draft-recap", "--out-dir", str(tmp_path)])
     assert result.exit_code == 0, result.output
     assert "Traceback" not in result.output
     for heading in SECTION_HEADINGS:
@@ -433,9 +410,7 @@ def test_demo_run_tolerates_a_malformed_llm_config_and_warns_once(
     assert result.output.count("ignoring a malformed COMMISHDESK_LLM_") == 1
 
 
-def test_demo_is_always_template_even_with_a_provider_key(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_demo_is_always_template_even_with_a_provider_key(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-not-a-real-key")
     result = _run("--league", "demo", "--draft-recap", "--out-dir", str(tmp_path))
     assert result.returncode == 0, result.stderr
@@ -447,9 +422,7 @@ def test_demo_is_always_template_even_with_a_provider_key(
     assert "--league demo always uses the template narrator" in result.stderr
 
 
-def test_demo_without_a_key_does_not_announce_a_narrator_override(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_demo_without_a_key_does_not_announce_a_narrator_override(tmp_path: Path, monkeypatch) -> None:
     for var in _KEY_VARS:
         monkeypatch.delenv(var, raising=False)
     result = _run("--league", "demo", "--draft-recap", "--out-dir", str(tmp_path))
@@ -480,9 +453,7 @@ def test_demo_with_a_key_imports_no_provider_sdk(tmp_path: Path, monkeypatch) ->
     assert probe.stdout.strip().splitlines()[-1] == "ok"
 
 
-def test_llm_flag_without_a_key_falls_back_to_the_template(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_llm_flag_without_a_key_falls_back_to_the_template(tmp_path: Path, monkeypatch) -> None:
     """``--llm`` with no key and no SDK: the adapters raise, ``narrate_draft_recap``
     swallows it, and the run finishes on the structured template path — exit 0,
     no bare text dump."""
@@ -490,9 +461,7 @@ def test_llm_flag_without_a_key_falls_back_to_the_template(
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
     for var in _KEY_VARS:
         monkeypatch.delenv(var, raising=False)
-    result = runner.invoke(
-        app, ["--league", "55", "--draft-recap", "--llm", "--out-dir", str(tmp_path)]
-    )
+    result = runner.invoke(app, ["--league", "55", "--draft-recap", "--llm", "--out-dir", str(tmp_path)])
     assert result.exit_code == 0, result.output
     for heading in SECTION_HEADINGS:
         assert heading in result.output
@@ -551,9 +520,7 @@ def _stub_narrator(monkeypatch, text: str, narrator: str = "llm-primary") -> dic
     return calls
 
 
-def test_unsafe_narrator_output_holds_the_league_exit_1_no_html(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_unsafe_narrator_output_holds_the_league_exit_1_no_html(tmp_path: Path, monkeypatch) -> None:
     """AD-12 L3 — a structurally-valid LLM narration with a manager's name beside
     a banned-category term: ``ContentSafetyError`` from ``_produce_issue``, one
     stderr line naming "content-safety hold", exit 1, and no HTML."""
@@ -564,9 +531,7 @@ def test_unsafe_narrator_output_holds_the_league_exit_1_no_html(
         monkeypatch,
         _six_section_llm_text("Pull-Guard Pumas clearly drafted hungover this year."),
     )
-    result = runner.invoke(
-        app, ["--league", "70", "--draft-recap", "--out-dir", str(tmp_path)]
-    )
+    result = runner.invoke(app, ["--league", "70", "--draft-recap", "--out-dir", str(tmp_path)])
     assert result.exit_code == 1
     assert "Traceback" not in result.output
     assert "content-safety hold" in result.output
@@ -575,9 +540,7 @@ def test_unsafe_narrator_output_holds_the_league_exit_1_no_html(
         assert heading not in result.output
 
 
-def test_slop_on_llm_output_degrades_to_template_with_an_alert(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_slop_on_llm_output_degrades_to_template_with_an_alert(tmp_path: Path, monkeypatch) -> None:
     """AD-12 L3 — a slop phrase in a structurally-valid LLM narration is a
     ``suppress_section`` tier: degrade to the template narrator, emit a
     ``logger.error`` + a distinct stderr alert naming the league, exit 0 + HTML."""
@@ -588,9 +551,7 @@ def test_slop_on_llm_output_degrades_to_template_with_an_alert(
         monkeypatch,
         _six_section_llm_text("Honestly, in conclusion, this draft had chaos."),
     )
-    result = runner.invoke(
-        app, ["--league", "71", "--draft-recap", "--out-dir", str(tmp_path)]
-    )
+    result = runner.invoke(app, ["--league", "71", "--draft-recap", "--out-dir", str(tmp_path)])
     assert result.exit_code == 0, result.output
     assert calls["n"] == 1  # a suppress tier must NOT consume the regeneration budget
     body = (tmp_path / "commishdesk-71-draft-recap.html").read_text(encoding="utf-8")
@@ -606,14 +567,9 @@ def test_safety_hold_lists_every_hold_finding(tmp_path: Path, monkeypatch) -> No
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
     _stub_narrator(
         monkeypatch,
-        _six_section_llm_text(
-            "Pull-Guard Pumas clearly drafted hungover. "
-            "Blitz Alpacas is an idiot, frankly."
-        ),
+        _six_section_llm_text("Pull-Guard Pumas clearly drafted hungover. Blitz Alpacas is an idiot, frankly."),
     )
-    result = runner.invoke(
-        app, ["--league", "72", "--draft-recap", "--out-dir", str(tmp_path)]
-    )
+    result = runner.invoke(app, ["--league", "72", "--draft-recap", "--out-dir", str(tmp_path)])
     assert result.exit_code == 1
     assert "hungover" in result.output and "idiot" in result.output
     assert not (tmp_path / "commishdesk-72-draft-recap.html").is_file()
@@ -628,9 +584,7 @@ def test_demo_draft_recap_passes_the_safety_gate(tmp_path: Path) -> None:
     assert (tmp_path / "commishdesk-demo-draft-recap.html").is_file()
 
 
-def test_llm_narrator_path_emits_text_and_the_designed_html(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_llm_narrator_path_emits_text_and_the_designed_html(tmp_path: Path, monkeypatch) -> None:
     """Key present + a working provider: stdout is the LLM prose behind the
     ``generated <ts>`` stamp, and the HTML file is the Story 4.1 designed page
     (masthead from ``facts.league``, inline ``<style>`` + inline ``<svg>``) with
@@ -644,9 +598,7 @@ def test_llm_narrator_path_emits_text_and_the_designed_html(
     reply = _six_section_llm_text("Jeanty went 1.01, and it only got weirder.")
     fake = _install_fake_anthropic(monkeypatch, reply)
 
-    result = runner.invoke(
-        app, ["--league", "77", "--draft-recap", "--out-dir", str(tmp_path)]
-    )
+    result = runner.invoke(app, ["--league", "77", "--draft-recap", "--out-dir", str(tmp_path)])
     assert result.exit_code == 0, result.output
     assert fake["create"] == 1  # a clean first pass makes exactly one paid call (I3)
     assert re.search(r"generated \d{4}-\d{2}-\d{2}T", result.output)
@@ -676,9 +628,7 @@ def test_llm_narrator_path_emits_text_and_the_designed_html(
 
     # Story 4.2: the LLM narrator path also writes the email HTML + text part,
     # with the LLM prose as the body and the title still from facts.league
-    email_body = (tmp_path / "commishdesk-77-draft-recap.email.html").read_text(
-        encoding="utf-8"
-    )
+    email_body = (tmp_path / "commishdesk-77-draft-recap.email.html").read_text(encoding="utf-8")
     assert email_body.startswith("<!DOCTYPE html>")
     assert "<title>Trench Warfare — 2025 Draft Recap</title>" in email_body
     assert "Jeanty went 1.01, and it only got weirder." in email_body
@@ -693,11 +643,10 @@ def test_llm_narrator_path_emits_text_and_the_designed_html(
 # --------------------------------------------------------------------------- #
 
 
-def test_hallucination_on_llm_output_regenerates_once_then_degrades(
-    tmp_path: Path, monkeypatch
-) -> None:
-    """A ``regenerate`` tier (a proper noun absent from the payload) triggers one
-    regeneration; a second unclean result degrades to the template. Even though
+def test_hallucination_on_llm_output_regenerates_once_then_degrades(tmp_path: Path, monkeypatch) -> None:
+    """A ``regenerate`` tier (a *number* absent from the payload -- P0.1: a bare
+    proper noun no longer gates) triggers one regeneration; a second unclean
+    result degrades to the template. Even though
     every attempt trips the same tier, ``narrate_draft_recap`` is invoked
     **exactly twice** — the CLI-level ceiling above I3's single paid call."""
     _fake_real_league(monkeypatch)
@@ -705,21 +654,17 @@ def test_hallucination_on_llm_output_regenerates_once_then_degrades(
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
     calls = _stub_narrator(
         monkeypatch,
-        _six_section_llm_text("Bratwurst Lindqvist had the draft of his life."),
+        _six_section_llm_text("the board turned on pick 8675309, of all things."),
     )
-    result = runner.invoke(
-        app, ["--league", "73", "--draft-recap", "--out-dir", str(tmp_path)]
-    )
+    result = runner.invoke(app, ["--league", "73", "--draft-recap", "--out-dir", str(tmp_path)])
     assert result.exit_code == 0, result.output
     assert calls["n"] == 2, calls  # never a 3rd narrate_draft_recap call
     body = (tmp_path / "commishdesk-73-draft-recap.html").read_text(encoding="utf-8")
     assert "<h2>Superlatives</h2>" in body  # degraded to the template render
-    assert "Bratwurst" not in body
+    assert "8675309" not in body
 
 
-def test_hallucination_regeneration_ships_a_clean_retry(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_hallucination_regeneration_ships_a_clean_retry(tmp_path: Path, monkeypatch) -> None:
     """When the one permitted regeneration comes back clean, that regenerated LLM
     prose ships (not the template)."""
     from commishdesk.narrate import NarrationResult
@@ -730,7 +675,7 @@ def test_hallucination_regeneration_ships_a_clean_retry(
 
     replies = iter(
         [
-            _six_section_llm_text("Bratwurst Lindqvist had the draft of his life."),
+            _six_section_llm_text("the board turned on pick 8675309, of all things."),
             _six_section_llm_text("the clean retry reads just fine."),
         ]
     )
@@ -742,9 +687,7 @@ def test_hallucination_regeneration_ships_a_clean_retry(
 
     monkeypatch.setattr("commishdesk.narrate.llm.narrate_draft_recap", _fake)
 
-    result = runner.invoke(
-        app, ["--league", "74", "--draft-recap", "--out-dir", str(tmp_path)]
-    )
+    result = runner.invoke(app, ["--league", "74", "--draft-recap", "--out-dir", str(tmp_path)])
     assert result.exit_code == 0, result.output
     assert calls["n"] == 2
     assert "the clean retry reads just fine." in result.output
@@ -754,18 +697,14 @@ def test_hallucination_regeneration_ships_a_clean_retry(
     assert "Grades weigh each pick against the consensus board" not in body
 
 
-def test_structurally_broken_llm_output_falls_back_to_the_template(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_structurally_broken_llm_output_falls_back_to_the_template(tmp_path: Path, monkeypatch) -> None:
     """An LLM completion missing the six ``## `` headings counts as a failed
     generation — the league is narrated by the template, exit 0."""
     _fake_real_league(monkeypatch)
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
     _stub_narrator(monkeypatch, "just one bare paragraph, no headings at all.")
-    result = runner.invoke(
-        app, ["--league", "75", "--draft-recap", "--out-dir", str(tmp_path)]
-    )
+    result = runner.invoke(app, ["--league", "75", "--draft-recap", "--out-dir", str(tmp_path)])
     assert result.exit_code == 0, result.output
     for heading in SECTION_HEADINGS:
         assert heading in result.output
@@ -773,9 +712,7 @@ def test_structurally_broken_llm_output_falls_back_to_the_template(
     assert "<h2>Superlatives</h2>" in body
 
 
-def test_empty_llm_output_falls_back_to_the_template(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_empty_llm_output_falls_back_to_the_template(tmp_path: Path, monkeypatch) -> None:
     """A whitespace-only completion is a failed generation → template, exit 0."""
     _fake_real_league(monkeypatch)
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
@@ -783,9 +720,7 @@ def test_empty_llm_output_falls_back_to_the_template(
     # narrate_draft_recap itself rejects an empty completion, so simulate a stub
     # that slipped one through to _produce_issue's own validation.
     _stub_narrator(monkeypatch, "   \n  \t \n ")
-    result = runner.invoke(
-        app, ["--league", "76", "--draft-recap", "--out-dir", str(tmp_path)]
-    )
+    result = runner.invoke(app, ["--league", "76", "--draft-recap", "--out-dir", str(tmp_path)])
     assert result.exit_code == 0, result.output
     body = (tmp_path / "commishdesk-76-draft-recap.html").read_text(encoding="utf-8")
     assert "<h2>Team Grades</h2>" in body
@@ -820,9 +755,7 @@ def _stub_template_recap(
     monkeypatch.setattr("commishdesk.narrate.render_draft_recap", _fake)
 
 
-def test_banned_pattern_in_a_template_section_drops_that_section(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_banned_pattern_in_a_template_section_drops_that_section(tmp_path: Path, monkeypatch) -> None:
     """A banned-topic pattern (no manager name) in a non-lead template section:
     that ``Section`` is removed, an alert is emitted, the rest ships, exit 0."""
     _fake_real_league(monkeypatch)
@@ -834,9 +767,7 @@ def test_banned_pattern_in_a_template_section_drops_that_section(
         offending_heading="Superlatives",
         phrase="The betting line on this pick was absurd.",
     )
-    result = runner.invoke(
-        app, ["--league", "80", "--draft-recap", "--no-llm", "--out-dir", str(tmp_path)]
-    )
+    result = runner.invoke(app, ["--league", "80", "--draft-recap", "--no-llm", "--out-dir", str(tmp_path)])
     assert result.exit_code == 0, result.output
     assert "content-safety alert for league 80" in result.output
     body = (tmp_path / "commishdesk-80-draft-recap.html").read_text(encoding="utf-8")
@@ -844,9 +775,7 @@ def test_banned_pattern_in_a_template_section_drops_that_section(
     assert "<h2>Superlatives</h2>" not in body  # the offending section is gone
 
 
-def test_suppression_hitting_the_lead_holds_the_issue(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_suppression_hitting_the_lead_holds_the_issue(tmp_path: Path, monkeypatch) -> None:
     """When suppression would remove **The Lead**, the whole Issue is held:
     ``ContentSafetyError``, exit 1, no HTML."""
     _fake_real_league(monkeypatch)
@@ -858,17 +787,13 @@ def test_suppression_hitting_the_lead_holds_the_issue(
         offending_heading="The Lead",
         phrase="The betting line on this whole draft was absurd.",
     )
-    result = runner.invoke(
-        app, ["--league", "81", "--draft-recap", "--no-llm", "--out-dir", str(tmp_path)]
-    )
+    result = runner.invoke(app, ["--league", "81", "--draft-recap", "--no-llm", "--out-dir", str(tmp_path)])
     assert result.exit_code == 1
     assert "content-safety hold" in result.output
     assert not (tmp_path / "commishdesk-81-draft-recap.html").is_file()
 
 
-def test_total_llm_outage_still_produces_every_league_an_issue(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_total_llm_outage_still_produces_every_league_an_issue(tmp_path: Path, monkeypatch) -> None:
     """Every provider attempt fails across a multi-league run — each league still
     writes a template-narrated HTML Issue and the run exits 0 (FR-17)."""
     from commishdesk import generation
@@ -884,17 +809,13 @@ def test_total_llm_outage_still_produces_every_league_an_issue(
     )
     # --llm with no key and no SDK: every adapter call raises, narrate_draft_recap
     # swallows it to narrator="template".
-    result = runner.invoke(
-        app, ["--league", "200", "--draft-recap", "--llm", "--out-dir", str(tmp_path)]
-    )
+    result = runner.invoke(app, ["--league", "200", "--draft-recap", "--llm", "--out-dir", str(tmp_path)])
     assert result.exit_code == 0, result.output
     for league_id in ("201", "202", "203"):
         assert (tmp_path / f"commishdesk-{league_id}-draft-recap.html").is_file()
 
 
-def test_template_section_manager_plus_banned_term_holds_directly(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_template_section_manager_plus_banned_term_holds_directly(tmp_path: Path, monkeypatch) -> None:
     """A manager's name beside a banned-category term inside a template section is
     a ``named_person_proximity`` hold reached directly (not via
     ``suppress_sections`` returning ``None``): ``ContentSafetyError``, exit 1, no
@@ -908,18 +829,14 @@ def test_template_section_manager_plus_banned_term_holds_directly(
         offending_heading="Team Grades",
         phrase="Pull-Guard Pumas clearly drafted hungover this year.",
     )
-    result = runner.invoke(
-        app, ["--league", "83", "--draft-recap", "--no-llm", "--out-dir", str(tmp_path)]
-    )
+    result = runner.invoke(app, ["--league", "83", "--draft-recap", "--no-llm", "--out-dir", str(tmp_path)])
     assert result.exit_code == 1
     assert "content-safety hold" in result.output
     assert "hungover" in result.output
     assert not (tmp_path / "commishdesk-83-draft-recap.html").is_file()
 
 
-def test_suppress_finding_mapping_to_no_section_holds_the_issue(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_suppress_finding_mapping_to_no_section_holds_the_issue(tmp_path: Path, monkeypatch) -> None:
     """A ``suppress`` tier whose sentence is only in ``recap.title`` (no section)
     cannot be localized — fail closed: ``ContentSafetyError``, exit 1, no HTML,
     and no empty "suppressed section(s)" line."""
@@ -931,18 +848,14 @@ def test_suppress_finding_mapping_to_no_section_holds_the_issue(
         monkeypatch,
         title="The betting line on this whole draft was a joke. Trench Warfare Recap",
     )
-    result = runner.invoke(
-        app, ["--league", "84", "--draft-recap", "--no-llm", "--out-dir", str(tmp_path)]
-    )
+    result = runner.invoke(app, ["--league", "84", "--draft-recap", "--no-llm", "--out-dir", str(tmp_path)])
     assert result.exit_code == 1
     assert "content-safety hold" in result.output
     assert "suppressed section(s) " not in result.output
     assert not (tmp_path / "commishdesk-84-draft-recap.html").is_file()
 
 
-def test_regenerated_llm_attempt_that_holds_exits_1_after_exactly_two_calls(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_regenerated_llm_attempt_that_holds_exits_1_after_exactly_two_calls(tmp_path: Path, monkeypatch) -> None:
     """First attempt trips ``regenerate``; the regenerated attempt trips a
     ``hold`` — ``ContentSafetyError``, exit 1, no HTML, exactly two
     ``narrate_draft_recap`` calls."""
@@ -954,7 +867,7 @@ def test_regenerated_llm_attempt_that_holds_exits_1_after_exactly_two_calls(
 
     replies = iter(
         [
-            _six_section_llm_text("Bratwurst Lindqvist had a monster draft."),
+            _six_section_llm_text("the board turned on pick 8675309, of all things."),
             _six_section_llm_text("Pull-Guard Pumas clearly drafted hungover."),
         ]
     )
@@ -966,18 +879,14 @@ def test_regenerated_llm_attempt_that_holds_exits_1_after_exactly_two_calls(
 
     monkeypatch.setattr("commishdesk.narrate.llm.narrate_draft_recap", _fake)
 
-    result = runner.invoke(
-        app, ["--league", "85", "--draft-recap", "--out-dir", str(tmp_path)]
-    )
+    result = runner.invoke(app, ["--league", "85", "--draft-recap", "--out-dir", str(tmp_path)])
     assert result.exit_code == 1
     assert calls["n"] == 2
     assert "content-safety hold" in result.output
     assert not (tmp_path / "commishdesk-85-draft-recap.html").is_file()
 
 
-def test_content_safety_alert_is_on_stderr_not_stdout(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_content_safety_alert_is_on_stderr_not_stdout(tmp_path: Path, monkeypatch) -> None:
     """The operator alert (`_emit_alerts`) goes to stderr; the recap goes to
     stdout; the alert string never appears in stdout."""
     _fake_real_league(monkeypatch)
@@ -987,18 +896,14 @@ def test_content_safety_alert_is_on_stderr_not_stdout(
         monkeypatch,
         _six_section_llm_text("Honestly, in conclusion, this draft had chaos."),
     )
-    result = runner.invoke(
-        app, ["--league", "86", "--draft-recap", "--out-dir", str(tmp_path)]
-    )
+    result = runner.invoke(app, ["--league", "86", "--draft-recap", "--out-dir", str(tmp_path)])
     assert result.exit_code == 0, result.output
     assert "content-safety alert for league 86" in result.stderr
     assert "## The Lead" in result.stdout  # the template recap went to stdout
     assert "content-safety alert" not in result.stdout
 
 
-def test_llm_completion_is_sanitized_on_the_ship_path(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_llm_completion_is_sanitized_on_the_ship_path(tmp_path: Path, monkeypatch) -> None:
     """A clean six-section completion carrying an ANSI/SGR escape and a control
     char ships as LLM prose — but the escape and control bytes are stripped from
     both stdout and the written HTML (`sanitize_completion`)."""
@@ -1009,9 +914,7 @@ def test_llm_completion_is_sanitized_on_the_ship_path(
         monkeypatch,
         _six_section_llm_text("the \x1b[1mbold bit\x1b[0m and the \x07 bell are cleaned."),
     )
-    result = runner.invoke(
-        app, ["--league", "87", "--draft-recap", "--out-dir", str(tmp_path)]
-    )
+    result = runner.invoke(app, ["--league", "87", "--draft-recap", "--out-dir", str(tmp_path)])
     assert result.exit_code == 0, result.output
     body = (tmp_path / "commishdesk-87-draft-recap.html").read_text(encoding="utf-8")
     for blob in (result.stdout, body):
@@ -1026,9 +929,7 @@ def test_llm_completion_is_sanitized_on_the_ship_path(
 _HOLD_PHRASE = "Pull-Guard Pumas clearly drafted hungover this year."
 
 
-def test_a_suppressible_section_that_names_the_league_still_localizes(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_a_suppressible_section_that_names_the_league_still_localizes(tmp_path: Path, monkeypatch) -> None:
     """P1 — the offending sentence also carries the league name, so the check
     matched it masked. The finding must still report the *unmasked* sentence, or
     ``suppress_sections`` finds no section, ``removed`` comes back empty, and the
@@ -1042,9 +943,7 @@ def test_a_suppressible_section_that_names_the_league_still_localizes(
         offending_heading="Superlatives",
         phrase="Trench Warfare saw the betting line on this pick go absurd.",
     )
-    result = runner.invoke(
-        app, ["--league", "89", "--draft-recap", "--no-llm", "--out-dir", str(tmp_path)]
-    )
+    result = runner.invoke(app, ["--league", "89", "--draft-recap", "--no-llm", "--out-dir", str(tmp_path)])
     assert result.exit_code == 0, result.output
     assert "content-safety hold" not in result.output
     assert "suppressed section(s) Superlatives" in result.stderr
@@ -1072,9 +971,7 @@ def test_allow_content_hold_ships_a_held_issue(
         monkeypatch.setenv(key, value)
     for var in _KEY_VARS:
         monkeypatch.delenv(var, raising=False)
-    _stub_template_recap(
-        monkeypatch, offending_heading="Team Grades", phrase=_HOLD_PHRASE
-    )
+    _stub_template_recap(monkeypatch, offending_heading="Team Grades", phrase=_HOLD_PHRASE)
     result = runner.invoke(
         app,
         ["--league", "90", "--draft-recap", "--no-llm", "--out-dir", str(tmp_path), *flag],
@@ -1111,9 +1008,7 @@ def test_the_same_input_without_the_override_still_holds(
         monkeypatch.setenv(key, value)
     for var in _KEY_VARS:
         monkeypatch.delenv(var, raising=False)
-    _stub_template_recap(
-        monkeypatch, offending_heading="Team Grades", phrase=_HOLD_PHRASE
-    )
+    _stub_template_recap(monkeypatch, offending_heading="Team Grades", phrase=_HOLD_PHRASE)
     result = runner.invoke(
         app,
         ["--league", "91", "--draft-recap", "--no-llm", "--out-dir", str(tmp_path), *flag],
@@ -1124,9 +1019,7 @@ def test_the_same_input_without_the_override_still_holds(
     assert not (tmp_path / "commishdesk-91-draft-recap.html").is_file()
 
 
-def test_allow_content_hold_ships_the_llm_text_on_the_llm_path(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_allow_content_hold_ships_the_llm_text_on_the_llm_path(tmp_path: Path, monkeypatch) -> None:
     """On the LLM path the override ships the validated completion itself, not a
     degraded template render."""
     _fake_real_league(monkeypatch)
@@ -1136,8 +1029,12 @@ def test_allow_content_hold_ships_the_llm_text_on_the_llm_path(
     result = runner.invoke(
         app,
         [
-            "--league", "92", "--draft-recap",
-            "--allow-content-hold", "--out-dir", str(tmp_path),
+            "--league",
+            "92",
+            "--draft-recap",
+            "--allow-content-hold",
+            "--out-dir",
+            str(tmp_path),
         ],
     )
     assert result.exit_code == 0, result.output
@@ -1148,9 +1045,7 @@ def test_allow_content_hold_ships_the_llm_text_on_the_llm_path(
     assert "Grades weigh each pick against the consensus board" not in body
 
 
-def test_allow_content_hold_ships_an_unlocalizable_suppress_finding(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_allow_content_hold_ships_an_unlocalizable_suppress_finding(tmp_path: Path, monkeypatch) -> None:
     """The other hold path: a suppress-tier finding that maps to no section.
     Overridden, the untrimmed recap ships."""
     _fake_real_league(monkeypatch)
@@ -1164,8 +1059,13 @@ def test_allow_content_hold_ships_an_unlocalizable_suppress_finding(
     result = runner.invoke(
         app,
         [
-            "--league", "93", "--draft-recap", "--no-llm",
-            "--allow-content-hold", "--out-dir", str(tmp_path),
+            "--league",
+            "93",
+            "--draft-recap",
+            "--no-llm",
+            "--allow-content-hold",
+            "--out-dir",
+            str(tmp_path),
         ],
     )
     assert result.exit_code == 0, result.output
@@ -1173,9 +1073,7 @@ def test_allow_content_hold_ships_an_unlocalizable_suppress_finding(
     assert (tmp_path / "commishdesk-93-draft-recap.html").is_file()
 
 
-def test_allow_content_hold_ships_a_lead_removing_suppression(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_allow_content_hold_ships_a_lead_removing_suppression(tmp_path: Path, monkeypatch) -> None:
     """The third hold path, and the one with teeth: suppression that would drop
     **The Lead**. Overridden, ``_produce_issue`` must return the *untrimmed*
     recap — if it ever returned the ``None`` trimmed one instead,
@@ -1194,8 +1092,13 @@ def test_allow_content_hold_ships_a_lead_removing_suppression(
     result = runner.invoke(
         app,
         [
-            "--league", "96", "--draft-recap", "--no-llm",
-            "--allow-content-hold", "--out-dir", str(tmp_path),
+            "--league",
+            "96",
+            "--draft-recap",
+            "--no-llm",
+            "--allow-content-hold",
+            "--out-dir",
+            str(tmp_path),
         ],
     )
     assert result.exit_code == 0, result.output
@@ -1205,9 +1108,7 @@ def test_allow_content_hold_ships_a_lead_removing_suppression(
     assert "<h2>The Lead</h2>" in body  # the untrimmed recap, Lead included
 
 
-def test_allow_content_hold_does_not_bypass_a_per_league_fault(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_allow_content_hold_does_not_bypass_a_per_league_fault(tmp_path: Path, monkeypatch) -> None:
     """The override touches ``ContentSafetyError`` and nothing else. A typed
     fault raised **inside** the league loop still lands in the AD-9 per-league
     catch: one line on stderr, exit 1, no HTML — with the flag on."""
@@ -1230,8 +1131,13 @@ def test_allow_content_hold_does_not_bypass_a_per_league_fault(
     result = runner.invoke(
         app,
         [
-            "--league", "94", "--draft-recap", "--no-llm",
-            "--allow-content-hold", "--out-dir", str(tmp_path),
+            "--league",
+            "94",
+            "--draft-recap",
+            "--no-llm",
+            "--allow-content-hold",
+            "--out-dir",
+            str(tmp_path),
         ],
     )
     assert result.exit_code == 1
@@ -1241,9 +1147,7 @@ def test_allow_content_hold_does_not_bypass_a_per_league_fault(
     assert not list(tmp_path.glob("*.html"))
 
 
-def test_allow_content_hold_does_not_bypass_a_pre_loop_fault(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_allow_content_hold_does_not_bypass_a_pre_loop_fault(tmp_path: Path, monkeypatch) -> None:
     """And a malformed ``COMMISHDESK_LLM_*`` still aborts before the league loop
     even with the flag on."""
     _fake_real_league(monkeypatch)
@@ -1252,8 +1156,12 @@ def test_allow_content_hold_does_not_bypass_a_pre_loop_fault(
     result = runner.invoke(
         app,
         [
-            "--league", "97", "--draft-recap",
-            "--allow-content-hold", "--out-dir", str(tmp_path),
+            "--league",
+            "97",
+            "--draft-recap",
+            "--allow-content-hold",
+            "--out-dir",
+            str(tmp_path),
         ],
     )
     assert result.exit_code == 1
@@ -1287,9 +1195,7 @@ def test_allow_content_hold_helper(flag, env, expected, monkeypatch) -> None:
     assert _allow_content_hold(flag) is expected
 
 
-def test_a_league_named_after_a_banned_term_still_produces_an_issue(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_a_league_named_after_a_banned_term_still_produces_an_issue(tmp_path: Path, monkeypatch) -> None:
     """D1 end to end — "The Sportsbook League" on the zero-credential template
     path needs no flag at all: exit 0, HTML written, and the real league name
     still in the title and the dateline."""
@@ -1320,9 +1226,7 @@ def test_a_league_named_after_a_banned_term_still_produces_an_issue(
 
     monkeypatch.setattr("commishdesk.adapters.sleeper.SleeperAdapter", _FakeAdapter)
 
-    result = runner.invoke(
-        app, ["--league", "95", "--draft-recap", "--no-llm", "--out-dir", str(tmp_path)]
-    )
+    result = runner.invoke(app, ["--league", "95", "--draft-recap", "--no-llm", "--out-dir", str(tmp_path)])
     assert result.exit_code == 0, result.output
     assert "content-safety" not in result.stderr
     body = (tmp_path / "commishdesk-95-draft-recap.html").read_text(encoding="utf-8")
@@ -1397,29 +1301,21 @@ def test_post_without_a_webhook_fails_before_any_sleeper_fetch(
         def close(self) -> None: ...
 
     monkeypatch.setattr("commishdesk.adapters.sleeper.SleeperAdapter", _MustNotFetchAdapter)
-    result = runner.invoke(
-        app, ["--league", "170", "--draft-recap", "--post", "--out-dir", str(tmp_path)]
-    )
+    result = runner.invoke(app, ["--league", "170", "--draft-recap", "--post", "--out-dir", str(tmp_path)])
     assert result.exit_code == 1
     assert "Traceback" not in result.output
     assert "COMMISHDESK_DISCORD_WEBHOOK_URL" in result.output
     assert not list(tmp_path.iterdir())
 
 
-def test_post_without_a_webhook_on_the_demo_path_also_fails(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_post_without_a_webhook_on_the_demo_path_also_fails(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.delenv("COMMISHDESK_DISCORD_WEBHOOK_URL", raising=False)
-    result = runner.invoke(
-        app, ["--league", "demo", "--draft-recap", "--post", "--out-dir", str(tmp_path)]
-    )
+    result = runner.invoke(app, ["--league", "demo", "--draft-recap", "--post", "--out-dir", str(tmp_path)])
     assert result.exit_code == 1
     assert not list(tmp_path.iterdir())
 
 
-def test_post_with_a_malformed_webhook_url_fails_before_any_paid_call(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_post_with_a_malformed_webhook_url_fails_before_any_paid_call(tmp_path: Path, monkeypatch) -> None:
     """review-loop 2, finding 1: a non-blank but non-Discord-shaped webhook URL
     must fail the same fail-fast way a blank one does — before any Sleeper
     fetch or paid LLM call, not after burning the full narration cost."""
@@ -1430,16 +1326,12 @@ def test_post_with_a_malformed_webhook_url_fails_before_any_paid_call(
         def __init__(self, *a: object, **k: object) -> None: ...
 
         def fetch(self, league_id: str) -> dict:
-            raise AssertionError(
-                "Sleeper must not be fetched before the --post webhook check"
-            )
+            raise AssertionError("Sleeper must not be fetched before the --post webhook check")
 
         def close(self) -> None: ...
 
     monkeypatch.setattr("commishdesk.adapters.sleeper.SleeperAdapter", _MustNotFetchAdapter)
-    result = runner.invoke(
-        app, ["--league", "171", "--draft-recap", "--post", "--out-dir", str(tmp_path)]
-    )
+    result = runner.invoke(app, ["--league", "171", "--draft-recap", "--post", "--out-dir", str(tmp_path)])
     assert result.exit_code == 1
     assert "Traceback" not in result.output
     assert "not a Discord webhook" in result.output
@@ -1447,15 +1339,11 @@ def test_post_with_a_malformed_webhook_url_fails_before_any_paid_call(
     assert not list(tmp_path.iterdir())
 
 
-def test_post_first_run_posts_once_and_writes_every_file(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_post_first_run_posts_once_and_writes_every_file(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("COMMISHDESK_DISCORD_WEBHOOK_URL", _FAKE_WEBHOOK_URL)
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
     calls = _stub_post_discord_text(monkeypatch)
-    result = runner.invoke(
-        app, ["--league", "demo", "--draft-recap", "--post", "--out-dir", str(tmp_path)]
-    )
+    result = runner.invoke(app, ["--league", "demo", "--draft-recap", "--post", "--out-dir", str(tmp_path)])
     assert result.exit_code == 0, result.output
     assert len(calls) == 1
     assert calls[0][0] == _FAKE_WEBHOOK_URL
@@ -1471,39 +1359,29 @@ def test_post_first_run_posts_once_and_writes_every_file(
     assert len(ledger) == 1 and ledger[0].channel == "discord"
 
 
-def test_post_second_identical_run_skips_discord_but_rewrites_files(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_post_second_identical_run_skips_discord_but_rewrites_files(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("COMMISHDESK_DISCORD_WEBHOOK_URL", _FAKE_WEBHOOK_URL)
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
     calls = _stub_post_discord_text(monkeypatch)
 
-    r1 = runner.invoke(
-        app, ["--league", "demo", "--draft-recap", "--post", "--out-dir", str(tmp_path)]
-    )
+    r1 = runner.invoke(app, ["--league", "demo", "--draft-recap", "--post", "--out-dir", str(tmp_path)])
     assert r1.exit_code == 0, r1.output
     assert len(calls) == 1
 
-    r2 = runner.invoke(
-        app, ["--league", "demo", "--draft-recap", "--post", "--out-dir", str(tmp_path)]
-    )
+    r2 = runner.invoke(app, ["--league", "demo", "--draft-recap", "--post", "--out-dir", str(tmp_path)])
     assert r2.exit_code == 0, r2.output
     assert len(calls) == 1  # no second Discord post
     assert "already confirmed" in r2.output
     assert (tmp_path / "commishdesk-demo-draft-recap.html").is_file()  # rewritten regardless
 
 
-def test_post_on_demo_creates_a_store_but_never_persists_storylines(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_post_on_demo_creates_a_store_but_never_persists_storylines(tmp_path: Path, monkeypatch) -> None:
     """review-loop 1 regression: --post gives the demo path a Store (for the
     Send Ledger), which must NOT re-enable storyline persistence for demo."""
     monkeypatch.setenv("COMMISHDESK_DISCORD_WEBHOOK_URL", _FAKE_WEBHOOK_URL)
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
     _stub_post_discord_text(monkeypatch)
-    result = runner.invoke(
-        app, ["--league", "demo", "--draft-recap", "--post", "--out-dir", str(tmp_path)]
-    )
+    result = runner.invoke(app, ["--league", "demo", "--draft-recap", "--post", "--out-dir", str(tmp_path)])
     assert result.exit_code == 0, result.output
 
     from commishdesk.store import FileStore
@@ -1513,15 +1391,11 @@ def test_post_on_demo_creates_a_store_but_never_persists_storylines(
     assert store.read_ledger("demo", 1) != []  # but the ledger WAS written
 
 
-def test_post_discord_failure_is_exit_1_with_no_ledger_entry(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_post_discord_failure_is_exit_1_with_no_ledger_entry(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("COMMISHDESK_DISCORD_WEBHOOK_URL", _FAKE_WEBHOOK_URL)
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
     _stub_post_discord_text(monkeypatch, fail=DeliveryError("discord rejected the webhook"))
-    result = runner.invoke(
-        app, ["--league", "demo", "--draft-recap", "--post", "--out-dir", str(tmp_path)]
-    )
+    result = runner.invoke(app, ["--league", "demo", "--draft-recap", "--post", "--out-dir", str(tmp_path)])
     assert result.exit_code == 1
     assert "Traceback" not in result.output
     assert "discord rejected the webhook" in result.output
@@ -1534,9 +1408,7 @@ def test_post_discord_failure_is_exit_1_with_no_ledger_entry(
     assert store.read_ledger("demo", 1) == []
 
 
-def test_post_real_league_full_flow_with_llm_narration(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_post_real_league_full_flow_with_llm_narration(tmp_path: Path, monkeypatch) -> None:
     """The full acceptance criterion: a working webhook, an estimate under
     ceiling, all three surfaces rendered, and one Discord post."""
     _fake_real_league(monkeypatch)
@@ -1546,9 +1418,7 @@ def test_post_real_league_full_flow_with_llm_narration(
     calls = _stub_post_discord_text(monkeypatch)
     _stub_narrator(monkeypatch, _six_section_llm_text("posted with the LLM narrator."))
 
-    result = runner.invoke(
-        app, ["--league", "169", "--draft-recap", "--post", "--out-dir", str(tmp_path)]
-    )
+    result = runner.invoke(app, ["--league", "169", "--draft-recap", "--post", "--out-dir", str(tmp_path)])
     assert result.exit_code == 0, result.output
     assert "estimated cost: $" in result.output
     assert len(calls) == 1
@@ -1558,9 +1428,7 @@ def test_post_real_league_full_flow_with_llm_narration(
     assert (tmp_path / "commishdesk-169-draft-recap.txt").is_file()
 
 
-def test_content_safety_hold_with_post_makes_no_discord_post_or_ledger_entry(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_content_safety_hold_with_post_makes_no_discord_post_or_ledger_entry(tmp_path: Path, monkeypatch) -> None:
     """Defensive regression (review-loop 1): a held Issue must never reach the
     --post block — structurally guaranteed by ``_produce_issue`` raising before
     ``if post:``, but untested at review-loop 0."""
@@ -1573,9 +1441,7 @@ def test_content_safety_hold_with_post_makes_no_discord_post_or_ledger_entry(
         monkeypatch,
         _six_section_llm_text("Pull-Guard Pumas clearly drafted hungover this year."),
     )
-    result = runner.invoke(
-        app, ["--league", "168", "--draft-recap", "--post", "--out-dir", str(tmp_path)]
-    )
+    result = runner.invoke(app, ["--league", "168", "--draft-recap", "--post", "--out-dir", str(tmp_path)])
     assert result.exit_code == 1
     assert "content-safety hold" in result.output
     assert not calls
@@ -1587,9 +1453,7 @@ def test_content_safety_hold_with_post_makes_no_discord_post_or_ledger_entry(
     assert store.read_ledger("168", 1) == []
 
 
-def test_post_run_every_json_log_line_carries_league_id(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_post_run_every_json_log_line_carries_league_id(tmp_path: Path, monkeypatch) -> None:
     """The league_id log_context binding (bound once in run()) must cover the
     whole --post path, Discord call included — one shared binding site, not a
     second one scoped narrower (pattern: tests/test_logging.py:53)."""
@@ -1599,51 +1463,44 @@ def test_post_run_every_json_log_line_carries_league_id(
     result = runner.invoke(
         app,
         [
-            "--league", "demo", "--draft-recap", "--post",
-            "--out-dir", str(tmp_path), "--verbose",
+            "--league",
+            "demo",
+            "--draft-recap",
+            "--post",
+            "--out-dir",
+            str(tmp_path),
+            "--verbose",
         ],
     )
     assert result.exit_code == 0, result.output
-    records = [
-        json.loads(line) for line in result.stderr.splitlines() if line.strip().startswith("{")
-    ]
+    records = [json.loads(line) for line in result.stderr.splitlines() if line.strip().startswith("{")]
     assert records, result.stderr
     assert all(r.get("league_id") == "demo" for r in records)
     # proves the Discord/ledger area itself is in scope, not just the bookends
     assert any("confirmed delivery" in r.get("msg", "") for r in records)
 
 
-def test_cost_estimate_under_ceiling_prints_before_produce_issue_and_proceeds(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_cost_estimate_under_ceiling_prints_before_produce_issue_and_proceeds(tmp_path: Path, monkeypatch) -> None:
     _fake_real_league(monkeypatch)
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
     _stub_narrator(monkeypatch, _six_section_llm_text("cost estimate happy path."))
-    result = runner.invoke(
-        app, ["--league", "160", "--draft-recap", "--out-dir", str(tmp_path)]
-    )
+    result = runner.invoke(app, ["--league", "160", "--draft-recap", "--out-dir", str(tmp_path)])
     assert result.exit_code == 0, result.output
     assert "estimated cost: $" in result.output
     assert "(ceiling $1.0000)" in result.output
-    assert result.output.index("estimated cost") < result.output.index(
-        "cost estimate happy path."
-    )
+    assert result.output.index("estimated cost") < result.output.index("cost estimate happy path.")
     body = (tmp_path / "commishdesk-160-draft-recap.html").read_text(encoding="utf-8")
     assert "cost estimate happy path." in body
 
 
-def test_cost_estimate_over_ceiling_aborts_before_any_paid_call(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_cost_estimate_over_ceiling_aborts_before_any_paid_call(tmp_path: Path, monkeypatch) -> None:
     _fake_real_league(monkeypatch)
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
     monkeypatch.setenv("COMMISHDESK_COST_CEILING_USD", "0.000001")
     calls = _stub_narrator(monkeypatch, _six_section_llm_text("must never appear."))
-    result = runner.invoke(
-        app, ["--league", "161", "--draft-recap", "--out-dir", str(tmp_path)]
-    )
+    result = runner.invoke(app, ["--league", "161", "--draft-recap", "--out-dir", str(tmp_path)])
     assert result.exit_code == 1
     assert "Traceback" not in result.output
     assert "estimated cost: $" in result.output  # printed either way
@@ -1653,26 +1510,20 @@ def test_cost_estimate_over_ceiling_aborts_before_any_paid_call(
     assert "must never appear." not in result.output
 
 
-def test_cost_estimate_unknown_model_id_raises_naming_the_model(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_cost_estimate_unknown_model_id_raises_naming_the_model(tmp_path: Path, monkeypatch) -> None:
     _fake_real_league(monkeypatch)
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
     monkeypatch.setenv("COMMISHDESK_LLM_PRIMARY", "anthropic:claude-totally-unpriced")
     calls = _stub_narrator(monkeypatch, _six_section_llm_text("must never appear."))
-    result = runner.invoke(
-        app, ["--league", "162", "--draft-recap", "--out-dir", str(tmp_path)]
-    )
+    result = runner.invoke(app, ["--league", "162", "--draft-recap", "--out-dir", str(tmp_path)])
     assert result.exit_code == 1
     assert "anthropic:claude-totally-unpriced" in result.output
     assert calls["n"] == 0
     assert not (tmp_path / "commishdesk-162-draft-recap.html").is_file()
 
 
-def test_cost_estimate_uses_the_pricier_of_primary_or_fallback(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_cost_estimate_uses_the_pricier_of_primary_or_fallback(tmp_path: Path, monkeypatch) -> None:
     """review-loop 1: swap the two priced defaults so the *fallback* is the
     pricier model — the ceiling check must still use the higher figure. A
     regression that priced ``llm_config.primary`` alone would pass this
@@ -1684,18 +1535,14 @@ def test_cost_estimate_uses_the_pricier_of_primary_or_fallback(
     monkeypatch.setenv("COMMISHDESK_LLM_FALLBACK", "anthropic:claude-sonnet-5")
     monkeypatch.setenv("COMMISHDESK_COST_CEILING_USD", "0.05")
     calls = _stub_narrator(monkeypatch, _six_section_llm_text("must never appear."))
-    result = runner.invoke(
-        app, ["--league", "163", "--draft-recap", "--out-dir", str(tmp_path)]
-    )
+    result = runner.invoke(app, ["--league", "163", "--draft-recap", "--out-dir", str(tmp_path)])
     assert result.exit_code == 1
     assert "exceeds the ceiling" in result.output
     assert calls["n"] == 0
     assert not (tmp_path / "commishdesk-163-draft-recap.html").is_file()
 
 
-def test_cost_estimate_includes_the_voice_system_prompt(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_cost_estimate_includes_the_voice_system_prompt(tmp_path: Path, monkeypatch) -> None:
     """review-loop 2, finding 2: every real provider call also sends
     ``voice.system_prompt`` as the system message (``AnthropicClient.generate`` /
     ``GoogleClient.generate``, ``narrate/llm.py``) — a worst-case bound that only
@@ -1725,13 +1572,9 @@ def test_cost_estimate_includes_the_voice_system_prompt(
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
     _stub_narrator(monkeypatch, _six_section_llm_text("nothing special here."))
 
-    result = runner.invoke(
-        app, ["--league", "175", "--draft-recap", "--out-dir", str(tmp_path)]
-    )
+    result = runner.invoke(app, ["--league", "175", "--draft-recap", "--out-dir", str(tmp_path)])
     assert result.exit_code == 0, result.output
-    printed_line = next(
-        line for line in result.output.splitlines() if line.startswith("estimated cost: ")
-    )
+    printed_line = next(line for line in result.output.splitlines() if line.startswith("estimated cost: "))
     printed_amount = float(re.search(r"\$([\d.]+)", printed_line).group(1))
 
     # Reconstruct the same Facts doc the run actually built (mirroring
@@ -1745,20 +1588,21 @@ def test_cost_estimate_includes_the_voice_system_prompt(
     consensus = compute_consensus_metrics(model, slots)
     grades = compute_draft_grades(model, consensus)
     doc = build_draft_recap_facts(
-        model, board, consensus, grades,
-        generated_at=datetime.now(tz=UTC), draft_id=model.draft.id,
-        consensus_source_name="fantasycalc", consensus_as_of="2099-07",
+        model,
+        board,
+        consensus,
+        grades,
+        generated_at=datetime.now(tz=UTC),
+        draft_id=model.draft.id,
+        consensus_source_name="fantasycalc",
+        consensus_as_of="2099-07",
         previous_storylines=[],
     )
     narration_only_payload = build_narration_payload(doc.narration)
     llm_config = load_llm_config({})
     per_call_narration_only = max(
-        estimate_cost_usd(
-            narration_only_payload, llm_config.primary, max_output_tokens=MAX_OUTPUT_TOKENS
-        ),
-        estimate_cost_usd(
-            narration_only_payload, llm_config.fallback, max_output_tokens=MAX_OUTPUT_TOKENS
-        ),
+        estimate_cost_usd(narration_only_payload, llm_config.primary, max_output_tokens=MAX_OUTPUT_TOKENS),
+        estimate_cost_usd(narration_only_payload, llm_config.fallback, max_output_tokens=MAX_OUTPUT_TOKENS),
     )
     narration_only_total = per_call_narration_only * 2  # _MAX_BILLABLE_NARRATION_ATTEMPTS
 
@@ -1767,22 +1611,16 @@ def test_cost_estimate_includes_the_voice_system_prompt(
     assert printed_amount > narration_only_total
 
 
-def test_cost_estimate_reflects_the_two_attempt_multiplier(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_cost_estimate_reflects_the_two_attempt_multiplier(tmp_path: Path, monkeypatch) -> None:
     """review-loop 1: the printed number is per_call * _MAX_BILLABLE_NARRATION_ATTEMPTS
     (2), not per_call alone — proven by comparing the real run against the same
     run with the multiplier patched to 1."""
     import commishdesk.cli as cli_mod
 
     def _estimate_line(league_id: str) -> str:
-        result = runner.invoke(
-            app, ["--league", league_id, "--draft-recap", "--out-dir", str(tmp_path)]
-        )
+        result = runner.invoke(app, ["--league", league_id, "--draft-recap", "--out-dir", str(tmp_path)])
         assert result.exit_code == 0, result.output
-        return next(
-            line for line in result.output.splitlines() if line.startswith("estimated cost: ")
-        )
+        return next(line for line in result.output.splitlines() if line.startswith("estimated cost: "))
 
     _fake_real_league(monkeypatch)
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
@@ -1804,9 +1642,7 @@ def test_cost_estimate_reflects_the_two_attempt_multiplier(
     assert amount_2x == pytest.approx(amount_1x * 2, abs=2e-4)
 
 
-def test_stale_pricing_table_warns_once_through_the_cli(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_stale_pricing_table_warns_once_through_the_cli(tmp_path: Path, monkeypatch) -> None:
     """review-loop 1: review-loop 0 only unit-tested is_pricing_stale() in
     isolation, never through cli.py — this proves the call site (args, logic,
     and that it is actually reached) all still work."""
@@ -1823,9 +1659,84 @@ def test_stale_pricing_table_warns_once_through_the_cli(
     far_future = updated + timedelta(days=narrate_pricing.PRICING_REVIEW_INTERVAL_DAYS + 1)
     monkeypatch.setattr(narrate_pricing, "_today", lambda: far_future)
 
-    result = runner.invoke(
-        app, ["--league", "167", "--draft-recap", "--out-dir", str(tmp_path)]
-    )
+    result = runner.invoke(app, ["--league", "167", "--draft-recap", "--out-dir", str(tmp_path)])
     assert result.exit_code == 0, result.output
     assert "price table was last reviewed" in result.stderr
     assert (tmp_path / "commishdesk-167-draft-recap.html").is_file()  # staleness never blocks
+
+
+# --------------------------------------------------------------------------- #
+# the repair tier — excise before spending a regeneration (P0.3)
+# --------------------------------------------------------------------------- #
+
+
+def _padded_six_section(offender: str) -> str:
+    """Six sections with enough real body that excising one sentence stays
+    above the repair retention floor — i.e. a realistically-sized recap, not
+    the minimal stub ``_six_section_llm_text`` produces."""
+    filler = (
+        "nothing in this paragraph is worth flagging and it runs on for a "
+        "good while so the retention floor has room to breathe when one "
+        "sentence is removed from somewhere else in the issue."
+    )
+    lines = ["Trench Warfare Draft Recap", ""]
+    for heading in SECTION_HEADINGS:
+        lines += [f"## {heading}", "", filler, ""]
+    lines[3:3] = [offender, ""]  # drop the offender into The Lead
+    return "\n".join(lines)
+
+
+def test_repairable_finding_costs_no_extra_paid_call(tmp_path: Path, monkeypatch) -> None:
+    """The whole point of the repair tier. A gambling-metaphor sentence is excised,
+    the Issue ships as LLM prose, and ``narrate_draft_recap`` is called
+    EXACTLY ONCE — no regeneration, no degrade to the template.
+
+    This is the fix for the measured waste: the P0.1 validation spent ~13
+    paid calls on 7 findings and caught 0 real hallucinations."""
+    _fake_real_league(monkeypatch)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+    calls = _stub_narrator(
+        monkeypatch,
+        _padded_six_section("That opening parlay at picks 2 and 3 was pure gold."),
+    )
+    result = runner.invoke(app, ["--league", "91", "--draft-recap", "--out-dir", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    assert calls["n"] == 1, calls  # <- the saving
+    body = (tmp_path / "commishdesk-91-draft-recap.html").read_text(encoding="utf-8")
+    assert "parlay" not in body
+    assert "nothing in this paragraph" in body  # shipped LLM prose, not the template
+
+
+def test_unrepairable_finding_still_regenerates(tmp_path: Path, monkeypatch) -> None:
+    """Repair narrows the regeneration path, it does not remove it. A stub too
+    short to survive an excision falls through to the old behaviour: one
+    regeneration, then the template."""
+    _fake_real_league(monkeypatch)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+    calls = _stub_narrator(
+        monkeypatch,
+        _six_section_llm_text("the board turned on pick 8675309, of all things."),
+    )
+    result = runner.invoke(app, ["--league", "92", "--draft-recap", "--out-dir", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    assert calls["n"] == 2, calls
+    body = (tmp_path / "commishdesk-92-draft-recap.html").read_text(encoding="utf-8")
+    assert "<h2>Superlatives</h2>" in body  # degraded to the template render
+
+
+def test_repair_never_launders_a_hold(tmp_path: Path, monkeypatch) -> None:
+    """A hold must not become a shipped Issue just because the offending
+    sentence happens to be localizable."""
+    _fake_real_league(monkeypatch)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+    _stub_narrator(
+        monkeypatch,
+        _padded_six_section("Pull-Guard Pumas clearly drafted hungover this year."),
+    )
+    result = runner.invoke(app, ["--league", "93", "--draft-recap", "--out-dir", str(tmp_path)])
+    assert result.exit_code == 1
+    assert "content-safety hold" in result.output
+    assert not (tmp_path / "commishdesk-93-draft-recap.html").is_file()

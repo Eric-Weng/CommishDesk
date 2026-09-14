@@ -73,6 +73,14 @@ def build_league_model(bundle: Mapping[str, Any]) -> LeagueModel:
     users = _section(bundle, "users", _LIST)
     draft = _section(bundle, "draft", _MAPPING)
     draft_picks = _section(bundle, "draft_picks", _LIST)
+    # Optional: an older bundle may predate the players blob. Absent it, every
+    # player simply carries college=None and the narrator says nothing about it.
+    raw_players = bundle.get("players")
+    players_by_id: dict[str, Mapping[str, Any]] = (
+        {str(k): v for k, v in raw_players.items() if isinstance(v, Mapping)}
+        if isinstance(raw_players, Mapping)
+        else {}
+    )
 
     if not rosters:
         raise IngestError("bundle has no rosters")
@@ -85,7 +93,7 @@ def build_league_model(bundle: Mapping[str, Any]) -> LeagueModel:
             key=lambda team: _sort_key(team.roster_id),
         )
         picks = sorted(
-            (_build_pick(_object(item, "draft_picks"), users_by_id) for item in draft_picks),
+            (_build_pick(_object(item, "draft_picks"), users_by_id, players_by_id) for item in draft_picks),
             key=lambda pick: pick.pick_no,
         )
         return LeagueModel(
@@ -98,9 +106,7 @@ def build_league_model(bundle: Mapping[str, Any]) -> LeagueModel:
             draft=_build_draft(draft),
         )
     except _CAUGHT as exc:
-        raise IngestError(
-            f"could not build a league model from the bundle ({type(exc).__name__})"
-        ) from exc
+        raise IngestError(f"could not build a league model from the bundle ({type(exc).__name__})") from exc
 
 
 # --------------------------------------------------------------------------- #
@@ -121,9 +127,7 @@ def _section(bundle: Mapping[str, Any], key: str, kind: str) -> Any:
         raise IngestError(f"bundle is missing the required {key!r} section") from exc
     ok = isinstance(value, Mapping) if kind == _MAPPING else isinstance(value, list)
     if not ok:
-        raise IngestError(
-            f"{key!r} section is {type(value).__name__}, expected a JSON {kind}"
-        )
+        raise IngestError(f"{key!r} section is {type(value).__name__}, expected a JSON {kind}")
     return value
 
 
@@ -131,9 +135,7 @@ def _object(item: Any, section: str) -> Mapping[str, Any]:
     """Assert a list item is a JSON object; a non-object item is a structural
     failure, not something to skip over."""
     if not isinstance(item, Mapping):
-        raise IngestError(
-            f"{section!r} contains a non-object item ({type(item).__name__})"
-        )
+        raise IngestError(f"{section!r} contains a non-object item ({type(item).__name__})")
     return item
 
 
@@ -186,11 +188,7 @@ def _build_format(league: Mapping[str, Any], rosters: list[Any]) -> LeagueFormat
             # but record eligibility unknown so a downstream lookup never KeyErrors.
             flex_eligibility[slot] = []
 
-    team_count = (
-        _as_int(settings.get("num_teams"))
-        or _as_int(league.get("total_rosters"))
-        or len(rosters)
-    )
+    team_count = _as_int(settings.get("num_teams")) or _as_int(league.get("total_rosters")) or len(rosters)
     is_superflex_or_2qb = roster_slots.count("QB") >= 2 or "SUPER_FLEX" in roster_slots
 
     return LeagueFormat(
@@ -212,9 +210,7 @@ def _te_premium(scoring: Mapping[str, Any]) -> bool:
     return rec_te > (_as_float(scoring.get("rec")) or 0.0)
 
 
-def _scoring_label(
-    scoring: Mapping[str, Any], roster_slots: list[str], settings: Mapping[str, Any]
-) -> str:
+def _scoring_label(scoring: Mapping[str, Any], roster_slots: list[str], settings: Mapping[str, Any]) -> str:
     """Best-effort, deterministic scoring label. Wording is not an acceptance
     oracle (Story 2.5 reconciles the built Facts JSON and may refine it)."""
     tokens: list[str] = []
@@ -244,9 +240,7 @@ def _scoring_label(
     return " · ".join(tokens)
 
 
-def _divisions(
-    league: Mapping[str, Any], rosters: list[Any], settings: Mapping[str, Any]
-) -> list[Division]:
+def _divisions(league: Mapping[str, Any], rosters: list[Any], settings: Mapping[str, Any]) -> list[Division]:
     ids: set[int] = set()
     count = _as_int(settings.get("divisions"))
     if count and 0 < count <= _MAX_DECLARED_DIVISIONS:
@@ -273,9 +267,7 @@ def _divisions(
 # --------------------------------------------------------------------------- #
 
 
-def _build_team(
-    roster: Mapping[str, Any], users_by_id: dict[str, Mapping[str, Any]]
-) -> Team:
+def _build_team(roster: Mapping[str, Any], users_by_id: dict[str, Mapping[str, Any]]) -> Team:
     owner_id_raw = roster.get("owner_id")
     owner_id = str(owner_id_raw) if owner_id_raw is not None else None
     user = users_by_id.get(owner_id) if owner_id is not None else None
@@ -290,9 +282,7 @@ def _build_team(
     )
 
 
-def _team_name(
-    roster: Mapping[str, Any], user: Mapping[str, Any] | None
-) -> str | None:
+def _team_name(roster: Mapping[str, Any], user: Mapping[str, Any] | None) -> str | None:
     """The team's display name, preferring the per-league roster metadata over
     the user's own. Sanitized; ``None`` when neither source has a usable value
     (an orphan roster has none)."""
@@ -324,15 +314,15 @@ def _co_owners(raw: Any) -> list[str]:
 
 
 def _build_pick(
-    pick: Mapping[str, Any], users_by_id: dict[str, Mapping[str, Any]]
+    pick: Mapping[str, Any],
+    users_by_id: dict[str, Mapping[str, Any]],
+    players_by_id: dict[str, Mapping[str, Any]] | None = None,
 ) -> Pick:
     round_no = int(pick["round"])
     slot = int(pick["draft_slot"])
 
     picked_by = pick.get("picked_by")
-    manager = (
-        _display_name(users_by_id.get(str(picked_by))) if picked_by is not None else None
-    )
+    manager = _display_name(users_by_id.get(str(picked_by))) if picked_by is not None else None
 
     return Pick(
         pick_no=int(pick["pick_no"]),
@@ -341,20 +331,37 @@ def _build_pick(
         board_label=f"{round_no}.{slot:02d}",
         roster_id=str(pick["roster_id"]),
         manager=manager,
-        player=_build_player(pick),
+        player=_build_player(pick, players_by_id),
     )
 
 
-def _build_player(pick: Mapping[str, Any]) -> Player:
+def _build_player(pick: Mapping[str, Any], players_by_id: dict[str, Mapping[str, Any]] | None = None) -> Player:
     metadata = _mapping(pick.get("metadata"))
     first = _text(metadata.get("first_name")).strip()
     last = _text(metadata.get("last_name")).strip()
+    sleeper_id = str(metadata.get("player_id") or pick.get("player_id") or "")
+    record = (players_by_id or {}).get(sleeper_id) or {}
     return Player(
-        sleeper_id=str(metadata.get("player_id") or pick.get("player_id") or ""),
+        sleeper_id=sleeper_id,
         name=f"{first} {last}".strip(),
         position=(metadata.get("position") or None),
         nfl_team=(metadata.get("team") or None),
+        college=(_text(record.get("college")).strip() or None),
+        # Sleeper writes "" for a healthy player, not null.
+        injury_status=(_text(metadata.get("injury_status")).strip() or None),
+        years_exp=_opt_int(metadata.get("years_exp")),
     )
+
+
+def _opt_int(value: Any) -> int | None:
+    """``"0"`` -> ``0``; blank / unparseable -> ``None``."""
+    text = _text(value).strip()
+    if not text:
+        return None
+    try:
+        return int(text)
+    except ValueError:
+        return None
 
 
 # --------------------------------------------------------------------------- #

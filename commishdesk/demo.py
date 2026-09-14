@@ -61,9 +61,7 @@ def _read_fixture(relative_path: str) -> Any:
     except FileNotFoundError as exc:
         raise CommishDeskError(_ABSENT) from exc
     except (OSError, ValueError) as exc:
-        raise CommishDeskError(
-            f"demo fixture is corrupt: {relative_path} ({type(exc).__name__})"
-        ) from exc
+        raise CommishDeskError(f"demo fixture is corrupt: {relative_path} ({type(exc).__name__})") from exc
 
 
 def load_demo_bundle() -> dict[str, Any]:
@@ -77,12 +75,16 @@ def load_demo_bundle() -> dict[str, Any]:
             "draft_picks": raw["draft_picks"],
             "rosters": raw["rosters"],
             "users": raw["users"],
+            # Optional, and absent on the live path by design: the Sleeper
+            # adapter never fetches /players/nfl (a recap regenerated months
+            # later must not change). Where a bundle does carry it, the extra
+            # roster facts reach the narrator grounded instead of being
+            # reconstructed from the model's own pretraining.
+            "players": raw.get("players", {}),
             "previous_league_ids": [],
         }
     except (KeyError, TypeError) as exc:
-        raise CommishDeskError(
-            f"demo fixture is corrupt: {_DRAFT_FIXTURE} ({type(exc).__name__})"
-        ) from exc
+        raise CommishDeskError(f"demo fixture is corrupt: {_DRAFT_FIXTURE} ({type(exc).__name__})") from exc
 
 
 def demo_consensus_slots() -> dict[str, int]:
@@ -99,6 +101,4 @@ def demo_consensus_slots() -> dict[str, int]:
             slots.setdefault(str(entry["player"]["sleeperId"]), slot)
         return slots
     except (KeyError, TypeError) as exc:
-        raise CommishDeskError(
-            f"demo fixture is corrupt: {_CONSENSUS_FIXTURE} ({type(exc).__name__})"
-        ) from exc
+        raise CommishDeskError(f"demo fixture is corrupt: {_CONSENSUS_FIXTURE} ({type(exc).__name__})") from exc

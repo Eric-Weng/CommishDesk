@@ -63,6 +63,7 @@ from .schema import (
     ManagerPickCount,
     Narration,
     NarrationLeague,
+    NarrationPlayer,
     NarrationTeam,
     PickExtreme,
     PickRow,
@@ -128,9 +129,7 @@ def build_draft_recap_facts(
         team_rows = _merge_teams(league, board, consensus, grades)
         draft_summary = _draft_summary(league, board, pick_rows)
         superlatives = _superlatives(league, pick_rows)
-        lead_candidates = build_lead_candidates(
-            league, board, consensus, grades, draft_summary, superlatives
-        )
+        lead_candidates = build_lead_candidates(league, board, consensus, grades, draft_summary, superlatives)
         storylines = advance_storylines(
             previous_storylines,
             week=DRAFT_RECAP_WEEK,
@@ -194,10 +193,7 @@ def _violation_message(exc: Exception) -> str:
     """A loud, self-contained summary — the reader should not need ``__cause__``."""
     if isinstance(exc, ValidationError):
         errors = exc.errors()
-        parts = [
-            f"{'.'.join(str(p) for p in err.get('loc', ()))}: {err.get('msg', '')}"
-            for err in errors[:3]
-        ]
+        parts = [f"{'.'.join(str(p) for p in err.get('loc', ()))}: {err.get('msg', '')}" for err in errors[:3]]
         detail = "; ".join(parts)
         if len(errors) > 3:
             detail += f"; (+{len(errors) - 3} more)"
@@ -218,15 +214,11 @@ def _generated_at(value: datetime | str) -> str:
     if isinstance(value, datetime):
         iso = _iso_datetime(value)
         if iso is None:
-            raise SchemaValidationError(
-                "generated_at is not a representable datetime"
-            )
+            raise SchemaValidationError("generated_at is not a representable datetime")
         return iso
     if isinstance(value, str) and value.strip():
         return value
-    raise SchemaValidationError(
-        "generated_at must be a non-empty string or a datetime"
-    )
+    raise SchemaValidationError("generated_at must be a non-empty string or a datetime")
 
 
 def _iso_datetime(stamp: datetime) -> str | None:
@@ -378,9 +370,7 @@ def _board_pick(row: PickRow) -> BoardPick:
     )
 
 
-def _draft_summary(
-    league: LeagueModel, board: BoardMetrics, pick_rows: list[PickRow]
-) -> DraftSummary:
+def _draft_summary(league: LeagueModel, board: BoardMetrics, pick_rows: list[PickRow]) -> DraftSummary:
     team_count = league.format.team_count
     ordered = sorted(pick_rows, key=lambda r: r.pick_no)
     managers = {t.roster_id: t.manager for t in board.teams}
@@ -392,26 +382,17 @@ def _draft_summary(
         round1_positional[pos] = round1_positional.get(pos, 0) + 1
 
     first_window = team_count - 1
-    first_window_rb = [
-        row.player.name
-        for row in ordered
-        if row.pick_no <= first_window and _position(row) == "RB"
-    ]
+    first_window_rb = [row.player.name for row in ordered if row.pick_no <= first_window and _position(row) == "RB"]
 
     round1_qbs = [_board_pick(row) for row in round1 if _position(row) == "QB"]
 
     ranked_counts = sorted(board.teams, key=lambda t: -t.pick_count)
-    pick_count_rank = [
-        ManagerPickCount(manager=t.manager, pick_count=t.pick_count)
-        for t in ranked_counts
-    ]
+    pick_count_rank = [ManagerPickCount(manager=t.manager, pick_count=t.pick_count) for t in ranked_counts]
 
     per_round: dict[str, dict[int, int]] = {}
     for row in ordered:
         per_round.setdefault(row.roster_id, {})
-        per_round[row.roster_id][row.round] = (
-            per_round[row.roster_id].get(row.round, 0) + 1
-        )
+        per_round[row.roster_id][row.round] = per_round[row.roster_id].get(row.round, 0) + 1
     concentration: list[tuple[str | None, int, int]] = []
     for team in board.teams:
         rounds = per_round.get(team.roster_id, {})
@@ -421,10 +402,7 @@ def _draft_summary(
         if rounds[heaviest] >= _MIN_ROUND_CONCENTRATION:
             concentration.append((team.manager, heaviest, rounds[heaviest]))
     concentration.sort(key=lambda item: -item[2])
-    round_concentration = [
-        RoundConcentration(manager=mgr, round=rnd, count=count)
-        for mgr, rnd, count in concentration
-    ]
+    round_concentration = [RoundConcentration(manager=mgr, round=rnd, count=count) for mgr, rnd, count in concentration]
 
     positional_runs = PositionalRunsSummary(
         QB=_qb_run(ordered, league.draft.rounds),
@@ -551,20 +529,14 @@ def _superlatives(league: LeagueModel, pick_rows: list[PickRow]) -> Superlatives
 
     return Superlatives(
         best_value=_superlative_pick(by_value[0]),
-        best_value_runner_up=(
-            _superlative_pick(by_value[1]) if len(by_value) > 1 else None
-        ),
+        best_value_runner_up=(_superlative_pick(by_value[1]) if len(by_value) > 1 else None),
         biggest_reach=_superlative_pick(by_reach[0]),
-        biggest_reach_runner_up=(
-            _superlative_pick(by_reach[1]) if len(by_reach) > 1 else None
-        ),
+        biggest_reach_runner_up=(_superlative_pick(by_reach[1]) if len(by_reach) > 1 else None),
         boldest_swing=_boldest_swing(league, ranked),
     )
 
 
-def _boldest_swing(
-    league: LeagueModel, ranked: list[PickRow]
-) -> BoldestSwing | None:
+def _boldest_swing(league: LeagueModel, ranked: list[PickRow]) -> BoldestSwing | None:
     by_roster: dict[str, list[PickRow]] = {}
     for row in ranked:
         by_roster.setdefault(row.roster_id, []).append(row)
@@ -590,9 +562,7 @@ def _boldest_swing(
         by_pick_no = sorted(rows, key=lambda r: r.pick_no)
         high, low = by_pick_no[0], by_pick_no[-1]
     pair = sorted({high.pick_no: high, low.pick_no: low}.values(), key=lambda r: r.pick_no)
-    manager = next(
-        (t.manager for t in league.teams if t.roster_id == best_roster), None
-    )
+    manager = next((t.manager for t in league.teams if t.roster_id == best_roster), None)
     return BoldestSwing(
         roster_id=best_roster,
         manager=manager,
@@ -644,16 +614,8 @@ def _narration(
         rounds=league.draft.rounds,
         r1_positional=dict(draft_summary.round1_positional),
         first_window_rb_count=len(draft_summary.first_window_running_backs),
-        pick_count_leader=(
-            ManagerPickCount(manager=leader.manager, pick_count=leader.pick_count)
-            if leader
-            else None
-        ),
-        pick_count_low=(
-            ManagerPickCount(manager=low.manager, pick_count=low.pick_count)
-            if low
-            else None
-        ),
+        pick_count_leader=(ManagerPickCount(manager=leader.manager, pick_count=leader.pick_count) if leader else None),
+        pick_count_low=(ManagerPickCount(manager=low.manager, pick_count=low.pick_count) if low else None),
     )
 
     teams = [
@@ -672,6 +634,28 @@ def _narration(
         for row in team_rows
     ]
 
+    # One entry per drafted player, in first-pick order (deterministic).
+    seen_players: set[str] = set()
+    narration_players: list[NarrationPlayer] = []
+    for row in sorted(league.picks, key=lambda p: p.pick_no):
+        key = row.player.sleeper_id or row.player.name
+        if key in seen_players:
+            continue
+        seen_players.add(key)
+        narration_players.append(
+            NarrationPlayer(
+                name=row.player.name,
+                pick_no=row.pick_no,
+                board_label=row.board_label,
+                manager=row.manager,
+                position=row.player.position,
+                nfl_team=row.player.nfl_team,
+                college=row.player.college,
+                injury_status=row.player.injury_status,
+                years_exp=row.player.years_exp,
+            )
+        )
+
     narration = Narration(
         league=NarrationLeague(
             name=league_ref.name,
@@ -679,6 +663,7 @@ def _narration(
             scoring_label=league_ref.format.scoring_label,
         ),
         headline_numbers=headline,
+        players=narration_players,
         board_round1=[_board_pick(r) for r in round1],
         superlatives=superlatives,
         teams=teams,
@@ -722,19 +707,12 @@ def _apply_narration_cap(narration: Narration) -> Narration:
         return narration
 
     narration = narration.model_copy(
-        update={
-            "teams": [
-                team.model_copy(update={"grade_rationale": None})
-                for team in narration.teams
-            ]
-        }
+        update={"teams": [team.model_copy(update={"grade_rationale": None}) for team in narration.teams]}
     )
     if _within_cap(narration):
         return narration
 
-    return narration.model_copy(
-        update={"storyline_candidates": list(narration.storyline_candidates[:1])}
-    )
+    return narration.model_copy(update={"storyline_candidates": list(narration.storyline_candidates[:1])})
 
 
 def _within_cap(narration: Narration) -> bool:

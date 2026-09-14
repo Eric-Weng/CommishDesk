@@ -44,6 +44,7 @@ class IssueBody:
     recap: Recap | None = None
     llm_text: str | None = None
 
+
 app = typer.Typer(
     add_completion=False,
     no_args_is_help=True,
@@ -73,9 +74,7 @@ def _cache_dir() -> Path:
 @app.callback(invoke_without_command=True)
 def run(
     ctx: typer.Context,
-    league: str | None = typer.Option(
-        None, "--league", help="Sleeper league id to build a recap for (or 'demo')."
-    ),
+    league: str | None = typer.Option(None, "--league", help="Sleeper league id to build a recap for (or 'demo')."),
     week: int | None = typer.Option(
         None,
         "--week",
@@ -83,9 +82,7 @@ def run(
         max=18,
         help="NFL week (1-18) for a weekly recap; omit for a draft recap.",
     ),
-    draft_recap: bool = typer.Option(
-        False, "--draft-recap", help="Build the draft recap instead of a weekly recap."
-    ),
+    draft_recap: bool = typer.Option(False, "--draft-recap", help="Build the draft recap instead of a weekly recap."),
     post: bool = typer.Option(
         False,
         "--post",
@@ -118,9 +115,7 @@ def run(
             "the hold back on for one run regardless of the environment."
         ),
     ),
-    verbose: bool = typer.Option(
-        False, "--verbose", help="Increase output verbosity."
-    ),
+    verbose: bool = typer.Option(False, "--verbose", help="Increase output verbosity."),
     version: bool | None = typer.Option(
         None,
         "--version",
@@ -143,9 +138,7 @@ def run(
     logger = configure_logging(verbose)
     with log_context(league_id=league, week=week):
         if draft_recap and week is not None:
-            raise typer.BadParameter(
-                "--draft-recap builds the draft recap and cannot be combined with --week"
-            )
+            raise typer.BadParameter("--draft-recap builds the draft recap and cannot be combined with --week")
         if post and not draft_recap:
             raise typer.BadParameter("--post requires --draft-recap")
         if draft_recap:
@@ -170,8 +163,7 @@ def run(
         logger.debug("cli invoked: mode=%s", mode)
         league_label = league if league else "<none>"
         typer.echo(
-            f"CommishDesk: {mode} for league {league_label} is not yet implemented "
-            "(weekly recap lands in Epic 5)."
+            f"CommishDesk: {mode} for league {league_label} is not yet implemented (weekly recap lands in Epic 5)."
         )
         raise typer.Exit(code=0)
 
@@ -210,9 +202,7 @@ def verify_webhook(
         "--league",
         help="Sleeper league id to name in the test post (or 'demo').",
     ),
-    verbose: bool = typer.Option(
-        False, "--verbose", help="Increase output verbosity."
-    ),
+    verbose: bool = typer.Option(False, "--verbose", help="Increase output verbosity."),
 ) -> None:
     """Post a visible test message to the configured Discord webhook and accept
     the destination only if Discord accepts the post (FR-25).
@@ -232,8 +222,7 @@ def verify_webhook(
         url = (os.environ.get(_DISCORD_WEBHOOK_VAR) or "").strip()
         if not url:
             typer.echo(
-                f"set {_DISCORD_WEBHOOK_VAR} to the league's Discord channel webhook "
-                "URL before running verify-webhook",
+                f"set {_DISCORD_WEBHOOK_VAR} to the league's Discord channel webhook URL before running verify-webhook",
                 err=True,
             )
             raise typer.Exit(code=1)
@@ -245,9 +234,7 @@ def verify_webhook(
             raise typer.Exit(code=1) from exc
 
         try:
-            accepted_id = post_discord_text(
-                url, f"CommishDesk test post — {name}. Webhook is working."
-            )
+            accepted_id = post_discord_text(url, f"CommishDesk test post — {name}. Webhook is working.")
         except DeliveryError as exc:
             typer.echo(_one_line(exc), err=True)
             raise typer.Exit(code=1) from exc
@@ -257,9 +244,7 @@ def verify_webhook(
             accepted_id,
             league,
         )
-        typer.echo(
-            f"Discord webhook accepted — a test post naming {name!r} is in the channel."
-        )
+        typer.echo(f"Discord webhook accepted — a test post naming {name!r} is in the channel.")
 
 
 def _resolve_league_name(league: str, logger: logging.Logger) -> str:
@@ -464,8 +449,7 @@ def _recap_one_league(
         webhook_url = (os.environ.get(_DISCORD_WEBHOOK_VAR) or "").strip()
         if not webhook_url:
             raise DeliveryError(
-                f"set {_DISCORD_WEBHOOK_VAR} to the league's Discord channel "
-                "webhook URL before running --post"
+                f"set {_DISCORD_WEBHOOK_VAR} to the league's Discord channel webhook URL before running --post"
             )
         recipient_id = webhook_id(webhook_url)
 
@@ -583,18 +567,11 @@ def _recap_one_league(
         # narrate.llm (via the narrate package re-export), not duplicated, so
         # the two can never silently desync.
         per_call_estimate = max(
-            estimate_cost_usd(
-                payload, llm_config.primary, max_output_tokens=MAX_OUTPUT_TOKENS
-            ),
-            estimate_cost_usd(
-                payload, llm_config.fallback, max_output_tokens=MAX_OUTPUT_TOKENS
-            ),
+            estimate_cost_usd(payload, llm_config.primary, max_output_tokens=MAX_OUTPUT_TOKENS),
+            estimate_cost_usd(payload, llm_config.fallback, max_output_tokens=MAX_OUTPUT_TOKENS),
         )
         estimate = per_call_estimate * _MAX_BILLABLE_NARRATION_ATTEMPTS
-        typer.echo(
-            f"estimated cost: {_fmt_usd(estimate)} (ceiling "
-            f"{_fmt_usd(llm_config.cost_ceiling_usd)})"
-        )
+        typer.echo(f"estimated cost: {_fmt_usd(estimate)} (ceiling {_fmt_usd(llm_config.cost_ceiling_usd)})")
         if estimate > llm_config.cost_ceiling_usd:
             raise CostCeilingExceededError(
                 f"estimated cost {_fmt_usd(estimate)} for league {resolved} "
@@ -622,9 +599,7 @@ def _recap_one_league(
 
     if body.narrator == "template":
         assert body.recap is not None
-        recap = body.recap.model_copy(
-            update={"dateline": f"{body.recap.dateline} · generated {doc.generated_at}"}
-        )
+        recap = body.recap.model_copy(update={"dateline": f"{body.recap.dateline} · generated {doc.generated_at}"})
         typer.echo(recap_to_text(recap))
     else:
         assert body.llm_text is not None
@@ -693,9 +668,7 @@ def _recap_one_league(
         if report.delivered:
             typer.echo(f"posted to Discord (webhook {recipient_id})")
         else:
-            typer.echo(
-                f"Discord post already confirmed for webhook {recipient_id} — skipped"
-            )
+            typer.echo(f"Discord post already confirmed for webhook {recipient_id} — skipped")
 
 
 def _produce_issue(
@@ -737,6 +710,7 @@ def _produce_issue(
     from commishdesk.narrate import (
         check_narration,
         classify,
+        excise_offending_sentences,
         recap_to_text,
         render_draft_recap,
         sanitize_completion,
@@ -764,17 +738,14 @@ def _produce_issue(
         ships the best available body."""
         joined = "; ".join(reasons)
         if not allow_content_hold:
-            return ContentSafetyError(
-                f"content-safety hold for league {resolved}: {joined}"
-            )
+            return ContentSafetyError(f"content-safety hold for league {resolved}: {joined}")
         logger.error(
             "league %s content-safety hold OVERRIDDEN (--allow-content-hold): %s",
             resolved,
             joined,
         )
         typer.echo(
-            f"content-safety hold OVERRIDDEN for league {resolved} "
-            f"(--allow-content-hold): {joined}",
+            f"content-safety hold OVERRIDDEN for league {resolved} (--allow-content-hold): {joined}",
             err=True,
         )
         return None
@@ -807,8 +778,7 @@ def _produce_issue(
         if decision.hold or decision.regenerate:
             _emit_alerts(decision.alerts)
             reasons = decision.hold_reasons or (
-                "a regenerate-tier finding on the template narrator, which has no "
-                "regeneration to spend",
+                "a regenerate-tier finding on the template narrator, which has no regeneration to spend",
             )
             held = _hold(reasons)
             if held is not None:
@@ -821,12 +791,7 @@ def _produce_issue(
                 # a suppress-tier finding that maps to no section: the flagged
                 # phrase is still in the recap (title / dateline / a split
                 # artefact). Un-localizable → never ship it (unless overridden).
-                held = _hold(
-                    (
-                        "a suppress-tier content-safety finding could not be "
-                        "localized to a section",
-                    )
-                )
+                held = _hold(("a suppress-tier content-safety finding could not be localized to a section",))
                 if held is not None:
                     raise held
                 return IssueBody(narrator="template", recap=recap)
@@ -887,10 +852,37 @@ def _produce_issue(
                 raise held
             return IssueBody(narrator=result.narrator, llm_text=text)
 
+        # A free, localized repair is attempted BEFORE any paid regeneration.
+        #
+        # The P0.1 live validation measured what the old order cost: 7 findings
+        # across 40 generations, 6 of them regenerate-tier, ~13 paid calls spent
+        # and 0 real hallucinations caught. Regeneration is also provably weak
+        # for the dominant class — the same derived-arithmetic span recurred in
+        # three independent generations, so re-rolling the identical prompt
+        # mostly re-earns the identical finding. Excision costs nothing and is
+        # correct whether the finding is a true or a false positive, which is
+        # the property that matters when the split is unknown at runtime.
+        if decision.regenerate or decision.suppress:
+            repaired, excised = excise_offending_sentences(text, report)
+            if repaired is not None and excised:
+                recheck = classify(
+                    check_narration(repaired, narration, voice=voice),
+                    narrator_is_template=False,
+                )
+                if not (recheck.hold or recheck.regenerate or recheck.suppress):
+                    logger.warning(
+                        "league %s: content-safety repaired the LLM narration by "
+                        "excising %d sentence(s); shipped without a regeneration",
+                        resolved,
+                        len(excised),
+                    )
+                    for sentence in excised:
+                        logger.info("league %s content-safety excised: %s", resolved, sentence)
+                    return IssueBody(narrator=result.narrator, llm_text=repaired)
+
         if decision.regenerate and attempts == 1:
             logger.warning(
-                "league %s: content-safety regeneration of the LLM narration "
-                "(one attempt permitted — AD-12 Layer 3)",
+                "league %s: content-safety regeneration of the LLM narration (one attempt permitted — AD-12 Layer 3)",
                 resolved,
             )
             continue
@@ -898,8 +890,7 @@ def _produce_issue(
         if decision.regenerate or decision.suppress:
             _emit_alerts(decision.alerts)
             logger.warning(
-                "league %s: LLM narration still unclean after %d attempt(s); "
-                "using the template narrator",
+                "league %s: LLM narration still unclean after %d attempt(s); using the template narrator",
                 resolved,
                 attempts,
             )

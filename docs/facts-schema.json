@@ -611,6 +611,14 @@
         "league": {
           "$ref": "#/$defs/NarrationLeague"
         },
+        "players": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/NarrationPlayer"
+          },
+          "title": "Players",
+          "type": "array"
+        },
         "positional_runs": {
           "$ref": "#/$defs/PositionalRunsSummary"
         },
@@ -665,6 +673,116 @@
         "scoring_label"
       ],
       "title": "NarrationLeague",
+      "type": "object"
+    },
+    "NarrationPlayer": {
+      "description": "One drafted player's real, publishable roster facts.\n\nAdded at :data:`SCHEMA_VERSION` ``0.3.0``. The measured reason: a narrator\nwith no player metadata in its payload reaches into its own pretraining for\nit — a live validation run shipped \"Ohio State wide receiver Emeka Egbuka\"\nand \"Michigan running back Donovan Edwards\", true in the real world and\nunsupported by the Facts. The engine was already *fetching* every field\nbelow and simply not handing them over.\n\nProjecting them does two things at once: the narrator can cite a player's\nteam or status **grounded**, and the closed-world check gains the tokens to\n*refute* a wrong one. Banning the vocabulary instead would have bought\nneither.\n\nAvailability differs by field, and the prompt is conditional rather than\nabsolute because of it: ``nfl_team`` / ``injury_status`` / ``years_exp``\nride on the pick's own metadata and are always present; ``college`` is\njoined from the bundle's ``players`` blob, which the Sleeper adapter\ndeliberately never fetches (AD: no live ``/players/nfl``, so a recap\nregenerated months later cannot change). On the live path ``college`` is\ntherefore ``None`` — and a narrator told \"only what the JSON gives you\"\nsimply says nothing about it.",
+      "properties": {
+        "board_label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Board Label"
+        },
+        "college": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "College"
+        },
+        "injury_status": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Injury Status"
+        },
+        "manager": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Manager"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "nfl_team": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Nfl Team"
+        },
+        "pick_no": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pick No"
+        },
+        "position": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Position"
+        },
+        "years_exp": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Years Exp"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "NarrationPlayer",
       "type": "object"
     },
     "NarrationTeam": {
@@ -1532,7 +1650,7 @@
       "type": "boolean"
     },
     "schema_version": {
-      "default": "0.2.0",
+      "default": "0.3.0",
       "title": "Schema Version",
       "type": "string"
     },
