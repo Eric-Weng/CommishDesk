@@ -114,6 +114,33 @@ def structural_ok(text: str) -> bool:
     return _HEADING_KEYS <= found
 
 
+def restore_lead_heading(text: str) -> str:
+    """Insert a missing ``## The Lead`` heading when it is the only one of the six
+    absent, the completion opens with a title, and prose sits between that title
+    and the first section heading. Measured: 2 of 10 live narrations wrote the
+    whole opening but skipped this one heading, and the Issue fell back to the
+    template. No model call, and not a word of the prose changes. A completion
+    with no title is left alone: the renderer would take an inserted heading as
+    the title."""
+    lead = SECTION_HEADINGS[0]
+    found = {_heading_key(m.group(1)) for m in _HEADING_LINE.finditer(text)}
+    if _HEADING_KEYS - found != {_heading_key(lead)}:
+        return text
+    lines = text.split("\n")
+    first_section = next(
+        index
+        for index, line in enumerate(lines)
+        if (match := _HEADING_LINE.match(line)) is not None and _heading_key(match.group(1)) in _HEADING_KEYS
+    )
+    above = [index for index in range(first_section) if lines[index].strip()]
+    if len(above) < 2:
+        return text
+    title = lines[above[0]].strip()
+    if not (_HEADING_LINE.match(title) or (len(title) <= 90 and not title.endswith((".", "!", "?")))):
+        return text
+    return "\n".join([*lines[: above[1]], f"## {lead}", "", *lines[above[1] :]])
+
+
 @dataclass(frozen=True)
 class TieredResponse:
     """What :func:`classify` decided for one narration.

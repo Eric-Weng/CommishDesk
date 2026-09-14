@@ -437,6 +437,24 @@ def test_d2_real_abuse_beside_a_name_still_holds(narration: Narration, sentence:
 
 
 @pytest.mark.parametrize(
+    "sentence",
+    [
+        # league talk about risk and judgment is fair game (live holds, 2026-09-14)
+        "Marcus made a bold wager on a sleeper at 2.11.",
+        "Reaching early was a narrow wager by Marcus that paid off.",
+        "That board was an indictment of Marcus's patience.",
+        "Marcus will either look like a genius or a gambler depending on that workload.",
+        "Marcus and the Pumas were the room's biggest gamblers in round four.",
+        "The room put Marcus's strategy on trial and the jury is still out.",
+    ],
+)
+def test_league_gambling_and_courtroom_metaphors_beside_a_name_do_not_hold(narration: Narration, sentence: str) -> None:
+    n = _with_managers(narration, "Marcus")
+    report = check_narration(sentence, n)
+    assert not report.held, [f.message for f in report.findings]
+
+
+@pytest.mark.parametrize(
     "crime",
     ["fraud", "assault", "theft", "murder", "robbery", "two felonies"],
 )

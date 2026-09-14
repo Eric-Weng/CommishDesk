@@ -123,9 +123,11 @@ injury_medical = [
   '\bwheelchair\b',
   '\bhealth scare\b',
 ]
+# Real legal trouble only. No "indict": in a league column it is always a metaphor
+# ("an indictment of that patience"), and it held a whole Issue in live validation
+# (2026-09-14). The league's own courtroom talk is fair game; a real arrest is not.
 legal = [
   '\barrest(ed|s)?\b',
-  '\bindict(ed|ment)\b',
   # Requires a crime object: "charged with a felony" is abuse of a person,
   # "charged with rebuilding the backfield" is ordinary football prose.
   # The object list is wide on purpose — a handful of nouns silently dropped
@@ -199,14 +201,18 @@ gambling = [
 # stay: "a degenerate gambler", "he gambles every week".
 gambling_personal = [
   # These name actual betting activity, not an odds metaphor about a pick:
-  # "Marcus basically runs a sportsbook" is an accusation.
+  # "Marcus basically runs a sportsbook" is an accusation. No "wager": a league
+  # column wagers on sleepers, and "that narrow wager on Royals" held a whole
+  # Issue in live validation (2026-09-14).
   '\bsportsbook\b',
-  '\bwager(s|ing|ed)?\b',
   '\b(draftkings|fanduel)\b',
   '\bbetting (line|odds|advice)\b',
   '\bgambling (problem|addiction|debts?|advice)\b',
-  '\bgamblers?\b',
-  '\bgambles\b',
+  # A gambler label or habit only with a real-life cue: "a degenerate gambler",
+  # "gambles every single week". "the Pumas will look like geniuses or gamblers"
+  # is draft talk, and a bare `gamblers?` held a whole Issue over it (2026-09-14).
+  '\b(degenerate|compulsive|problem|serial|sports|addicted) gamblers?\b',
+  '\bgambles (every|each|all the time)\b',
 ]
 substances = [
   '\bhungover\b',

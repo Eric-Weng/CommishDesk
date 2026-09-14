@@ -24,7 +24,7 @@ from commishdesk.narrate import (
     suppress_sections,
 )
 from commishdesk.narrate import response as response_mod
-from commishdesk.narrate.response import MAX_REPAIR_SENTENCES, excise_offending_sentences
+from commishdesk.narrate.response import MAX_REPAIR_SENTENCES, excise_offending_sentences, restore_lead_heading
 from commishdesk.narrate.safety import SafetyFinding, SafetyReport
 
 RESPONSE_PY = Path(response_mod.__file__)
@@ -110,6 +110,38 @@ def test_structural_ok_rejects_empty_and_blank() -> None:
 
 def test_structural_ok_rejects_a_bare_paragraph() -> None:
     assert structural_ok("just some prose with no headings at all") is False
+
+
+def _missing_lead(opening: str) -> str:
+    return _six_section_text(drop="The Lead").replace("My Draft Recap\n\n", f"My Draft Recap\n\n{opening}\n\n", 1)
+
+
+def test_restore_lead_heading_inserts_the_one_missing_heading_under_the_title() -> None:
+    """Measured: 2 of 10 live narrations wrote the opening but skipped this heading."""
+    text = _missing_lead("The opening paragraph of the column.")
+    restored = restore_lead_heading(text)
+    assert structural_ok(restored)
+    assert restored.index("My Draft Recap") < restored.index("## The Lead") < restored.index("The opening paragraph")
+    assert restored.replace("## The Lead\n\n", "", 1) == text
+
+
+def test_restore_lead_heading_accepts_a_markdown_title() -> None:
+    text = _missing_lead("The opening paragraph.").replace("My Draft Recap", "# A Title With A Marker", 1)
+    assert structural_ok(restore_lead_heading(text))
+
+
+def test_restore_lead_heading_leaves_everything_else_alone() -> None:
+    full = _six_section_text()
+    assert restore_lead_heading(full) == full
+    # no title: the renderer would swallow an inserted heading as the title
+    untitled = _missing_lead("The opening paragraph.").replace("My Draft Recap\n\n", "", 1)
+    assert restore_lead_heading(untitled) == untitled
+    # a title but no opening prose to put under the heading
+    bare = _six_section_text(drop="The Lead")
+    assert restore_lead_heading(bare) == bare
+    # a second heading missing too
+    two_missing = _missing_lead("The opening paragraph.").replace("## Superlatives\n", "", 1)
+    assert restore_lead_heading(two_missing) == two_missing
 
 
 # --------------------------------------------------------------------------- #
