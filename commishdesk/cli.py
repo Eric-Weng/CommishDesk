@@ -767,6 +767,7 @@ def _produce_issue(
         excise_offending_sentences,
         recap_to_text,
         render_draft_recap,
+        restore_lead_heading,
         sanitize_completion,
         structural_ok,
         suppress_sections,
@@ -940,7 +941,7 @@ def _produce_issue(
             # every provider attempt failed inside narrate_draft_recap
             return _template_issue()
 
-        text = sanitize_completion(result.text)
+        text = restore_lead_heading(sanitize_completion(result.text))
         if not structural_ok(text):
             logger.warning(
                 "league %s: LLM narration is not the expected six-section shape "

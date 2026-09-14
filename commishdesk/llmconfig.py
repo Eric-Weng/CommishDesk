@@ -28,7 +28,7 @@ unset or blank):
   pre-call worst-case cost estimate against before any paid narration call
   (Story 4.6). Over the ceiling the run hard-aborts with zero spend.
 * ``COMMISHDESK_LLM_VERIFIER`` — the content-safety claim verifier (P1),
-  ``"<provider>:<model_id>"``. Default ``google:gemini-3.8-flash``, the cheapest
+  ``"<provider>:<model_id>"``. Default ``google:gemini-3.1-flash-lite``, the cheapest
   priced model: the verifier only extracts claims, and the pre-call cost estimate
   fails closed on an unpriced model. ``off`` (or ``none`` / ``disabled`` /
   ``false`` / ``0`` / ``no``) switches verification off. A verifier whose provider
@@ -100,7 +100,7 @@ class LLMModelConfig:
 #: ``narrate/pricing.py``'s table — which it has to be in, or the pre-call cost
 #: estimate fails closed by name.
 _DEFAULT_VERIFIER_CONFIG = LLMModelConfig(
-    provider="google", model_id="gemini-3.8-flash", timeout=_DEFAULT_TIMEOUT_SECONDS
+    provider="google", model_id="gemini-3.1-flash-lite", timeout=_DEFAULT_TIMEOUT_SECONDS
 )
 
 

@@ -1780,7 +1780,7 @@ def _college_claims(*triples: tuple[str, str, str]) -> str:
     )
 
 
-_CONYERS = "Miami tight end Jalin Conyers was the steal of the final round."
+_CONYERS = "Boise State tight end Jalin Conyers was the steal of the final round."
 
 
 def _llm_run(tmp_path: Path, monkeypatch) -> None:
@@ -1791,13 +1791,13 @@ def _llm_run(tmp_path: Path, monkeypatch) -> None:
 
 def test_refuted_claim_is_excised_before_shipping_with_one_verification_call(tmp_path: Path, monkeypatch) -> None:
     """The recombination class P1 exists for: every token real (the payload knows
-    both "Miami" and "Jalin Conyers"), the pairing wrong (he is Texas Tech). The
+    both "Boise State" and "Jalin Conyers"), the pairing wrong (Texas Tech, Miami). The
     deterministic checks pass it; the verifier refutes it; the repair tier cuts
     that one sentence and the LLM prose still ships. One narration call, one
     verification call, no regeneration."""
     _llm_run(tmp_path, monkeypatch)
     narrations = _stub_narrator(monkeypatch, _padded_six_section(_CONYERS))
-    verifications = _stub_extractor(monkeypatch, _college_claims((_CONYERS, "Jalin Conyers", "Miami")))
+    verifications = _stub_extractor(monkeypatch, _college_claims((_CONYERS, "Jalin Conyers", "Boise State")))
     result = runner.invoke(app, ["--league", "94", "--draft-recap", "--out-dir", str(tmp_path)])
     assert result.exit_code == 0, result.output
     assert narrations["n"] == 1, narrations
@@ -1846,7 +1846,7 @@ def test_a_garbled_extraction_fails_open(tmp_path: Path, monkeypatch) -> None:
 def test_verifier_switched_off_makes_no_extraction_call(tmp_path: Path, monkeypatch) -> None:
     _llm_run(tmp_path, monkeypatch)
     _stub_narrator(monkeypatch, _padded_six_section(_CONYERS))
-    verifications = _stub_extractor(monkeypatch, _college_claims((_CONYERS, "Jalin Conyers", "Miami")))
+    verifications = _stub_extractor(monkeypatch, _college_claims((_CONYERS, "Jalin Conyers", "Boise State")))
     monkeypatch.setenv("COMMISHDESK_LLM_VERIFIER", "off")
     result = runner.invoke(app, ["--league", "98", "--draft-recap", "--out-dir", str(tmp_path)])
     assert result.exit_code == 0, result.output
@@ -1858,7 +1858,7 @@ def test_unrepairable_refutations_degrade_to_the_template_without_regenerating(t
     the template. It does NOT regenerate — a regenerated narration would ship
     prose that was never verified, and would buy a second verification call."""
     offenders = (
-        (_CONYERS, "Jalin Conyers", "Miami"),
+        (_CONYERS, "Jalin Conyers", "Boise State"),
         ("USC running back Ashton Jeanty opened the draft.", "Ashton Jeanty", "USC"),
         ("Boise State back Omarion Hampton followed right behind.", "Omarion Hampton", "Boise State"),
         ("Michigan tight end Tyler Warren came off early.", "Tyler Warren", "Michigan"),

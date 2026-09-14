@@ -93,10 +93,18 @@ MODEL_PRICES: dict[str, ModelPrice] = {
     "google:gemini-3.8-flash": ModelPrice(
         input_usd_per_1k=0.00075, output_usd_per_1k=0.00375
     ),
+    # Added 2026-09-14, direct from Google's pricing page: $0.25 / $1.50 per 1M
+    # (output "including thinking tokens"), i.e. $0.00025 / $0.0015 per 1k. The
+    # default claim verifier: on 20 shipped Issues with 40 planted errors it caught
+    # 33 alone and 39 together with narrate/verify.py's free pattern claims
+    # (gemini-3.8-flash alone: 38), at about a third of that model's cost.
+    "google:gemini-3.1-flash-lite": ModelPrice(
+        input_usd_per_1k=0.00025, output_usd_per_1k=0.0015
+    ),
 }
 
 #: ISO date the table above was last checked against live provider pricing.
-PRICING_UPDATED = "2026-09-13"
+PRICING_UPDATED = "2026-09-14"
 
 #: How many days may pass before an un-refreshed table logs a staleness warning.
 PRICING_REVIEW_INTERVAL_DAYS = 90

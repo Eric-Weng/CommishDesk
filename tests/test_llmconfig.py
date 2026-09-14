@@ -170,7 +170,7 @@ def test_llm_config_constructed_without_cost_ceiling_matches_the_loader_default(
 
 
 def test_verifier_defaults_to_the_cheap_priced_model() -> None:
-    assert load_llm_config({}).verifier == LLMModelConfig("google", "gemini-3.8-flash", timeout=60.0)
+    assert load_llm_config({}).verifier == LLMModelConfig("google", "gemini-3.1-flash-lite", timeout=60.0)
 
 
 def test_verifier_override_and_endpoint() -> None:

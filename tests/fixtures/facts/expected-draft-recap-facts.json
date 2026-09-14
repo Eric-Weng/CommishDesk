@@ -1,6 +1,6 @@
 {
   "_derived_from": "Story 2.5 oracle. build_draft_recap_facts() over the anonymized rookie-draft.json board + compute_board_metrics / compute_consensus_metrics / compute_draft_grades, via the Story 2.4b _synthetic_slots() transform (sorted fantasycalc-values.json); generated_at pinned to '2026-09-03T00:00:00Z', fetched_at '2026-09-03', consensus_source name/as_of 'synthetic rookie board' / '2025-05'. Values are synthetic - the test asserts the merge + board projections + self-validation round-trip, not the private phase-0 golden (real-player hand build). Regenerate with model_dump(mode='json') of tests/test_facts.py::_rookie_facts() when the builder or an upstream stage changes.",
-  "schema_version": "0.3.0",
+  "schema_version": "0.4.0",
   "generated_at": "2026-09-03T00:00:00Z",
   "provisional": true,
   "issue_type": "draft_recap",
@@ -1397,11 +1397,13 @@
       "back_to_back": [],
       "best_value_pick": {
         "pick_no": 72,
+        "board_label": "6.12",
         "player": "Antwane Wells",
         "delta": 12
       },
       "biggest_reach_pick": {
         "pick_no": 32,
+        "board_label": "3.08",
         "player": "Ollie Gordon",
         "delta": -1
       },
@@ -1472,11 +1474,13 @@
       ],
       "best_value_pick": {
         "pick_no": 54,
+        "board_label": "5.06",
         "player": "Tai Felton",
         "delta": 10
       },
       "biggest_reach_pick": {
         "pick_no": 1,
+        "board_label": "1.01",
         "player": "Ashton Jeanty",
         "delta": -3
       },
@@ -1514,11 +1518,13 @@
       "back_to_back": [],
       "best_value_pick": {
         "pick_no": 58,
+        "board_label": "5.10",
         "player": "Tez Johnson",
         "delta": 10
       },
       "biggest_reach_pick": {
         "pick_no": 34,
+        "board_label": "3.10",
         "player": "Dylan Sampson",
         "delta": 4
       },
@@ -1556,11 +1562,13 @@
       "back_to_back": [],
       "best_value_pick": {
         "pick_no": 69,
+        "board_label": "6.09",
         "player": "Isaiah Bond",
         "delta": 11
       },
       "biggest_reach_pick": {
         "pick_no": 9,
+        "board_label": "1.09",
         "player": "Matthew Golden",
         "delta": 0
       },
@@ -1598,11 +1606,13 @@
       "back_to_back": [],
       "best_value_pick": {
         "pick_no": 64,
+        "board_label": "6.04",
         "player": "Kyle McCord",
         "delta": 9
       },
       "biggest_reach_pick": {
         "pick_no": 4,
+        "board_label": "1.04",
         "player": "Tetairoa McMillan",
         "delta": -3
       },
@@ -1645,11 +1655,13 @@
       ],
       "best_value_pick": {
         "pick_no": 63,
+        "board_label": "6.03",
         "player": "Arian Smith",
         "delta": 7
       },
       "biggest_reach_pick": {
         "pick_no": 2,
+        "board_label": "1.02",
         "player": "Omarion Hampton",
         "delta": 1
       },
@@ -1686,11 +1698,13 @@
       "back_to_back": [],
       "best_value_pick": {
         "pick_no": 71,
+        "board_label": "6.11",
         "player": "Lan Larison",
         "delta": 17
       },
       "biggest_reach_pick": {
         "pick_no": 23,
+        "board_label": "2.11",
         "player": "Jalen Royals",
         "delta": -1
       },
@@ -1739,11 +1753,13 @@
       ],
       "best_value_pick": {
         "pick_no": 38,
+        "board_label": "4.02",
         "player": "Elic Ayomanor",
         "delta": 6
       },
       "biggest_reach_pick": {
         "pick_no": 8,
+        "board_label": "1.08",
         "player": "Emeka Egbuka",
         "delta": -3
       },
@@ -1786,11 +1802,13 @@
       ],
       "best_value_pick": {
         "pick_no": 67,
+        "board_label": "6.07",
         "player": "Jalin Conyers",
         "delta": 10
       },
       "biggest_reach_pick": {
         "pick_no": 18,
+        "board_label": "2.06",
         "player": "Jack Bech",
         "delta": 0
       },
@@ -1826,11 +1844,13 @@
       "back_to_back": [],
       "best_value_pick": {
         "pick_no": 68,
+        "board_label": "6.08",
         "player": "Donovan Edwards",
         "delta": 9
       },
       "biggest_reach_pick": {
         "pick_no": 20,
+        "board_label": "2.08",
         "player": "Cam Skattebo",
         "delta": 3
       },
@@ -1871,11 +1891,13 @@
       ],
       "best_value_pick": {
         "pick_no": 61,
+        "board_label": "6.01",
         "player": "Nick Nash",
         "delta": 10
       },
       "biggest_reach_pick": {
         "pick_no": 12,
+        "board_label": "1.12",
         "player": "Luther Burden",
         "delta": 4
       },
@@ -1914,11 +1936,13 @@
       "back_to_back": [],
       "best_value_pick": {
         "pick_no": 65,
+        "board_label": "6.05",
         "player": "Gunnar Helm",
         "delta": 12
       },
       "biggest_reach_pick": {
         "pick_no": 41,
+        "board_label": "4.05",
         "player": "DJ Giddens",
         "delta": 0
       },
@@ -3220,11 +3244,13 @@
         "grade_rationale": null,
         "best_value_pick": {
           "pick_no": 72,
+          "board_label": "6.12",
           "player": "Antwane Wells",
           "delta": 12
         },
         "biggest_reach_pick": {
           "pick_no": 32,
+          "board_label": "3.08",
           "player": "Ollie Gordon",
           "delta": -1
         },
@@ -3250,11 +3276,13 @@
         "grade_rationale": null,
         "best_value_pick": {
           "pick_no": 54,
+          "board_label": "5.06",
           "player": "Tai Felton",
           "delta": 10
         },
         "biggest_reach_pick": {
           "pick_no": 1,
+          "board_label": "1.01",
           "player": "Ashton Jeanty",
           "delta": -3
         },
@@ -3304,11 +3332,13 @@
         "grade_rationale": null,
         "best_value_pick": {
           "pick_no": 58,
+          "board_label": "5.10",
           "player": "Tez Johnson",
           "delta": 10
         },
         "biggest_reach_pick": {
           "pick_no": 34,
+          "board_label": "3.10",
           "player": "Dylan Sampson",
           "delta": 4
         },
@@ -3333,11 +3363,13 @@
         "grade_rationale": null,
         "best_value_pick": {
           "pick_no": 69,
+          "board_label": "6.09",
           "player": "Isaiah Bond",
           "delta": 11
         },
         "biggest_reach_pick": {
           "pick_no": 9,
+          "board_label": "1.09",
           "player": "Matthew Golden",
           "delta": 0
         },
@@ -3361,11 +3393,13 @@
         "grade_rationale": null,
         "best_value_pick": {
           "pick_no": 64,
+          "board_label": "6.04",
           "player": "Kyle McCord",
           "delta": 9
         },
         "biggest_reach_pick": {
           "pick_no": 4,
+          "board_label": "1.04",
           "player": "Tetairoa McMillan",
           "delta": -3
         },
@@ -3388,11 +3422,13 @@
         "grade_rationale": null,
         "best_value_pick": {
           "pick_no": 63,
+          "board_label": "6.03",
           "player": "Arian Smith",
           "delta": 7
         },
         "biggest_reach_pick": {
           "pick_no": 2,
+          "board_label": "1.02",
           "player": "Omarion Hampton",
           "delta": 1
         },
@@ -3422,11 +3458,13 @@
         "grade_rationale": null,
         "best_value_pick": {
           "pick_no": 71,
+          "board_label": "6.11",
           "player": "Lan Larison",
           "delta": 17
         },
         "biggest_reach_pick": {
           "pick_no": 23,
+          "board_label": "2.11",
           "player": "Jalen Royals",
           "delta": -1
         },
@@ -3452,11 +3490,13 @@
         "grade_rationale": null,
         "best_value_pick": {
           "pick_no": 38,
+          "board_label": "4.02",
           "player": "Elic Ayomanor",
           "delta": 6
         },
         "biggest_reach_pick": {
           "pick_no": 8,
+          "board_label": "1.08",
           "player": "Emeka Egbuka",
           "delta": -3
         },
@@ -3486,11 +3526,13 @@
         "grade_rationale": null,
         "best_value_pick": {
           "pick_no": 67,
+          "board_label": "6.07",
           "player": "Jalin Conyers",
           "delta": 10
         },
         "biggest_reach_pick": {
           "pick_no": 18,
+          "board_label": "2.06",
           "player": "Jack Bech",
           "delta": 0
         },
@@ -3518,11 +3560,13 @@
         "grade_rationale": null,
         "best_value_pick": {
           "pick_no": 68,
+          "board_label": "6.08",
           "player": "Donovan Edwards",
           "delta": 9
         },
         "biggest_reach_pick": {
           "pick_no": 20,
+          "board_label": "2.08",
           "player": "Cam Skattebo",
           "delta": 3
         },
@@ -3547,11 +3591,13 @@
         "grade_rationale": null,
         "best_value_pick": {
           "pick_no": 61,
+          "board_label": "6.01",
           "player": "Nick Nash",
           "delta": 10
         },
         "biggest_reach_pick": {
           "pick_no": 12,
+          "board_label": "1.12",
           "player": "Luther Burden",
           "delta": 4
         },
@@ -3581,11 +3627,13 @@
         "grade_rationale": null,
         "best_value_pick": {
           "pick_no": 65,
+          "board_label": "6.05",
           "player": "Gunnar Helm",
           "delta": 12
         },
         "biggest_reach_pick": {
           "pick_no": 41,
+          "board_label": "4.05",
           "player": "DJ Giddens",
           "delta": 0
         },

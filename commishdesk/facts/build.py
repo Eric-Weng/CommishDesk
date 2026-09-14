@@ -296,6 +296,7 @@ def _merge_teams(
     board_by_roster = {t.roster_id: t for t in board.teams}
     cons_by_roster = {t.roster_id: t for t in consensus.teams}
     grade_by_roster = {t.roster_id: t for t in grades.teams}
+    label_by_pick = {pick.pick_no: pick.board_label for pick in league.picks}
     rows: list[TeamRow] = []
     for team in league.teams:
         tb = board_by_roster.get(team.roster_id)
@@ -309,8 +310,8 @@ def _merge_teams(
                 pick_nos=list(tb.pick_nos) if tb else [],
                 positional_counts=_canon_counts(tb.positional_counts if tb else {}),
                 back_to_back=list(tb.back_to_back) if tb else [],
-                best_value_pick=_extreme(tc.best_value_pick if tc else None),
-                biggest_reach_pick=_extreme(tc.biggest_reach_pick if tc else None),
+                best_value_pick=_extreme(tc.best_value_pick if tc else None, label_by_pick),
+                biggest_reach_pick=_extreme(tc.biggest_reach_pick if tc else None, label_by_pick),
                 # ``tg`` is expected to always be present (grades are computed for
                 # every roster in ``league.teams``); when it is not, the ``TeamRow(...)``
                 # construction below raises pydantic's ``ValidationError`` (``None`` is not
@@ -343,10 +344,12 @@ def _canon_counts(counts: dict[str, int]) -> dict[str, int]:
     return {pos: merged[pos] for pos in ordered}
 
 
-def _extreme(ref: PickRef | None) -> PickExtreme | None:
+def _extreme(ref: PickRef | None, label_by_pick: dict[int, str]) -> PickExtreme | None:
     if ref is None:
         return None
-    return PickExtreme(pick_no=ref.pick_no, player=ref.player, delta=ref.delta)
+    return PickExtreme(
+        pick_no=ref.pick_no, board_label=label_by_pick.get(ref.pick_no), player=ref.player, delta=ref.delta
+    )
 
 
 # --------------------------------------------------------------------------- #
