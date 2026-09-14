@@ -54,6 +54,7 @@ def _bundle(name: str) -> dict[str, Any]:
         "draft_picks": raw["draft_picks"],
         "rosters": raw["rosters"],
         "users": raw["users"],
+        "players": raw.get("players", {}),
         "previous_league_ids": [],
     }
 
@@ -163,9 +164,7 @@ def test_warm_cache_issues_zero_requests_and_is_deterministic(tmp_path: Path) ->
 
 
 @pytest.mark.parametrize("failure", [_connect_error, _server_error])
-def test_fantasycalc_down_falls_back_to_sleeper_search_rank(
-    tmp_path: Path, failure: Any
-) -> None:
+def test_fantasycalc_down_falls_back_to_sleeper_search_rank(tmp_path: Path, failure: Any) -> None:
     league = _rookie_league()
     store = FileStore(tmp_path)
     router = _Router(fantasycalc=failure)
@@ -207,9 +206,7 @@ def test_both_sources_down_then_warm_cache_recovers(tmp_path: Path) -> None:
     league = _rookie_league()
     store = FileStore(tmp_path)
     with pytest.raises(ConsensusError):
-        build_consensus_rank(
-            league, store, client=_Router(fantasycalc=_connect_error, sleeper=_connect_error).client()
-        )
+        build_consensus_rank(league, store, client=_Router(fantasycalc=_connect_error, sleeper=_connect_error).client())
     rank = build_consensus_rank(league, store, client=_Router().client())
     assert rank.source == "fantasycalc"
 
@@ -225,9 +222,7 @@ def test_fantasycalc_params_map_from_the_committed_fixtures(tmp_path: Path) -> N
     for name in ("rookie-draft.json", "week10-superflex.json"):
         league = build_league_model(_bundle(name))
         router = _Router()
-        build_consensus_rank(
-            league, FileStore(tmp_path / name), client=router.client()
-        )
+        build_consensus_rank(league, FileStore(tmp_path / name), client=router.client())
         params = router.requests[0].url.params
         assert params["numTeams"] == "12"
         assert params["numQbs"] == "2"
@@ -323,18 +318,14 @@ def test_dense_re_rank_collapses_source_gaps(tmp_path: Path) -> None:
         {"player": {"sleeperId": "200"}, "value": 100},
         {"player": {"sleeperId": "777"}, "value": 999},  # not drafted -> ignored
     ]
-    rank = build_consensus_rank(
-        league, FileStore(tmp_path), client=_Router(fantasycalc=board).client()
-    )
+    rank = build_consensus_rank(league, FileStore(tmp_path), client=_Router(fantasycalc=board).client())
     assert rank.slots == {"900": 1, "500": 2, "200": 3}
 
 
 def test_player_absent_from_source_is_not_a_slot_key(tmp_path: Path) -> None:
     league = _mini_league([("500", "1"), ("900", "2")])
     board = [{"player": {"sleeperId": "500"}, "value": 10}]  # 900 missing
-    rank = build_consensus_rank(
-        league, FileStore(tmp_path), client=_Router(fantasycalc=board).client()
-    )
+    rank = build_consensus_rank(league, FileStore(tmp_path), client=_Router(fantasycalc=board).client())
     assert rank.slots == {"500": 1}
 
 
@@ -391,18 +382,14 @@ def test_requests_carry_the_identifying_user_agent(tmp_path: Path) -> None:
         assert "github.com/Eric-Weng/CommishDesk" in ua
 
 
-def test_build_consensus_rank_makes_zero_real_network_calls(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_build_consensus_rank_makes_zero_real_network_calls(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     def boom(*args: Any, **kwargs: Any) -> Any:  # pragma: no cover - must never run
         raise AssertionError("real network access attempted")
 
     monkeypatch.setattr(socket, "socket", boom)
     monkeypatch.setattr(socket, "create_connection", boom)
 
-    rank = build_consensus_rank(
-        _rookie_league(), FileStore(tmp_path), client=_Router().client()
-    )
+    rank = build_consensus_rank(_rookie_league(), FileStore(tmp_path), client=_Router().client())
     assert rank.source == "fantasycalc"
 
 
@@ -509,9 +496,7 @@ def test_corrupt_cache_entry_is_treated_as_a_miss(tmp_path: Path) -> None:
     assert store.read_cache("consensus", "fc-dyn1-qb2-tm12-ppr0_5") is not None
 
 
-def test_cache_write_failure_still_returns_the_rank(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_cache_write_failure_still_returns_the_rank(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     store = FileStore(tmp_path)
 
     def boom(*args: Any, **kwargs: Any) -> None:
@@ -530,9 +515,7 @@ def test_cache_write_failure_still_returns_the_rank(
 # --------------------------------------------------------------------------- #
 
 
-def test_self_built_client_is_closed_on_the_raise_path(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_self_built_client_is_closed_on_the_raise_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     built: list[httpx.Client] = []
     real_get = httpx.Client
 

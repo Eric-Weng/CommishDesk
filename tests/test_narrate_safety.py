@@ -135,14 +135,19 @@ def test_banned_topic_without_a_name_only_warns(narration: Narration) -> None:
     assert all(f.severity != "hold_issue" for f in report.findings)
 
 
-def test_hallucinated_noun_and_number_flag_regenerate(narration: Narration) -> None:
-    report = check_narration(
-        "Jamarcus Fakename posted a delta of 8675309.", narration
-    )
+def test_hallucinated_number_flags_regenerate(narration: Narration) -> None:
+    """P0.1 — the *number* is refuted by the payload and gates. The invented
+    *name* beside it does not: the payload is not a record of English, so it can
+    only fail to contain "Fakename", never contradict it. The name still
+    surfaces, as a non-gating :func:`unverified_entities` signal."""
+    text = "Jamarcus Fakename posted a delta of 8675309."
+    report = check_narration(text, narration)
     assert not report.held
     flagged = {f.matched for f in report.findings if f.category == "hallucination"}
-    assert {"Fakename", "8675309"} <= flagged
+    assert "8675309" in flagged
+    assert "Fakename" not in flagged
     assert all(f.severity == "regenerate" for f in report.findings if f.category == "hallucination")
+    assert "Jamarcus Fakename" in safety.unverified_entities(text, narration)
 
 
 def test_a_real_letter_grade_is_not_flagged(narration: Narration) -> None:
@@ -160,25 +165,22 @@ def test_unicode_evasion_is_normalized_then_still_holds(narration: Narration) ->
 
 
 def test_slop_warns_and_proceeds(narration: Narration) -> None:
-    report = check_narration("make no mistake, buckle up", narration)
+    report = check_narration("this draft team delved into the landscape.", narration)
     assert not report.held
     slop = [f for f in report.findings if f.category == "slop"]
-    assert {f.matched for f in slop} == {"make no mistake", "buckle up"}
+    assert {f.matched for f in slop} == {"delved into", "the landscape"}
 
 
 def test_voice_banned_topics_merge_by_keyword(narration: Narration) -> None:
     """A voice's prose contributes multi-word *phrases* (never bare words) as
     warn-tier patterns under its own ``voice:<id>`` category."""
     voice = _FakeVoice(frozenset({"his crypto portfolio"}), voice_id="beat-writer")
-    report = check_narration(
-        "He would not shut up about his crypto portfolio.", narration, voice=voice
-    )
+    report = check_narration("He would not shut up about his crypto portfolio.", narration, voice=voice)
     assert not report.held
     banned = [f for f in report.findings if f.category == "banned_topic"]
-    assert any(
-        "voice:beat-writer" in f.message and f.matched == "crypto portfolio"
-        for f in banned
-    ), [f.message for f in report.findings]
+    assert any("voice:beat-writer" in f.message and f.matched == "crypto portfolio" for f in banned), [
+        f.message for f in report.findings
+    ]
 
 
 def test_voice_keyword_never_reaches_hold_even_beside_a_manager_name(
@@ -189,15 +191,12 @@ def test_voice_keyword_never_reaches_hold_even_beside_a_manager_name(
     n = _with_managers(narration, "Marcus")
     # "crypto portfolio" is only in the voice's prose, not the curated base lists
     voice = _FakeVoice(frozenset({"his crypto portfolio"}), voice_id="beat-writer")
-    report = check_narration(
-        "Marcus would not stop talking about his crypto portfolio.", n, voice=voice
-    )
+    report = check_narration("Marcus would not stop talking about his crypto portfolio.", n, voice=voice)
     assert report.held is False
     banned = [f for f in report.findings if f.category == "banned_topic"]
-    assert any(
-        "voice:beat-writer" in f.message and f.matched == "crypto portfolio"
-        for f in banned
-    ), [f.message for f in report.findings]
+    assert any("voice:beat-writer" in f.message and f.matched == "crypto portfolio" for f in banned), [
+        f.message for f in report.findings
+    ]
 
 
 def test_malformed_lists_file_raises_narrator_error(monkeypatch, narration: Narration) -> None:
@@ -215,6 +214,7 @@ def test_uncompilable_pattern_raises_narrator_error() -> None:
 def test_missing_lists_file_raises_narrator_error(monkeypatch, narration: Narration) -> None:
     """P4 — a missing / unreadable packaged list file must surface as
     ``NarratorError`` (an ``OSError`` would escape the CLI's per-league catch)."""
+
     def _boom() -> str:
         raise FileNotFoundError("safety_lists.toml")
 
@@ -239,9 +239,7 @@ def test_missing_lists_file_raises_narrator_error(monkeypatch, narration: Narrat
         "Marcus prayed a running back would fall to him and one did.",
     ],
 )
-def test_pick_and_approach_roasting_next_to_a_name_does_not_hold(
-    narration: Narration, sentence: str
-) -> None:
+def test_pick_and_approach_roasting_next_to_a_name_does_not_hold(narration: Narration, sentence: str) -> None:
     n = _with_managers(narration, "Marcus", "Dana")
     report = check_narration(sentence, n)
     assert not report.held, [f.message for f in report.findings]
@@ -259,17 +257,11 @@ def test_the_spec_hungover_example_still_holds(narration: Narration) -> None:
 
 def _name_trips_a_curated_pattern(name: str) -> bool:
     lists = safety._load_lists()
-    return any(
-        pattern.search(name)
-        for patterns in lists.banned_topics.values()
-        for pattern in patterns
-    )
+    return any(pattern.search(name) for patterns in lists.banned_topics.values() for pattern in patterns)
 
 
 @pytest.mark.parametrize("league_name", ["The Sportsbook League", "Politics League"])
-def test_a_league_named_after_a_banned_term_still_passes(
-    narration: Narration, league_name: str
-) -> None:
+def test_a_league_named_after_a_banned_term_still_passes(narration: Narration, league_name: str) -> None:
     """The whole recap for a league whose *name* matches a curated pattern is
     finding-free — the name is masked in the check's working copy — while the
     shipped prose keeps the real name."""
@@ -309,9 +301,7 @@ def test_mask_is_case_insensitive_and_whole_token(narration: Narration) -> None:
     masked = safety._mask_league_name("the SPORTSBOOK KINGS drafted well", n)
     assert masked == "the the league drafted well"
     # a longer token that merely contains the name is not rewritten
-    assert (
-        safety._mask_league_name("Sportsbook Kingsley", n) == "Sportsbook Kingsley"
-    )
+    assert safety._mask_league_name("Sportsbook Kingsley", n) == "Sportsbook Kingsley"
 
 
 @pytest.mark.parametrize(
@@ -351,9 +341,7 @@ def test_mask_is_skipped_when_the_league_name_carries_a_manager_name(
 
 
 @pytest.mark.parametrize("league_name", ["The", "Run", "Season"])
-def test_mask_is_skipped_for_a_single_ordinary_word_name(
-    narration: Narration, league_name: str
-) -> None:
+def test_mask_is_skipped_for_a_single_ordinary_word_name(narration: Narration, league_name: str) -> None:
     """P10 — a one-word league name that is an ordinary English word must not
     rewrite every occurrence of that word across the whole recap."""
     n = _with_league_name(narration, league_name)
@@ -362,9 +350,7 @@ def test_mask_is_skipped_for_a_single_ordinary_word_name(
 
 
 @pytest.mark.parametrize("league_name", ["", "AA"])
-def test_short_or_empty_league_name_skips_masking(
-    narration: Narration, league_name: str
-) -> None:
+def test_short_or_empty_league_name_skips_masking(narration: Narration, league_name: str) -> None:
     """Below the minimum length the mask is a no-op: no crash, no spurious
     replacement of a two-letter string that appears all over ordinary prose."""
     n = _with_league_name(narration, league_name)
@@ -428,9 +414,7 @@ def test_a_standalone_banned_word_is_not_masked_by_a_longer_league_name(
         "Marcus is charged with rebuilding the backfield.",
     ],
 )
-def test_d2_idiomatic_prose_beside_a_name_does_not_hold(
-    narration: Narration, sentence: str
-) -> None:
+def test_d2_idiomatic_prose_beside_a_name_does_not_hold(narration: Narration, sentence: str) -> None:
     n = _with_managers(narration, "Marcus")
     report = check_narration(sentence, n)
     assert not report.held, [f.message for f in report.findings]
@@ -447,9 +431,7 @@ def test_d2_idiomatic_prose_beside_a_name_does_not_hold(
         "Marcus gambles every single week.",
     ],
 )
-def test_d2_real_abuse_beside_a_name_still_holds(
-    narration: Narration, sentence: str
-) -> None:
+def test_d2_real_abuse_beside_a_name_still_holds(narration: Narration, sentence: str) -> None:
     n = _with_managers(narration, "Marcus")
     assert check_narration(sentence, n).held, sentence
 
@@ -458,9 +440,7 @@ def test_d2_real_abuse_beside_a_name_still_holds(
     "crime",
     ["fraud", "assault", "theft", "murder", "robbery", "two felonies"],
 )
-def test_charged_with_a_crime_object_still_holds(
-    narration: Narration, crime: str
-) -> None:
+def test_charged_with_a_crime_object_still_holds(narration: Narration, crime: str) -> None:
     """P3 — the narrowed ``charged with (...)`` alternation must not have dropped
     real abuse. ``fraud`` / ``assault`` / ``theft`` / ``murder`` / ``robbery``
     appear **nowhere else** in the ``legal`` list, so a hold here can only come
@@ -468,9 +448,7 @@ def test_charged_with_a_crime_object_still_holds(
     n = _with_managers(narration, "Marcus")
     report = check_narration(f"Marcus was charged with {crime} last spring.", n)
     assert report.held, [f.message for f in report.findings]
-    assert any("charged with" in f.matched for f in report.findings), [
-        f.matched for f in report.findings
-    ]
+    assert any("charged with" in f.matched for f in report.findings), [f.matched for f in report.findings]
 
 
 # --------------------------------------------------------------------------- #
@@ -494,13 +472,23 @@ def test_closed_world_rejects_a_number_that_is_only_a_substring(
     assert "202" in _hallucinations(report)
 
 
-def test_closed_world_rejects_a_name_that_is_only_a_substring(
+def test_closed_world_no_longer_gates_a_bare_one_word_name(
     narration: Narration,
 ) -> None:
-    """A2 — "Marc" sits inside the manager name "Marcus" and used to pass."""
+    """P0.1, and a deliberate, documented loss of coverage — pinned so it cannot
+    happen by accident later.
+
+    "Marc" sits inside the manager name "Marcus". Exact membership still keeps it
+    out of the payload set (see the number twin of this test, which still gates),
+    but a lone capitalised word is no longer evidence of a claim: that branch
+    could not tell "Marc" from "Finally", "Stampede" or "Good", and the list of
+    words it had to be taught was the complement of an open class. One word, no
+    number attached, is now claim-level work, not gate work."""
     n = _with_managers(narration, "Marcus")
     report = check_narration("Marc left the draft early.", n)
-    assert "Marc" in _hallucinations(report)
+    assert "Marc" not in _hallucinations(report)
+    # nor does the entity signal reach for it — one word is never a run
+    assert not safety.unverified_entities("Marc left the draft early.", n)
 
 
 def test_closed_world_keeps_a_real_token_in_world(narration: Narration) -> None:
@@ -520,9 +508,7 @@ def test_lowercase_hallucinated_grade_is_flagged(narration: Narration) -> None:
     assert "d+" in _hallucinations(report)
 
 
-@pytest.mark.parametrize(
-    "text", ["Vitamin e was the story of the draft.", "e is not a grade at all."]
-)
+@pytest.mark.parametrize("text", ["Vitamin e was the story of the draft.", "e is not a grade at all."])
 def test_a_bare_lowercase_e_is_not_a_grade(narration: Narration, text: str) -> None:
     """P8 — ``[A-F]`` + ``IGNORECASE`` swept lowercase "e" into the grade branch,
     which ``continue``\\ s before the stop-set lookup, so an ordinary word became
@@ -543,9 +529,7 @@ def test_lowercase_real_grade_is_not_flagged(narration: Narration) -> None:
 # --------------------------------------------------------------------------- #
 
 
-def test_demo_template_recap_passes_clean_with_the_default_voice(
-    demo_recap_text: str, narration: Narration
-) -> None:
+def test_demo_template_recap_passes_clean_with_the_default_voice(demo_recap_text: str, narration: Narration) -> None:
     """The committed demo recap (template narrator on tests/fixtures/rookie-draft.json)
     must be finding-free, both bare and with the default voice merged in."""
     for voice in (None, load_default_voice()):
@@ -635,8 +619,19 @@ def test_voice_extraction_never_arms_a_bare_word() -> None:
     for pattern in patterns:
         assert "[\\s-]+" in pattern.pattern, pattern.pattern
     compiled = {p.pattern for p in patterns}
-    for bare in ("injury", "physical", "trouble", "personal", "family", "medical",
-                 "legal", "betting", "gambling", "weight", "arrests"):
+    for bare in (
+        "injury",
+        "physical",
+        "trouble",
+        "personal",
+        "family",
+        "medical",
+        "legal",
+        "betting",
+        "gambling",
+        "weight",
+        "arrests",
+    ):
         assert rf"\b{bare}\b" not in compiled, bare
 
 
@@ -645,11 +640,12 @@ def test_voice_extraction_arms_the_head_noun_core_of_a_long_fragment() -> None:
     fires if the narrator quotes that prose, which never happens. The trailing
     two-word head-noun core is what actually does the work."""
     fragments = safety._voice_fragments(load_default_voice().banned_topics)
-    assert "real life injury history" in fragments
+    # 0.3.0 reworded the injury topic: the *event* is sayable, the medical file
+    # is not. Extraction must still reach the head-noun cores.
+    assert "medical details" in fragments
     assert "injury history" in fragments  # the core of it
     assert "off field legal trouble" in fragments
     assert "legal trouble" in fragments
-    assert "medical status" in fragments
     assert "betting advice" in fragments
     # still never a bare word
     assert all(len(f.split()) >= 2 for f in fragments), fragments
@@ -663,9 +659,7 @@ def test_voice_extraction_arms_the_head_noun_core_of_a_long_fragment() -> None:
         "Marcus had trouble finding a starter after that.",
     ],
 )
-def test_d3_scouting_talk_is_clean_with_the_default_voice_merged(
-    narration: Narration, sentence: str
-) -> None:
+def test_d3_scouting_talk_is_clean_with_the_default_voice_merged(narration: Narration, sentence: str) -> None:
     """D3 acceptance — the retro's three scouting sentences produce **no finding**
     with the default voice merged in."""
     n = _with_managers(narration, "Marcus")
@@ -692,6 +686,7 @@ def test_packaged_lists_load_and_compile_with_the_expected_categories() -> None:
         "appearance",
         "politics_religion",
         "gambling",
+        "gambling_personal",
         "substances",
     }
     assert lists.personal_insults and lists.slop
@@ -718,6 +713,186 @@ def test_closed_world_strips_ordinal_suffixes(narration: Narration) -> None:
 def test_closed_world_stops_capitalised_sentence_adverbs(narration: Narration) -> None:
     report = check_narration("Meanwhile, Granted, Regardless, Admittedly.", narration)
     assert not any(f.category == "hallucination" for f in report.findings), report.findings
+
+
+def test_closed_world_stops_capitalised_sentence_conjuncts(narration: Narration) -> None:
+    """Live-confirmed: a real generation opened a sentence with "Though" — a
+    conjunction/adverb absent from the curated set above, closed the same way."""
+    report = check_narration("Though, Although, Nonetheless, Nevertheless.", narration)
+    assert not any(f.category == "hallucination" for f in report.findings), report.findings
+
+
+# --------------------------------------------------------------------------- #
+# Sentence-initial capitalisation — live-confirmed false-positive class
+# --------------------------------------------------------------------------- #
+#
+# A real generation opened sentences with ordinary words absent from _STOP
+# ("Finally", "Passing", "Similarly") and false-positived. _STOP can only ever
+# enumerate a finite sample of the words English allows to open a sentence, so
+# the fix is sentence-boundary detection, not another literal word added to
+# the set every time a new one is discovered live.
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Passing up on consensus values is always a polarizing move.",
+        "Backed by a deep receiving corps, the offense should hum.",
+        "Driven by need at running back, the manager reached early.",
+        "Taking the safe pick here paid off by December.",
+    ],
+)
+def test_closed_world_exempts_an_uncurated_sentence_opener(narration: Narration, text: str) -> None:
+    """None of these opening words are in ``_STOP`` — each is exactly the class
+    of ordinary prose a real generation produced and that a finite curated set
+    can never fully enumerate in advance."""
+    assert not safety._closed_world(text, narration)
+
+
+def test_closed_world_exempts_a_sentence_opener_mid_paragraph(
+    narration: Narration,
+) -> None:
+    """The exemption is sentence-aware, not just paragraph-initial: the second
+    sentence of one paragraph, following ". ", opens fresh too."""
+    text = "We will be debating this pick for months. Passing judgment early is always a mistake."
+    assert not safety._closed_world(text, narration)
+
+
+def test_closed_world_exempts_a_paragraph_opener_after_a_heading(
+    narration: Narration,
+) -> None:
+    """A Markdown heading or bold-wrapped label line is never a mid-sentence
+    continuation, so whatever paragraph follows one opens a new sentence
+    regardless of the words the heading/label line itself contains."""
+    text = "## The Lead\n\nFinally, the board is set for next season."
+    assert not safety._closed_world(text, narration)
+
+
+def test_closed_world_still_catches_a_mid_sentence_hallucination(
+    narration: Narration,
+) -> None:
+    """The exemption does not weaken detection of a genuine hallucinated
+    entity that is not sentence-initial — the dominant real-world shape, since
+    a name in this domain almost always appears inside a sentence, not as its
+    very first word."""
+    text = "The manager took Watson Elite in round two, a total surprise."
+    assert not safety._closed_world(text, narration)
+    assert "Watson Elite" in safety.unverified_entities(text, narration)
+
+
+def test_closed_world_still_catches_the_second_word_of_a_sentence_initial_hallucination(
+    narration: Narration,
+) -> None:
+    """A multi-word entity is caught wherever it sits, sentence-initial included:
+    the entity signal has no sentence-position rule at all, which is one of the
+    things P0.1 deleted (``_sentence_start_positions`` existed only to keep the
+    old capitalisation branch from eating every sentence opener)."""
+    text = "Watson Elite headlined the whole draft class."
+    assert not safety._closed_world(text, narration)
+    assert "Watson Elite" in safety.unverified_entities(text, narration)
+
+
+def test_closed_world_still_catches_a_bare_hallucinated_name_at_sentence_start(
+    narration: Narration,
+) -> None:
+    """The other half of the P0.1 trade, pinned: a bare one-word name opening a
+    sentence is indistinguishable from an ordinary sentence-opener — that is
+    precisely why the old branch needed an ever-growing list of openers to
+    exempt — so it is no longer gated, and it is not a run either."""
+    text = "Watson led the way at the very top of the board."
+    assert not safety._closed_world(text, narration)
+    assert not safety.unverified_entities(text, narration)
+
+
+# --------------------------------------------------------------------------- #
+# _COMMON_OPENERS / _TITLES — the open-class gap, live-measured 2026-09-13
+# --------------------------------------------------------------------------- #
+#
+# Two consecutive live sampling batches (COMMISHDESK_LIVE_LLM against Gemini)
+# measured that roughly half of real generations were still degrading to
+# template solely because the morphology gate (-ly/-ing/-ed/irregular
+# participles) doesn't cover bare adjectives, quantifiers, or verb-imperative
+# sentence openers -- a genuinely different part of speech with no shared
+# suffix to test for. Each case below is a real token a live generation
+# produced, not a hypothetical.
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Good thing they waited on that pick.",
+        "Right away, the board tilted toward receivers.",
+        "Another team took the same approach.",
+        "Come December, this pick will matter more.",
+        "Add to that the depth at tight end.",
+        "Look at how the board fell after that.",
+        "Close to the top, the run continued.",
+        "Key to the whole draft was patience at the position.",
+        "Let the record show this was a run on running backs.",
+        "Next up is the tight end position.",
+        "Alongside the running backs, receivers went early too.",
+        "Day one belonged to the running backs.",
+        "Buckle up for this recap.",
+        "Why the board fell this way is anyone's guess.",
+    ],
+)
+def test_closed_world_exempts_a_common_adjective_or_verb_opener(narration: Narration, text: str) -> None:
+    """None of these are in _STOP and none match the morphology gate (no
+    shared -ly/-ing/-ed suffix) -- a live generation produced each verbatim."""
+    assert not safety._closed_world(text, narration)
+
+
+def test_closed_world_exempts_a_title_at_any_position(narration: Narration) -> None:
+    """ "Mr. Irrelevant" is the real, traditional NFL-draft nickname for the
+    last pick -- not itself in the Facts JSON, and not a hallucination either.
+    A bare title carries no information on its own, so it is exempt wherever
+    it appears, not only at a sentence boundary."""
+    text = "In a nod to tradition, Mr. Irrelevant went in the final round."
+    assert not safety._closed_world(text, narration)
+
+
+def test_closed_world_title_exemption_does_not_cover_the_name_it_attaches_to(
+    narration: Narration,
+) -> None:
+    """ "Mr. Fictitious" and "Mr. Irrelevant" (the real NFL-draft nickname, the
+    test just above) are the *same shape* — two capitalised words the payload has
+    never heard of. No structural rule separates them, which is the concrete
+    reason the entity signal reports rather than gates: it surfaces both, and a
+    gate would brick an Issue over the idiom."""
+    text = "Mr. Fictitious went in the final round."
+    assert not safety._closed_world(text, narration)
+    assert "Mr Fictitious" in safety.unverified_entities(text, narration)
+    idiom = "In a nod to tradition, Mr. Irrelevant went in the final round."
+    assert "Mr Irrelevant" in safety.unverified_entities(idiom, narration)
+
+
+def test_closed_world_exempts_the_bare_adp_acronym(narration: Narration) -> None:
+    """ "ADP" (Average Draft Position) is real, ordinary fantasy-football
+    terminology -- live-confirmed: a real generation used it with no specific
+    number attached, and it isn't itself a claim about anything in the
+    payload."""
+    text = "His ADP suggested a much later pick than where he actually went."
+    assert not safety._closed_world(text, narration)
+
+
+def test_closed_world_adp_exemption_does_not_cover_a_fabricated_number(
+    narration: Narration,
+) -> None:
+    """The acronym carries no content; a specific number attached to it is
+    still a factual claim and must still be traced to the payload."""
+    text = "His ADP was 999 entering the draft."
+    assert "999" in safety._closed_world(text, narration)
+
+
+def test_closed_world_rejects_a_name_that_is_only_a_substring_at_sentence_start(
+    narration: Narration,
+) -> None:
+    """The sentence-start case of the same P0.1 trade. Kept as its own test
+    because the *number* twin of this shape ("19" inside "192") still gates, and
+    the two must not be allowed to drift into looking like one rule."""
+    n = _with_managers(narration, "Marcus")
+    text = "Marc left the draft early."
+    assert not safety._closed_world(text, n)
 
 
 def test_closed_world_grade_check_is_against_the_awarded_set(narration: Narration) -> None:
@@ -760,7 +935,7 @@ def test_category_severity_map_shape() -> None:
 
 def test_check_is_byte_identical_across_calls(narration: Narration) -> None:
     n = _with_managers(narration, "Marcus", "Dana")
-    text = "Marcus drafted hungover. Dana is an idiot. make no mistake."
+    text = "Marcus drafted hungover. Dana is an idiot. In conclusion, wow."
     a = check_narration(text, n, voice=load_default_voice())
     b = check_narration(text, n, voice=load_default_voice())
     assert a.model_dump_json() == b.model_dump_json()
@@ -791,3 +966,185 @@ def test_check_narration_is_eagerly_reexported() -> None:
     for name in ("SafetyFinding", "SafetyReport", "check_narration"):
         assert name in narrate_pkg.__all__
         assert getattr(narrate_pkg, name) is getattr(safety, name)
+
+
+# --------------------------------------------------------------------------- #
+# P0.1 — the non-gating entity signal (safety.unverified_entities)
+# --------------------------------------------------------------------------- #
+
+
+def test_unverified_entities_spares_a_run_touching_a_real_payload_token(
+    narration: Narration,
+) -> None:
+    """The "none of its words is in the payload" rule is what keeps this signal
+    quiet on ordinary prose: a run containing even one real entity is spared
+    whatever else it carries. Without it, every capitalised word following a
+    sentence-ending name would be reported."""
+    n = _with_managers(narration, "Marcus")
+    assert not safety.unverified_entities("Finally Marcus sat down.", n)
+
+
+def test_unverified_entities_ignores_headings_and_the_title(
+    narration: Narration,
+) -> None:
+    """Every canonical ``## `` heading is Title Case, and a recap opens with a
+    free-form title — structure, not claims, and ``structural_ok`` already owns
+    them. Blanking them is what keeps the signal from firing on the recap's own
+    skeleton."""
+    text = "The Board Went Sideways\n\n## Team Grades\n\nIt was a quiet round.\n"
+    assert not safety.unverified_entities(text, narration)
+
+
+def test_unverified_entities_still_scores_a_body_run_in_a_full_recap(
+    narration: Narration,
+) -> None:
+    """Blanking the title must not blank the body: the exemption is two specific
+    lines, not "the start of the document"."""
+    text = "The Board Went Sideways\n\n## Team Grades\n\nThey took Jamarr Chasen early.\n"
+    assert "Jamarr Chasen" in safety.unverified_entities(text, narration)
+
+
+def test_unverified_entities_checks_a_single_line_with_no_headings(
+    narration: Narration,
+) -> None:
+    """The title exemption applies only when the text is recap-shaped. A bare
+    sentence has no title line to skip, and blanking its only line would leave
+    the signal silently checking nothing."""
+    assert "Jamarr Chasen" in safety.unverified_entities("They took Jamarr Chasen.", narration)
+
+
+def test_unverified_entities_does_not_join_across_a_line_break(
+    narration: Narration,
+) -> None:
+    """A run is whitespace-within-a-line only. Joining across a newline would
+    manufacture an "entity" out of the last word of one line and the first of the
+    next — exactly the shape a narrator writing one-word mini-headlines
+    ("Stampede", "Trenches") on their own lines produces."""
+    assert not safety.unverified_entities("Stampede\nTrenches\n", narration)
+
+
+def test_unverified_entities_leaves_digit_bearing_runs_to_the_gating_branch(
+    narration: Narration,
+) -> None:
+    """A run whose words carry a digit or a grade is skipped here — those are
+    refutations, and ``_closed_world`` gates on them. Reporting the same problem
+    on both a gating and a non-gating surface would double-count it."""
+    text = "They loved Squad R2 early."
+    assert not safety.unverified_entities(text, narration)
+    assert "R2" in safety.closed_world_tokens(text, narration)
+
+
+def test_a_number_between_two_runs_splits_them(narration: Narration) -> None:
+    """A numeric token is not capitalised, so it ends a run rather than joining
+    two — "Pick 8675309 Was Odd" is the number (gated) plus the run "Was Odd"
+    (reported), not one three-word entity."""
+    text = "Pick 8675309 Zorbo Quilnax"
+    assert "8675309" in safety.closed_world_tokens(text, narration)
+    assert safety.unverified_entities(text, narration) == ("Zorbo Quilnax",)
+
+
+def test_unverified_entities_scores_the_same_masked_text_as_the_gate(
+    narration: Narration,
+) -> None:
+    """Same discipline as ``closed_world_tokens``: normalize + league-name mask
+    first, so a league whose own name is a two-word capitalised phrase cannot be
+    reported as an invented entity in its own Issue."""
+    renamed = narration.model_copy(update={"league": narration.league.model_copy(update={"name": "Fakename Kings"})})
+    assert "Fakename Kings" in safety.unverified_entities("Fakename Kings drafted.", narration)
+    assert not safety.unverified_entities("Fakename Kings drafted.", renamed)
+
+
+# --------------------------------------------------------------------------- #
+# P0.1 live-validation follow-ups (2026-09-13, gemini-3.8-flash, n=3, 2/3 clean)
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "The Ibex reached three slots early to secure their WR1.",
+        "Consensus said otherwise, but this roster needed its RB2.",
+        "A clear QB1 in a two-quarterback format changes the math.",
+        "Depth mattered more than a marginal TE1 upgrade.",
+    ],
+)
+def test_closed_world_exempts_position_rank_shorthand(narration: Narration, text: str) -> None:
+    """Live-confirmed: a real ``gemini-3.8-flash`` generation used "WR1" — a
+    fantasy-football term of art for "this team's top receiver," not a number
+    the payload could ever confirm or refute (``positional_counts`` tracks
+    totals, never a league-wide positional draft order) — and it flagged as a
+    hallucination. None of these four are in ``_STOP``-successor territory;
+    they are caught solely because :data:`_POSITION_RANK` did not exist yet."""
+    assert not safety._closed_world(text, narration)
+
+
+def test_position_rank_exemption_does_not_cover_an_adjacent_real_number(
+    narration: Narration,
+) -> None:
+    """The exemption is shape-anchored (``^...$`` on the *split* token) — it
+    does not leak into a neighbouring token that a real number lands in."""
+    n = _with_managers(narration, "Marcus")
+    text = "Marcus took his WR1 at pick 8675309."
+    unknown = safety._closed_world(text, n)
+    assert "8675309" in unknown
+    assert not any(t.upper().startswith("WR1") for t in unknown)
+
+
+def test_closed_world_still_flags_an_unbounded_position_rank_look_alike(
+    narration: Narration,
+) -> None:
+    """The exemption is a closed set of real fantasy-football position
+    abbreviations, not "letters followed by digits" generally — a token that
+    merely resembles the shape but names no real position is still a number
+    the payload does not contain."""
+    assert "XY1" in safety._closed_world("The board loved an XY1 profile.", narration)
+
+
+def test_round_slot_notation_is_now_in_world() -> None:
+    """The former KNOWN_GAP, closed — kept as the regression guard it became.
+
+    Until 0.3.0 the payload carried ``pick_no`` only for round 1 and the
+    superlatives, so a narrator writing "six consecutive picks from 4.06 to
+    4.11" — correct arithmetic off the payload's own ``back_to_back`` pairs —
+    had both labels reported as hallucinations. The documented decision then was
+    to accept it rather than teach the refutation check to do derivation.
+
+    0.3.0 removed the cause instead of the symptom: ``narration.players`` now
+    carries every pick's ``pick_no`` **and** ``board_label``, so both spellings
+    of every pick are literally in the closed world. No derivation logic was
+    added to ``_closed_world``; the payload simply stopped being thinner than
+    the prose it had to support.
+
+    The check did not get weaker. A board label nobody was drafted at is still
+    refuted — see the assertion below.
+    """
+    import json
+    import pathlib as _p
+
+    from commishdesk.facts.schema import Narration as _N
+
+    real = _N.model_validate(
+        json.loads(_p.Path("tests/fixtures/facts/expected-draft-recap-facts.json").read_text(encoding="utf-8"))[
+            "narration"
+        ]
+    )
+    assert not safety._closed_world("They ran six consecutive picks from 4.06 to 4.11 (picks 42 through 47).", real)
+    # a slot that does not exist in a 12-team, 6-round draft is still caught
+    assert "9.15" in safety._closed_world("Nobody was taken at 9.15.", real)
+
+
+def test_weight_idiom_is_no_longer_an_appearance_hit(narration: Narration) -> None:
+    """Live-confirmed FP: "putting their weight behind three tailbacks" is an
+    idiom about commitment, and the bare possessive pattern suppressed an
+    otherwise-clean Issue. Same calibration class as "went with his gut"."""
+    report = check_narration(
+        "The Gazelles bypassed the passer market, putting their weight behind three tailbacks.",
+        narration,
+    )
+    assert not any(f.category == "banned_topic" for f in report.findings), report.findings
+
+
+def test_a_real_body_comment_still_fires(narration: Narration) -> None:
+    """Narrowing the weight pattern must not disarm the category."""
+    report = check_narration("He showed up carrying extra weight around the middle.", narration)
+    assert any(f.category == "banned_topic" for f in report.findings)

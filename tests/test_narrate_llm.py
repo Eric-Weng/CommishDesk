@@ -888,6 +888,20 @@ def test_google_adapter_generates_with_each_accepted_key(
     assert gen["config"]["system_instruction"] == "SYS"  # type: ignore[index]
 
 
+def test_google_adapter_disables_thinking(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Extended thinking is billed against ``max_output_tokens`` right alongside
+    the visible completion, and a narration call needs no chain-of-thought — left
+    at its default, thinking can consume nearly all of the ceiling on a real
+    narration payload and truncate before any usable prose (confirmed live:
+    gemini-3.5-flash spent 7860 of 8192 tokens "thinking", MAX_TOKENS with 328
+    tokens of visible text). Zeroed explicitly so a provider default drift can't
+    silently reintroduce the truncation."""
+    sink: dict[str, list[dict[str, object]]] = {}
+    _install_fake_genai(monkeypatch, sink=sink)
+    GoogleClient("gemini-x", env={"GEMINI_API_KEY": "k"}).generate("PAYLOAD", FakeVoice("SYS"))
+    assert sink["generate"][0]["config"]["thinking_config"] == {"thinking_budget": 0}  # type: ignore[index]
+
+
 def test_google_adapter_forwards_endpoint_as_http_options(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

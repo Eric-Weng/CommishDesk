@@ -41,9 +41,12 @@ if TYPE_CHECKING:
     from commishdesk.narrate.template import Recap
 
 __all__ = [
+    "MAX_REPAIR_SENTENCES",
+    "MIN_REPAIR_RETENTION",
     "SECTION_HEADINGS",
     "TieredResponse",
     "classify",
+    "excise_offending_sentences",
     "sanitize_completion",
     "structural_ok",
     "suppress_sections",
@@ -173,9 +176,7 @@ def classify(report: SafetyReport, *, narrator_is_template: bool) -> TieredRespo
     )
 
 
-def suppress_sections(
-    recap: Recap, report: SafetyReport
-) -> tuple[Recap | None, tuple[str, ...]]:
+def suppress_sections(recap: Recap, report: SafetyReport) -> tuple[Recap | None, tuple[str, ...]]:
     """Remove every template :class:`~commishdesk.narrate.template.Section` a
     ``suppress_section`` finding lands in.
 
@@ -210,3 +211,98 @@ def suppress_sections(
     if len(kept) < 2 or all(s.heading != lead for s in kept):
         return None, removed
     return recap.model_copy(update={"sections": kept}), removed
+
+
+#: The most offending sentences one repair pass may excise. Past this, the
+#: generation is not carrying a few bad spans, it is broadly wrong — and a
+#: regeneration (or the template) is the honest answer. Three is deliberately
+#: tight: the live P0.1 validation run never saw more than two in one Issue.
+MAX_REPAIR_SENTENCES = 3
+
+#: The repaired text must keep at least this share of the original characters.
+#: A repair that guts an Issue is not a repair; the length band the voice prompt
+#: sets (±15%) is what ships, so a 10% floor leaves room without letting an
+#: excision quietly produce a stub.
+MIN_REPAIR_RETENTION = 0.90
+
+#: A list-bullet line whose sentence has been excised, leaving only the marker.
+_EMPTY_BULLET = re.compile(r"^[ \t]*(?:[*+\-•]|\d+[.)])[ \t]*$")
+
+
+def _tidy_after_excision(text: str) -> str:
+    """Collapse the whitespace an excision leaves behind: doubled spaces inside a
+    line, bullet lines whose content is gone, and runs of blank lines."""
+    kept: list[str] = []
+    for line in text.split("\n"):
+        collapsed = re.sub(r"[ \t]{2,}", " ", line).rstrip()
+        if _EMPTY_BULLET.match(collapsed):
+            continue
+        kept.append(collapsed)
+    return re.sub(r"\n{3,}", "\n\n", "\n".join(kept)).strip() + "\n"
+
+
+def excise_offending_sentences(text: str, report: SafetyReport) -> tuple[str | None, tuple[str, ...]]:
+    """Remove every sentence a *repairable* finding landed in, or refuse.
+
+    Returns ``(repaired_text, excised_sentences)``, or ``(None, attempted)`` when
+    the repair must not be taken and the caller should escalate (regenerate, then
+    the template).
+
+    **Why this exists.** Before it, a single ``regenerate``-tier finding bought a
+    whole second generation, and a ``suppress_section`` finding discarded the
+    narration outright. The P0.1 live validation measured what that costs: 7
+    findings across 40 generations, 6 of them ``regenerate``-tier, **~13 paid
+    calls spent, 0 real hallucinations caught**. Worse, regeneration is
+    *provably* ineffective for the dominant class — the same derived-arithmetic
+    span ("6.07") recurred in three independent generations, so re-rolling the
+    identical prompt mostly re-earns the identical finding.
+
+    Excision costs **nothing** and is correct in both directions, which is the
+    property that matters when the true/false split cannot be known in advance:
+    on a false positive it drops one good sentence (a small quality cost); on a
+    true positive it removes the actual problem. That asymmetry is what lets the
+    detection side be *broad* — see ``real_world_references`` in
+    ``safety_lists.toml``, which is only affordable because a hit is repaired
+    rather than regenerated.
+
+    Refuses — returns ``None`` — when:
+
+    * any finding is ``hold_issue``. A hold is a hold; repair never launders one.
+    * a finding cannot be localized (empty ``sentence``, or one that is not a
+      substring of the normalized text). The offending phrase is still in there
+      somewhere, so "removed nothing" must not be mistaken for "fixed".
+    * more than :data:`MAX_REPAIR_SENTENCES` distinct sentences are implicated.
+    * the result drops below :data:`MIN_REPAIR_RETENTION` of the original length,
+      or stops satisfying :func:`structural_ok`.
+
+    The caller must re-run ``check_narration`` on the repaired text and require a
+    clean report before shipping it — this function does not re-validate, and a
+    ``slop``/``banned_topic`` pattern can span a sentence boundary.
+    """
+    normalized = _normalize(text)
+    targets: list[str] = []
+    for finding in report.findings:
+        if finding.severity == "hold_issue":
+            return None, ()
+        if finding.severity not in ("regenerate", "suppress_section"):
+            continue
+        if not finding.sentence or finding.sentence not in normalized:
+            return None, tuple(targets)
+        if finding.sentence not in targets:
+            targets.append(finding.sentence)
+
+    if not targets:
+        return normalized, ()
+    if len(targets) > MAX_REPAIR_SENTENCES:
+        return None, tuple(targets)
+
+    repaired = normalized
+    for sentence in targets:
+        repaired = repaired.replace(sentence, "", 1)
+    repaired = _tidy_after_excision(repaired)
+
+    if len(repaired) < MIN_REPAIR_RETENTION * len(normalized):
+        return None, tuple(targets)
+    if not structural_ok(repaired):
+        return None, tuple(targets)
+    return repaired, tuple(targets)

@@ -30,12 +30,18 @@ Fixed order (AD-12 Layer 2):
    hit → ``named_person_proximity`` / ``hold_issue``.
 3. **Banned-topic patterns** — the same term with no manager name in that
    sentence → the lesser ``banned_topic`` tier.
-4. **Closed-world** — every proper-noun / numeric token in the output must be a
-   *member* of the token set built from ``narration.model_dump_json()`` (minus a
-   curated stop-set) — exact membership, never substring containment. A miss →
-   ``hallucination`` / ``regenerate``. This is the package's own gate against
-   gross hallucination, not a proof of accuracy; ``tests/test_voices.py``'s eval
-   scorer now *calls* :func:`_closed_world` rather than carrying a copy of it.
+4. **Closed-world** — every digit-bearing token and every letter grade in the
+   output must be a **member** of the token set built from
+   ``narration.model_dump_json()`` (exact membership, never substring
+   containment). A miss → ``hallucination`` / ``regenerate``. Since P0.1 it
+   reports only what the payload positively **contradicts**: the payload is a
+   complete record of this world's numbers and grades, so one it does not
+   contain is refuted. Capitalisation is no longer evidence of anything here —
+   a proper noun the payload merely cannot trace is *unverifiable, not false*,
+   and is reported by the non-gating :func:`unverified_entities` instead. This
+   is the package's own gate against gross hallucination, not a proof of
+   accuracy; ``tests/test_voices.py``'s eval scorer *calls* :func:`_closed_world`
+   rather than carrying a copy of it.
 5. **Slop / tone** — a cliché from the ``slop`` list → ``slop``.
 
 Pattern lists live in ``commishdesk/narrate/safety_lists.toml`` (shipped as
@@ -72,10 +78,14 @@ __all__ = [
     "SafetySeverity",
     "check_narration",
     "closed_world_tokens",
+    "unverified_entities",
 ]
 
 SafetyCategory = Literal[
-    "named_person_proximity", "banned_topic", "hallucination", "slop"
+    "named_person_proximity",
+    "banned_topic",
+    "hallucination",
+    "slop",
 ]
 SafetySeverity = Literal["hold_issue", "regenerate", "suppress_section"]
 
@@ -151,11 +161,7 @@ def _normalize(text: str) -> str:
     normalizer.
     """
     nfkc = unicodedata.normalize("NFKC", text)
-    return "".join(
-        ch
-        for ch in nfkc
-        if ch == "\n" or unicodedata.category(ch) not in ("Cc", "Cf")
-    )
+    return "".join(ch for ch in nfkc if ch == "\n" or unicodedata.category(ch) not in ("Cc", "Cf"))
 
 
 #: Split on sentence punctuation followed by whitespace *or* an uppercase letter
@@ -177,8 +183,8 @@ def _sentences(text: str) -> tuple[str, ...]:
 _LEAGUE_NAME_MIN = 3
 
 #: The inert stand-in a masked league name is replaced with. Both words are in
-#: ``_STOP`` / ``_VOICE_STOPWORDS`` territory and neither trips any pattern list,
-#: so substituting it can only ever *remove* findings, never add one.
+#: ``_ORDINARY_SINGLE_WORDS`` / ``_VOICE_STOPWORDS`` territory and neither trips any
+#: pattern list, so substituting it can only ever *remove* findings, never add one.
 _LEAGUE_PLACEHOLDER = "the league"
 
 
@@ -210,7 +216,7 @@ def _league_name_pattern(name: str) -> re.Pattern[str] | None:
     words = normalized.split()
     if not words:
         return None
-    if len(words) == 1 and words[0].lower() in _STOP | _VOICE_STOPWORDS:
+    if len(words) == 1 and words[0].lower() in _ORDINARY_SINGLE_WORDS | _VOICE_STOPWORDS:
         return None
 
     def _edge(char: str, *, leading: bool) -> str:
@@ -225,9 +231,7 @@ def _league_name_pattern(name: str) -> re.Pattern[str] | None:
     )
 
 
-def _mask_league_name(
-    text: str, narration: Narration, *, manager_names: frozenset[str] | None = None
-) -> str:
+def _mask_league_name(text: str, narration: Narration, *, manager_names: frozenset[str] | None = None) -> str:
     """Replace whole-token, case-insensitive occurrences of the league's own name
     with :data:`_LEAGUE_PLACEHOLDER` — in ``check_narration``'s **internal
     working copy only**.
@@ -264,10 +268,7 @@ def _mask_league_name(
         return text
     names = _manager_names(narration) if manager_names is None else manager_names
     normalized_name = _normalize(narration.league.name)
-    if any(
-        name_pattern.search(normalized_name)
-        for name_pattern in _compile_name_patterns(names)
-    ):
+    if any(name_pattern.search(normalized_name) for name_pattern in _compile_name_patterns(names)):
         return text
     return pattern.sub(_LEAGUE_PLACEHOLDER, text)
 
@@ -291,11 +292,7 @@ def _manager_names(narration: Narration) -> frozenset[str]:
                 if key == "manager" and isinstance(value, str) and value.strip():
                     names.add(value.strip())
                 elif key == "left_waiting" and isinstance(value, list):
-                    names.update(
-                        item.strip()
-                        for item in value
-                        if isinstance(item, str) and item.strip()
-                    )
+                    names.update(item.strip() for item in value if isinstance(item, str) and item.strip())
                 else:
                     walk(value)
         elif isinstance(obj, list):
@@ -311,9 +308,7 @@ def _compile_name_patterns(names: frozenset[str]) -> tuple[re.Pattern[str], ...]
     once per :func:`check_narration` call. Word-boundary, never bare substring:
     "Sam" must not fire inside "same", "Ben" inside "benched", "Ross" inside
     "across"."""
-    return tuple(
-        re.compile(rf"\b{re.escape(name)}\b", re.IGNORECASE) for name in sorted(names)
-    )
+    return tuple(re.compile(rf"\b{re.escape(name)}\b", re.IGNORECASE) for name in sorted(names))
 
 
 def _sentence_has_name(sentence: str, name_patterns: tuple[re.Pattern[str], ...]) -> bool:
@@ -329,6 +324,7 @@ def _sentence_has_name(sentence: str, name_patterns: tuple[re.Pattern[str], ...]
 class _Lists:
     banned_topics: dict[str, tuple[re.Pattern[str], ...]]
     personal_insults: tuple[re.Pattern[str], ...]
+    escalate_to_hold: frozenset[str]
     slop: tuple[re.Pattern[str], ...]
 
 
@@ -338,9 +334,29 @@ def _compile_all(patterns: object, where: str) -> tuple[re.Pattern[str], ...]:
     try:
         return tuple(re.compile(p, re.IGNORECASE) for p in patterns)
     except re.error as exc:
-        raise NarratorError(
-            f"{_LISTS_FILENAME}: {where} has an uncompilable pattern ({exc})"
-        ) from exc
+        raise NarratorError(f"{_LISTS_FILENAME}: {where} has an uncompilable pattern ({exc})") from exc
+
+
+def _parse_escalation(data: dict[str, object]) -> frozenset[str]:
+    """The ``[banned_topics]`` categories that hold a whole Issue when a
+    manager's name shares the sentence.
+
+    Absent from the file → **every** category escalates, which is the
+    pre-0.3 behaviour and the safe default for a malformed edit. Present →
+    only the categories named. A category that never escalates still warns,
+    and the repair tier excises its sentence; it simply cannot withhold the
+    Issue from the league.
+    """
+    raw = data.get("escalate_to_hold")
+    if raw is None:
+        return _ALL_CATEGORIES
+    if not isinstance(raw, list) or not all(isinstance(x, str) for x in raw):
+        raise NarratorError(f"{_LISTS_FILENAME}: escalate_to_hold must be a list of category names")
+    return frozenset(raw)
+
+
+#: Sentinel: "no escalate_to_hold key in the file" → every category escalates.
+_ALL_CATEGORIES: frozenset[str] = frozenset({"*"})
 
 
 def _parse_lists(text: str) -> _Lists:
@@ -354,24 +370,18 @@ def _parse_lists(text: str) -> _Lists:
     if not isinstance(raw_banned, dict):
         raise NarratorError(f"{_LISTS_FILENAME}: [banned_topics] must be a table")
     banned = {
-        str(category): _compile_all(patterns, f"banned_topics.{category}")
-        for category, patterns in raw_banned.items()
+        str(category): _compile_all(patterns, f"banned_topics.{category}") for category, patterns in raw_banned.items()
     }
     return _Lists(
         banned_topics=banned,
-        personal_insults=_compile_all(
-            data.get("personal_insults", []), "personal_insults"
-        ),
+        personal_insults=_compile_all(data.get("personal_insults", []), "personal_insults"),
+        escalate_to_hold=_parse_escalation(data),
         slop=_compile_all(data.get("slop", []), "slop"),
     )
 
 
 def _lists_toml_text() -> str:
-    return (
-        resources.files("commishdesk.narrate")
-        .joinpath(_LISTS_FILENAME)
-        .read_text(encoding="utf-8")
-    )
+    return resources.files("commishdesk.narrate").joinpath(_LISTS_FILENAME).read_text(encoding="utf-8")
 
 
 @functools.lru_cache(maxsize=1)
@@ -383,9 +393,7 @@ def _load_lists() -> _Lists:
     try:
         text = _lists_toml_text()
     except (OSError, UnicodeDecodeError, ModuleNotFoundError) as exc:
-        raise NarratorError(
-            f"{_LISTS_FILENAME} could not be read ({type(exc).__name__})"
-        ) from exc
+        raise NarratorError(f"{_LISTS_FILENAME} could not be read ({type(exc).__name__})") from exc
     return _parse_lists(text)
 
 
@@ -421,13 +429,50 @@ _VOICE_LEADING = frozenset({"a", "an", "the", "his", "her", "its", "their", "our
 #: the demo recap) down, not to be exhaustive.
 _VOICE_STOPWORDS: frozenset[str] = frozenset(
     {
-        "your", "their", "them", "they", "this", "that", "these", "those",
-        "with", "from", "about", "over", "into", "than", "then", "when",
-        "where", "have", "been", "being", "other", "around", "during",
-        "real", "life",
-        "player", "players", "manager", "managers", "roster", "rosters",
-        "team", "teams", "draft", "pick", "picks", "league", "season",
-        "field", "line", "lines", "history", "status", "advice",
+        "your",
+        "their",
+        "them",
+        "they",
+        "this",
+        "that",
+        "these",
+        "those",
+        "with",
+        "from",
+        "about",
+        "over",
+        "into",
+        "than",
+        "then",
+        "when",
+        "where",
+        "have",
+        "been",
+        "being",
+        "other",
+        "around",
+        "during",
+        "real",
+        "life",
+        "player",
+        "players",
+        "manager",
+        "managers",
+        "roster",
+        "rosters",
+        "team",
+        "teams",
+        "draft",
+        "pick",
+        "picks",
+        "league",
+        "season",
+        "field",
+        "line",
+        "lines",
+        "history",
+        "status",
+        "advice",
     }
 )
 
@@ -534,6 +579,64 @@ def _voice_patterns(voice: Voice | None) -> dict[str, tuple[re.Pattern[str], ...
 
 _TOKEN = re.compile(r"[A-Za-z0-9][A-Za-z0-9.’'%$+/-]*")
 
+#: Two or more consecutive capitalised words — the shape of a multi-word proper
+#: noun ("Ashton Jeanty", "Blitz Alpacas", "Monday Night Football"). This is the
+#: **only** name-shaped trigger the closed-world check has, and it deliberately
+#: replaces the former bare-single-capitalised-word branch: English capitalises
+#: the first word of every sentence, and a colourful narrator capitalises
+#: mid-sentence flourishes ("Stampede", "Trenches", "Ambush"), so a lone
+#: capitalised word is evidence that English capitalises things, not that a
+#: *claim* was made. A run of them is.
+#:
+#: The separator is ``[ \t]+``, not ``\s+``, so a run never spans a line break.
+#: Crossing one would let the last word of a line and the first word of the next
+#: join into a "name" that neither line contains — exactly the shape a narrator
+#: that writes one-word mini-headlines on their own lines produces. Missing a
+#: real name that happens to be split by a line wrap is a false *negative*, which
+#: is the safe direction for this branch.
+_CAP_RUN = re.compile(r"\b[A-Z][A-Za-z0-9.’'%$+/-]*(?:[ \t]+[A-Z][A-Za-z0-9.’'%$+/-]*)+")
+
+#: A Markdown ATX heading line (``## Team Grades``). Headings are structure, not
+#: claims — ``narrate/response.py::structural_ok`` already validates them — and
+#: every canonical heading is Title Case, so each one is a :data:`_CAP_RUN` match
+#: that would otherwise be reported as an invented entity.
+_ATX_LINE = re.compile(r"^[ \t]*#{1,6}[ \t].*$", re.MULTILINE)
+
+
+def _blank_structure(text: str) -> str:
+    """A copy of *text* with heading lines and the one-line title blanked to
+    spaces — **the same length**, so every character offset still lines up with
+    the original and a finding can still be traced back to its sentence.
+
+    Scanned by the name branch of :func:`_closed_world` only. A recap opens with
+    a free-form title and carries the six ``## `` headings, all Title Case and
+    therefore all :data:`_CAP_RUN` matches; none of them asserts a fact. Numbers
+    and grades are still checked over the *unblanked* text, so a title that
+    invents a pick ("Marcus Takes Jeanty At 1.03") is still caught on the
+    ``1.03``.
+
+    The title is taken to be the first non-blank line when that line is not
+    itself a heading — and **only when the text carries a heading at all**. That
+    guard is load-bearing: without it, any text with no ``## `` in it (a single
+    sentence handed to :func:`closed_world_tokens` by the eval scorer, or by a
+    test) would have its one and only line blanked as a "title" and the name
+    branch would silently check nothing. A title is a feature of the six-section
+    recap shape; where that shape is absent there is no title to exempt.
+    """
+    blanked = _ATX_LINE.sub(lambda m: " " * len(m.group()), text)
+    if not _ATX_LINE.search(text):
+        return blanked
+    before = text.split("\n")
+    after = blanked.split("\n")
+    for index, line in enumerate(before):
+        if not line.strip():
+            continue
+        if not _ATX_LINE.match(line):
+            after[index] = " " * len(after[index])
+        break
+    return "\n".join(after)
+
+
 #: A letter-grade token (``A`` / ``B+`` / ``d-``). Checked against the grades
 #: actually awarded *before* the generic strip runs — otherwise ``A+`` / ``B+``
 #: collapse to ``a`` / ``b`` and a hallucinated grade sails through.
@@ -545,6 +648,29 @@ _TOKEN = re.compile(r"[A-Za-z0-9][A-Za-z0-9.’'%$+/-]*")
 #: hallucination.
 _GRADE = re.compile(r"^[ABCDFabcdf][+-]?$")
 
+#: Position-rank shorthand — "WR1", "RB2", "QB1", "TE1", "FLEX1", "K1",
+#: "DEF1"/"DST1" — fantasy-football terms of art for "the Nth player at this
+#: position," never a number the Facts payload could confirm or refute: the
+#: ``narration`` projection carries positional *counts* (``positional_counts:
+#: {"WR": 6}``) and *runs*, never a league-wide positional draft order, so no
+#: token shaped like this has ever been traceable, in either direction. Live-
+#: confirmed 2026-09-13 (P0.1 live-validation run — see
+#: ``tests/test_narrate_safety.py`` for which model and attempt): "...reached
+#: three slots early to secure their WR1" flagged as a
+#: hallucination for a term that asserts nothing the payload could contradict.
+#: The same principle as the pre-P0.1 ``ADP`` exemption — a real, ordinary
+#: domain term, not a per-model vocabulary item — kept narrow to a closed,
+#: enumerable set of position abbreviations rather than growing with English.
+#:
+#: Accepted trade-off, stated plainly: this exempts the *whole* shape, so a
+#: specific fabricated rank ("the board's WR23 slid to Round 4") is exactly as
+#: unverifiable as a correct one. That was already true before this exemption
+#: existed — every token of this shape was *always* absent from the payload, so
+#: the digit branch was catching zero real hallucinations here and reporting
+#: only false ones. Verifying a *specific* claimed rank, where the payload
+#: happens to support it, is L2's job (claim extraction), not a regex's.
+_POSITION_RANK = re.compile(r"^(?:QB|RB|WR|TE|FLEX|K|DEF|DST)[1-9]\d?$", re.IGNORECASE)
+
 #: A trailing possessive ``'s`` / ``’s`` — dropped before the closed-world
 #: lookup so the template narrator's own "Blitz Alpacas's swing" is not read as
 #: an out-of-world token (Story 3.4 calibration).
@@ -555,46 +681,273 @@ _POSSESSIVE = re.compile(r"['’]s$")
 #: as a hallucinated one.
 _ORDINAL = re.compile(r"(?<=\d)(st|nd|rd|th)$", re.IGNORECASE)
 
-#: Scaffolding / section-heading words that are capitalised or numeric in prose
-#: but are not proper nouns or facts to trace. Ported verbatim from
-#: ``tests/test_voices.py::_score_recap`` and then extended (clearly marked) with
-#: the capitalised scaffolding the *template* narrator emits in its own prose.
-_STOP: frozenset[str] = frozenset(
+#: Ordinary English words — articles, prepositions, pronouns, auxiliaries,
+#: adverbs, spelled integers, and generic fantasy-football scaffolding. Its one
+#: and only consumer is :func:`_league_name_pattern`: a league whose whole name
+#: is a single common word ("Run", "Board", "Team") must never have that word
+#: mass-rewritten out of the prose by :func:`_mask_league_name`.
+#:
+#: It used to be the closed-world check's stop-set as well, which is what made it
+#: unmaintainable — there it was trying to enumerate every English word a model
+#: might capitalise, an open class. Here it answers a bounded question about a
+#: *league name*, and erring toward "do not mask" is the safe direction, so the
+#: list neither grows with new models nor needs to be complete.
+_ORDINARY_SINGLE_WORDS: frozenset[str] = frozenset(
     {
         # articles / conjunctions / prepositions / pronouns / demonstratives
-        "a", "an", "and", "or", "but", "nor", "so", "yet", "for", "of", "in", "on",
-        "at", "to", "by", "as", "with", "from", "into", "than", "then", "that",
-        "this", "these", "those", "there", "their", "them", "they", "it", "its",
-        "he", "his", "him", "she", "her", "we", "we'll", "us", "our", "you",
-        "your", "i", "if", "is", "was", "were", "be", "been", "being",
-        "not", "no",
+        "a",
+        "an",
+        "and",
+        "or",
+        "but",
+        "nor",
+        "so",
+        "yet",
+        "for",
+        "of",
+        "in",
+        "on",
+        "at",
+        "to",
+        "by",
+        "as",
+        "with",
+        "from",
+        "into",
+        "than",
+        "then",
+        "that",
+        "this",
+        "these",
+        "those",
+        "there",
+        "their",
+        "them",
+        "they",
+        "it",
+        "its",
+        "he",
+        "his",
+        "him",
+        "she",
+        "her",
+        "we",
+        "we'll",
+        "us",
+        "our",
+        "you",
+        "your",
+        "i",
+        "if",
+        "is",
+        "was",
+        "were",
+        "be",
+        "been",
+        "being",
+        "not",
+        "no",
+        # remaining auxiliary / modal verbs — a closed class, like the
+        # prepositions above (a rhetorical-question opener: "Did they corner
+        # the market, or was it a market inefficiency?")
+        "am",
+        "are",
+        "do",
+        "does",
+        "did",
+        "has",
+        "have",
+        "had",
+        "will",
+        "would",
+        "shall",
+        "should",
+        "can",
+        "could",
+        "may",
+        "might",
+        "must",
         # common sentence-openers / adverbs
-        "the", "now", "here", "how", "when", "where", "what", "who", "whom",
-        "which", "while", "after", "before", "once", "still", "also", "even",
-        "just", "only", "both", "each", "every", "some", "any", "all", "most",
-        "more", "less", "nobody", "everyone", "someone", "nothing", "everything",
-        "because", "since", "until", "about", "over", "under", "between", "whether",
+        "the",
+        "now",
+        "here",
+        "how",
+        "when",
+        "where",
+        "what",
+        "who",
+        "whom",
+        "why",
+        "which",
+        "while",
+        "after",
+        "before",
+        "once",
+        "still",
+        "also",
+        "even",
+        "just",
+        "only",
+        "both",
+        "each",
+        "every",
+        "some",
+        "any",
+        "all",
+        "most",
+        "more",
+        "less",
+        "nobody",
+        "everyone",
+        "someone",
+        "nothing",
+        "everything",
+        "because",
+        "since",
+        "until",
+        "about",
+        "over",
+        "under",
+        "between",
+        "whether",
+        # remaining common prepositions — a genuinely closed class in English
+        # (unlike the open-ended adverb/participle set the sentence-start +
+        # morphology exemption above handles instead)
+        "among",
+        "amongst",
+        "amid",
+        "amidst",
+        "despite",
+        "toward",
+        "towards",
+        "upon",
+        "against",
+        "beyond",
+        "underneath",
+        "beneath",
+        "outside",
+        "inside",
+        "atop",
+        "throughout",
+        "across",
+        "along",
+        "behind",
+        "near",
+        "within",
+        "without",
+        "through",
+        "during",
+        "off",
+        "up",
+        "down",
+        "out",
+        "alongside",
         # capitalised sentence-opener adverbs / conjuncts (Story 3.4)
-        "meanwhile", "however", "granted", "remarkably", "elsewhere", "instead",
-        "overall", "ultimately", "regardless", "admittedly", "notably",
-        "curiously", "predictably", "otherwise", "besides", "conversely",
-        "importantly", "frankly", "honestly", "arguably", "presumably",
+        "meanwhile",
+        "however",
+        "granted",
+        "remarkably",
+        "elsewhere",
+        "instead",
+        "overall",
+        "ultimately",
+        "regardless",
+        "admittedly",
+        "notably",
+        "curiously",
+        "predictably",
+        "otherwise",
+        "besides",
+        "conversely",
+        "importantly",
+        "frankly",
+        "honestly",
+        "arguably",
+        "presumably",
+        "though",
+        "although",
+        "nonetheless",
+        "nevertheless",
+        "likewise",
+        "accordingly",
+        "consequently",
+        "hence",
+        "thus",
         # section-heading / scaffolding words
-        "round", "board", "lead", "superlatives", "grades", "grade", "team",
-        "teams", "positional", "read", "picks", "pick", "december", "arguing",
-        "best", "reach", "value", "swing", "swings", "boldest", "biggest",
-        "runner-up", "consensus", "draft", "recap", "season", "waiting",
-        "early", "window", "later", "run", "runs",
+        "round",
+        "board",
+        "lead",
+        "superlatives",
+        "grades",
+        "grade",
+        "team",
+        "teams",
+        "positional",
+        "read",
+        "picks",
+        "pick",
+        "december",
+        "arguing",
+        "best",
+        "reach",
+        "value",
+        "swing",
+        "swings",
+        "boldest",
+        "biggest",
+        "runner-up",
+        "consensus",
+        "draft",
+        "recap",
+        "season",
+        "waiting",
+        "early",
+        "window",
+        "later",
+        "run",
+        "runs",
         # position nouns not spelled out in the narration projection
-        "quarterback", "quarterbacks", "receiver", "receivers", "wideout",
-        "wideouts", "tight", "flex", "kicker", "defense",
+        "quarterback",
+        "quarterbacks",
+        "receiver",
+        "receivers",
+        "wideout",
+        "wideouts",
+        "tight",
+        "flex",
+        "kicker",
+        "defense",
         # spelled integers used as plain scaffolding
-        "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
-        "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen",
-        "seventeen", "eighteen", "nineteen", "twenty", "thirty", "forty", "fifty",
+        "one",
+        "two",
+        "three",
+        "four",
+        "five",
+        "six",
+        "seven",
+        "eight",
+        "nine",
+        "ten",
+        "eleven",
+        "twelve",
+        "thirteen",
+        "fourteen",
+        "fifteen",
+        "sixteen",
+        "seventeen",
+        "eighteen",
+        "nineteen",
+        "twenty",
+        "thirty",
+        "forty",
+        "fifty",
         "hundred",
         # --- Story 3.4: capitalised scaffolding in the template narrator's prose
-        "running", "back", "backs", "end", "ends",
+        "running",
+        "back",
+        "backs",
+        "end",
+        "ends",
     }
 )
 
@@ -646,35 +999,95 @@ def _payload_tokens(narration: Narration) -> frozenset[str]:
 
 
 def _closed_world(text: str, narration: Narration) -> list[str]:
-    """Every capitalised or numeric token in *text* (minus the stop-set) that is
-    not a **member** of the payload's token set, order-stable and de-duplicated.
+    """Every token in *text* the payload can positively **refute**, order-stable
+    and de-duplicated.
 
-    A ``_GRADE``-shaped token is checked case-folded against the grades actually
-    awarded (plus the bare scale letters), not against the payload token set — so
-    a lowercase "a+" nobody earned is caught, and a lowercase "a+" that *was*
-    awarded is not. A token is split on internal ``-`` / ``/`` and stripped of an
-    ordinal suffix before the lookup so "12-team", "4.5/PPR" and "11th" do not
-    flag."""
+    One kind of evidence, in two shapes:
+
+    * **numeric** — a token carrying a digit that the payload does not contain.
+    * **grade** — a ``_GRADE``-shaped token that is not one of the grades
+      actually *awarded* (bare scale letters excepted: "the scale runs A to F").
+
+    Both are refutations in the strict sense: the payload is a complete record of
+    every number and every grade in this world, so a number it does not contain
+    is a number nothing happened at. Ordinary English prose does not emit stray
+    digits, and when it does they assert something — which is why this branch
+    needs, and has, only one narrow, closed exemption: :data:`_POSITION_RANK`
+    ("WR1", "RB2") for a fantasy-football term of art the payload was never
+    going to contain in either direction, real or fabricated.
+
+    What is deliberately **no longer** checked here (P0.1): capitalisation. The
+    old branch flagged any capitalised token absent from the payload, which fired
+    on every ordinary sentence opener and every mid-sentence flourish, and
+    keeping it alive meant enumerating the complement of an open class — every
+    English word a model might capitalise — one hand-added entry at a time,
+    re-done for every new model.
+
+    Proper nouns are not abandoned; they are *reported elsewhere*. The payload
+    cannot refute a name, only fail to contain one, and this function's contract
+    is refutation. See :func:`unverified_entities` for the untraceable-entity
+    signal, which is logged and measured rather than gated. The cost accepted in
+    the meantime is real and bounded: an invented name carrying no number with it
+    ("Marcus took Chasen") does not block an Issue. Claim-level verification is
+    what closes that, not a longer list.
+    """
     payload = _payload_tokens(narration)
     awarded = {team.grade.upper() for team in narration.teams}
     unknown: list[str] = []
-    for raw in _TOKEN.findall(text):
+
+    for match in _TOKEN.finditer(text):
+        raw = match.group()
         trimmed = raw.strip(".,;:!?()[]\"'’")
         if _GRADE.match(trimmed):
             upper = trimmed.upper()
-            if upper not in awarded and not (
-                len(upper) == 1 and upper in _GRADE_SCALE_LETTERS
-            ):
+            if upper not in awarded and not (len(upper) == 1 and upper in _GRADE_SCALE_LETTERS):
                 unknown.append(trimmed)
             continue
         for token in _split_token(raw):
-            if not (token[:1].isupper() or any(ch.isdigit() for ch in token)):
+            if not any(ch.isdigit() for ch in token):
                 continue
-            folded = token.lower()
-            if folded in _STOP or folded in payload:
+            if _POSITION_RANK.match(token):
+                continue
+            if token.lower() in payload:
                 continue
             unknown.append(token)
+
     return list(dict.fromkeys(unknown))
+
+
+def _unverified_entities(text: str, narration: Narration) -> list[str]:
+    """Every :data:`_CAP_RUN` — two or more consecutive capitalised words — none
+    of whose words appears in the payload, order-stable and de-duplicated.
+
+    A **suggestive** signal, not a refutation, and the distinction is the whole
+    reason it lives outside :func:`_closed_world`. The payload is not a complete
+    record of the English language, so it can never establish that a capitalised
+    phrase is *false* — only that it cannot trace it. Some of what lands here is
+    a genuine invention ("Jamarr Chasen"); some is ordinary idiom the payload has
+    no reason to contain ("Come December", "Mr. Irrelevant", "His ADP"), and no
+    structural rule separates the two — "Mr. Irrelevant" and "Mr. Fictitious" are
+    the same shape. Gating on it would rebuild, in miniature, exactly the
+    false-positive problem P0.1 exists to remove.
+
+    So: log it, score it against the recorded-generation corpus, and promote it
+    to a gating tier only if the measured precision earns one.
+
+    The "none of its words in the payload" rule keeps the signal worth logging —
+    a run touching even one real entity is spared, so "Finally Marcus sat down"
+    and any Title Case phrase built around a real team stay quiet.
+    """
+    payload = _payload_tokens(narration)
+    found: list[str] = []
+    for run in _CAP_RUN.finditer(_blank_structure(text)):
+        tokens = [piece for word in run.group().split() for piece in _split_token(word)]
+        if len(tokens) < 2:
+            continue
+        if any(_GRADE.match(t) or any(ch.isdigit() for ch in t) for t in tokens):
+            continue
+        if any(t.lower() in payload for t in tokens):
+            continue
+        found.append(" ".join(tokens))
+    return list(dict.fromkeys(found))
 
 
 # --------------------------------------------------------------------------- #
@@ -701,6 +1114,20 @@ def closed_world_tokens(text: str, narration: Narration) -> tuple[str, ...]:
     disagree about what is in-world.
     """
     return tuple(_closed_world(_working_text(text, narration), narration))
+
+
+def unverified_entities(text: str, narration: Narration) -> tuple[str, ...]:
+    """The multi-word capitalised phrases in *text* the payload cannot account
+    for — normalize, league-name mask, :func:`_unverified_entities`, in that
+    order, so this scores the exact string the gate itself works over.
+
+    **Nothing gates on this.** It is a measurement surface: the CLI logs it, the
+    eval harness scores it against the recorded-generation corpus, and only a
+    measured precision would justify promoting it into
+    :func:`check_narration`'s findings. See :func:`_unverified_entities` for why
+    it cannot be a gate today.
+    """
+    return tuple(_unverified_entities(_working_text(text, narration), narration))
 
 
 def _containing_sentence(pairs: tuple[tuple[str, str], ...], needle: str) -> str:
@@ -735,9 +1162,7 @@ def _sentence_pairs(working: str, normalized: str) -> tuple[tuple[str, str], ...
     return tuple(zip(masked, raw, strict=True))
 
 
-def check_narration(
-    text: str, narration: Narration, *, voice: Voice | None = None
-) -> SafetyReport:
+def check_narration(text: str, narration: Narration, *, voice: Voice | None = None) -> SafetyReport:
     """Run the five checks in fixed order and return an ordered
     :class:`SafetyReport`. Pure, deterministic, credential-free.
 
@@ -773,14 +1198,8 @@ def check_narration(
                 match = pattern.search(sentence)
                 if match:
                     cat_hits.append((category, match.group(0)))
-        insult_hits = [
-            match.group(0)
-            for pattern in lists.personal_insults
-            if (match := pattern.search(sentence))
-        ]
-        rows.append(
-            (reported, _sentence_has_name(sentence, name_patterns), cat_hits, insult_hits)
-        )
+        insult_hits = [match.group(0) for pattern in lists.personal_insults if (match := pattern.search(sentence))]
+        rows.append((reported, _sentence_has_name(sentence, name_patterns), cat_hits, insult_hits))
 
     findings: list[SafetyFinding] = []
     seen: set[tuple[str, str, str, str]] = set()
@@ -804,11 +1223,20 @@ def check_narration(
     # keyword category (``voice:<id>``) is skipped here: crude keyword extraction
     # over free-text prose is too false-positive-prone to silently hold a whole
     # league, so it only ever reaches the warn tier in step (3).
+    escalating = lists.escalate_to_hold
     for sentence, has_name, cat_hits, insult_hits in rows:
         if not has_name:
             continue
         for category, matched in cat_hits:
             if category.startswith("voice:"):
+                continue
+            if escalating is not _ALL_CATEGORIES and category not in escalating:
+                # A category the editorial policy does not treat as abuse of a
+                # person. It still warns in step (3) and the repair tier excises
+                # the sentence; it just does not withhold the Issue. The live
+                # case this exists for: "<manager> lost <player> in the second
+                # quarter" — the causal heart of a weekly recap, not a safety
+                # incident.
                 continue
             add(
                 "named_person_proximity",
@@ -830,7 +1258,13 @@ def check_narration(
     # in step 2 and must not double-report).
     for sentence, has_name, cat_hits, insult_hits in rows:
         for category, matched in cat_hits:
-            if has_name and not category.startswith("voice:"):
+            escalated = (
+                has_name
+                and not category.startswith("voice:")
+                and (escalating is _ALL_CATEGORIES or category in escalating)
+            )
+            if escalated:
+                # already reported as a hold in step (2); must not double-report
                 continue
             add("banned_topic", f"{category} content: {matched!r}", sentence, matched)
         if not has_name:

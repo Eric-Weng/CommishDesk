@@ -124,9 +124,7 @@ def test_positional_read_uses_the_run_summaries(narration: Narration) -> None:
 
 
 def test_december_section_derives_from_superlatives(narration: Narration) -> None:
-    section = _section(
-        render_draft_recap(narration), "The Picks We'll Be Arguing About in December"
-    )
+    section = _section(render_draft_recap(narration), "The Picks We'll Be Arguing About in December")
     blob = " ".join(section.blocks)
     swing = narration.superlatives.boldest_swing
     assert swing is not None
@@ -144,9 +142,7 @@ def test_december_section_renders_the_storyline_hooks(narration: Narration) -> N
     a swing sentence from ``superlatives``, so the thread is intentionally
     skipped to avoid a near-duplicate."""
     assert narration.storyline_candidates, "the demo board should fire threads"
-    section = _section(
-        render_draft_recap(narration), "The Picks We'll Be Arguing About in December"
-    )
+    section = _section(render_draft_recap(narration), "The Picks We'll Be Arguing About in December")
     rendered = list(section.blocks)
     lead_hooks = {c.hook for c in narration.lead_candidates}
     shown = [
@@ -158,18 +154,13 @@ def test_december_section_renders_the_storyline_hooks(narration: Narration) -> N
     for hook in shown:
         assert hook in rendered
     # the swing thread is present in the data but deliberately not rendered here
-    swing_hooks = [
-        c.hook for c in narration.storyline_candidates if c.kind == "boldest_swing"
-    ]
+    swing_hooks = [c.hook for c in narration.storyline_candidates if c.kind == "boldest_swing"]
     for hook in swing_hooks:
         assert hook not in rendered
 
 
 def test_render_is_deterministic(narration: Narration) -> None:
-    assert (
-        render_draft_recap(narration).model_dump()
-        == render_draft_recap(narration).model_dump()
-    )
+    assert render_draft_recap(narration).model_dump() == render_draft_recap(narration).model_dump()
 
 
 def test_no_literal_none_in_the_prose(narration: Narration) -> None:
@@ -184,9 +175,7 @@ def test_orphan_roster_is_skipped_never_rendered_as_none() -> None:
     )
     orphan_narration = Narration(
         league=NarrationLeague(name="Orphan League", season="2025", scoring_label="PPR"),
-        headline_numbers=HeadlineNumbers(
-            picks_total=1, rounds=1, r1_positional={"RB": 1}, first_window_rb_count=1
-        ),
+        headline_numbers=HeadlineNumbers(picks_total=1, rounds=1, r1_positional={"RB": 1}, first_window_rb_count=1),
         board_round1=[
             BoardPick(
                 pick_no=1,
