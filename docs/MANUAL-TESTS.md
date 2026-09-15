@@ -138,7 +138,12 @@ These are done once (or once per milestone), not on a schedule.
   another calibration pass before any real league runs.
 - **Why gated:** costs money; measures the largest unknown from the Epic 3 retro
   (item 22 / D4).
-- **Last run:** _never_ — **open. Blocks the first real-league draft recap.**
+- **Last run:** Eric, during Epic 3/4 development (exact date untracked — not
+  recorded here at the time). Per Eric (2026-09-15): this and equivalent live
+  validation work is the reason the closed-world safety list carries as much
+  calibration as it does (`narrate/safety_lists.toml`); considered satisfied.
+  Not independently re-verified by this session. If the safety list changes
+  again, re-run this before the next real-league send.
 
 ### C2 — `test` as a required status check on `main`
 
