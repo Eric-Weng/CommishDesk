@@ -460,6 +460,21 @@ def _recap_one_league(
             )
         recipient_id = webhook_id(webhook_url)
 
+        # Retro finding O1/H1: check the Send Ledger for an already-confirmed
+        # Discord post *before* any Sleeper fetch, board/facts work, storyline
+        # write, or paid narration — not after rendering. Mirrors the
+        # dedupe-set pattern in ``deliver/ledger.py``'s ``send_issue`` (defense
+        # in depth, kept below at the actual send site — this is a fast-path
+        # short-circuit in front of it, not a replacement for it).
+        already_confirmed = {
+            entry.recipient
+            for entry in FileStore(_cache_dir()).read_ledger(resolved, DRAFT_RECAP_WEEK)
+            if entry.channel == "discord"
+        }
+        if recipient_id in already_confirmed:
+            typer.echo(f"Discord post already confirmed for webhook {recipient_id} — skipped")
+            return
+
     generated_at = datetime.now(tz=UTC)
 
     # Storyline persistence bridge — mirrors the consensus bridge below: the Store
@@ -567,16 +582,19 @@ def _recap_one_league(
         # every real call, so the worst-case bound must count it too, or it is
         # not actually a worst-case bound.
         payload = build_narration_payload(doc.narration) + voice.system_prompt
-        # Worst case: whichever of the two selectable models is pricier, times
-        # the two narration attempts one league-week can actually bill (the
-        # initial attempt plus the one permitted regeneration — see
-        # _MAX_BILLABLE_NARRATION_ATTEMPTS). max_output_tokens is imported from
-        # narrate.llm (via the narrate package re-export), not duplicated, so
-        # the two can never silently desync.
-        per_call_estimate = max(
-            estimate_cost_usd(payload, llm_config.primary, max_output_tokens=MAX_OUTPUT_TOKENS),
-            estimate_cost_usd(payload, llm_config.fallback, max_output_tokens=MAX_OUTPUT_TOKENS),
-        )
+        # Worst case: primary AND fallback both billed — a non-transient
+        # failure on the primary (e.g. a truncated max_tokens completion) can
+        # fall through to the fallback within the same narration attempt, so
+        # the ceiling must sum the two per-call costs, not take whichever
+        # model is pricier alone. Times the two narration attempts one
+        # league-week can actually bill (the initial attempt plus the one
+        # permitted regeneration — see _MAX_BILLABLE_NARRATION_ATTEMPTS).
+        # max_output_tokens is imported from narrate.llm (via the narrate
+        # package re-export), not duplicated, so the two can never silently
+        # desync.
+        per_call_estimate = estimate_cost_usd(
+            payload, llm_config.primary, max_output_tokens=MAX_OUTPUT_TOKENS
+        ) + estimate_cost_usd(payload, llm_config.fallback, max_output_tokens=MAX_OUTPUT_TOKENS)
         estimate = per_call_estimate * _MAX_BILLABLE_NARRATION_ATTEMPTS
         if llm_config.verifier is not None:
             from commishdesk.narrate.pricing import CHARS_PER_TOKEN
