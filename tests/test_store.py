@@ -140,6 +140,33 @@ def test_read_ledger_tolerates_one_truncated_trailing_line(tmp_path: Path) -> No
     assert [e.recipient for e in store.read_ledger("1", 2)] == ["webhook-1", "webhook-2"]
 
 
+def test_ledger_line_with_no_kind_key_parses_as_draft_recap(tmp_path: Path) -> None:
+    (tmp_path / "ledger").mkdir()
+    line = (
+        '{"league_id":"1","week":1,"channel":"discord","recipient":"webhook-1",'
+        '"status":"confirmed","sent_at":"2026-09-01T00:00:00Z","reason":null}\n'
+    )
+    (tmp_path / "ledger" / "1.jsonl").write_text(line, encoding="utf-8")
+    (entry,) = _store(tmp_path).read_ledger("1", 1)
+    assert entry.kind == "draft_recap"
+
+
+def test_ledger_entry_with_weekly_kind_round_trips(tmp_path: Path) -> None:
+    store = _store(tmp_path)
+    store.append_ledger_entry(
+        LedgerEntry(
+            league_id="1",
+            week=1,
+            channel="discord",
+            recipient="webhook-1",
+            kind="weekly",
+            sent_at=datetime(2026, 9, 1, tzinfo=UTC),
+        )
+    )
+    (entry,) = store.read_ledger("1", 1)
+    assert entry.kind == "weekly"
+
+
 # --- storylines --------------------------------------------------------
 
 

@@ -31,10 +31,11 @@ import logging
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from typing import get_args
 
 from commishdesk.errors import DeliveryError
 from commishdesk.logconfig import LOGGER_NAME
-from commishdesk.store import LedgerEntry, Store
+from commishdesk.store import IssueKind, LedgerEntry, Store
 
 __all__ = ["SendReport", "send_issue"]
 
@@ -44,6 +45,11 @@ _logger = logging.getLogger(f"{LOGGER_NAME}.deliver.ledger")
 #: range ``LedgerEntry.week`` enforces (``store.py``). Checked before any send.
 _MIN_WEEK = 1
 _MAX_WEEK = 18
+
+#: The valid ``IssueKind`` values, derived once from the Literal in
+#: ``store.py`` rather than re-listed here — checked before any ``sender``
+#: call so an invalid ``kind`` never leaves a send unconfirmed.
+_VALID_KINDS = frozenset(get_args(IssueKind))
 
 
 @dataclass(frozen=True, slots=True)
@@ -71,6 +77,7 @@ def send_issue(
     league_id: str,
     week: int,
     channel: str,
+    kind: IssueKind = "draft_recap",
     recipients: Mapping[str, str],
     sender: Callable[[str, str], object],
     now: Callable[[], datetime] = _default_now,
@@ -82,9 +89,9 @@ def send_issue(
     address) to the content string to send it. For each recipient in sorted
     order:
 
-    * if ``(channel, recipient)`` is already ``confirmed`` in the ledger for
-      ``(league_id, week)`` and ``reason`` is not set, it is skipped with no
-      ``sender`` call;
+    * if ``(channel, recipient, kind)`` is already ``confirmed`` in the ledger
+      for ``(league_id, week)`` and ``reason`` is not set, it is skipped with
+      no ``sender`` call;
     * otherwise ``sender(recipient, content)`` is called, and **only if it
       returns** a ``confirmed`` :class:`~commishdesk.store.LedgerEntry` is
       appended with ``sent_at = now()`` and the given ``reason``.
@@ -100,14 +107,18 @@ def send_issue(
 
     Raises :class:`ValueError` — before any ``sender`` call — when ``week`` is
     outside ``1..18``, when ``league_id`` could escape the store root as a path
-    segment, when ``reason`` is set but blank, or when ``now()`` returns a
-    datetime that is not timezone-aware. The clock is sampled once, before the
-    loop, so every entry from one run shares a ``sent_at``.
+    segment, when ``kind`` is not a valid :data:`~commishdesk.store.IssueKind`,
+    when ``reason`` is set but blank, or when ``now()`` returns a datetime that
+    is not timezone-aware. The clock is sampled once, before the loop, so every
+    entry from one run shares a ``sent_at``.
     """
     if not _MIN_WEEK <= week <= _MAX_WEEK:
         raise ValueError(
             f"week {week} is outside the deliverable range {_MIN_WEEK}-{_MAX_WEEK}"
         )
+
+    if kind not in _VALID_KINDS:
+        raise ValueError(f"invalid issue kind: {kind!r} (must be one of {sorted(_VALID_KINDS)})")
 
     # Same rule as ``store._safe_league_id`` — inlined so this guard runs before
     # any ``sender`` call, not on the first ``append_ledger_entry`` after the
@@ -132,7 +143,7 @@ def send_issue(
         already = {
             entry.recipient
             for entry in store.read_ledger(league_id, week)
-            if entry.channel == channel
+            if entry.channel == channel and entry.kind == kind
         }
     else:
         already = set()
@@ -144,9 +155,10 @@ def send_issue(
     for recipient, content in sorted(recipients.items()):
         if recipient in already:
             _logger.debug(
-                "skipping %s on %s for week %s — already confirmed",
+                "skipping %s on %s (%s) for week %s — already confirmed",
                 recipient,
                 channel,
+                kind,
                 week,
             )
             skipped.append(recipient)
@@ -172,24 +184,27 @@ def send_issue(
                 week=week,
                 channel=channel,
                 recipient=recipient,
+                kind=kind,
                 sent_at=stamp,
                 reason=reason,
             )
         )
         _logger.info(
-            "confirmed delivery to %s on %s for week %s%s",
+            "confirmed delivery to %s on %s (%s) for week %s%s",
             recipient,
             channel,
+            kind,
             week,
             f" (re-issue: {reason})" if reason is not None else "",
         )
         delivered.append(recipient)
 
     _logger.info(
-        "send_issue for league %s week %s on %s: %d delivered, %d skipped, %d failed",
+        "send_issue for league %s week %s on %s (%s): %d delivered, %d skipped, %d failed",
         league_id,
         week,
         channel,
+        kind,
         len(delivered),
         len(skipped),
         len(failed),

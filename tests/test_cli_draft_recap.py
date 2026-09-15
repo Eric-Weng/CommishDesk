@@ -1472,6 +1472,45 @@ def test_post_already_confirmed_real_league_never_fetches_sleeper(tmp_path: Path
     assert not list(tmp_path.glob("commishdesk-173-*"))
 
 
+def test_post_confirmed_entry_of_a_different_kind_does_not_skip(tmp_path: Path, monkeypatch) -> None:
+    """spec-retro-57: the early-check dedup filter is kind-scoped. A confirmed
+    ledger entry for the identical (league_id, week, channel, recipient) but a
+    DIFFERENT kind (e.g. a future "weekly" send) must not be mistaken for an
+    already-confirmed draft recap -- the draft recap still posts."""
+    from datetime import UTC, datetime
+
+    from commishdesk.deliver.discord import webhook_id
+    from commishdesk.store import FileStore, LedgerEntry
+
+    monkeypatch.setenv("COMMISHDESK_DISCORD_WEBHOOK_URL", _FAKE_WEBHOOK_URL)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+    calls = _stub_post_discord_text(monkeypatch)
+
+    store = FileStore(tmp_path / "cache" / "commishdesk")
+    store.append_ledger_entry(
+        LedgerEntry(
+            league_id="demo",
+            week=1,  # DRAFT_RECAP_WEEK
+            channel="discord",
+            recipient=webhook_id(_FAKE_WEBHOOK_URL),
+            kind="weekly",
+            sent_at=datetime.now(tz=UTC),
+        )
+    )
+
+    result = runner.invoke(app, ["--league", "demo", "--draft-recap", "--post", "--out-dir", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    assert "already confirmed" not in result.output
+    assert "posted to Discord" in result.output
+    assert len(calls) == 1
+
+    ledger = store.read_ledger("demo", 1)
+    assert sorted((e.kind, e.recipient) for e in ledger) == [
+        ("draft_recap", webhook_id(_FAKE_WEBHOOK_URL)),
+        ("weekly", webhook_id(_FAKE_WEBHOOK_URL)),
+    ]
+
+
 def test_post_on_demo_creates_a_store_but_never_persists_storylines(tmp_path: Path, monkeypatch) -> None:
     """review-loop 1 regression: --post gives the demo path a Store (for the
     Send Ledger), which must NOT re-enable storyline persistence for demo."""
