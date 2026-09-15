@@ -30,7 +30,6 @@ from __future__ import annotations
 import ast
 import os
 from dataclasses import dataclass
-from pathlib import Path
 
 import pytest
 
@@ -47,8 +46,8 @@ from commishdesk.stats import (
     compute_draft_grades,
 )
 from commishdesk.voices import Voice, load_default_voice
+from tests.conftest import REPO_ROOT
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
 VOICES_PKG = REPO_ROOT / "commishdesk" / "voices"
 EVAL_DIR = REPO_ROOT / "tests" / "eval" / "voices"
 SAMPLE = EVAL_DIR / "beat-writer.md"

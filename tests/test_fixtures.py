@@ -19,7 +19,8 @@ from typing import Any
 
 import pytest
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+from tests.conftest import REPO_ROOT
+
 TOOL_PATH = REPO_ROOT / "tools" / "anonymize.py"
 FIXTURE_DIR = REPO_ROOT / "tests" / "fixtures"
 FIXTURES = sorted(FIXTURE_DIR.glob("*.json"))

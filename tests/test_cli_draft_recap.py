@@ -23,9 +23,9 @@ import commishdesk
 from commishdesk.cli import app
 from commishdesk.errors import CommishDeskError, DeliveryError
 from commishdesk.narrate import safety
+from tests.conftest import REPO_ROOT
 
 runner = CliRunner()
-REPO_ROOT = Path(__file__).resolve().parent.parent
 
 _STAMP = re.compile(r"\d{4}-\d{2}-\d{2}T[0-9:.]+Z")
 

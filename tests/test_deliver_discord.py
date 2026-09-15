@@ -14,7 +14,6 @@ from __future__ import annotations
 import ast
 import json
 import sys
-from pathlib import Path
 
 import httpx
 import pytest
@@ -22,8 +21,7 @@ import pytest
 from commishdesk.deliver import post_discord_text
 from commishdesk.deliver.discord import webhook_id
 from commishdesk.errors import CommishDeskError, DeliveryError
-
-REPO_ROOT = Path(__file__).resolve().parent.parent
+from tests.conftest import REPO_ROOT
 
 _GOOD_URL = "https://discord.com/api/webhooks/123456789012345678/aB_cD-3fToKeNtOkEn"
 _GOOD_ID = "123456789012345678"

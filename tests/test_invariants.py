@@ -24,7 +24,7 @@ from pathlib import Path
 
 import pytest
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+from tests.conftest import REPO_ROOT
 
 # retro A3: names that count as real enforcement even without a literal `assert` -- a
 # graduated invariant test may check its property through one of these.

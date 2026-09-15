@@ -16,7 +16,6 @@ import json
 import re
 import subprocess
 import sys
-from pathlib import Path
 from xml.dom import minidom
 
 import pytest
@@ -26,8 +25,8 @@ from commishdesk.narrate import Recap, Section, render_draft_recap
 from commishdesk.render import render_web
 from commishdesk.render import style as style_mod
 from commishdesk.render import web as web_mod
+from tests.conftest import REPO_ROOT
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
 EXPECTED_FACTS_PATH = REPO_ROOT / "tests" / "fixtures" / "facts" / "expected-draft-recap-facts.json"
 
 _STAMP = "2026-09-03T00:00:00.000000Z"
