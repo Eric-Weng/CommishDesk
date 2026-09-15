@@ -130,6 +130,33 @@ def test_write_draft_recap_writes_lf_utf8_and_returns_the_path(tmp_path: Path) -
     assert raw.decode("utf-8") == recap_to_html(_sample())
 
 
+_ADVERSARIAL = 'A<b>& "Team" 😀 ‏א'
+
+
+def test_recap_to_html_strips_bidi_controls() -> None:
+    recap = Recap(
+        title=_ADVERSARIAL,
+        dateline=_ADVERSARIAL,
+        sections=[Section(heading=_ADVERSARIAL, blocks=[_ADVERSARIAL])],
+    )
+    page = recap_to_html(recap)
+    # markup from the payload is still escaped, matching render_web/render_email
+    assert "<b>&" not in page
+    assert "&lt;b&gt;&amp;" in page
+    # the bidi control (U+200F, in _ADVERSARIAL) is stripped, not passed through
+    for cp in (0x200E, 0x200F, 0x202A, 0x202E, 0x2066, 0x2069):
+        assert chr(cp) not in page
+
+
+def test_narrated_text_to_html_strips_bidi_controls() -> None:
+    text = f"{_ADVERSARIAL}\n\n## {_ADVERSARIAL}\n\n{_ADVERSARIAL}"
+    page = narrated_text_to_html(text, generated_at=_ADVERSARIAL)
+    assert "<b>&" not in page
+    assert "&lt;b&gt;&amp;" in page
+    for cp in (0x200E, 0x200F, 0x202A, 0x202E, 0x2066, 0x2069):
+        assert chr(cp) not in page
+
+
 def test_write_html_file_is_the_shared_writer(tmp_path: Path) -> None:
     dest = tmp_path / "deep" / "nest" / "page.html"
     doc = narrated_text_to_html("Voiced Recap\n\nbody — café", generated_at=_TS)

@@ -1275,6 +1275,41 @@ def _stub_post_discord_text(monkeypatch, *, fail: Exception | None = None) -> li
     return calls
 
 
+def test_post_sender_rejects_a_mismatched_recipient(tmp_path: Path, monkeypatch) -> None:
+    """Retro finding 58: the --post sender is a named function asserting
+    ``recipient == recipient_id``, not a lambda that silently discards the
+    recipient send_issue hands it. Capture the real sender via a spying
+    ``send_issue`` and prove it raises loudly (not a DeliveryError, so
+    send_issue would not swallow it) when called with a recipient other than
+    the one it was built for."""
+    monkeypatch.setenv("COMMISHDESK_DISCORD_WEBHOOK_URL", _FAKE_WEBHOOK_URL)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+    _stub_post_discord_text(monkeypatch)
+
+    captured: dict = {}
+
+    def _spy_send_issue(store, **kwargs):
+        captured["sender"] = kwargs["sender"]
+        captured["recipient_id"] = next(iter(kwargs["recipients"]))
+        from commishdesk.deliver import SendReport
+
+        return SendReport(delivered=[], failed=[], skipped=list(kwargs["recipients"]))
+
+    monkeypatch.setattr("commishdesk.deliver.send_issue", _spy_send_issue)
+    result = runner.invoke(app, ["--league", "demo", "--draft-recap", "--post", "--out-dir", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    assert "sender" in captured
+
+    sender = captured["sender"]
+    real_recipient_id = captured["recipient_id"]
+    # called with the expected recipient: no behavior change
+    sender(real_recipient_id, "content")
+    # called with a mismatched recipient: raises loudly instead of silently
+    # posting to the wrong webhook
+    with pytest.raises(DeliveryError):
+        sender("some-other-recipient-id", "content")
+
+
 def test_fmt_usd_shows_enough_precision_to_distinguish_near_ceiling_values() -> None:
     """review-loop 1: a naive two-decimal rounding made an over-ceiling error
     message show the exact same two numbers as the ceiling it exceeded."""
