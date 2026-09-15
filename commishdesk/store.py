@@ -50,7 +50,7 @@ from pydantic import AfterValidator, BaseModel, Field, PlainSerializer, TypeAdap
 from commishdesk.errors import StoreError
 from commishdesk.facts.schema import Storyline
 
-__all__ = ["LedgerEntry", "Storyline", "Claim", "Store", "FileStore"]
+__all__ = ["IssueKind", "LedgerEntry", "Storyline", "Claim", "Store", "FileStore"]
 
 _T = TypeVar("_T")
 
@@ -115,13 +115,29 @@ def _safe_segment(segment: str) -> str:
 # imported back above; ``store`` only reads and writes the whole set.
 
 
+#: What kind of Issue a ``LedgerEntry`` records — the dimension that keeps a
+#: draft recap and a future weekly recap from sharing a dedup key even when
+#: their ``(league_id, week, channel, recipient)`` are identical. The single
+#: source of this Literal; ``deliver/ledger.py`` imports it rather than
+#: re-declaring it.
+IssueKind = Literal["draft_recap", "weekly"]
+
+
 class LedgerEntry(BaseModel):
-    """One confirmed delivery, appended to the send ledger and never mutated."""
+    """One confirmed delivery, appended to the send ledger and never mutated.
+
+    ``kind`` distinguishes *what* Issue was sent — e.g. a draft recap vs. a
+    future weekly recap — so two different kinds can share the same
+    ``(league_id, week, channel, recipient)`` dedup key without one shadowing
+    the other. Defaults to ``"draft_recap"`` so every on-disk ledger line
+    written before this field existed still parses.
+    """
 
     league_id: str
     week: int = Field(ge=1, le=18)
     channel: str
     recipient: str
+    kind: IssueKind = "draft_recap"
     status: Literal["confirmed"] = "confirmed"
     sent_at: UtcDateTime
     # Why this delivery was a deliberate re-issue; ``None`` for a first send (AD-10).

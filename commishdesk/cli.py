@@ -440,7 +440,12 @@ def _recap_one_league(
         compute_consensus_metrics,
         compute_draft_grades,
     )
-    from commishdesk.store import FileStore
+    from commishdesk.store import FileStore, IssueKind
+
+    # The one Issue kind this function ever sends — named once so the early-check
+    # filter and the real ``send_issue`` call below can't drift apart into two
+    # independent string literals.
+    draft_recap_kind: IssueKind = "draft_recap"
 
     # --post fails fast on a missing/blank/malformed webhook before any Sleeper /
     # consensus / LLM work for this league (mirrors verify-webhook's own check)
@@ -469,7 +474,7 @@ def _recap_one_league(
         already_confirmed = {
             entry.recipient
             for entry in FileStore(_cache_dir()).read_ledger(resolved, DRAFT_RECAP_WEEK)
-            if entry.channel == "discord"
+            if entry.channel == "discord" and entry.kind == draft_recap_kind
         }
         if recipient_id in already_confirmed:
             typer.echo(f"Discord post already confirmed for webhook {recipient_id} — skipped")
@@ -708,6 +713,7 @@ def _recap_one_league(
             league_id=resolved,
             week=DRAFT_RECAP_WEEK,
             channel="discord",
+            kind=draft_recap_kind,
             recipients={recipient_id: summary},
             sender=lambda _recipient, content: post_discord_text(url, content),
         )
