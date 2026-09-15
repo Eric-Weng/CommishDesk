@@ -1369,7 +1369,11 @@ def test_post_first_run_posts_once_and_writes_every_file(tmp_path: Path, monkeyp
     assert len(ledger) == 1 and ledger[0].channel == "discord"
 
 
-def test_post_second_identical_run_skips_discord_but_rewrites_files(tmp_path: Path, monkeypatch) -> None:
+def test_post_second_identical_run_skips_everything_before_any_work(tmp_path: Path, monkeypatch) -> None:
+    """Retro finding O1/H1: an already-confirmed league-week must short-circuit
+    before any Sleeper fetch, storyline write, or paid narration -- not just
+    skip the Discord send after rendering. No file is (re)written on the
+    second run."""
     monkeypatch.setenv("COMMISHDESK_DISCORD_WEBHOOK_URL", _FAKE_WEBHOOK_URL)
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
     calls = _stub_post_discord_text(monkeypatch)
@@ -1377,12 +1381,60 @@ def test_post_second_identical_run_skips_discord_but_rewrites_files(tmp_path: Pa
     r1 = runner.invoke(app, ["--league", "demo", "--draft-recap", "--post", "--out-dir", str(tmp_path)])
     assert r1.exit_code == 0, r1.output
     assert len(calls) == 1
+    for name in (
+        "commishdesk-demo-draft-recap.html",
+        "commishdesk-demo-draft-recap.email.html",
+        "commishdesk-demo-draft-recap.txt",
+    ):
+        (tmp_path / name).unlink()
 
     r2 = runner.invoke(app, ["--league", "demo", "--draft-recap", "--post", "--out-dir", str(tmp_path)])
     assert r2.exit_code == 0, r2.output
     assert len(calls) == 1  # no second Discord post
     assert "already confirmed" in r2.output
-    assert (tmp_path / "commishdesk-demo-draft-recap.html").is_file()  # rewritten regardless
+    assert "skipped" in r2.output
+    # no file rewritten -- the early short-circuit precedes rendering entirely
+    assert not (tmp_path / "commishdesk-demo-draft-recap.html").exists()
+    assert not (tmp_path / "commishdesk-demo-draft-recap.email.html").exists()
+    assert not (tmp_path / "commishdesk-demo-draft-recap.txt").exists()
+
+
+def test_post_already_confirmed_real_league_never_fetches_sleeper(tmp_path: Path, monkeypatch) -> None:
+    """Retro finding O1/H1: the already-confirmed short-circuit sits before the
+    Sleeper fetch even for a real (non-demo) league, not just before rendering
+    -- proven by an adapter that raises if it is ever reached at all."""
+    from datetime import UTC, datetime
+
+    from commishdesk.deliver.discord import webhook_id
+    from commishdesk.store import FileStore, LedgerEntry
+
+    monkeypatch.setenv("COMMISHDESK_DISCORD_WEBHOOK_URL", _FAKE_WEBHOOK_URL)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+
+    store = FileStore(tmp_path / "cache" / "commishdesk")
+    store.append_ledger_entry(
+        LedgerEntry(
+            league_id="173",
+            week=1,  # DRAFT_RECAP_WEEK
+            channel="discord",
+            recipient=webhook_id(_FAKE_WEBHOOK_URL),
+            sent_at=datetime.now(tz=UTC),
+        )
+    )
+
+    class _MustNotFetchAdapter:
+        def __init__(self, *a: object, **k: object) -> None: ...
+
+        def fetch(self, league_id: str) -> dict:
+            raise AssertionError("Sleeper must not be fetched once the ledger already confirms this send")
+
+        def close(self) -> None: ...
+
+    monkeypatch.setattr("commishdesk.adapters.sleeper.SleeperAdapter", _MustNotFetchAdapter)
+    result = runner.invoke(app, ["--league", "173", "--draft-recap", "--post", "--out-dir", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    assert "already confirmed" in result.output
+    assert not list(tmp_path.glob("commishdesk-173-*"))
 
 
 def test_post_on_demo_creates_a_store_but_never_persists_storylines(tmp_path: Path, monkeypatch) -> None:
@@ -1550,6 +1602,74 @@ def test_cost_estimate_uses_the_pricier_of_primary_or_fallback(tmp_path: Path, m
     assert "exceeds the ceiling" in result.output
     assert calls["n"] == 0
     assert not (tmp_path / "commishdesk-163-draft-recap.html").is_file()
+
+
+def test_cost_estimate_sums_primary_and_fallback_not_max(tmp_path: Path, monkeypatch) -> None:
+    """Retro finding O1b: a non-transient failure on the primary can fall
+    through to the fallback within one narration attempt, billing both — the
+    ceiling estimate must sum the two per-call costs, not take whichever is
+    pricier alone. Proven by reconstructing the same estimate independently
+    and asserting the printed figure equals the summed total, not the max."""
+    from datetime import UTC, datetime
+
+    from commishdesk.demo import demo_consensus_slots, load_demo_bundle
+    from commishdesk.facts import build_draft_recap_facts
+    from commishdesk.ingest import build_league_model
+    from commishdesk.llmconfig import load_llm_config
+    from commishdesk.narrate import (
+        MAX_OUTPUT_TOKENS,
+        build_narration_payload,
+        estimate_cost_usd,
+    )
+    from commishdesk.stats import (
+        compute_board_metrics,
+        compute_consensus_metrics,
+        compute_draft_grades,
+    )
+    from commishdesk.voices import load_default_voice
+
+    _fake_real_league(monkeypatch)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+    monkeypatch.setenv("COMMISHDESK_LLM_PRIMARY", "google:gemini-3.5-flash")
+    monkeypatch.setenv("COMMISHDESK_LLM_FALLBACK", "anthropic:claude-sonnet-5")
+    _stub_narrator(monkeypatch, _six_section_llm_text("nothing special here."))
+
+    result = runner.invoke(app, ["--league", "164", "--draft-recap", "--out-dir", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    printed_line = next(line for line in result.output.splitlines() if line.startswith("estimated cost: "))
+    printed_amount = float(re.search(r"\$([\d.]+)", printed_line).group(1))
+
+    bundle = load_demo_bundle()
+    model = build_league_model(bundle)
+    slots = demo_consensus_slots()
+    board = compute_board_metrics(model)
+    consensus = compute_consensus_metrics(model, slots)
+    grades = compute_draft_grades(model, consensus)
+    doc = build_draft_recap_facts(
+        model,
+        board,
+        consensus,
+        grades,
+        generated_at=datetime.now(tz=UTC),
+        draft_id=model.draft.id,
+        consensus_source_name="fantasycalc",
+        consensus_as_of="2099-07",
+        previous_storylines=[],
+    )
+    voice = load_default_voice()
+    payload = build_narration_payload(doc.narration) + voice.system_prompt
+    llm_config = load_llm_config(os.environ)
+    primary_cost = estimate_cost_usd(payload, llm_config.primary, max_output_tokens=MAX_OUTPUT_TOKENS)
+    fallback_cost = estimate_cost_usd(payload, llm_config.fallback, max_output_tokens=MAX_OUTPUT_TOKENS)
+    summed_total = (primary_cost + fallback_cost) * 2  # _MAX_BILLABLE_NARRATION_ATTEMPTS
+    maxed_total = max(primary_cost, fallback_cost) * 2
+
+    assert maxed_total < summed_total  # sanity: the two prices actually differ
+    # printed_amount is parsed from a 4-decimal-place display string (_fmt_usd),
+    # so compare with a tolerance wide enough to absorb that rounding.
+    assert printed_amount == pytest.approx(summed_total, abs=5e-5)
+    assert printed_amount != pytest.approx(maxed_total, abs=5e-5)
 
 
 def test_cost_estimate_includes_the_voice_system_prompt(tmp_path: Path, monkeypatch) -> None:

@@ -10,11 +10,16 @@ name: scheduled-draft-recap
 # expected skip, or failure/cancellation) so the operator never has to poll.
 
 on:
-  schedule:
-    # 23:00 UTC = 7:00pm ET (EDT, UTC-4, Mar-Nov) / 6:00pm ET (EST, UTC-5, the
-    # rest of the year -- the November DST shift moves the local time by an
-    # hour, the UTC expression itself never changes).
-    - cron: '0 23 * * *'
+  # DECIDED 2026-09-14: the schedule trigger is disabled -- it is currently
+  # live on `main` with empty repo vars/secrets and fails every night. Eric
+  # configures vars.COMMISHDESK_LEAGUE_ID + secrets.{COMMISHDESK_DISCORD_WEBHOOK_URL,
+  # ANTHROPIC_API_KEY,GEMINI_API_KEY,HEALTHCHECKS_PING_URL} and re-enables the
+  # schedule below himself when ready.
+  # schedule:
+  #   # 23:00 UTC = 7:00pm ET (EDT, UTC-4, Mar-Nov) / 6:00pm ET (EST, UTC-5, the
+  #   # rest of the year -- the November DST shift moves the local time by an
+  #   # hour, the UTC expression itself never changes).
+  #   - cron: '0 23 * * *'
   workflow_dispatch: {}
 
 # Least privilege: this workflow only reads the checked-out tree and talks to
@@ -59,6 +64,7 @@ jobs:
       - name: Check Sleeper draft readiness
         id: readiness
         run: |
+          set -o pipefail
           draft_id=$(curl -fsS -m 10 --retry 3 "https://api.sleeper.app/v1/league/${COMMISHDESK_LEAGUE_ID}" | jq -r .draft_id)
           if [ -z "$draft_id" ] || [ "$draft_id" = "null" ]; then
             echo "no Sleeper draft object yet for league $COMMISHDESK_LEAGUE_ID -- not ready"
