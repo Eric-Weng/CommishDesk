@@ -144,7 +144,12 @@ self-hosters inherit them and CI enforces them.
   render → deliver` — each consumes only the immediately-prior stage's output and
   imports nothing from a stage more than one step upstream. The LLM narrator receives
   **only** the sanitized `narration` projection of the Facts JSON — never raw rosters
-  or box scores.
+  or box scores. `render/__init__.py` imports the narrator's output type, the
+  `commishdesk.facts` schema types (via `render/web.py` / `render/email.py`, which it
+  eagerly imports), and the standard library only — a widening from an earlier,
+  narrower docstring, correct under AD-2 (everything downstream of `facts/` may read
+  the Facts JSON) but recorded here so a future change to that import surface has a
+  standard to be checked against, not just a docstring to edit in isolation.
 - **The Facts JSON is the one published contract (AD-2).** Everything downstream of
   `facts/` reads the Facts JSON and nothing else. Schema is Pydantic v2 in
   `facts/schema.py`; `schema_version` is semver (additive keys → minor, shape change →
