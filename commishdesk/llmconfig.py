@@ -26,7 +26,11 @@ unset or blank):
 * ``COMMISHDESK_COST_CEILING_USD`` — the hard-abort ceiling (float, USD, default
   ``1.00``, must be ``> 0`` and finite) that ``commishdesk/cli.py`` checks a
   pre-call worst-case cost estimate against before any paid narration call
-  (Story 4.6). Over the ceiling the run hard-aborts with zero spend.
+  (Story 4.6). Over the ceiling, that league aborts with zero spend for it;
+  the CLI's per-league loop catches this and continues to the next league (I6
+  is per-league today, not per-run — MVP only ever runs one league, so this
+  reads as a full run abort until the multi-league path hoists the budget
+  check above the loop).
 * ``COMMISHDESK_LLM_VERIFIER`` — the content-safety claim verifier (P1),
   ``"<provider>:<model_id>"``. Default ``google:gemini-3.1-flash-lite``, the cheapest
   priced model: the verifier only extracts claims, and the pre-call cost estimate
