@@ -224,6 +224,21 @@ def test_read_storylines_malformed_raises_store_error(tmp_path: Path) -> None:
         _store(tmp_path).read_storylines("1")
 
 
+def test_storyline_line_with_no_kind_key_parses_as_draft_recap(tmp_path: Path) -> None:
+    """Story 5.1: mirrors ``test_ledger_line_with_no_kind_key_parses_as_draft_recap``
+    -- a raw JSON storyline record with no ``"kind"`` key (the real shape of
+    any file persisted before this story) still parses via
+    ``FileStore.read_storylines``, defaulting to ``"draft_recap"``."""
+    (tmp_path / "storylines").mkdir()
+    line = (
+        '[{"id":"a","league_id":"1","headline":"Storyline a","status":"active",'
+        '"first_week":1,"last_week":3,"notes":""}]'
+    )
+    (tmp_path / "storylines" / "1.json").write_text(line, encoding="utf-8")
+    (storyline,) = _store(tmp_path).read_storylines("1")
+    assert storyline.kind == "draft_recap"
+
+
 def test_storyline_week_must_be_in_nfl_range() -> None:
     with pytest.raises(ValueError):
         Storyline(id="a", league_id="1", headline="h", status="active",

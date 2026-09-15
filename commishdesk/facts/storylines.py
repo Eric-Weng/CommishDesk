@@ -34,11 +34,17 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import Literal
 
 from commishdesk.stats import BoardMetrics, ConsensusMetrics, DraftGrades
 
 from .leads import _spell
 from .schema import DraftSummary, Storyline, StorylineCandidate, Superlatives
+
+# Independently defined (not imported from ``facts/schema.py``'s private
+# ``_IssueType``) — same values, kept as two separate symbols on purpose so
+# this module never reaches into another module's private name. Story 5.1.
+_StorylineKind = Literal["draft_recap", "weekly"]
 
 __all__ = [
     "DRAFT_RECAP_WEEK",
@@ -242,6 +248,7 @@ def _detect(
 def advance_storylines(
     previous: Sequence[Storyline],
     *,
+    kind: _StorylineKind,
     week: int,
     board: BoardMetrics,
     consensus: ConsensusMetrics,
@@ -251,6 +258,14 @@ def advance_storylines(
 ) -> list[Storyline]:
     """Open / update / close a league's storyline threads for one period.
 
+    ``kind`` (Story 5.1) scopes every read and write to a matching-``kind``
+    subset of ``previous``: a different-``kind`` row (e.g. a ``weekly`` row
+    encountered while advancing ``draft_recap``) passes through completely
+    untouched — it is never updated, resolved, or treated as a prior id a new
+    thread must avoid colliding with. This is what keeps a draft-time and a
+    week-1 storyline that share an ``id`` (the same firing signal) as two
+    independent rows (AC3) rather than merging into one.
+
     ``consensus`` is accepted for symmetry with
     :func:`~commishdesk.facts.build.build_draft_recap_facts` and reserved for a
     future signal (the ``leads.build_lead_candidates`` reserved-params precedent);
@@ -258,11 +273,12 @@ def advance_storylines(
     ``superlatives``.
 
     Pure, deterministic, idempotent: ``advance_storylines(advance_storylines(p,
-    ...), ...)`` with identical keyword inputs equals ``advance_storylines(p,
-    ...)``. New threads inherit ``league_id`` from ``previous`` (``""`` when
-    ``previous`` is empty — the caller assigns it before persisting). A thread
-    that stops firing is marked ``"resolved"`` and kept (never dropped); one whose
-    signal returns re-activates in place, keeping its original ``first_week``.
+    ...), ...)`` with identical keyword inputs (``kind`` included) equals
+    ``advance_storylines(p, ...)``. New threads inherit ``league_id`` from
+    ``previous`` (``""`` when ``previous`` is empty — the caller assigns it
+    before persisting) and stamp the current ``kind``. A thread that stops
+    firing is marked ``"resolved"`` and kept (never dropped); one whose signal
+    returns re-activates in place, keeping its original ``first_week``.
     """
     del consensus  # reserved
     signals = _detect(
@@ -273,10 +289,12 @@ def advance_storylines(
     )
     hook_by_id = {signal.id: signal.hook for signal in signals}
     league_id = previous[0].league_id if previous else ""
-    prior_ids = {storyline.id for storyline in previous}
+    scoped = [storyline for storyline in previous if storyline.kind == kind]
+    passthrough = [storyline for storyline in previous if storyline.kind != kind]
+    prior_ids = {storyline.id for storyline in scoped}
 
-    result: list[Storyline] = []
-    for storyline in previous:
+    result: list[Storyline] = list(passthrough)
+    for storyline in scoped:
         if storyline.id in hook_by_id:
             result.append(
                 storyline.model_copy(
@@ -303,6 +321,7 @@ def advance_storylines(
                 status="active",
                 first_week=week,
                 last_week=week,
+                kind=kind,
             )
         )
 
@@ -320,18 +339,30 @@ def advance_storylines(
 
 def project_storyline_candidates(
     storylines: Sequence[Storyline],
+    *,
+    kind: _StorylineKind,
 ) -> list[StorylineCandidate]:
-    """The *active* threads, as the narrator projection. ``id`` is decoded back
-    into ``kind`` / ``roster_ids``; ``hook`` is the thread's headline sentence."""
+    """The *active*, matching-``kind`` threads, as the narrator projection.
+    ``id`` is decoded back into ``kind`` / ``roster_ids`` (the storyline
+    *signal* kind, unrelated to the ``kind`` parameter here); ``hook`` is the
+    thread's headline sentence.
+
+    ``kind`` (Story 5.1 / AC5) filters alongside the existing ``status ==
+    "active"`` check: ``store.write_storylines`` persists a league's whole
+    storyline set in one undivided file, so ``storylines`` can already hold
+    rows of more than one ``kind`` (e.g. carried through by
+    :func:`advance_storylines`'s different-kind pass-through) — without this
+    filter, a different period's active storyline could surface here as a
+    narration candidate for the wrong period."""
     candidates: list[StorylineCandidate] = []
     for storyline in storylines:
-        if storyline.status != "active":
+        if storyline.status != "active" or storyline.kind != kind:
             continue
-        kind, _, roster_id = storyline.id.partition(":")
+        signal_kind, _, roster_id = storyline.id.partition(":")
         candidates.append(
             StorylineCandidate(
                 id=storyline.id,
-                kind=kind,
+                kind=signal_kind,
                 roster_ids=[roster_id] if roster_id else [],
                 hook=storyline.headline,
             )

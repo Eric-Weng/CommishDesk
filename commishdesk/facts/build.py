@@ -132,6 +132,7 @@ def build_draft_recap_facts(
         lead_candidates = build_lead_candidates(league, board, consensus, grades, draft_summary, superlatives)
         storylines = advance_storylines(
             previous_storylines,
+            kind="draft_recap",
             week=DRAFT_RECAP_WEEK,
             board=board,
             consensus=consensus,
@@ -139,7 +140,7 @@ def build_draft_recap_facts(
             draft_summary=draft_summary,
             superlatives=superlatives,
         )
-        storyline_candidates = project_storyline_candidates(storylines)
+        storyline_candidates = project_storyline_candidates(storylines, kind="draft_recap")
         league_ref = _league_ref(league)
         narration = _narration(
             league,
