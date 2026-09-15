@@ -4,8 +4,9 @@ dark-mode-safe email, and a Discord post with a rendered image.
 The bare, unstyled local HTML dump of the template narrator's
 :class:`~commishdesk.narrate.Recap` (:func:`recap_to_html`) and of the LLM
 narrator's plain text (:func:`narrated_text_to_html`) — a literal
-``<h1>``/``<h2>``/``<p>`` transcription with every value ``html.escape``-d, no CSS
-and no script — is kept as-is (``test_I4`` still folds in ``recap_to_html``). The
+``<h1>``/``<h2>``/``<p>`` transcription with every value bidi-stripped then
+escaped (``_esc``), no CSS and no script — is kept as-is (``test_I4`` still folds
+in ``recap_to_html``). The
 designed inline-SVG render is :func:`~commishdesk.render.web.render_web` (Story
 4.1); the email-deliverable render — client-safe ``<table>`` HTML plus a
 ``text/plain`` alternative — is :func:`~commishdesk.render.email.render_email`
@@ -17,11 +18,11 @@ and the standard library only (AD-1).
 
 from __future__ import annotations
 
-import html
 import re
 from pathlib import Path
 
 from commishdesk.narrate import Recap
+from commishdesk.render._body import _esc
 from commishdesk.render.discord import render_discord_summary
 from commishdesk.render.email import EmailParts, render_email
 from commishdesk.render.web import render_web
@@ -50,9 +51,10 @@ def recap_to_html(recap: Recap) -> str:
     """Render ``recap`` as a bare, deterministic HTML document (``\\n`` newlines).
 
     ``<h1>`` title, ``<p>`` dateline, then ``<h2>`` + ``<p>`` per section. Every
-    interpolated value is escaped; there is no CSS, no ``<style>``, and no script.
+    interpolated value is bidi-stripped then escaped (``_esc``); there is no CSS,
+    no ``<style>``, and no script.
     """
-    escape = html.escape
+    escape = _esc
     out: list[str] = [
         "<!doctype html>",
         '<html lang="en">',
@@ -91,10 +93,11 @@ def narrated_text_to_html(text: str, *, generated_at: str) -> str:
     * every other blank-line-separated run of prose becomes a ``<p>`` (wrapped
       lines joined with a single space).
 
-    Every interpolated value is ``html.escape``-d; there is no CSS, no ``<style>``,
-    and no script. The designed render is Story 4.1 — this is deliberately unstyled.
+    Every interpolated value is bidi-stripped then escaped (``_esc``); there is no
+    CSS, no ``<style>``, and no script. The designed render is Story 4.1 — this is
+    deliberately unstyled.
     """
-    escape = html.escape
+    escape = _esc
     normalized = text.replace("\r\n", "\n").replace("\r", "\n")
     lines = normalized.split("\n")
 

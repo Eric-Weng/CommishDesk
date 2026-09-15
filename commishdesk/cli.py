@@ -702,6 +702,24 @@ def _recap_one_league(
         assert store is not None  # post=True guarantees a store on every path, demo included
         url = webhook_url  # a plain local narrows the closure below for mypy
 
+        def _post_to_the_expected_recipient(recipient: str, content: str) -> object:
+            # retro item 58: recipients is a one-entry dict today, so this
+            # closure only ever sees recipient_id here -- but if a future edit
+            # ever makes recipients multi-entry without updating this sender,
+            # every recipient would silently post to this same single webhook
+            # while the Send Ledger records each as confirmed-delivered to its
+            # own address. Raise DeliveryError (not a bare assert, which
+            # python -O strips) so send_issue's own except DeliveryError
+            # catches it, records it in report.failed, and the code below
+            # re-raises it -- which the per-league except (CommishDeskError,
+            # OSError) in the run loop then correctly catches.
+            if recipient != recipient_id:
+                raise DeliveryError(
+                    f"sender built for recipient {recipient_id!r} was called with "
+                    f"mismatched recipient {recipient!r}"
+                )
+            return post_discord_text(url, content)
+
         summary = render_discord_summary(doc, recap=body.recap, llm_text=body.llm_text)
         report = send_issue(
             store,
@@ -709,7 +727,7 @@ def _recap_one_league(
             week=DRAFT_RECAP_WEEK,
             channel="discord",
             recipients={recipient_id: summary},
-            sender=lambda _recipient, content: post_discord_text(url, content),
+            sender=_post_to_the_expected_recipient,
         )
         if report.failed:
             _, message = report.failed[0]  # a single recipient — no partial-success case
