@@ -12,7 +12,6 @@ import ast
 import copy
 import json
 import random
-from pathlib import Path
 from typing import Any
 
 import pytest
@@ -27,8 +26,8 @@ from commishdesk.ingest import (
     build_league_model,
     sanitize,
 )
+from tests.conftest import REPO_ROOT
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
 FIXTURE_DIR = REPO_ROOT / "tests" / "fixtures"
 INGEST_DIR = REPO_ROOT / "commishdesk" / "ingest"
 

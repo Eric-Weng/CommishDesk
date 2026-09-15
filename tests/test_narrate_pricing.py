@@ -12,7 +12,6 @@ from __future__ import annotations
 import ast
 import sys
 from datetime import date, timedelta
-from pathlib import Path
 
 import pytest
 
@@ -27,8 +26,7 @@ from commishdesk.narrate.pricing import (
     estimate_cost_usd,
     is_pricing_stale,
 )
-
-REPO_ROOT = Path(__file__).resolve().parent.parent
+from tests.conftest import REPO_ROOT
 
 _ANTHROPIC = LLMModelConfig("anthropic", "claude-sonnet-5")
 _GOOGLE = LLMModelConfig("google", "gemini-3.5-flash")

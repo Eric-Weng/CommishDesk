@@ -21,8 +21,7 @@ import pytest
 from commishdesk.deliver import SendReport, send_issue
 from commishdesk.errors import DeliveryError, StoreError
 from commishdesk.store import FileStore, LedgerEntry
-
-REPO_ROOT = Path(__file__).resolve().parent.parent
+from tests.conftest import REPO_ROOT
 
 _FIXED_NOW = datetime(2026, 9, 10, 12, 0, tzinfo=UTC)
 

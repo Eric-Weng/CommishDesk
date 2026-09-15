@@ -21,7 +21,6 @@ import copy
 import json
 import subprocess
 import sys
-from pathlib import Path
 from typing import Any
 
 import pytest
@@ -42,8 +41,8 @@ from commishdesk.stats import (
     TeamBoard,
     compute_board_metrics,
 )
+from tests.conftest import REPO_ROOT
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
 FIXTURE_DIR = REPO_ROOT / "tests" / "fixtures"
 STATS_DIR = REPO_ROOT / "commishdesk" / "stats"
 EXPECTED_PATH = FIXTURE_DIR / "board-metrics" / "rookie-draft-board-metrics.json"

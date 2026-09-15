@@ -33,8 +33,8 @@ from commishdesk.stats import (
     TeamConsensus,
     compute_consensus_metrics,
 )
+from tests.conftest import REPO_ROOT
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
 FIXTURE_DIR = REPO_ROOT / "tests" / "fixtures"
 CONSENSUS_DIR = FIXTURE_DIR / "consensus"
 STATS_CONSENSUS = REPO_ROOT / "commishdesk" / "stats" / "consensus.py"

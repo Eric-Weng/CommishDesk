@@ -26,8 +26,8 @@ from commishdesk.narrate.verify import (
     parse_claims,
     verify_narration,
 )
+from tests.conftest import REPO_ROOT
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
 FACTS = REPO_ROOT / "tests" / "fixtures" / "facts" / "expected-draft-recap-facts.json"
 VERIFIER = LLMModelConfig("google", "gemini-3.8-flash", timeout=60.0)
 

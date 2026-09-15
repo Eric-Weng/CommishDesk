@@ -1,14 +1,30 @@
 """Session-wide test infrastructure.
 
-Currently holds only the skip-reason audit (Epic 2 retro finding B1 / action
-item ``epic-2-retro-item-46``). Deliberately minimal: the shared ``REPO_ROOT``
-/ ``_find_uv`` consolidation (finding B2 / action item ``...-47``) is a
-separate, larger cleanup and is not folded in here.
+Holds the skip-reason audit (Epic 2 retro finding B1 / action item
+``epic-2-retro-item-46``) and the shared ``REPO_ROOT`` constant (Epic 4
+retro item 70 / finding B2 / action item ``...-47``): every test file that
+previously defined its own ``REPO_ROOT`` now imports it from here instead
+of redefining it locally. (A few files compute their own differently-named,
+locally-scoped path constants derived from ``__file__`` -- e.g.
+``ENGINE_ROOT``, ``PYPROJECT`` -- those were never literally ``REPO_ROOT``
+and are out of scope for this cleanup.) ``_find_uv`` (duplicated in only two
+files) also remains a separate, out-of-scope cleanup.
+
+Importing ``REPO_ROOT`` as ``from tests.conftest import REPO_ROOT`` relies
+on ``tests/`` being an importable package (see ``tests/__init__.py``); if
+that file were ever removed, every importing test file would fail at
+collection with a nonobvious root cause.
 """
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
+
+#: The repository root, resolved once here and imported by every test file
+#: that needs it (``from tests.conftest import REPO_ROOT``) instead of each
+#: file redefining ``Path(__file__).resolve().parent.parent`` itself.
+REPO_ROOT = Path(__file__).resolve().parent.parent
 
 #: The exact prefix of every ``pytest.skip(...)`` reason this suite is known
 #: to emit, one per capability gate. A skip whose reason does not start with

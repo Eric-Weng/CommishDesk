@@ -25,7 +25,8 @@ from pathlib import Path
 
 import pytest
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+from tests.conftest import REPO_ROOT
+
 WORKFLOW_DIR = REPO_ROOT / ".github" / "workflows"
 WORKFLOW = WORKFLOW_DIR / "test.yml"
 DEPENDABOT = REPO_ROOT / ".github" / "dependabot.yml"

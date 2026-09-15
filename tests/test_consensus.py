@@ -28,8 +28,8 @@ from commishdesk.ingest import (
 )
 from commishdesk.stats import compute_consensus_metrics
 from commishdesk.store import FileStore
+from tests.conftest import REPO_ROOT
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
 FIXTURE_DIR = REPO_ROOT / "tests" / "fixtures"
 CONSENSUS_DIR = FIXTURE_DIR / "consensus"
 

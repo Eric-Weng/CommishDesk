@@ -12,7 +12,6 @@ import copy
 import json
 import socket
 from collections.abc import Callable, Mapping
-from pathlib import Path
 from typing import Any
 
 import httpx
@@ -23,8 +22,8 @@ from commishdesk.adapters import Adapter
 from commishdesk.adapters.sleeper import SleeperAdapter
 from commishdesk.errors import AdapterError, IngestError
 from commishdesk.ingest import build_league_model
+from tests.conftest import REPO_ROOT
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
 EVAL_DIR = REPO_ROOT / "tests" / "eval" / "adapters"
 
 

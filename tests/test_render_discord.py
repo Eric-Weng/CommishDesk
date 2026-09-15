@@ -14,15 +14,14 @@ from __future__ import annotations
 import ast
 import json
 import sys
-from pathlib import Path
 
 import pytest
 
 from commishdesk.facts.schema import DraftRecapFacts
 from commishdesk.narrate import Recap, Section, render_draft_recap
 from commishdesk.render import render_discord_summary
+from tests.conftest import REPO_ROOT
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
 EXPECTED_FACTS_PATH = (
     REPO_ROOT / "tests" / "fixtures" / "facts" / "expected-draft-recap-facts.json"
 )

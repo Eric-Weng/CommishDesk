@@ -18,7 +18,6 @@ import ast
 import json
 import subprocess
 import sys
-from pathlib import Path
 
 import pytest
 
@@ -27,8 +26,8 @@ from commishdesk.narrate import Recap, Section, render_draft_recap
 from commishdesk.render import EmailParts, render_email
 from commishdesk.render._body import _r1_split
 from commishdesk.render.style import REACH_HEX, VALUE_HEX, fmt_signed, position_label
+from tests.conftest import REPO_ROOT
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
 EXPECTED_FACTS_PATH = (
     REPO_ROOT / "tests" / "fixtures" / "facts" / "expected-draft-recap-facts.json"
 )

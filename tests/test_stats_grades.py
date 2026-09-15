@@ -41,8 +41,8 @@ from commishdesk.stats import (
     compute_consensus_metrics,
     compute_draft_grades,
 )
+from tests.conftest import REPO_ROOT
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
 FIXTURE_DIR = REPO_ROOT / "tests" / "fixtures"
 CONSENSUS_DIR = FIXTURE_DIR / "consensus"
 GRADES_DIR = FIXTURE_DIR / "grades"

@@ -15,8 +15,15 @@ import subprocess
 import sys
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+from tests.conftest import REPO_ROOT
+
 CONFTEST_SRC = (REPO_ROOT / "tests" / "conftest.py").read_text(encoding="utf-8")
+
+
+def test_repo_root_resolves_to_the_true_repo_root() -> None:
+    # Guards against a future edit that moves conftest.py and silently
+    # breaks every file importing REPO_ROOT from it.
+    assert (REPO_ROOT / "pyproject.toml").is_file()
 
 
 def _run_isolated(tmp_path: Path, test_body: str) -> subprocess.CompletedProcess:
