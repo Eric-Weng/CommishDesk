@@ -39,11 +39,16 @@ from typing import NamedTuple
 from commishdesk.facts.schema import DraftRecapFacts, PickRow
 from commishdesk.narrate import Recap, recap_to_text
 from commishdesk.render._body import (
+    _at_a_glance_items,
+    _effective_rounds,
     _esc,
+    _footer_stamp,
     _plain,
+    _provenance_sentence,
     _sections_from_llm,
     _sections_from_recap,
     _strip_markers,
+    _verdict_bucket,
 )
 from commishdesk.render.style import (
     LIGHT_HEX,
@@ -98,44 +103,28 @@ _CONTAINER_W = 600
 # --------------------------------------------------------------------------- #
 
 
-def _effective_rounds(facts: DraftRecapFacts, picks: list[PickRow]) -> int:
-    """The declared ``draft.rounds`` when it is a positive int, widened to the
-    largest real pick round so a missing / zero / too-small value never
-    understates the draft."""
-    declared = facts.draft.rounds
-    declared = declared if isinstance(declared, int) and declared > 0 else 0
-    return max(declared, max((pick.round for pick in picks), default=0))
-
-
 def _round1(facts: DraftRecapFacts) -> list[PickRow]:
     return sorted((p for p in facts.picks if p.round == 1), key=lambda p: p.pick_no)
-
-
-def _r1_split(round1_positional: dict[str, int]) -> str:
-    ordered = sorted(round1_positional.items(), key=lambda kv: (-kv[1], kv[0]))
-    return " / ".join(f"{count} {position_label(pos)}" for pos, count in ordered)
 
 
 def _at_a_glance(
     facts: DraftRecapFacts, picks: list[PickRow], team_count: int, rounds: int
 ) -> str:
-    bits = [f"{len(picks)} picks", f"{rounds} rounds", f"{team_count} teams"]
-    r1 = facts.draft_summary.round1_positional
-    if r1:
-        bits.append(f"round 1 {_r1_split(r1)}")
-    return "  ·  ".join(bits)
+    return "  ·  ".join(_at_a_glance_items(facts, picks, team_count, rounds))
 
 
 def _verdict(delta: int | None) -> tuple[str, str, str, str] | None:
     """``(label, text-colour, chip-background, extra-css)`` for the board's
-    verdict chip, or ``None`` for no chip. Buckets mirror ``render/web.py`` and
-    the committed reference: ``|delta| <= 2`` fair, ``delta > 2`` value (green),
-    ``delta < -2`` reach (red)."""
+    verdict chip, or ``None`` for no chip. Buckets are the shared
+    ``_verdict_bucket``, matching ``render/web.py`` and the committed
+    reference: ``|delta| <= 2`` fair, ``delta > 2`` value (green), ``delta < -2``
+    reach (red)."""
     if delta is None:
         return None
-    if delta > 2:
+    bucket = _verdict_bucket(delta)
+    if bucket == "value":
         return (f"value {fmt_signed(delta)}", VALUE_HEX, _VALUE_WASH, "")
-    if delta < -2:
+    if bucket == "reach":
         return (f"reach {fmt_signed(delta)}", REACH_HEX, _REACH_WASH, "")
     # the fair wash is a hair off the sheet colour — a hairline border keeps the
     # chip legible where value/reach lean on their coloured fill instead
@@ -326,20 +315,15 @@ def _pick_count_bars(facts: DraftRecapFacts) -> str:
 def _footer(
     facts: DraftRecapFacts, team_count: int, rounds: int, generated_at: str
 ) -> str:
-    league = facts.league
     consensus = facts.consensus_source.name
     against = f" against {_esc(consensus)}" if consensus else ""
-    stamp = (
-        f"{_esc(league.name)} &middot; {_esc(league.season)} &middot; {team_count} teams "
-        f"&middot; {rounds} rounds &middot; generated {_esc(generated_at)}"
-    )
+    stamp = _footer_stamp(facts, team_count, rounds, generated_at)
     return (
         '<tr><td class="px" style="padding:44px 48px 44px;">'
         '<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>'
         f'<td style="border-top:1px solid {_LINE};padding-top:20px;font-family:{_MONO};'
         f'font-size:11px;line-height:1.7;color:{_INK3};">'
-        f"Every pick and board label is drawn straight from the draft record; consensus "
-        f"deltas and grades are the engine&rsquo;s own, measured{against}."
+        f"{_provenance_sentence(against)}"
         f'<div style="color:{_INK2};padding-top:10px;">{stamp}</div>'
         f"</td></tr></table></td></tr>"
     )

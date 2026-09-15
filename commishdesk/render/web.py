@@ -34,17 +34,21 @@ from commishdesk.facts.schema import (
 )
 from commishdesk.narrate import Recap
 from commishdesk.render._body import (
+    _at_a_glance_items,
+    _effective_rounds,
     _esc,
+    _footer_stamp,
+    _provenance_sentence,
     _sections_from_llm,
     _sections_from_recap,
     _surname,
+    _verdict_bucket,
 )
 from commishdesk.render.style import (
     POSITION_VAR,
     POSITIONS,
     build_style,
     fmt_signed,
-    position_label,
 )
 
 __all__ = ["render_web"]
@@ -70,15 +74,6 @@ _T_TRACK = 640
 _T_PAD = 14
 
 
-def _effective_rounds(facts: DraftRecapFacts, picks: list[PickRow]) -> int:
-    """The round count the board must span: the declared ``draft.rounds`` when it
-    is a positive int, widened to the largest real pick round so a missing / zero
-    / negative / too-small declared value never truncates the grid."""
-    declared = facts.draft.rounds
-    declared = declared if isinstance(declared, int) and declared > 0 else 0
-    return max(declared, max((pick.round for pick in picks), default=0))
-
-
 # --------------------------------------------------------------------------- #
 # Narrated body
 # --------------------------------------------------------------------------- #
@@ -101,37 +96,15 @@ def _render_body(sections: list[tuple[str | None, list[str]]]) -> str:
 # --------------------------------------------------------------------------- #
 
 
-def _r1_split(round1_positional: dict[str, int]) -> str:
-    ordered = sorted(round1_positional.items(), key=lambda kv: (-kv[1], kv[0]))
-    return " / ".join(f"{count} {position_label(pos)}" for pos, count in ordered)
-
-
-def _at_a_glance(facts: DraftRecapFacts, picks: list[PickRow], team_count: int, rounds: int) -> list[str]:
-    summary = facts.draft_summary
-    items = [
-        f"{len(picks)} picks",
-        f"{rounds} rounds",
-        f"{team_count} teams",
-    ]
-    if summary.round1_positional:
-        items.append(f"round 1: {_r1_split(summary.round1_positional)}")
-    rank = summary.pick_count_rank
-    if rank:
-        leader, low = rank[0], rank[-1]
-        if leader.manager:
-            items.append(f"most picks: {leader.manager} ({leader.pick_count})")
-        if low.manager and low is not leader:
-            items.append(f"fewest: {low.manager} ({low.pick_count})")
-    return items
-
-
 def _masthead(facts: DraftRecapFacts, picks: list[PickRow], team_count: int, rounds: int) -> str:
     league = facts.league
     dateline = (
         f"{_esc(league.season)} season &middot; {team_count} teams "
         f"&middot; {rounds} rounds &middot; {_esc(league.format.scoring_label)}"
     )
-    strip = "\n".join(f"<li>{_esc(item)}</li>" for item in _at_a_glance(facts, picks, team_count, rounds))
+    strip = "\n".join(
+        f"<li>{_esc(item)}</li>" for item in _at_a_glance_items(facts, picks, team_count, rounds)
+    )
     return "\n".join(
         [
             '<header class="masthead">',
@@ -215,8 +188,15 @@ def _seat(pick: PickRow, team_count: int, snake: bool) -> int:
     return pick.slot
 
 
+_VERDICT_MARK = {
+    "fair": "var(--ink-3)",
+    "value": "var(--value)",
+    "reach": "var(--reach)",
+}
+
+
 def _delta_mark(delta: int) -> str:
-    return "var(--value)" if delta > 0 else "var(--reach)"
+    return _VERDICT_MARK[_verdict_bucket(delta)]
 
 
 def _magnitude_radius(delta: int) -> float:
@@ -301,6 +281,7 @@ def _draft_grid(facts: DraftRecapFacts) -> str:
         '<span><i class="sw-rb"></i>RB</span>'
         '<span><i class="sw-wr"></i>WR</span>'
         '<span><i class="sw-te"></i>TE</span>'
+        '<span><i class="sw-fair"></i>fair</span>'
         '<span><i class="sw-value"></i>value</span>'
         '<span><i class="sw-reach"></i>reach</span>'
         "</div>"
@@ -440,20 +421,15 @@ def _positional_timeline(facts: DraftRecapFacts) -> str:
 
 
 def _footer(facts: DraftRecapFacts, team_count: int, rounds: int, generated_at: str) -> str:
-    league = facts.league
     consensus = facts.consensus_source.name
     against = f" against {_esc(consensus)}" if consensus else ""
     # No output_id here — the page is built to be shared, and for a real league
     # output_id is the Sleeper league id (P10). Only league descriptors + the stamp.
-    stamp = (
-        f"{_esc(league.name)} &middot; {_esc(league.season)} &middot; {team_count} teams "
-        f"&middot; {rounds} rounds &middot; generated {_esc(generated_at)}"
-    )
+    stamp = _footer_stamp(facts, team_count, rounds, generated_at)
     return "\n".join(
         [
             "<footer>",
-            '<p class="prov">Every pick and board label is drawn straight from the draft '
-            f"record; consensus deltas and grades are the engine's own, measured{against}.</p>",
+            f'<p class="prov">{_provenance_sentence(against)}</p>',
             f'<p class="stamp">{stamp}</p>',
             "</footer>",
         ]

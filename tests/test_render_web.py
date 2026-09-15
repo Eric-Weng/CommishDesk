@@ -483,6 +483,69 @@ def test_timeline_has_one_circle_per_skill_position_pick() -> None:
     assert timeline.count("<circle") == skill
 
 
+# --------------------------------------------------------------------------- #
+# retro item 60 — shared verdict-bucket threshold + fair legend swatch
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.parametrize(
+    "delta, bucket",
+    [
+        (2, "fair"),
+        (-2, "fair"),
+        (1, "fair"),
+        (-1, "fair"),
+        (0, "fair"),
+        (3, "value"),
+        (-3, "reach"),
+    ],
+)
+def test_verdict_bucket_boundaries(delta: int, bucket: str) -> None:
+    assert web_mod._verdict_bucket(delta) == bucket
+
+
+def test_delta_mark_small_deltas_are_neutral_not_colored() -> None:
+    assert web_mod._delta_mark(2) == "var(--ink-3)"
+    assert web_mod._delta_mark(-2) == "var(--ink-3)"
+    assert web_mod._delta_mark(3) == "var(--value)"
+    assert web_mod._delta_mark(-3) == "var(--reach)"
+
+
+def test_grid_marks_small_deltas_neutral_matching_email() -> None:
+    """A pick with a small nonzero delta (|delta| <= 2, e.g. +1) reads as
+    neutral "fair" on the board grid, not colored value/reach (retro item 60:
+    web used to color any positive delta green regardless of magnitude)."""
+    facts = _facts()
+    grid = _svgs(_page(facts=facts))[0]
+    marks = re.findall(r'<rect class="grid-mark"[^>]*fill="([^"]+)"', grid)
+    fair = [p.delta for p in facts.picks if p.delta is not None and 0 < abs(p.delta) <= 2]
+    assert fair, "fixture must exercise the |delta| <= 2 boundary"
+    assert marks.count("var(--ink-3)") == len(fair)
+    assert "var(--value)" in marks and "var(--reach)" in marks
+
+
+def test_legend_includes_a_fair_swatch() -> None:
+    page = _page()
+    assert '<span><i class="sw-fair"></i>fair</span>' in page
+    assert ".chart-legend .sw-fair {" in page and "var(--ink-3)" in page
+
+
+def test_footer_provenance_sentence_uses_the_typographic_apostrophe() -> None:
+    """Retro item 60: web used a bare apostrophe (``engine's``) while email used
+    ``&rsquo;``; both now render the shared, entity-encoded sentence."""
+    facts = _facts()
+    consensus = facts.consensus_source.name
+    against = f" against {consensus}" if consensus else ""
+    page = _page(facts=facts)
+    expected = (
+        '<p class="prov">Every pick and board label is drawn straight from the '
+        "draft record; consensus deltas and grades are the engine&rsquo;s own, "
+        f"measured{against}.</p>"
+    )
+    assert expected in page
+    assert "engine's own" not in page
+
+
 def test_timeline_note_does_not_overclaim_every_pick() -> None:
     page = _page()
     note = re.search(

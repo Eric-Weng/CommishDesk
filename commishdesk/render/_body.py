@@ -4,28 +4,44 @@
 narrated body — the template narrator's :class:`~commishdesk.narrate.Recap`
 sections **or** the LLM narrator's plain-text prose — into one ordered list of
 ``(heading, blocks)`` runs, and both escape every interpolated value identically
-(HTML-escape after stripping Unicode bidirectional control characters). Those
-primitives live here so the two surfaces cannot drift apart.
+(HTML-escape after stripping Unicode bidirectional control characters). This
+module also carries the facts-derived *logic and text* the two surfaces would
+otherwise reimplement independently (and drift apart on — epic-4 retro item
+60): the effective round count, the at-a-glance strip content, the
+verdict-chip/board-mark delta bucketing, and the footer stamp + provenance
+sentence. Never markup — each surface keeps its own HTML. The returned text is
+still HTML-entity-encoded (``&middot;``, ``&rsquo;``), not raw plain text — a
+future plain-text consumer must not reuse these helpers verbatim.
 
-**Pipeline fence (AD-1).** Standard library + :class:`commishdesk.narrate.Recap`
-only — nothing from ``ingest`` / ``stats`` / ``narrate`` internals, no cloud or
-HTTP SDK.
+**Pipeline fence (AD-1).** Standard library, :class:`commishdesk.narrate.Recap`,
+``commishdesk.facts.schema`` types, and :mod:`commishdesk.render.style` only —
+the latter reachable solely for ``position_label`` (used by ``_r1_split``), not
+a precedent for broader ``render.style`` imports. Nothing from ``ingest`` /
+``stats`` / ``narrate`` internals, no cloud or HTTP SDK.
 """
 
 from __future__ import annotations
 
 import html
 import re
+from typing import Literal
 
+from commishdesk.facts.schema import DraftRecapFacts, PickRow
 from commishdesk.narrate import Recap
+from commishdesk.render.style import position_label
 
 __all__ = [
+    "_at_a_glance_items",
+    "_effective_rounds",
     "_esc",
+    "_footer_stamp",
     "_plain",
+    "_provenance_sentence",
     "_sections_from_llm",
     "_sections_from_recap",
     "_strip_markers",
     "_surname",
+    "_verdict_bucket",
 ]
 
 #: A Markdown ATX heading line with real text after the marker (``## The Lead``).
@@ -127,3 +143,82 @@ def _surname(name: str) -> str:
     if len(parts) >= 2 and is_particle(parts[-2]):
         return " ".join(parts[-2:])
     return parts[-1]
+
+
+# --------------------------------------------------------------------------- #
+# Facts-derived helpers shared by render/web.py and render/email.py — logic
+# and text only, never markup (retro item 60: these drifted apart when each
+# surface reimplemented them independently).
+# --------------------------------------------------------------------------- #
+
+
+def _effective_rounds(facts: DraftRecapFacts, picks: list[PickRow]) -> int:
+    """The round count the board must span: the declared ``draft.rounds`` when it
+    is a positive int, widened to the largest real pick round so a missing / zero
+    / negative / too-small declared value never truncates the grid."""
+    declared = facts.draft.rounds
+    declared = declared if isinstance(declared, int) and declared > 0 else 0
+    return max(declared, max((pick.round for pick in picks), default=0))
+
+
+def _r1_split(round1_positional: dict[str, int]) -> str:
+    ordered = sorted(round1_positional.items(), key=lambda kv: (-kv[1], kv[0]))
+    return " / ".join(f"{count} {position_label(pos)}" for pos, count in ordered)
+
+
+def _at_a_glance_items(
+    facts: DraftRecapFacts, picks: list[PickRow], team_count: int, rounds: int
+) -> list[str]:
+    """The at-a-glance strip content, shared by both surfaces: pick/round/team
+    counts, the round-1 positional split, and (when present) who made the most
+    and the fewest picks. Each surface joins these items its own way (web: a
+    separate strip item per entry; email: joined with ``"  ·  "``)."""
+    summary = facts.draft_summary
+    items = [
+        f"{len(picks)} picks",
+        f"{rounds} rounds",
+        f"{team_count} teams",
+    ]
+    if summary.round1_positional:
+        items.append(f"round 1: {_r1_split(summary.round1_positional)}")
+    rank = summary.pick_count_rank
+    if rank:
+        leader, low = rank[0], rank[-1]
+        if leader.manager:
+            items.append(f"most picks: {leader.manager} ({leader.pick_count})")
+        if low.manager and low is not leader:
+            items.append(f"fewest: {low.manager} ({low.pick_count})")
+    return items
+
+
+def _verdict_bucket(delta: int) -> Literal["fair", "value", "reach"]:
+    """The verdict-chip / board-mark bucket for a consensus delta: ``|delta| <=
+    2`` is a neutral "fair" pick, ``delta > 2`` is "value" (drafted later than
+    consensus), ``delta < -2`` is a "reach" (drafted earlier). One threshold for
+    both render surfaces (retro item 60: web and email disagreed on this)."""
+    if delta > 2:
+        return "value"
+    if delta < -2:
+        return "reach"
+    return "fair"
+
+
+def _footer_stamp(
+    facts: DraftRecapFacts, team_count: int, rounds: int, generated_at: str
+) -> str:
+    league = facts.league
+    return (
+        f"{_esc(league.name)} &middot; {_esc(league.season)} &middot; {team_count} teams "
+        f"&middot; {rounds} rounds &middot; generated {_esc(generated_at)}"
+    )
+
+
+def _provenance_sentence(against: str) -> str:
+    """The footer provenance sentence — identical wording and the typographic
+    apostrophe (``&rsquo;``) on both surfaces. ``against`` is the already-escaped
+    ``" against {consensus source}"`` clause (or ``""``); each surface wraps this
+    text in its own markup."""
+    return (
+        "Every pick and board label is drawn straight from the draft record; "
+        f"consensus deltas and grades are the engine&rsquo;s own, measured{against}."
+    )
