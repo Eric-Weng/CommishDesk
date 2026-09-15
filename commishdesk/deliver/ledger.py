@@ -23,6 +23,16 @@ is caught and the loop continues (AD-9 shape). Any other exception — a
 :mod:`commishdesk.errors` + :mod:`commishdesk.logconfig` only — no ``httpx``,
 ``render``, or ``narrate``. The caller closes over the transport in ``sender``;
 the webhook URL / token never enters this module or the ledger file.
+
+This guarantee is about *this module's own source* only, not a runtime
+promise about every import path. Importing this module by any means —
+``from commishdesk.deliver import send_issue``, or even
+``import commishdesk.deliver.ledger`` directly — already has ``httpx``
+loaded first, because Python runs a package's ``__init__.py`` before any of
+its submodules, and :mod:`commishdesk.deliver`'s ``__init__.py`` imports the
+sibling :mod:`commishdesk.deliver.discord` module (which does import
+``httpx``) before it imports this one. There is no import path through this
+package that avoids it.
 """
 
 from __future__ import annotations

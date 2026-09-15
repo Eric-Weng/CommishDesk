@@ -607,25 +607,32 @@ def _step_blocks(text: str, action_prefix: str) -> list[str]:
 
 
 def test_every_checkout_step_sets_persist_credentials_false() -> None:
-    """Row: Fork PR. Every ``actions/checkout`` step disables credential
-    persistence so no token is left on disk for a later step to exfiltrate."""
-    blocks = _step_blocks(_workflow(), "actions/checkout@")
-    assert blocks, "no actions/checkout step found"
-    for block in blocks:
-        assert "persist-credentials: false" in block, block
+    """Row: Fork PR. Every ``actions/checkout`` step, in every workflow, disables
+    credential persistence so no token is left on disk for a later step to
+    exfiltrate -- ``scheduled-draft-recap.yml`` (Discord webhook + both LLM keys)
+    is not exempt just because it isn't ``test.yml``."""
+    saw_a_block = False
+    for name, text in _all_workflows():
+        for block in _step_blocks(text, "actions/checkout@"):
+            saw_a_block = True
+            assert "persist-credentials: false" in block, f"{name}: {block}"
+    assert saw_a_block, "no actions/checkout step found in any workflow"
 
 
 def test_every_setup_uv_step_pins_a_version_and_enables_cache() -> None:
     """AC: ``setup-uv`` carries a pinned ``version:`` input (the uv binary version)
-    and ``enable-cache: true``, on every job that uses it."""
-    blocks = _step_blocks(_workflow(), "astral-sh/setup-uv@")
-    assert blocks, "no astral-sh/setup-uv step found"
-    for block in blocks:
-        # negative lookbehind for a preceding word/hyphen char so this matches only the
-        # uv-binary `version:` key, not a suffix of `python-version:` (which is quoted
-        # in the `lint` job's setup-uv step, just like a real `version:` pin would be).
-        assert re.search(r"(?<![\w-])version:\s*['\"][\w.]+['\"]", block), block
-        assert "enable-cache: true" in block, block
+    and ``enable-cache: true``, on every job that uses it, in every workflow."""
+    saw_a_block = False
+    for name, text in _all_workflows():
+        for block in _step_blocks(text, "astral-sh/setup-uv@"):
+            saw_a_block = True
+            # negative lookbehind for a preceding word/hyphen char so this matches only
+            # the uv-binary `version:` key, not a suffix of `python-version:` (which is
+            # quoted in the `lint` job's setup-uv step, just like a real `version:` pin
+            # would be).
+            assert re.search(r"(?<![\w-])version:\s*['\"][\w.]+['\"]", block), f"{name}: {block}"
+            assert "enable-cache: true" in block, f"{name}: {block}"
+    assert saw_a_block, "no astral-sh/setup-uv step found in any workflow"
 
 
 def test_uv_lock_check_step_present() -> None:
@@ -659,19 +666,24 @@ def _job_blocks(text: str) -> dict[str, str]:
 
 
 def test_every_job_declares_a_timeout_minutes() -> None:
-    """AC: ``timeout-minutes`` is present on every job -- a hung runner cannot pin
-    the queue indefinitely."""
-    jobs = _job_blocks(_workflow())
-    assert jobs, "no jobs found"
-    for job_id, block in jobs.items():
-        assert re.search(r"^\s*timeout-minutes:\s*\d+", block, re.MULTILINE), job_id
+    """AC: ``timeout-minutes`` is present on every job, in every workflow -- a hung
+    runner cannot pin the queue indefinitely."""
+    saw_a_job = False
+    for name, text in _all_workflows():
+        jobs = _job_blocks(text)
+        assert jobs, f"{name}: no jobs found"
+        for job_id, block in jobs.items():
+            saw_a_job = True
+            assert re.search(r"^\s*timeout-minutes:\s*\d+", block, re.MULTILINE), f"{name}: {job_id}"
+    assert saw_a_job, "no jobs found in any workflow"
 
 
 def test_no_job_runs_on_a_bare_ubuntu_latest() -> None:
-    """AC: a pinned runner image, not the floating ``ubuntu-latest`` alias."""
-    text = _workflow()
-    assert "ubuntu-latest" not in text
-    assert re.search(r"runs-on:\s*ubuntu-\d", text), "no pinned ubuntu-NN.NN image"
+    """AC: a pinned runner image, not the floating ``ubuntu-latest`` alias, in
+    every workflow."""
+    for name, text in _all_workflows():
+        assert "ubuntu-latest" not in text, name
+        assert re.search(r"runs-on:\s*ubuntu-\d", text), f"{name}: no pinned ubuntu-NN.NN image"
 
 
 def test_cancel_in_progress_is_gated_to_pull_request() -> None:
@@ -683,6 +695,69 @@ def test_cancel_in_progress_is_gated_to_pull_request() -> None:
         r"cancel-in-progress:\s*\$\{\{\s*github\.event_name\s*==\s*'pull_request'\s*\}\}",
         text,
     ), "cancel-in-progress is not gated to pull_request"
+
+
+# --------------------------------------------------------------------------- #
+# Row: scheduled-draft-recap.yml content (Story 4.7 / retro item 64)
+# --------------------------------------------------------------------------- #
+
+
+def test_scheduled_draft_recap_workflow_content() -> None:
+    """Retro item 64: nothing previously asserted this workflow's actual content --
+    only its generic shape was covered by the over-every-workflow guards above.
+    Pins the cron expression (currently disabled/commented per the retro-52-55
+    fix landed in PR #41 -- ``workflow_dispatch`` is the live trigger), the cache
+    ``restore-keys`` prefix, ``if: always()`` on the cache-save step, ``if:
+    failure() || cancelled()`` on the failure ping, and ``set -o pipefail`` on the
+    readiness-gate step (also from retro-52-55)."""
+    text = _read_github_file(WORKFLOW_DIR / "scheduled-draft-recap.yml")
+
+    # the schedule trigger is disabled -- commented out, not a live `schedule:` key --
+    # and `workflow_dispatch` is the active trigger, per the DECIDED note in the file.
+    assert re.search(r"^\s*#\s*schedule:\s*$", text, re.MULTILINE), "cron is not commented out"
+    assert re.search(r"^\s*#\s*- cron: '0 23 \* \* \*'\s*$", text, re.MULTILINE), (
+        "commented cron expression not found"
+    )
+    assert "workflow_dispatch" in _on_block_top_keys(text), "workflow_dispatch is not the active trigger"
+
+    # cache ratchet: restore-keys resolves to the most recently *saved* entry
+    assert "restore-keys: commishdesk-ledger-" in text
+
+    # save step always runs (even on failure) so the next run's restore-keys prefix
+    # match always finds a fresh entry. This step is written as `- name: ...` /
+    # `if: always()` / `uses: actions/cache/save@...` (not `- uses: ...` first), so
+    # `_step_blocks` (anchored on a leading `- uses:`) doesn't apply here -- match the
+    # ordered sequence directly instead.
+    assert re.search(
+        r"name:\s*Save Send Ledger cache\s*\n\s*if:\s*always\(\)\s*\n\s*uses:\s*actions/cache/save@",
+        text,
+    ), "Save Send Ledger cache step does not set if: always()"
+
+    # the failure/cancellation ping fires on either outcome -- a timeout is reported
+    # as cancelled, not failed, and the dead-man's-switch must still catch it
+    assert "if: failure() || cancelled()" in text
+
+    # readiness-gate step: `set -o pipefail` so a failed curl in a pipeline to `jq`
+    # actually fails the step instead of being masked by jq's own exit code
+    assert "set -o pipefail" in text
+
+    # job-level env: the readiness-gate step and the delivery step both need the
+    # league id, so it is set once at job level rather than duplicated per-step
+    assert "COMMISHDESK_LEAGUE_ID: ${{ vars.COMMISHDESK_LEAGUE_ID }}" in text
+
+    # the four operator secrets this workflow is trusted with (Discord webhook,
+    # both LLM provider keys, healthchecks.io ping URL) are each referenced
+    for secret in (
+        "COMMISHDESK_DISCORD_WEBHOOK_URL",
+        "ANTHROPIC_API_KEY",
+        "GEMINI_API_KEY",
+        "HEALTHCHECKS_PING_URL",
+    ):
+        assert f"${{{{ secrets.{secret} }}}}" in text, f"{secret} is not referenced via secrets."
+
+    # a real in-flight Discord post must never be cancelled by an overlapping
+    # scheduled trigger (e.g. a manual workflow_dispatch during the daily cron)
+    assert "cancel-in-progress: false" in text
 
 
 # --------------------------------------------------------------------------- #
