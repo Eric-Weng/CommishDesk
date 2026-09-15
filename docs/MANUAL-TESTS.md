@@ -148,6 +148,33 @@ These are done once (or once per milestone), not on a schedule.
 - **Last run:** _partial_ — `test` matrix + `lint` run on every PR; whether they
   are *required* is a settings toggle only Eric can flip. Confirm state.
 
+### C3 — Scheduled workflow: first live run after configuring vars/secrets
+
+- **Do:** once `vars.COMMISHDESK_LEAGUE_ID` and
+  `secrets.{COMMISHDESK_DISCORD_WEBHOOK_URL,ANTHROPIC_API_KEY,GEMINI_API_KEY,
+  HEALTHCHECKS_PING_URL}` are set on the repo, uncomment the `schedule:` /
+  `cron: '0 23 * * *'` block in `.github/workflows/scheduled-draft-recap.yml`
+  (currently disabled — see the `DECIDED 2026-09-14` note in that file) and
+  merge. Then either wait for the first scheduled run or fire one manually via
+  `workflow_dispatch`.
+- **Expect:** the readiness gate correctly no-ops (ping success, no Discord
+  post) before the draft completes; once the Sleeper draft's `status` is
+  `complete`, the next run posts the recap to Discord, pings
+  healthchecks.io success, and the Send Ledger cache entry from that run is
+  found by the following run's `restore-keys` prefix match (no duplicate post).
+  A forced failure (e.g. a bad webhook) pings the `/fail` healthchecks.io
+  endpoint.
+- **If it doesn't go as expected:** check the healthchecks.io `/fail` ping
+  history first to confirm whether it was a hard failure or a timeout
+  (`cancelled()`), read the failing run's logs to find the step, fix the
+  underlying cause (bad secret, Sleeper API hiccup, etc.), then re-run via
+  `workflow_dispatch` rather than waiting for the next scheduled tick.
+- **Why gated:** needs the real repo vars/secrets and a live Discord channel;
+  the automated suite only covers the workflow's static shape and content.
+- **Source:** Story 4.7 / retro item 64.
+- **Last run:** _never_ — **open. Blocked on Eric configuring the repo
+  vars/secrets and re-enabling the schedule.**
+
 ---
 
 ## Change log

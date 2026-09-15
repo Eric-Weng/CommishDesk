@@ -443,6 +443,42 @@ def test_snake_board_is_detected_and_even_rounds_are_mirrored() -> None:
     assert f'<rect class="grid-cell" x="{expected_x + 2}"' in grid
 
 
+def test_draft_grid_unplaceable_pick_is_counted_not_dropped() -> None:
+    """Retro item 67: a malformed pick (here, ``round=0`` -- ``PickRow.round`` has no
+    ``ge=1`` constraint, so this constructs cleanly) must never silently vanish --
+    the grid's comment promises "never silently drop it". It is excluded from the
+    placed cells but counted in the "N picks not shown" footnote, and the pick set
+    otherwise still renders."""
+    facts = _facts()
+    malformed = facts.picks[0].model_copy(update={"round": 0})
+    picks = [malformed, *facts.picks[1:]]
+    facts = facts.model_copy(update={"picks": picks})
+    grid = _svgs(_page(facts=facts))[0]
+    minidom.parseString(grid)
+    assert "1 pick not shown (unresolved board position)" in grid
+    # the malformed pick is excluded from the placed cells -- its board label is not
+    # drawn as a cell text (no other pick in the fixture shares this label)
+    assert malformed.board_label not in grid
+
+
+def test_draft_grid_team_count_below_one_shows_empty_figure() -> None:
+    """Retro item 67: ``team_count < 1`` hits the same early-return branch as an
+    empty pick list and must produce the empty-figure fallback, not a malformed
+    grid (a zero/negative column count would otherwise blow up the SVG math)."""
+    facts = _facts()
+    facts = facts.model_copy(
+        update={
+            "league": facts.league.model_copy(
+                update={"format": facts.league.format.model_copy(update={"team_count": 0})}
+            )
+        }
+    )
+    page = _page(facts=facts)
+    assert "No picks landed on the board." in page
+    # the empty-figure fallback has no <svg> at all -- no draft-grid cell was drawn
+    assert 'class="grid-cell"' not in page
+
+
 def test_grid_never_truncates_when_draft_rounds_is_too_small() -> None:
     facts = _facts()
     max_round = max(p.round for p in facts.picks)
