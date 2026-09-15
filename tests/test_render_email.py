@@ -25,6 +25,7 @@ import pytest
 from commishdesk.facts.schema import DraftRecapFacts
 from commishdesk.narrate import Recap, Section, render_draft_recap
 from commishdesk.render import EmailParts, render_email
+from commishdesk.render._body import _r1_split
 from commishdesk.render.style import REACH_HEX, VALUE_HEX, fmt_signed, position_label
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -187,6 +188,28 @@ def test_html_conveys_the_masthead_sections_and_board() -> None:
     # pick-count bars: every ranked manager appears
     for row in facts.draft_summary.pick_count_rank:
         assert row.manager in html
+
+
+def test_at_a_glance_includes_most_picks_and_fewest_matching_web() -> None:
+    """Retro item 60: email's at-a-glance strip never had the "most picks" /
+    "fewest" lines web's does, despite the docstring claiming parity. Both are
+    now built from the shared ``_at_a_glance_items`` in ``_body.py``."""
+    facts = _facts()
+    rank = facts.draft_summary.pick_count_rank
+    assert rank, "fixture must have ranked pick counts to exercise this"
+    leader, low = rank[0], rank[-1]
+    html = _parts(facts=facts).html
+    assert f"most picks: {leader.manager} ({leader.pick_count})" in html
+    if low is not leader and low.manager:
+        assert f"fewest: {low.manager} ({low.pick_count})" in html
+    # the preheader is built from the same shared items
+    preheader = html.split("mso-hide:all;", 1)[1].split("</div>", 1)[0]
+    assert "most picks:" in preheader
+    # the round-1 item now reads the colon form shared with web (retro item 60
+    # side effect: email's own wording used to omit the colon)
+    r1 = facts.draft_summary.round1_positional
+    if r1:
+        assert f"round 1: {_r1_split(r1)}" in html
 
 
 def test_text_part_is_recap_text_plus_the_board_and_counts() -> None:

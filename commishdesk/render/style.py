@@ -327,6 +327,7 @@ svg .svg-tlnote {{ font-family: {FONT_MONO}; font-size: 10px; fill: var(--ink-3)
 .chart-legend .sw-rb {{ background: var(--pos-rb); }}
 .chart-legend .sw-wr {{ background: var(--pos-wr); }}
 .chart-legend .sw-te {{ background: var(--pos-te); }}
+.chart-legend .sw-fair {{ background: var(--ink-3); }}
 .chart-legend .sw-value {{ background: var(--value); }}
 .chart-legend .sw-reach {{ background: var(--reach); }}
 
