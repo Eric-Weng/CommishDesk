@@ -296,6 +296,12 @@ def test_anonymize_valid_bundle_same_shape_names_ids_scoring() -> None:
     assert out["rosters"][0]["owner_id"] == out["users"][0]["user_id"]
     assert out["rosters"][0]["co_owners"][0] == out["users"][1]["user_id"]
 
+    # per-player weekly points survive verbatim (_MATCHUP_FIELDS)
+    raw_row = raw["matchups"]["1"][0]
+    out_row = out["matchups"]["1"][0]
+    assert out_row["players_points"] == raw_row["players_points"]
+    assert out_row["starters_points"] == raw_row["starters_points"]
+
     blob = json.dumps(out)
     assert "sleepercdn.com" not in blob
     assert "abcdef0123456789abcdef0123456789" not in blob
@@ -561,10 +567,13 @@ def test_fixture_set_is_complete() -> None:
     names = {p.name for p in FIXTURES}
     assert names == {
         "rookie-draft.json",
+        "week01-openers.json",
         "week02-nailbiter.json",
         "week05-trade.json",
+        "week08-median.json",
         "week10-blowout.json",
         "week10-superflex.json",
+        "week17-playoffs.json",
     }
 
 
@@ -651,6 +660,89 @@ def test_rookie_draft_fixture_is_pre_week_one() -> None:
     assert data["draft_picks"], "the draft recap needs the picks"
 
 
+def test_week01_fixture_has_no_prior_week_history() -> None:
+    data = json.loads((FIXTURE_DIR / "week01-openers.json").read_text("utf-8"))
+    assert data["meta"]["target_week"] == 1
+    assert set(data["matchups"]) == {"1"}
+    assert set(data["transactions"]) <= {"1"}
+    assert data["winners_bracket"] == [] and data["losers_bracket"] == []
+
+
+@pytest.mark.parametrize(
+    "path", [p for p in FIXTURES if p.name != "rookie-draft.json"], ids=lambda p: p.name
+)
+def test_matchup_rows_carry_per_player_weekly_points(path: Path) -> None:
+    """AC1: every matchup row now carries players_points/starters_points.
+
+    ``rookie-draft.json`` is excluded — it's pre-week-1 and has no matchup rows
+    at all (see test_rookie_draft_fixture_is_pre_week_one).
+    """
+    data = json.loads(path.read_text(encoding="utf-8"))
+    rows = [row for rows in data["matchups"].values() for row in rows]
+    assert rows, f"{path.name}: fixture has no matchup rows to check"
+    for row in rows:
+        assert "players_points" in row, f"{path.name}: {row} missing players_points"
+        assert "starters_points" in row, f"{path.name}: {row} missing starters_points"
+
+
+def test_playoff_fixture_has_brackets_and_an_eliminated_roster() -> None:
+    data = json.loads((FIXTURE_DIR / "week17-playoffs.json").read_text("utf-8"))
+    assert data["meta"]["target_week"] >= 15  # playoff_week_start in the raw league
+    assert data["winners_bracket"], "playoff-week fixture needs a non-empty winners_bracket"
+    assert data["losers_bracket"], "playoff-week fixture needs a non-empty losers_bracket"
+
+    target_week = data["meta"]["target_week"]
+    tw = str(target_week)
+    playing = {row["roster_id"] for row in data["matchups"][tw]}
+    all_rosters = {r["roster_id"] for r in data["rosters"]}
+    missing = all_rosters - playing
+    # The exact set the week17-playoffs Case documents (tools/assemble_bundle.py):
+    # rosters eliminated in an earlier round, absent from the target week.
+    assert missing == {3, 6, 7, 9}
+
+    # Cross-check against the bracket: the missing roster(s) should also be
+    # absent from *this round's* bracket matches (not merely absent from the
+    # matchup rows) — a season-long bracket row from an earlier/later round
+    # naturally still names them, so the check is scoped to the target round.
+    playoff_week_start = data["league"]["settings"]["playoff_week_start"]
+    round_no = target_week - playoff_week_start + 1
+    round_participants: set[int] = set()
+    for row in data["winners_bracket"] + data["losers_bracket"]:
+        if row.get("r") == round_no:
+            for key in ("t1", "t2"):
+                if isinstance(row.get(key), int):
+                    round_participants.add(row[key])
+    assert missing.isdisjoint(round_participants), (
+        "the dropped roster(s) should be absent from this round's bracket "
+        "participants too, not merely absent from the matchup rows"
+    )
+
+
+def test_median_fixture_has_a_roster_exactly_at_the_league_median() -> None:
+    data = json.loads((FIXTURE_DIR / "week08-median.json").read_text("utf-8"))
+    tw = str(data["meta"]["target_week"])
+    rows = data["matchups"][tw]
+    assert rows
+
+    def score(row: dict[str, Any]) -> float:
+        return row["custom_points"] if row.get("custom_points") is not None else row["points"]
+
+    scores = sorted(score(r) for r in rows)
+    n = len(scores)
+    median = (
+        scores[n // 2]
+        if n % 2
+        else (scores[n // 2 - 1] + scores[n // 2]) / 2
+    )
+    at_median = {r["roster_id"] for r in rows if score(r) == median}
+    # The exact roster ids the week08-median Case documents (tools/assemble_bundle.py):
+    # rosters 6 and 7 tied at the curated custom_points median.
+    assert at_median == {6, 7}
+    above = sum(score(r) > median for r in rows)
+    below = sum(score(r) < median for r in rows)
+    assert above > 0 and below > 0, "scores must split on both sides of the median"
+
+
 @pytest.mark.parametrize("path", FIXTURES, ids=lambda p: p.name)
 def test_fixture_under_size_budget(path: Path) -> None:
     kb = path.stat().st_size / 1024
@@ -658,7 +750,7 @@ def test_fixture_under_size_budget(path: Path) -> None:
 
 
 def test_cross_fixture_id_tokens_agree() -> None:
-    """All five slices of one league must tokenize a given team the same way."""
+    """All eight slices of one league must tokenize a given team the same way."""
     owners_by_file = {}
     for path in FIXTURES:
         data = json.loads(path.read_text(encoding="utf-8"))
@@ -779,7 +871,11 @@ def _mini_raw_files() -> dict[str, Any]:
         "season_type": "regular", "sport": "nfl", "status": "in_season",
         "total_rosters": 2,
         "roster_positions": ["QB", "QB", "RB", "WR", "FLEX", "BN", "BN"],
-        "scoring_settings": {"rec": 0.5, "pass_td": 4}, "settings": {"divisions": 1},
+        "scoring_settings": {"rec": 0.5, "pass_td": 4},
+        # 15 (matching the real raw league) keeps every existing mini-raw case
+        # (target_week <= 10) out of the playoff period; tests that need the
+        # playoff branch lower this on their own tmp copy of league.json.
+        "settings": {"divisions": 1, "playoff_week_start": 15},
         "metadata": {"trophy_winner": "trophy1"},
     }
     users = [
@@ -868,7 +964,7 @@ def mini_raw(tmp_path: Path) -> Path:
     return d
 
 
-def test_assemble_module_lists_exactly_the_five_cases() -> None:
+def test_assemble_module_lists_exactly_the_eight_cases() -> None:
     mod = _load_assemble()
     assert sorted(mod.CASES) == CASE_NAMES
 
@@ -917,6 +1013,94 @@ def test_assemble_superflex_mutates_one_slot_only(mini_raw: Path) -> None:
     flex = mod.assemble(mini_raw, "week10-superflex")["league"]["roster_positions"]
     assert plain[:2] == ["QB", "QB"]
     assert flex == ["QB", "SUPER_FLEX"] + plain[2:]
+
+
+def _lower_mini_playoff_week_start(mini_raw: Path, value: int) -> None:
+    path = mini_raw / "league.json"
+    league = json.loads(path.read_text("utf-8"))
+    league["settings"]["playoff_week_start"] = value
+    path.write_text(json.dumps(league), encoding="utf-8")
+
+
+def test_assemble_leaves_brackets_empty_outside_the_playoff_period(
+    mini_raw: Path,
+) -> None:
+    mod = _load_assemble()
+    # mini league's playoff_week_start (15) is well past every mini case's
+    # target_week, so brackets stay empty even though bracket files are absent.
+    bundle = mod.assemble(mini_raw, "week10-blowout")
+    assert bundle["winners_bracket"] == [] and bundle["losers_bracket"] == []
+
+
+def test_assemble_raises_when_bracket_files_missing_for_a_playoff_case(
+    mini_raw: Path,
+) -> None:
+    mod = _load_assemble()
+    # Bring target_week 10 into the (lowered) playoff period; mini_raw has no
+    # winners_bracket.json / losers_bracket.json, so this must raise cleanly.
+    _lower_mini_playoff_week_start(mini_raw, 10)
+    with pytest.raises(ValueError, match="winners_bracket|losers_bracket"):
+        mod.assemble(mini_raw, "week10-blowout")
+
+
+def test_assemble_populates_brackets_only_in_the_playoff_period(
+    mini_raw: Path,
+) -> None:
+    mod = _load_assemble()
+    _lower_mini_playoff_week_start(mini_raw, 10)
+    winners = [{"m": 1, "r": 1, "t1": 1, "t2": 2, "w": 1, "l": 2}]
+    (mini_raw / "winners_bracket.json").write_text(json.dumps(winners), encoding="utf-8")
+    (mini_raw / "losers_bracket.json").write_text(json.dumps([]), encoding="utf-8")
+
+    playoff_bundle = mod.assemble(mini_raw, "week10-blowout")  # target_week 10 >= 10
+    assert playoff_bundle["winners_bracket"] == winners
+    assert playoff_bundle["losers_bracket"] == []
+
+    pre_playoff_bundle = mod.assemble(mini_raw, "week02-nailbiter")  # target_week 2 < 10
+    assert pre_playoff_bundle["winners_bracket"] == []
+    assert pre_playoff_bundle["losers_bracket"] == []
+
+
+def test_assemble_drops_rostered_rows_at_the_target_week(
+    mini_raw: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The week17-playoffs mechanism (drop_rosters_at_target), exercised against
+    mini_raw's 2-team, weeks-1..10 export via a test-only Case injected into
+    mod.CASES — real weeks only reach 10, so the named playoff case (target_week
+    17) can't run here directly."""
+    mod = _load_assemble()
+    test_case = mod.Case(
+        "test-roster-drop",
+        (1, 2, 3, 4, 5),
+        5,
+        False,
+        "test only",
+        drop_rosters_at_target=frozenset({2}),
+    )
+    monkeypatch.setitem(mod.CASES, test_case.name, test_case)
+
+    bundle = mod.assemble(mini_raw, "test-roster-drop")
+    roster_ids = {row["roster_id"] for row in bundle["matchups"]["5"]}
+    assert roster_ids == {1}, "roster 2's row should be dropped from week 5"
+    # untouched weeks keep both rosters
+    assert {row["roster_id"] for row in bundle["matchups"]["4"]} == {1, 2}
+
+
+def test_assemble_applies_custom_points_override_at_the_target_week(
+    mini_raw: Path,
+) -> None:
+    """The week08-median mechanism (custom_points_override). mini_raw's roster
+    ids (1, 2) are both covered by week08-median's override map and its
+    target_week (8) is within mini_raw's weeks-1..10 range, so the real named
+    case can run directly against it."""
+    mod = _load_assemble()
+    case = mod.CASES["week08-median"]
+    assert case.custom_points_override  # sanity: the case under test has one
+
+    bundle = mod.assemble(mini_raw, "week08-median")
+    rows_by_roster = {row["roster_id"]: row for row in bundle["matchups"][str(case.target_week)]}
+    assert rows_by_roster[1]["custom_points"] == case.custom_points_override[1]
+    assert rows_by_roster[2]["custom_points"] == case.custom_points_override[2]
 
 
 def test_assemble_then_anonymize_round_trips_and_scrubs(mini_raw: Path) -> None:

@@ -12,6 +12,12 @@ script:
 * drop non-settled transactions (``status != "complete"``);
 * for the synthetic superflex case, change the second ``QB`` roster slot to
   ``SUPER_FLEX`` (a roster-slot property; scoring is untouched);
+* for a case whose ``target_week`` falls in the playoff period
+  (``league.settings.playoff_week_start``), populate ``winners_bracket`` /
+  ``losers_bracket`` from the raw export, and drop any curated set of roster
+  rows from that week's matchups (an eliminated team that does not play);
+* for a case with a curated ``custom_points`` override map, apply it to that
+  week's matchups (a synthetic median-scoring week);
 * trim ``players`` to the ids the scenario actually references (size budget);
 * attach the ``meta`` block.
 
@@ -44,7 +50,15 @@ from pydantic import ValidationError
 
 
 class Case:
-    __slots__ = ("name", "weeks", "target_week", "superflex", "exercises")
+    __slots__ = (
+        "name",
+        "weeks",
+        "target_week",
+        "superflex",
+        "exercises",
+        "drop_rosters_at_target",
+        "custom_points_override",
+    )
 
     def __init__(
         self,
@@ -53,12 +67,22 @@ class Case:
         target_week: int | None,
         superflex: bool,
         exercises: str,
+        drop_rosters_at_target: frozenset[int] = frozenset(),
+        custom_points_override: dict[int, float] | None = None,
     ) -> None:
         self.name = name
         self.weeks = weeks
         self.target_week = target_week
         self.superflex = superflex
         self.exercises = exercises
+        # Playoff case: roster ids whose row is dropped from
+        # ``matchups[str(target_week)]`` — a bracket-eliminated team that does
+        # not play that week. Empty for every other case.
+        self.drop_rosters_at_target = drop_rosters_at_target
+        # Median case: {roster_id: custom_points} applied to
+        # ``matchups[str(target_week)]`` to curate an exact-median week. ``None``
+        # for every other case.
+        self.custom_points_override = custom_points_override
 
 
 CASES: dict[str, Case] = {
@@ -101,6 +125,46 @@ CASES: dict[str, Case] = {
             "synthetic superflex: roster_positions QB,QB -> QB,SUPER_FLEX; "
             "scoring unchanged",
         ),
+        Case(
+            "week01-openers",
+            (1,),
+            1,
+            False,
+            "week 1 season opener; no prior-week history",
+        ),
+        Case(
+            "week17-playoffs",
+            tuple(range(1, 18)),
+            17,
+            False,
+            "championship round (week 17, playoff_week_start 15); non-empty "
+            "winners/losers brackets; rosters 3, 6, 7, and 9 were eliminated in "
+            "an earlier round and do not play this week",
+            drop_rosters_at_target=frozenset({3, 6, 7, 9}),
+        ),
+        Case(
+            "week08-median",
+            tuple(range(1, 9)),
+            8,
+            False,
+            "synthetic median-scoring week: curated custom_points so rosters 6 "
+            "and 7 tie exactly at the week-8 league median, five rosters strictly "
+            "below, five strictly above",
+            custom_points_override={
+                1: 160.0,
+                2: 150.0,
+                3: 140.0,
+                4: 135.0,
+                5: 130.0,
+                6: 120.0,
+                7: 120.0,
+                8: 110.0,
+                9: 105.0,
+                10: 100.0,
+                11: 95.0,
+                12: 90.0,
+            },
+        ),
     )
 }
 
@@ -115,7 +179,16 @@ _RAW_FILES = {
     "players": "players_filtered.json",
     "matchups": "matchups_by_week.json",
     "transactions": "transactions_by_week.json",
+    "winners_bracket": "winners_bracket.json",
+    "losers_bracket": "losers_bracket.json",
 }
+
+# Bracket files are the *completed* season's results — real for every raw
+# export, but only meaningful (and only required) for a case whose
+# ``target_week`` actually reaches the playoff period. A raw export missing
+# them is fine for every other case; ``assemble()`` raises only when a case
+# that needs them can't find them.
+_OPTIONAL_RAW_KEYS = frozenset({"winners_bracket", "losers_bracket"})
 
 
 # --------------------------------------------------------------------------- #
@@ -130,6 +203,11 @@ def _load_raw(raw_dir: Path) -> dict[str, Any]:
         try:
             raw[key] = json.loads(path.read_text(encoding="utf-8"))
         except OSError as exc:
+            if key in _OPTIONAL_RAW_KEYS:
+                # Sentinel for "not present in this raw export" — assemble()
+                # decides whether that's an error, based on the case.
+                raw[key] = None
+                continue
             raise ValueError(f"cannot read raw file {fname}: {exc}") from None
         except json.JSONDecodeError as exc:
             raise ValueError(f"raw file {fname} is not valid JSON: {exc}") from None
@@ -138,6 +216,9 @@ def _load_raw(raw_dir: Path) -> dict[str, Any]:
     for section in ("matchups", "transactions"):
         if not isinstance(raw[section], dict):
             raise ValueError(f"raw {section}_by_week.json must be a JSON object")
+    for key in _OPTIONAL_RAW_KEYS:
+        if raw[key] is not None and not isinstance(raw[key], list):
+            raise ValueError(f"raw {_RAW_FILES[key]} must be a JSON array")
     return raw
 
 
@@ -236,6 +317,51 @@ def assemble(raw_dir: str | Path, case_name: str) -> dict[str, Any]:
         for w in weeks
     }
 
+    playoff_week_start = (raw["league"].get("settings") or {}).get("playoff_week_start")
+    in_playoff_period = (
+        case.target_week is not None
+        and isinstance(playoff_week_start, int)
+        and case.target_week >= playoff_week_start
+    )
+    if in_playoff_period:
+        if raw["winners_bracket"] is None or raw["losers_bracket"] is None:
+            raise ValueError(
+                f"case {case_name!r} reaches target_week {case.target_week} "
+                f"(playoff_week_start {playoff_week_start}) but the raw export is "
+                f"missing winners_bracket.json / losers_bracket.json"
+            )
+        winners_bracket = raw["winners_bracket"]
+        losers_bracket = raw["losers_bracket"]
+    else:
+        # A fixture ending mid-regular-season must emit empty brackets — the raw
+        # bracket files hold the *completed* season's results, which would
+        # otherwise leak future outcomes into an earlier week's fixture.
+        winners_bracket = []
+        losers_bracket = []
+
+    if case.drop_rosters_at_target and case.target_week is not None:
+        tw = str(case.target_week)
+        if tw in matchups:
+            matchups[tw] = [
+                row
+                for row in matchups[tw]
+                if not (
+                    isinstance(row, dict)
+                    and row.get("roster_id") in case.drop_rosters_at_target
+                )
+            ]
+
+    if case.custom_points_override and case.target_week is not None:
+        tw = str(case.target_week)
+        overrides = case.custom_points_override
+        if tw in matchups:
+            matchups[tw] = [
+                {**row, "custom_points": overrides[row["roster_id"]]}
+                if isinstance(row, dict) and row.get("roster_id") in overrides
+                else row
+                for row in matchups[tw]
+            ]
+
     # ``players_filtered.json`` is already a curated subset of Sleeper's full
     # player table — deep-bench rookies and players touched only by minor
     # transactions are intentionally absent, and Sleeper's ``"0"`` placeholder
@@ -266,11 +392,8 @@ def assemble(raw_dir: str | Path, case_name: str) -> dict[str, Any]:
         "draft": raw["draft"],
         "draft_picks": raw["draft_picks"],
         "traded_picks": raw["traded_picks"],
-        # None of the five scenarios reaches the playoffs (bracket play is week 15+),
-        # so the brackets are empty by construction; a future playoff-week fixture
-        # would need bracket handling added here.
-        "winners_bracket": [],
-        "losers_bracket": [],
+        "winners_bracket": winners_bracket,
+        "losers_bracket": losers_bracket,
         "players": players,
     }
 
