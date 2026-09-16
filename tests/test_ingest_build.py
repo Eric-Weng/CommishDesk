@@ -537,36 +537,28 @@ def test_get_player_snapshot_backfill_first_generation_long_after_records_curren
 # --------------------------------------------------------------------------- #
 
 
-def test_packaged_bye_file_parses_cleanly_with_no_committed_season_yet() -> None:
-    """AC: given CI, the packaged bye file is structurally validated. No
-    season table is committed yet -- real per-season data awaits a verified
-    source (see ``nfl_byes.toml``'s header comment) -- so this exercises the
-    real committed file (not a monkeypatched stand-in) and asserts it is
-    valid TOML that loads without raising, simply contributing no season
-    data: every season currently degrades to the already-tested "unavailable"
-    path, never a guess."""
-    assert load_byes(2026) is None
-    assert bye_teams(2026, 1) is None
+def test_packaged_bye_file_is_structurally_valid_for_ci() -> None:
+    """AC: given CI, the packaged bye file is structurally validated -- every
+    season's keys are exactly the 32 known NFL abbreviations, every value an
+    int in 1..18. Exercises the real committed ``nfl_byes.toml`` (a 2026
+    table, cross-checked against two independent published sources), not a
+    monkeypatched stand-in."""
+    table = load_byes(2026)
+    assert table is not None
+    assert set(table) == byes_module._KNOWN_NFL_TEAMS
+    assert all(isinstance(week, int) and 1 <= week <= 18 for week in table.values())
 
 
-def test_bye_teams_known_season_in_range_week_returns_the_on_bye_set(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Row: known season, in-range week. No season is committed to the real
-    packaged file yet (see the test above), so this exercises the loader's
-    "known season" branch against a monkeypatched, syntactically-valid
-    season table built with the same 32 known abbreviations."""
-    table = {team: (i % 18) + 1 for i, team in enumerate(sorted(byes_module._KNOWN_NFL_TEAMS))}
-    byes_module._clear_cache()
-    monkeypatch.setattr(byes_module, "_byes_toml_text", lambda: _toml_document("2026", table))
-    try:
-        team, week = next(iter(table.items()))
-        result = bye_teams(2026, week)
-        assert result is not None
-        assert team in result
-        assert result == frozenset(t for t, w in table.items() if w == week)
-    finally:
-        byes_module._clear_cache()
+def test_bye_teams_known_season_in_range_week_returns_the_on_bye_set() -> None:
+    """Row: known season, in-range week -- exercises the real committed
+    2026 table."""
+    table = load_byes(2026)
+    assert table is not None
+    team, week = next(iter(table.items()))
+    result = bye_teams(2026, week)
+    assert result is not None
+    assert team in result
+    assert result == frozenset(t for t, w in table.items() if w == week)
 
 
 def test_bye_teams_season_not_in_file_returns_none_and_logs_one_warning(
