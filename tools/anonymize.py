@@ -33,8 +33,8 @@ What it does, given one JSON object in the *bundle shape*
   ``rookie_year`` *are* kept: published on every NFL roster site, and what a
   draft recap cites;
 * preserves verbatim: ``scoring_settings``, ``roster_positions``, ``settings``,
-  matchup points / players / starters / matchup_id, and transaction / draft /
-  bracket structure.
+  matchup points / players / starters / matchup_id / players_points /
+  starters_points, and transaction / draft / bracket structure.
 
 It does **not** assemble the bundle from a per-endpoint export, do week-window
 truncation, drop failed waiver claims, or apply the superflex roster-slot
@@ -302,6 +302,8 @@ _MATCHUP_FIELDS = (
     "custom_points",
     "players",
     "starters",
+    "players_points",
+    "starters_points",
 )
 
 _DRAFT_PICK_META_FIELDS = (
@@ -788,7 +790,9 @@ def main(argv: list[str] | None = None) -> int:
         print(f"anonymize: cannot anonymize bundle: {exc}", file=sys.stderr)
         return 1
 
-    json.dump(result, sys.stdout, indent=2, sort_keys=True, ensure_ascii=False)
+    # Minified (no indent): keeps committed fixtures under the size budget now
+    # that per-player weekly points are preserved (see tests/fixtures/README.md).
+    json.dump(result, sys.stdout, sort_keys=True, ensure_ascii=False)
     sys.stdout.write("\n")
     return 0
 
