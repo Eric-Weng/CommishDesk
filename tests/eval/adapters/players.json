@@ -1,0 +1,56 @@
+{
+  "11576": {
+    "first_name": "Referenced",
+    "last_name": "OnIr",
+    "position": "RB",
+    "team": "KC",
+    "years_exp": 3,
+    "injury_status": "",
+    "college": "Alabama"
+  },
+  "11596": {
+    "first_name": "Referenced",
+    "last_name": "OnTaxi",
+    "position": "WR",
+    "team": "BUF",
+    "years_exp": 1,
+    "injury_status": "",
+    "college": "Ohio State"
+  },
+  "6904": {
+    "first_name": "Referenced",
+    "last_name": "Week1Starter",
+    "position": "QB",
+    "team": "SF",
+    "years_exp": 5,
+    "injury_status": "",
+    "college": "LSU"
+  },
+  "9226": {
+    "first_name": "Referenced",
+    "last_name": "Week1StarterTwo",
+    "position": "TE",
+    "team": "DAL",
+    "years_exp": 2,
+    "injury_status": "Questionable",
+    "college": "Georgia"
+  },
+  "10235": {
+    "first_name": "Referenced",
+    "last_name": "OnlyInAnEarlyWeeksBench",
+    "position": "WR",
+    "team": "NYJ",
+    "years_exp": 4,
+    "injury_status": "",
+    "college": "Michigan"
+  },
+  "88888": {
+    "first_name": "Never",
+    "last_name": "Referenced",
+    "position": "K",
+    "team": "MIA",
+    "years_exp": 0,
+    "injury_status": "",
+    "college": "Miami"
+  }
+}

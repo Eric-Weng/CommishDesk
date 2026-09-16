@@ -14,7 +14,7 @@ from pathlib import Path
 import pytest
 
 from commishdesk.errors import CommishDeskError, StoreError
-from commishdesk.store import Claim, FileStore, LedgerEntry, Store, Storyline
+from commishdesk.store import Claim, FileStore, LedgerEntry, PlayerSnapshot, Store, Storyline
 
 ENGINE_ROOT = Path(__file__).resolve().parent.parent / "commishdesk"
 
@@ -149,6 +149,31 @@ def test_ledger_line_with_no_kind_key_parses_as_draft_recap(tmp_path: Path) -> N
     (tmp_path / "ledger" / "1.jsonl").write_text(line, encoding="utf-8")
     (entry,) = _store(tmp_path).read_ledger("1", 1)
     assert entry.kind == "draft_recap"
+
+
+def test_read_ledger_returns_entries_sorted_by_sent_at_ascending(tmp_path: Path) -> None:
+    """Epic-4 retro action item (epic-4-retro-item-78 split): ``read_ledger``
+    guarantees ``sent_at``-ascending order, regardless of append order."""
+    store = _store(tmp_path)
+    late = LedgerEntry(
+        league_id="1", week=5, channel="discord", recipient="webhook-late",
+        sent_at=datetime(2026, 9, 3, tzinfo=UTC),
+    )
+    early = LedgerEntry(
+        league_id="1", week=5, channel="discord", recipient="webhook-early",
+        sent_at=datetime(2026, 9, 1, tzinfo=UTC),
+    )
+    middle = LedgerEntry(
+        league_id="1", week=5, channel="discord", recipient="webhook-mid",
+        sent_at=datetime(2026, 9, 2, tzinfo=UTC),
+    )
+    # appended out of chronological order
+    store.append_ledger_entry(late)
+    store.append_ledger_entry(early)
+    store.append_ledger_entry(middle)
+
+    entries = store.read_ledger("1", 5)
+    assert [e.recipient for e in entries] == ["webhook-early", "webhook-mid", "webhook-late"]
 
 
 def test_ledger_entry_with_weekly_kind_round_trips(tmp_path: Path) -> None:
@@ -384,6 +409,66 @@ def test_cache_reason_with_unicode_line_separator_round_trips(tmp_path: Path) ->
     assert store.read_cache("consensus", "k") == payload
 
 
+# --- player snapshot (Story 5.3b) -------------------------------------
+
+
+def _snapshot() -> dict[str, PlayerSnapshot]:
+    return {
+        "100": PlayerSnapshot(player_id="100", position="RB", nfl_team="KC"),
+        "200": PlayerSnapshot(player_id="200", position="WR", nfl_team=None),
+    }
+
+
+def test_player_snapshot_round_trips(tmp_path: Path) -> None:
+    store = _store(tmp_path)
+    store.write_player_snapshot("1", 8, _snapshot())
+    assert store.read_player_snapshot("1", 8) == _snapshot()
+
+
+def test_player_snapshot_never_written_returns_none(tmp_path: Path) -> None:
+    assert _store(tmp_path).read_player_snapshot("1", 8) is None
+
+
+def test_player_snapshot_persists_on_disk_for_a_fresh_store(tmp_path: Path) -> None:
+    _store(tmp_path).write_player_snapshot("1", 8, _snapshot())
+    on_disk = json.loads(
+        (tmp_path / "player_snapshots" / "1" / "8.json").read_text(encoding="utf-8")
+    )
+    assert on_disk["100"]["position"] == "RB"
+    assert FileStore(tmp_path).read_player_snapshot("1", 8) == _snapshot()
+
+
+def test_player_snapshot_overwrite_replaces_whole_map(tmp_path: Path) -> None:
+    store = _store(tmp_path)
+    store.write_player_snapshot("1", 8, _snapshot())
+    store.write_player_snapshot("1", 8, {"300": PlayerSnapshot(player_id="300", position="QB", nfl_team="BUF")})
+    assert store.read_player_snapshot("1", 8) == {
+        "300": PlayerSnapshot(player_id="300", position="QB", nfl_team="BUF")
+    }
+
+
+def test_player_snapshot_different_weeks_are_independent(tmp_path: Path) -> None:
+    store = _store(tmp_path)
+    store.write_player_snapshot("1", 8, _snapshot())
+    assert store.read_player_snapshot("1", 9) is None
+
+
+def test_player_snapshot_malformed_json_raises_store_error(tmp_path: Path) -> None:
+    path = tmp_path / "player_snapshots" / "1"
+    path.mkdir(parents=True)
+    (path / "8.json").write_text("{ not json", encoding="utf-8")
+    with pytest.raises(StoreError):
+        _store(tmp_path).read_player_snapshot("1", 8)
+
+
+@pytest.mark.parametrize("bad", ["../evil", "a/b", "..", "", "a\\b"])
+def test_player_snapshot_rejects_unsafe_league_id(tmp_path: Path, bad: str) -> None:
+    with pytest.raises(StoreError):
+        _store(tmp_path).write_player_snapshot(bad, 8, _snapshot())
+    with pytest.raises(StoreError):
+        _store(tmp_path).read_player_snapshot(bad, 8)
+
+
 # --- read-after-write + abstractness ---------------------------------
 
 
@@ -408,6 +493,8 @@ def test_store_is_abstract() -> None:
             "read_claims",
             "read_cache",
             "write_cache",
+            "read_player_snapshot",
+            "write_player_snapshot",
         }
     )
 
@@ -530,6 +617,8 @@ def test_store_api_names_are_cloud_neutral() -> None:
         "read_claims",
         "read_cache",
         "write_cache",
+        "read_player_snapshot",
+        "write_player_snapshot",
     }
     for name in public:
         member = getattr(Store, name)

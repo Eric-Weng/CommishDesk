@@ -27,10 +27,17 @@ Guarantees every ``Store`` implementation makes:
 
 ``FileStore`` keeps everything as plain files under a root directory:
 ``leagues/<id>.toml``, ``ledger/<id>.jsonl``, ``storylines/<id>.json``,
-``claims/<id>.json``, ``cache/<namespace>/<key>.json``. Whole-file writes go
+``claims/<id>.json``, ``cache/<namespace>/<key>.json``,
+``player_snapshots/<id>/<week>.json``. Whole-file writes go
 through a temp file plus
 ``os.replace``; ledger appends write one line and flush. No locking — there is a
 single writer per league (AD-6).
+
+* **A player snapshot is written once and reused verbatim (Story 5.3b, FR-5).**
+  ``write_player_snapshot`` persists one league-week's ``{player_id: PlayerSnapshot}``
+  map the first time it is generated; ``read_player_snapshot`` returns it on every
+  later call for the same league-week (``None`` if never written), so a regeneration
+  after a trade never silently changes a past week's recorded player team/position.
 """
 
 from __future__ import annotations
@@ -49,8 +56,9 @@ from pydantic import AfterValidator, BaseModel, Field, PlainSerializer, TypeAdap
 
 from commishdesk.errors import StoreError
 from commishdesk.facts.schema import Storyline
+from commishdesk.ingest.model import PlayerSnapshot
 
-__all__ = ["IssueKind", "LedgerEntry", "Storyline", "Claim", "Store", "FileStore"]
+__all__ = ["IssueKind", "LedgerEntry", "Storyline", "Claim", "PlayerSnapshot", "Store", "FileStore"]
 
 _T = TypeVar("_T")
 
@@ -157,6 +165,7 @@ class Claim(BaseModel):
 _LEDGER_LINE = TypeAdapter(LedgerEntry)
 _STORYLINE_LIST: TypeAdapter[list[Storyline]] = TypeAdapter(list[Storyline])
 _CLAIM_LIST: TypeAdapter[list[Claim]] = TypeAdapter(list[Claim])
+_PLAYER_SNAPSHOT_MAP: TypeAdapter[dict[str, PlayerSnapshot]] = TypeAdapter(dict[str, PlayerSnapshot])
 
 
 # --- the port --------------------------------------------------------------
@@ -174,7 +183,8 @@ class Store(ABC):
 
     @abstractmethod
     def read_ledger(self, league_id: str, week: int) -> list[LedgerEntry]:
-        """Return the ledger entries for one league-week (empty if none)."""
+        """Return the ledger entries for one league-week (empty if none),
+        ordered by ``sent_at`` ascending."""
 
     @abstractmethod
     def append_ledger_entry(self, entry: LedgerEntry) -> None:
@@ -208,6 +218,23 @@ class Store(ABC):
         value. Visible to an immediately-following ``read_cache`` for the same
         pair. Raises ``StoreError`` on unsafe ``namespace`` / ``key`` or a write
         failure."""
+
+    @abstractmethod
+    def read_player_snapshot(self, league_id: str, week: int) -> dict[str, PlayerSnapshot] | None:
+        """Return the ``{player_id: PlayerSnapshot}`` map persisted for one
+        league-week by an earlier ``write_player_snapshot`` call, or ``None``
+        if this league-week has never been written (Story 5.3b, FR-5) --
+        the caller then knows to build one fresh rather than treating an
+        empty map as "no players this week"."""
+
+    @abstractmethod
+    def write_player_snapshot(self, league_id: str, week: int, snapshot: Mapping[str, PlayerSnapshot]) -> None:
+        """Persist one league-week's ``{player_id: PlayerSnapshot}`` map,
+        replacing any prior value for the same league-week. Visible to an
+        immediately-following ``read_player_snapshot`` for the same pair.
+        Intended to be written **once**, on a league-week's first generation
+        (see ``ingest/build.py::get_player_snapshot``) -- a later call
+        overwrites, but the engine's own call pattern never issues one."""
 
 
 # --- the one local implementation ------------------------------------------
@@ -284,6 +311,7 @@ class FileStore(Store):
                 raise StoreError(f"malformed ledger line for {league_id!r}") from exc
             if entry.week == week:
                 entries.append(entry)
+        entries.sort(key=lambda entry: entry.sent_at)
         return entries
 
     def append_ledger_entry(self, entry: LedgerEntry) -> None:
@@ -364,4 +392,27 @@ class FileStore(Store):
             payload = json.dumps(dict(value), ensure_ascii=False, sort_keys=True, indent=2)
         except (TypeError, ValueError) as exc:
             raise StoreError(f"cache value for {namespace}/{key} is not JSON") from exc
+        self._atomic_write(path, payload + "\n")
+
+    def _player_snapshot_file(self, league_id: str, week: int) -> Path:
+        return self._root / "player_snapshots" / _safe_league_id(league_id) / f"{week}.json"
+
+    def read_player_snapshot(self, league_id: str, week: int) -> dict[str, PlayerSnapshot] | None:
+        path = self._player_snapshot_file(league_id, week)
+        try:
+            raw = path.read_text(encoding="utf-8")
+        except FileNotFoundError:
+            return None
+        except OSError as exc:
+            raise StoreError(f"cannot read player snapshot for {league_id!r} week {week}") from exc
+        if not raw.strip():  # empty / whitespace-only reads like "never written"
+            return None
+        try:
+            return _PLAYER_SNAPSHOT_MAP.validate_json(raw)
+        except ValueError as exc:
+            raise StoreError(f"malformed player snapshot JSON for {league_id!r} week {week}") from exc
+
+    def write_player_snapshot(self, league_id: str, week: int, snapshot: Mapping[str, PlayerSnapshot]) -> None:
+        path = self._player_snapshot_file(league_id, week)
+        payload = _PLAYER_SNAPSHOT_MAP.dump_json(dict(snapshot), indent=2).decode("utf-8")
         self._atomic_write(path, payload + "\n")
