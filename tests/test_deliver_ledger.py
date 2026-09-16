@@ -221,6 +221,35 @@ def test_a_confirmed_recipient_of_another_kind_is_not_skipped(tmp_path: Path) ->
     assert all(e.status == "confirmed" for e in entries)
 
 
+def test_a_confirmed_draft_recap_at_week_one_does_not_block_a_weekly_send(tmp_path: Path) -> None:
+    """Story 5.1 / AC1 (Epic-4-retro F4): the exact week-1 regression case —
+    Epic 5's weekly Issue also starts at week 1, so a confirmed ``draft_recap``
+    ledger entry for ``(league, week 1, discord, recipient)`` must not block a
+    ``weekly`` send to the same webhook. Mirrors
+    ``test_a_confirmed_recipient_of_another_kind_is_not_skipped`` (week 3)."""
+    store = _store(tmp_path)
+    _seed(store, week=1, kind="draft_recap", recipient="42")
+    sender = _Recorder()
+    report = send_issue(
+        store,
+        league_id="42",
+        week=1,
+        channel="discord",
+        kind="weekly",
+        recipients={"42": "body"},
+        sender=sender,
+        now=_now,
+    )
+    assert sender.calls == [("42", "body")]
+    assert report.delivered == ("42",)
+    entries = store.read_ledger("42", 1)
+    assert [(e.kind, e.recipient) for e in entries] == [
+        ("draft_recap", "42"),
+        ("weekly", "42"),
+    ]
+    assert all(e.status == "confirmed" for e in entries)
+
+
 def test_a_confirmed_recipient_in_another_week_is_not_skipped(tmp_path: Path) -> None:
     store = _store(tmp_path)
     _seed(store, week=3, recipient="42")

@@ -438,7 +438,17 @@ class Storyline(BaseModel):
     ``id`` is ``"<kind>:<roster_id>"`` (the encoding
     ``project_storyline_candidates`` decodes); ``headline`` is the one-sentence
     summary the narrator may surface; ``first_week`` / ``last_week`` bound the
-    thread's life (a draft recap anchors both at week 1)."""
+    thread's life (a draft recap anchors both at week 1).
+
+    ``kind`` (Story 5.1) discriminates which *Issue category* persisted this
+    row — ``draft_recap`` vs a future Epic-5 ``weekly`` — so a draft-time and a
+    week-1 storyline that happen to share an ``id`` (the same firing signal)
+    stay two independent rows instead of merging. This is a different axis
+    from the storyline *signal* kind already embedded in ``id``'s
+    ``"<kind>:<roster_id>"`` prefix (e.g. ``grade_extreme``) — the two are
+    unrelated and both named ``kind`` in their own contexts. Defaults to
+    ``"draft_recap"`` so every already-persisted (pre-Story-5.1) storyline
+    round-trips unchanged with no migration."""
 
     id: str
     league_id: str
@@ -447,6 +457,7 @@ class Storyline(BaseModel):
     first_week: int = Field(ge=1, le=18)
     last_week: int = Field(ge=1, le=18)
     notes: str = ""
+    kind: _IssueType = _ISSUE_TYPE
 
     @model_validator(mode="after")
     def _week_span_ordered(self) -> Storyline:

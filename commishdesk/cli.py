@@ -29,6 +29,7 @@ if TYPE_CHECKING:
     from commishdesk.llmconfig import LLMConfig
     from commishdesk.narrate import Recap, SafetyReport, TieredResponse
     from commishdesk.narrate.llm import CallUsage
+    from commishdesk.store import FileStore, IssueKind
     from commishdesk.voices import Voice
 
 
@@ -428,19 +429,12 @@ def _recap_one_league(
     from commishdesk.facts.schema import Storyline
     from commishdesk.facts.storylines import DRAFT_RECAP_WEEK, advance_storylines
     from commishdesk.ingest import build_league_model
-    from commishdesk.narrate import recap_to_text
-    from commishdesk.render import (
-        render_email,
-        render_web,
-        write_html_file,
-        write_text_file,
-    )
     from commishdesk.stats import (
         compute_board_metrics,
         compute_consensus_metrics,
         compute_draft_grades,
     )
-    from commishdesk.store import FileStore, IssueKind
+    from commishdesk.store import FileStore
 
     # The one Issue kind this function ever sends — named once so the early-check
     # filter and the real ``send_issue`` call below can't drift apart into two
@@ -545,12 +539,17 @@ def _recap_one_league(
         previous_storylines=previous_storylines,
     )
 
+    # Epic-3-retro-item-35 / AC2: computing the next storyline set is pure (no
+    # store I/O) and safe to do here; the actual ``store.write_storylines``
+    # call is deferred until after ``_produce_issue`` returns successfully AND
+    # the cost-ceiling check (below) has passed — see that call site for why.
+    next_storylines: list[Storyline] | None = None
     if store is not None and not is_demo:
-        logger.debug("persisting storylines")
         next_storylines = [
             storyline.model_copy(update={"league_id": resolved})
             for storyline in advance_storylines(
                 previous_storylines,
+                kind=draft_recap_kind,
                 week=DRAFT_RECAP_WEEK,
                 board=board,
                 consensus=consensus,
@@ -559,7 +558,6 @@ def _recap_one_league(
                 superlatives=doc.superlatives,
             )
         ]
-        store.write_storylines(resolved, next_storylines)
 
     if llm_enabled:
         assert llm_config is not None  # loaded before the loop whenever llm_enabled holds
@@ -624,8 +622,7 @@ def _recap_one_league(
                 "no paid call made"
             )
 
-    logger.debug("narrating and rendering local HTML")
-    dest = Path(out_dir) / f"commishdesk-{resolved}-draft-recap.html"
+    logger.debug("narrating local HTML")
 
     # AD-12 Layer 3 + FR-17: select the narrator, validate its output, apply the
     # tiered response (suppress a section / one LLM regeneration / hold the
@@ -651,6 +648,85 @@ def _recap_one_league(
         finally:
             _report_actual_spend(usage, logger=logger, resolved=resolved)
 
+    # Epic-3-retro-item-35 / AC2: this is the earliest point a hold
+    # (``ContentSafetyError``, above) or a cost-ceiling abort (raised earlier,
+    # before this function even reaches ``_produce_issue``) is guaranteed to
+    # have NOT happened — so it is the earliest point narrative memory may be
+    # durably updated. Writing here, rather than back when ``next_storylines``
+    # was computed, is what makes a held or cost-aborted run leave
+    # ``store.read_storylines`` for this league completely unchanged (AC2).
+    # This ordering guarantee is scoped precisely to those two cases; it says
+    # nothing about a later ``OSError`` writing render output or a
+    # ``DeliveryError`` posting to Discord below, both of which run after this
+    # point and are outside AC2.
+    if store is not None and not is_demo:
+        logger.debug("persisting storylines")
+        assert next_storylines is not None  # computed above whenever store is not None and not is_demo
+        store.write_storylines(resolved, next_storylines)
+
+    _render_and_write_issue(
+        doc,
+        body,
+        out_dir=out_dir,
+        resolved=resolved,
+        week=DRAFT_RECAP_WEEK,
+        kind=draft_recap_kind,
+        logger=logger,
+    )
+
+    # Story 4.6: --post chains Story 4.4's idempotent Send Ledger through
+    # Story 4.3's Discord webhook delivery.
+    if post:
+        assert webhook_url is not None  # checked fail-fast at the top of this function
+        assert recipient_id is not None  # computed alongside webhook_url, same guard
+        assert store is not None  # post=True guarantees a store on every path, demo included
+        _deliver_issue(
+            doc,
+            body,
+            store=store,
+            resolved=resolved,
+            week=DRAFT_RECAP_WEEK,
+            kind=draft_recap_kind,
+            webhook_url=webhook_url,
+            recipient_id=recipient_id,
+        )
+
+
+def _issue_filename_stem(week: int, kind: IssueKind) -> str:
+    """Filename stem for one Issue's output files — stable across ``week`` /
+    ``kind`` so a future weekly path can reuse :func:`_render_and_write_issue`
+    / :func:`_deliver_issue` unchanged. ``draft_recap`` reproduces the exact
+    pre-existing ``"draft-recap"`` stem (``week`` is unused — a draft recap is
+    always week 1); the ``weekly`` branch (``f"{kind}-week{week}"``) is a
+    placeholder default with no current caller — this story deliberately does
+    not decide Epic 5's real weekly naming convention (see the frozen
+    Boundaries)."""
+    if kind == "draft_recap":
+        return "draft-recap"
+    return f"{kind}-week{week}"
+
+
+def _render_and_write_issue(
+    doc: DraftRecapFacts,
+    body: IssueBody,
+    *,
+    out_dir: Path,
+    resolved: str,
+    week: int,
+    kind: IssueKind,
+    logger: logging.Logger,
+) -> None:
+    """Render one produced Issue's body to stdout plus local HTML/email files —
+    Story 4.1's web page and Story 4.2's email pair. Filenames key off
+    ``week`` / ``kind`` via :func:`_issue_filename_stem`, so a future weekly
+    path can call this unchanged; ``--draft-recap`` always passes
+    ``kind="draft_recap"`` / ``week=DRAFT_RECAP_WEEK``, reproducing today's
+    exact ``-draft-recap`` filenames and behavior (AC4)."""
+    from commishdesk.narrate import recap_to_text
+    from commishdesk.render import render_email, render_web, write_html_file, write_text_file
+
+    stem = _issue_filename_stem(week, kind)
+
     if body.narrator == "template":
         assert body.recap is not None
         recap = body.recap.model_copy(update={"dateline": f"{body.recap.dateline} · generated {doc.generated_at}"})
@@ -669,13 +745,13 @@ def _recap_one_league(
             output_id=resolved,
             generated_at=str(doc.generated_at),
         ),
-        dest,
+        Path(out_dir) / f"commishdesk-{resolved}-{stem}.html",
     )
     typer.echo(str(written))
 
     # Story 4.2: the same content model, rendered for email — client-safe HTML
     # plus a text/plain alternative. The CLI writes the two files next to the
-    # web page; delivery (Discord, below) is separate from rendering.
+    # web page; delivery (Discord) is separate from rendering.
     email_parts = render_email(
         doc,
         recap=body.recap,
@@ -684,64 +760,75 @@ def _recap_one_league(
     )
     email_html = write_html_file(
         email_parts.html,
-        Path(out_dir) / f"commishdesk-{resolved}-draft-recap.email.html",
+        Path(out_dir) / f"commishdesk-{resolved}-{stem}.email.html",
     )
     email_text = write_text_file(
         email_parts.text,
-        Path(out_dir) / f"commishdesk-{resolved}-draft-recap.txt",
+        Path(out_dir) / f"commishdesk-{resolved}-{stem}.txt",
     )
     typer.echo(str(email_html))
     typer.echo(str(email_text))
 
-    # Story 4.6: --post chains Story 4.4's idempotent Send Ledger through
-    # Story 4.3's Discord webhook delivery. Lazy imports (mirrors the
-    # verify-webhook comment above) keep httpx off the default --post-less
-    # import path.
-    if post:
-        from commishdesk.deliver import send_issue
-        from commishdesk.deliver.discord import post_discord_text
-        from commishdesk.render import render_discord_summary
 
-        assert webhook_url is not None  # checked fail-fast at the top of this function
-        assert recipient_id is not None  # computed alongside webhook_url, same guard
-        assert store is not None  # post=True guarantees a store on every path, demo included
-        url = webhook_url  # a plain local narrows the closure below for mypy
+def _deliver_issue(
+    doc: DraftRecapFacts,
+    body: IssueBody,
+    *,
+    store: FileStore,
+    resolved: str,
+    week: int,
+    kind: IssueKind,
+    webhook_url: str,
+    recipient_id: str,
+) -> None:
+    """Story 4.6: deliver one produced Issue to Discord through Story 4.4's
+    idempotent Send Ledger and Story 4.3's webhook post. ``week`` / ``kind``
+    key the ledger entry, so a future weekly path shares this delivery logic
+    unchanged; ``--draft-recap`` always passes ``kind="draft_recap"`` /
+    ``week=DRAFT_RECAP_WEEK``, reproducing today's exact behavior (AC4). Lazy
+    imports (mirrors the verify-webhook comment above) keep httpx off the
+    default --post-less import path."""
+    from commishdesk.deliver import send_issue
+    from commishdesk.deliver.discord import post_discord_text
+    from commishdesk.render import render_discord_summary
 
-        def _post_to_the_expected_recipient(recipient: str, content: str) -> object:
-            # retro item 58: recipients is a one-entry dict today, so this
-            # closure only ever sees recipient_id here -- but if a future edit
-            # ever makes recipients multi-entry without updating this sender,
-            # every recipient would silently post to this same single webhook
-            # while the Send Ledger records each as confirmed-delivered to its
-            # own address. Raise DeliveryError (not a bare assert, which
-            # python -O strips) so send_issue's own except DeliveryError
-            # catches it, records it in report.failed, and the code below
-            # re-raises it -- which the per-league except (CommishDeskError,
-            # OSError) in the run loop then correctly catches.
-            if recipient != recipient_id:
-                raise DeliveryError(
-                    f"sender built for recipient {recipient_id!r} was called with "
-                    f"mismatched recipient {recipient!r}"
-                )
-            return post_discord_text(url, content)
+    url = webhook_url  # a plain local narrows the closure below for mypy
 
-        summary = render_discord_summary(doc, recap=body.recap, llm_text=body.llm_text)
-        report = send_issue(
-            store,
-            league_id=resolved,
-            week=DRAFT_RECAP_WEEK,
-            channel="discord",
-            kind=draft_recap_kind,
-            recipients={recipient_id: summary},
-            sender=_post_to_the_expected_recipient,
-        )
-        if report.failed:
-            _, message = report.failed[0]  # a single recipient — no partial-success case
-            raise DeliveryError(message)
-        if report.delivered:
-            typer.echo(f"posted to Discord (webhook {recipient_id})")
-        else:
-            typer.echo(f"Discord post already confirmed for webhook {recipient_id} — skipped")
+    def _post_to_the_expected_recipient(recipient: str, content: str) -> object:
+        # retro item 58: recipients is a one-entry dict today, so this
+        # closure only ever sees recipient_id here -- but if a future edit
+        # ever makes recipients multi-entry without updating this sender,
+        # every recipient would silently post to this same single webhook
+        # while the Send Ledger records each as confirmed-delivered to its
+        # own address. Raise DeliveryError (not a bare assert, which
+        # python -O strips) so send_issue's own except DeliveryError
+        # catches it, records it in report.failed, and the code below
+        # re-raises it -- which the per-league except (CommishDeskError,
+        # OSError) in the run loop then correctly catches.
+        if recipient != recipient_id:
+            raise DeliveryError(
+                f"sender built for recipient {recipient_id!r} was called with "
+                f"mismatched recipient {recipient!r}"
+            )
+        return post_discord_text(url, content)
+
+    summary = render_discord_summary(doc, recap=body.recap, llm_text=body.llm_text)
+    report = send_issue(
+        store,
+        league_id=resolved,
+        week=week,
+        channel="discord",
+        kind=kind,
+        recipients={recipient_id: summary},
+        sender=_post_to_the_expected_recipient,
+    )
+    if report.failed:
+        _, message = report.failed[0]  # a single recipient — no partial-success case
+        raise DeliveryError(message)
+    if report.delivered:
+        typer.echo(f"posted to Discord (webhook {recipient_id})")
+    else:
+        typer.echo(f"Discord post already confirmed for webhook {recipient_id} — skipped")
 
 
 def _report_actual_spend(usage: list[CallUsage], *, logger: logging.Logger, resolved: str) -> None:

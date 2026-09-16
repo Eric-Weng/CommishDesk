@@ -1315,11 +1315,11 @@ def test_advance_storylines_opens_updates_and_closes_across_two_periods() -> Non
     a = _period_stage_results("week02-nailbiter.json")
     b = _period_stage_results("week05-trade.json")
 
-    after_a = advance_storylines((), week=2, **a)
+    after_a = advance_storylines((), kind="draft_recap", week=2, **a)
     assert after_a, "period A should open at least one thread"
     assert all(s.status == "active" and s.first_week == 2 for s in after_a)
 
-    after_b = advance_storylines(after_a, week=5, **b)
+    after_b = advance_storylines(after_a, kind="draft_recap", week=5, **b)
     by_id = {s.id: s for s in after_b}
     # every thread still open in B kept its first_week and advanced last_week
     for s in after_b:
@@ -1332,7 +1332,7 @@ def test_advance_storylines_opens_updates_and_closes_across_two_periods() -> Non
         assert by_id[p.id].status == "resolved"
 
     # narrators only ever see the active projection
-    cands = project_storyline_candidates(after_b)
+    cands = project_storyline_candidates(after_b, kind="draft_recap")
     assert {c.id for c in cands} == {s.id for s in after_b if s.status == "active"}
     assert all(":" in c.id and c.kind and c.roster_ids for c in cands)
 
@@ -1343,10 +1343,10 @@ def test_advance_storylines_is_idempotent_per_period() -> None:
     a = _period_stage_results("week02-nailbiter.json")
     b = _period_stage_results("week05-trade.json")
 
-    after_a = advance_storylines((), week=2, **a)
-    once = advance_storylines(after_a, week=5, **b)
-    twice = advance_storylines(once, week=5, **b)
-    thrice = advance_storylines(twice, week=5, **b)
+    after_a = advance_storylines((), kind="draft_recap", week=2, **a)
+    once = advance_storylines(after_a, kind="draft_recap", week=5, **b)
+    twice = advance_storylines(once, kind="draft_recap", week=5, **b)
+    thrice = advance_storylines(twice, kind="draft_recap", week=5, **b)
 
     dump = lambda seq: [s.model_dump() for s in seq]  # noqa: E731
     assert dump(twice) == dump(once)
@@ -1405,6 +1405,7 @@ def test_round_stack_skips_an_unresolvable_manager_name() -> None:
     grades = DraftGrades(teams=[], grade_method=GRADE_METHOD)
     out = advance_storylines(
         (),
+        kind="draft_recap",
         week=1,
         board=board,
         consensus=ConsensusMetrics(picks=[], teams=[]),
@@ -1467,6 +1468,7 @@ def test_builder_storyline_candidates_match_a_standalone_advance() -> None:
     doc = build_draft_recap_facts(league, board, consensus, grades, generated_at=GENERATED_AT)
     standalone = advance_storylines(
         (),
+        kind="draft_recap",
         week=DRAFT_RECAP_WEEK,
         board=board,
         consensus=consensus,
@@ -1474,9 +1476,85 @@ def test_builder_storyline_candidates_match_a_standalone_advance() -> None:
         draft_summary=doc.draft_summary,
         superlatives=doc.superlatives,
     )
-    assert [c.model_dump() for c in project_storyline_candidates(standalone)] == [
+    assert [c.model_dump() for c in project_storyline_candidates(standalone, kind="draft_recap")] == [
         c.model_dump() for c in doc.storyline_candidates
     ]
+
+
+def test_advance_storylines_scopes_updates_to_matching_kind() -> None:
+    """Story 5.1 / AC3: a draft-time and a week-1 storyline sharing an ``id``
+    (the same firing signal) must remain two independent rows, distinguished
+    by ``kind`` -- neither ``advance_storylines`` call may update, resolve, or
+    even see the other's row."""
+    from commishdesk.facts.storylines import advance_storylines
+
+    a = _period_stage_results("week02-nailbiter.json")
+
+    draft_only = advance_storylines((), kind="draft_recap", week=1, **a)
+    assert draft_only, "fixture should open at least one thread"
+    assert all(s.kind == "draft_recap" for s in draft_only)
+
+    # Same firing signal (identical stage results, same week) advanced under a
+    # different kind: the draft row must pass through completely untouched,
+    # and the weekly signals open as brand-new rows sharing the same ids.
+    combined = advance_storylines(draft_only, kind="weekly", week=1, **a)
+    draft_rows = [s for s in combined if s.kind == "draft_recap"]
+    weekly_rows = [s for s in combined if s.kind == "weekly"]
+
+    assert draft_rows == draft_only
+    assert {s.id for s in weekly_rows} == {s.id for s in draft_only}
+    assert all(s.status == "active" and s.first_week == 1 and s.last_week == 1 for s in weekly_rows)
+
+    # advancing the weekly kind again must not touch the draft rows either
+    again = advance_storylines(combined, kind="weekly", week=2, **a)
+    assert [s for s in again if s.kind == "draft_recap"] == draft_only
+
+
+def test_project_storyline_candidates_filters_by_kind() -> None:
+    """Story 5.1 / AC5 (review-25-09-15-1): a mixed-kind storylines list —
+    possible because ``store.write_storylines`` persists a league's whole set
+    undivided — must only project the requested ``kind``'s active rows. The
+    other kind's active row must never surface as a narration candidate for
+    the wrong period."""
+    from commishdesk.facts.schema import Storyline
+    from commishdesk.facts.storylines import project_storyline_candidates
+
+    draft_row = Storyline(
+        id="grade_extreme:1",
+        league_id="1",
+        headline="draft thread",
+        status="active",
+        first_week=1,
+        last_week=1,
+        kind="draft_recap",
+    )
+    weekly_row = Storyline(
+        id="grade_extreme:1",
+        league_id="1",
+        headline="weekly thread",
+        status="active",
+        first_week=2,
+        last_week=2,
+        kind="weekly",
+    )
+    resolved_weekly = Storyline(
+        id="boldest_swing:2",
+        league_id="1",
+        headline="resolved weekly thread",
+        status="resolved",
+        first_week=2,
+        last_week=2,
+        kind="weekly",
+    )
+    mixed = [draft_row, weekly_row, resolved_weekly]
+
+    draft_candidates = project_storyline_candidates(mixed, kind="draft_recap")
+    assert [c.id for c in draft_candidates] == ["grade_extreme:1"]
+    assert draft_candidates[0].hook == "draft thread"
+
+    weekly_candidates = project_storyline_candidates(mixed, kind="weekly")
+    assert [c.id for c in weekly_candidates] == ["grade_extreme:1"]
+    assert weekly_candidates[0].hook == "weekly thread"
 
 
 def test_team_value_and_reach_picks_carry_their_board_slot() -> None:

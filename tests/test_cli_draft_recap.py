@@ -1567,7 +1567,13 @@ def test_post_real_league_full_flow_with_llm_narration(tmp_path: Path, monkeypat
 def test_content_safety_hold_with_post_makes_no_discord_post_or_ledger_entry(tmp_path: Path, monkeypatch) -> None:
     """Defensive regression (review-loop 1): a held Issue must never reach the
     --post block — structurally guaranteed by ``_produce_issue`` raising before
-    ``if post:``, but untested at review-loop 0."""
+    ``if post:``, but untested at review-loop 0.
+
+    Also Story 5.1 / AC2: the storyline write now happens only after
+    ``_produce_issue`` returns successfully, so a content-safety hold must
+    leave ``store.read_storylines`` for this league completely unchanged."""
+    from commishdesk.store import FileStore, Storyline
+
     _fake_real_league(monkeypatch)
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
@@ -1577,16 +1583,59 @@ def test_content_safety_hold_with_post_makes_no_discord_post_or_ledger_entry(tmp
         monkeypatch,
         _six_section_llm_text("Pull-Guard Pumas clearly drafted hungover this year."),
     )
+
+    store = FileStore(tmp_path / "commishdesk")
+    seeded = [
+        Storyline(
+            id="grade_extreme:1",
+            league_id="168",
+            headline="pre-existing thread",
+            status="active",
+            first_week=1,
+            last_week=1,
+        )
+    ]
+    store.write_storylines("168", seeded)
+
     result = runner.invoke(app, ["--league", "168", "--draft-recap", "--post", "--out-dir", str(tmp_path)])
     assert result.exit_code == 1
     assert "content-safety hold" in result.output
     assert not calls
     assert not (tmp_path / "commishdesk-168-draft-recap.html").is_file()
+    assert store.read_ledger("168", 1) == []
+    assert store.read_storylines("168") == seeded
 
-    from commishdesk.store import FileStore
+
+def test_cost_ceiling_abort_does_not_persist_storylines(tmp_path: Path, monkeypatch) -> None:
+    """Story 5.1 / AC2: a cost-ceiling abort must leave storyline memory
+    untouched too, the same as a content-safety hold — the storyline write
+    happens only after ``_produce_issue`` succeeds AND this check has passed."""
+    from commishdesk.store import FileStore, Storyline
+
+    _fake_real_league(monkeypatch)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+    monkeypatch.setenv("COMMISHDESK_COST_CEILING_USD", "0.000001")
+    calls = _stub_narrator(monkeypatch, _six_section_llm_text("must never appear."))
 
     store = FileStore(tmp_path / "commishdesk")
-    assert store.read_ledger("168", 1) == []
+    seeded = [
+        Storyline(
+            id="grade_extreme:1",
+            league_id="161",
+            headline="pre-existing thread",
+            status="active",
+            first_week=1,
+            last_week=1,
+        )
+    ]
+    store.write_storylines("161", seeded)
+
+    result = runner.invoke(app, ["--league", "161", "--draft-recap", "--out-dir", str(tmp_path)])
+    assert result.exit_code == 1
+    assert "exceeds the ceiling" in result.output
+    assert calls["n"] == 0  # narrate_draft_recap never ran — no paid call
+    assert store.read_storylines("161") == seeded
 
 
 def test_post_run_every_json_log_line_carries_league_id(tmp_path: Path, monkeypatch) -> None:
