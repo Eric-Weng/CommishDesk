@@ -1,0 +1,55 @@
+# nfl_byes.toml — committed, version-controlled per-season NFL bye-week data
+# (Story 5.3b).
+#
+# Consumed by commishdesk/ingest/byes.py via importlib.resources + tomllib.
+# Each top-level table is one NFL season, keyed by its four-digit year. A
+# season's keys must be exactly the 32 standard NFL team abbreviations, and
+# every value must be an int in 1..18 (the team's bye week that season) --
+# byes.py validates this structurally at first load and raises a chained
+# IngestError on any violation; tests/test_ingest_build.py pins the same
+# check in CI.
+#
+# A season simply absent from this file is not an error: load_byes()/
+# bye_teams() return None for it (never a guess), and the season's data is
+# added here once it is known -- typically shortly after the NFL publishes
+# its schedule for that year.
+#
+# 2026 table cross-checked against two independent published sources
+# (NFL.com and Fox Sports team-by-team breakdowns, both retrieved 2026-09-16)
+# which agreed exactly on all 32 teams; re-verify against the NFL's own
+# schedule before relying on it for a real send if either source is ever in
+# question.
+
+[2026]
+ARI = 14
+ATL = 11
+BAL = 13
+BUF = 7
+CAR = 5
+CHI = 10
+CIN = 6
+CLE = 11
+DAL = 14
+DEN = 10
+DET = 6
+GB = 11
+HOU = 8
+IND = 13
+JAX = 7
+KC = 5
+LAC = 7
+LAR = 11
+LV = 13
+MIA = 6
+MIN = 6
+NE = 11
+NO = 8
+NYG = 8
+NYJ = 13
+PHI = 10
+PIT = 9
+SF = 8
+SEA = 11
+TB = 10
+TEN = 9
+WAS = 7

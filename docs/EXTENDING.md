@@ -52,6 +52,17 @@ bundle into a shape-agnostic `WeekModel` exactly the way `build_league_model` do
 `fetch()`; no file under `stats/`, `facts/`, `narrate/`, or `render/` imports
 `commishdesk.adapters.sleeper` directly — they consume the ingest models instead.
 
+**Story 5.3b** extends `fetch_week`'s *bundle*, not its member surface: the reference
+`SleeperAdapter` adds a `"players"` key — one more `GET /players/nfl` call, filtered to
+the player ids this week's bundle actually references (every roster's `players`/`reserve`/
+`taxi` plus every matchup row's `starters`/`players`) — rather than a third `Adapter`
+protocol member, so any future non-Sleeper `Adapter` is still guaranteed to supply player
+data through `fetch_week`'s one return value. `ingest/build.py::build_player_snapshot`
+turns that key into a `player_id -> PlayerSnapshot` map (`PlayerSnapshot` carries only
+`player_id` / `position` / `nfl_team`); `ingest/build.py::get_player_snapshot` persists it
+on first generation via `Store.write_player_snapshot` and reuses the persisted snapshot
+verbatim on a later regeneration, never re-deriving it from a fresher bundle (FR-5).
+
 ### `Voice` — `commishdesk/voices/`
 
 A `Voice` supplies `system_prompt: str`, `banned_topics: frozenset[str]`, and

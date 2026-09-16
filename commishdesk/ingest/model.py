@@ -25,6 +25,9 @@ carry only ids/enums/numbers -- matchups and transactions stay at
 ``player_id``/``roster_id`` level, never joined to a display name, so no
 league-supplied free text is introduced and ``sanitize()`` has no call site
 here (a future facts-building story's job).
+
+Story 5.3b adds :class:`PlayerSnapshot`, kept deliberately separate from
+:class:`WeekModel` for the same id-only reason -- see its own docstring.
 """
 
 from __future__ import annotations
@@ -40,6 +43,7 @@ __all__ = [
     "Matchup",
     "Pick",
     "Player",
+    "PlayerSnapshot",
     "Roster",
     "Team",
     "TradedPick",
@@ -248,3 +252,27 @@ class WeekModel(_Frozen):
     rosters: list[Roster]
     matchups: list[Matchup]
     transactions: list[Transaction]
+
+
+# --------------------------------------------------------------------------- #
+# Story 5.3b: NFL bye data and the player snapshot
+# --------------------------------------------------------------------------- #
+
+
+class PlayerSnapshot(_Frozen):
+    """One player's NFL team/position as of a given league-week, persisted via
+    ``Store.write_player_snapshot`` on first generation so a later
+    regeneration (after a trade) reuses it verbatim instead of re-deriving it
+    live (FR-5). Deliberately **not** part of :class:`WeekModel` -- matchups
+    and transactions stay id-only by this family's own convention (see the
+    module docstring).
+
+    Only short enum-like codes, never free text: ``player_id`` is an NFL
+    platform id, ``position`` and ``nfl_team`` are short abbreviations
+    sourced from the platform's own player table, never league-supplied, so
+    ``ingest/sanitize.py`` gets no new call site here -- the same precedent
+    :class:`Player` already set for draft-scoped player data."""
+
+    player_id: str
+    position: str | None = None
+    nfl_team: str | None = None

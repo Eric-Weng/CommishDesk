@@ -14,6 +14,18 @@ period — the winners/losers brackets (``[]``/``[]`` otherwise, mirroring
 ``tools/assemble_bundle.py``'s Story 5.2 convention). Also sequential, same
 ``_get``/``AdapterError``/id-normalization conventions as ``fetch``.
 
+Story 5.3b adds one more call inside ``fetch_week``: a second
+``GET /players/nfl``, filtered down to every player id this week's bundle
+actually references (every roster's ``players``/``reserve``/``taxi``, plus
+every matchup row's ``starters``/``players``), and returned under the
+bundle's new ``"players"`` key. ``ingest/build.py::build_player_snapshot``
+turns that into the shape-agnostic ``PlayerSnapshot`` map. This extends the
+``Adapter`` protocol's *bundle*, not its member surface — ``fetch_week``'s
+signature and return type hint are unchanged, so
+``test_extension_zones.py``'s pinned ``get_type_hints`` assertion still
+holds; a third ``Adapter`` protocol member was deliberately not added
+(Story 5.3b's own frozen boundary).
+
 Everything comes back in the platform's own shape, unmodified, except that
 ``league_id`` / ``draft_id`` / ``roster_id`` / ``user_id`` are normalized to
 ``str`` wherever they appear as a field (Sleeper returns ``roster_id`` as an
@@ -96,6 +108,39 @@ def _completed_only(value: Any) -> Any:
     if isinstance(value, list):
         return [txn for txn in value if isinstance(txn, Mapping) and txn.get("status") == "complete"]
     return value
+
+
+def _rostered_player_ids(rosters: Any, matchups: Mapping[str, Any]) -> set[str]:
+    """Every player id referenced by this week-bundle's rosters (``players`` --
+    the roster's full current player list, which is how a mid-week waiver add
+    not yet reflected in any matchup snapshot and not on IR/taxi still gets
+    counted -- plus ``reserve`` / ``taxi``) or any week's matchup rows
+    (``starters`` / ``players`` -- the latter is the full roster for that
+    matchup, starters included, so it already covers the bench). The universe
+    :meth:`SleeperAdapter._fetch_players` filters Sleeper's full player table
+    down to. Tolerant of a missing or malformed shape at any level -- never
+    raises; shape validation belongs to ``ingest/build.py``, not here (mirrors
+    this module's existing convention of passing sub-bundles through largely
+    unvalidated)."""
+    ids: set[str] = set()
+    for roster in rosters if isinstance(rosters, list) else []:
+        if not isinstance(roster, Mapping):
+            continue
+        for key in ("players", "reserve", "taxi"):
+            value = roster.get(key)
+            for pid in value if isinstance(value, list) else []:
+                if pid is not None:
+                    ids.add(str(pid))
+    for week_rows in matchups.values():
+        for row in week_rows if isinstance(week_rows, list) else []:
+            if not isinstance(row, Mapping):
+                continue
+            for key in ("starters", "players"):
+                value = row.get(key)
+                for pid in value if isinstance(value, list) else []:
+                    if pid is not None:
+                        ids.add(str(pid))
+    return ids
 
 
 def _in_playoff_period(league: Any, week: int) -> bool:
@@ -215,16 +260,17 @@ class SleeperAdapter:
         """Sequentially pull one league-week's raw Sleeper data: the league
         (read only for ``settings.playoff_week_start``), the current rosters,
         every week ``1..week``'s matchups, week ``week``'s transactions
-        (filtered to ``status == "complete"``), and — only once ``week``
-        reaches the playoff period — the winners/losers brackets (``[]``/
-        ``[]`` otherwise). Returns the platform's own shape in one
-        ``Mapping``. Top-level ``league_id`` / ``roster_id`` / ``user_id``
-        fields are normalized to ``str`` by the same ``_stringify_ids`` pass
-        ``fetch()`` uses; it does not reach a *plural* key like
-        ``transactions[].roster_ids`` or the ids inside ``adds``/``drops`` --
-        ``ingest/build.py`` normalizes those independently. Raises
-        ``AdapterError`` (never a partial bundle) on any request, parsing, or
-        shape failure."""
+        (filtered to ``status == "complete"``), — only once ``week`` reaches
+        the playoff period — the winners/losers brackets (``[]``/``[]``
+        otherwise), and (Story 5.3b) a second ``GET /players/nfl`` filtered to
+        this week's rostered players, under the bundle's ``"players"`` key.
+        Returns the platform's own shape in one ``Mapping``. Top-level
+        ``league_id`` / ``roster_id`` / ``user_id`` fields are normalized to
+        ``str`` by the same ``_stringify_ids`` pass ``fetch()`` uses; it does
+        not reach a *plural* key like ``transactions[].roster_ids`` or the ids
+        inside ``adds``/``drops`` -- ``ingest/build.py`` normalizes those
+        independently. Raises ``AdapterError`` (never a partial bundle) on
+        any request, parsing, or shape failure."""
         league_id = str(league_id)
         try:
             week = int(week)
@@ -250,6 +296,8 @@ class SleeperAdapter:
             winners_bracket = []
             losers_bracket = []
 
+        players = self._fetch_players(_rostered_player_ids(rosters, matchups))
+
         bundle: dict[str, Any] = {
             "league": league,
             "rosters": rosters,
@@ -257,8 +305,23 @@ class SleeperAdapter:
             "transactions": transactions,
             "winners_bracket": winners_bracket,
             "losers_bracket": losers_bracket,
+            "players": players,
         }
         return _stringify_ids(bundle)
+
+    def _fetch_players(self, rostered_ids: set[str]) -> dict[str, Any]:
+        """``GET /players/nfl`` — Sleeper's full player table (several
+        megabytes) — filtered down to *rostered_ids*, the player ids this
+        week's bundle actually references. Story 5.3b's way of getting a
+        player's current NFL team/position into the bundle: a second call on
+        the same ``Adapter`` protocol member, not a third protocol member, so
+        any future non-Sleeper ``Adapter`` is still guaranteed to supply
+        player data through ``fetch_week``'s one return value. Raises
+        ``AdapterError`` if the response isn't a JSON object."""
+        raw = self._get("/players/nfl")
+        if not isinstance(raw, Mapping):
+            raise AdapterError("Sleeper /players/nfl response is not a JSON object")
+        return {str(pid): record for pid, record in raw.items() if str(pid) in rostered_ids}
 
     def _get(self, path: str) -> Any:
         """Issue one ``GET`` with the identifying ``User-Agent`` and explicit

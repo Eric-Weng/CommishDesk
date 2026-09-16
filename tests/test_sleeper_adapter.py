@@ -21,7 +21,7 @@ from commishdesk import __version__
 from commishdesk.adapters import Adapter
 from commishdesk.adapters.sleeper import SleeperAdapter
 from commishdesk.errors import AdapterError, IngestError
-from commishdesk.ingest import build_league_model, build_week_model
+from commishdesk.ingest import PlayerSnapshot, build_league_model, build_player_snapshot, build_week_model
 from tests.conftest import REPO_ROOT
 
 EVAL_DIR = REPO_ROOT / "tests" / "eval" / "adapters"
@@ -47,8 +47,23 @@ WINNERS_BRACKET: list[dict[str, Any]] = _load("winners_bracket.json")
 LOSERS_BRACKET: list[dict[str, Any]] = _load("losers_bracket.json")
 PLAYOFF_WEEK_START = LEAGUE["settings"]["playoff_week_start"]
 
+# Story 5.3b: a small, hand-curated slice of the Sleeper `/players/nfl` shape --
+# four ids that really are referenced by ROSTERS / MATCHUPS_BY_WEEK (one on IR,
+# one on taxi, two week-1 starters) plus one id ("88888") that is referenced
+# nowhere, to prove `_fetch_players` filters it back out.
+PLAYERS: dict[str, dict[str, Any]] = _load("players.json")
+UNREFERENCED_PLAYER_ID = "88888"
+
 _BUNDLE_KEYS = {"league", "draft", "draft_picks", "rosters", "users", "previous_league_ids"}
-_WEEK_BUNDLE_KEYS = {"league", "rosters", "matchups", "transactions", "winners_bracket", "losers_bracket"}
+_WEEK_BUNDLE_KEYS = {
+    "league",
+    "rosters",
+    "matchups",
+    "transactions",
+    "winners_bracket",
+    "losers_bracket",
+    "players",
+}
 
 
 def _league_with_previous(previous_league_id: str | None) -> dict[str, Any]:
@@ -72,19 +87,21 @@ def _build_transport(
     transactions_by_week: dict[str, list[dict[str, Any]]] | None = None,
     winners_bracket: list[dict[str, Any]] | None = None,
     losers_bracket: list[dict[str, Any]] | None = None,
+    players: dict[str, dict[str, Any]] | None = None,
     requests: list[httpx.Request] | None = None,
     override: dict[str, Callable[[httpx.Request], httpx.Response]] | None = None,
 ) -> httpx.MockTransport:
-    """A router over the five base Sleeper endpoints, the four Story 5.3a
-    weekly endpoints (matchups/transactions/winners_bracket/losers_bracket),
-    plus any ``history`` hop leagues -- backed entirely by in-memory fixtures,
-    no real network. Every request is appended to *requests* (if given) before
-    routing, so a test can assert on call count, path, headers, or timeout.
-    *override* lets a test replace one path's normal 200 response with a
-    failure."""
+    """A router over the five base Sleeper endpoints, the five Story 5.3a/5.3b
+    weekly endpoints (matchups/transactions/winners_bracket/losers_bracket/
+    players), plus any ``history`` hop leagues -- backed entirely by in-memory
+    fixtures, no real network. Every request is appended to *requests* (if
+    given) before routing, so a test can assert on call count, path, headers,
+    or timeout. *override* lets a test replace one path's normal 200 response
+    with a failure."""
     history = history or {}
     matchups_by_week = matchups_by_week or {}
     transactions_by_week = transactions_by_week or {}
+    players = players or {}
     override = override or {}
     league_id = league["league_id"]
     draft_id = draft["draft_id"]
@@ -109,6 +126,8 @@ def _build_transport(
             return httpx.Response(200, json=winners_bracket if winners_bracket is not None else [])
         if path == f"/v1/league/{league_id}/losers_bracket":
             return httpx.Response(200, json=losers_bracket if losers_bracket is not None else [])
+        if path == "/v1/players/nfl":
+            return httpx.Response(200, json=players)
         matchup_prefix = f"/v1/league/{league_id}/matchups/"
         if path.startswith(matchup_prefix):
             week = path[len(matchup_prefix) :]
@@ -610,6 +629,17 @@ def test_a_week_runs_through_the_engine_against_a_hand_written_fake_adapter_with
         },
         "winners_bracket": [],
         "losers_bracket": [],
+        # Story 5.3b: the fake adapter supplies "players" through the same
+        # protocol member (no third Adapter method) -- keyed by every id the
+        # bundle above actually references, plus one unreferenced id.
+        "players": {
+            "10": {"position": "QB", "team": "KC"},
+            "11": {"position": "WR", "team": "KC"},
+            "12": {"position": "RB", "team": "KC"},
+            "20": {"position": "QB", "team": "BUF"},
+            "21": {"position": "WR", "team": "BUF"},
+            "999": {"position": "K", "team": "MIA"},  # never rostered/started
+        },
     }
     fake_adapter: Adapter = _FakeAdapter({}, week_payload=week_bundle)
     assert isinstance(fake_adapter, Adapter)
@@ -637,6 +667,12 @@ def test_a_week_runs_through_the_engine_against_a_hand_written_fake_adapter_with
     assert txn.adds == {"30": "2"}
     assert txn.drops == {"12": "2"}
     assert txn.waiver_bid == 5
+
+    # Story 5.3b: the same fake bundle's "players" key builds a PlayerSnapshot
+    # map through the ingest seam -- no SleeperAdapter, no network.
+    snapshot = build_player_snapshot(bundle)
+    assert snapshot["10"] == PlayerSnapshot(player_id="10", position="QB", nfl_team="KC")
+    assert snapshot["999"] == PlayerSnapshot(player_id="999", position="K", nfl_team="MIA")
 
 
 # --------------------------------------------------------------------------- #
@@ -799,6 +835,7 @@ def _week_transport(
         transactions_by_week=TRANSACTIONS_BY_WEEK,
         winners_bracket=WINNERS_BRACKET,
         losers_bracket=LOSERS_BRACKET,
+        players=PLAYERS,
         requests=requests,
         override=override,
     )
@@ -826,9 +863,14 @@ def test_fetch_week_regular_season_matchups_cumulative_transactions_single_week_
         assert isinstance(roster["roster_id"], str)
     for row in bundle["matchups"][str(week)]:
         assert isinstance(row["roster_id"], str)
+    # Story 5.3b: "players" is filtered to referenced ids only.
+    assert bundle["players"]
+    assert UNREFERENCED_PLAYER_ID not in bundle["players"]
+    assert set(bundle["players"]) <= set(PLAYERS)
 
     # exactly: league + rosters + `week` matchup calls + 1 transactions call
-    assert len(requests) == 2 + week + 1
+    # + 1 players call
+    assert len(requests) == 2 + week + 1 + 1
 
 
 # Row: Playoff week
@@ -846,8 +888,77 @@ def test_fetch_week_playoff_week_populates_both_brackets() -> None:
     assert bundle["winners_bracket"] and bundle["losers_bracket"]
 
     # exactly: league + rosters + `week` matchup calls + 1 transactions call
-    # + winners_bracket + losers_bracket
-    assert len(requests) == 2 + week + 1 + 2
+    # + winners_bracket + losers_bracket + 1 players call
+    assert len(requests) == 2 + week + 1 + 2 + 1
+
+
+# Row: Story 5.3b -- the "players" bundle key
+def test_fetch_week_players_key_is_filtered_to_ids_this_weeks_bundle_references() -> None:
+    """`_fetch_players` keeps only ids seen in this week's rosters
+    (`players`/`reserve`/`taxi`) or any fetched week's matchup rows
+    (`starters`/`players`) -- an id present in the raw `/players/nfl` response
+    but never referenced (`players.json`'s "88888") is dropped."""
+    adapter = _adapter_for(_week_transport())
+
+    bundle = adapter.fetch_week(LEAGUE["league_id"], 1)
+
+    # "11576" (roster 1's reserve/IR) and "6904"/"9226" (week-1 starters) are
+    # all referenced; "88888" is in the raw players fixture but never
+    # rostered/started anywhere, so it must not survive the filter.
+    assert "11576" in bundle["players"]
+    assert "6904" in bundle["players"]
+    assert "9226" in bundle["players"]
+    assert UNREFERENCED_PLAYER_ID not in bundle["players"]
+    assert bundle["players"]["6904"]["position"] == "QB"
+    assert bundle["players"]["6904"]["team"] == "SF"
+
+
+def test_fetch_week_players_id_from_an_earlier_fetched_week_survives_the_final_weeks_filter() -> None:
+    """`_rostered_player_ids` unions ids across **every** fetched week
+    (`matchups.values()`, weeks 1..week), not just the final requested week.
+    "10235" (`players.json`) is on roster 7's week-1 bench (`players`, not
+    `starters`) only -- it is absent from week 10's matchup rows and from
+    every current roster's `players`/`reserve`/`taxi` -- so it would be
+    dropped by a "final-week-only" (or "current rosters only") regression but
+    must still survive a `fetch_week(..., 10)` call, which fetches weeks
+    1..10 inclusive."""
+    week = 10
+    week1_ids = {
+        str(pid)
+        for row in MATCHUPS_BY_WEEK["1"]
+        for pid in (row.get("starters") or []) + (row.get("players") or [])
+    }
+    week10_ids = {
+        str(pid)
+        for row in MATCHUPS_BY_WEEK[str(week)]
+        for pid in (row.get("starters") or []) + (row.get("players") or [])
+    }
+    current_roster_ids = {
+        str(pid)
+        for roster in ROSTERS
+        for key in ("players", "reserve", "taxi")
+        for pid in (roster.get(key) or [])
+    }
+    assert "10235" in week1_ids
+    assert "10235" not in week10_ids
+    assert "10235" not in current_roster_ids  # sanity: only an earlier week's row carries it
+
+    adapter = _adapter_for(_week_transport())
+
+    bundle = adapter.fetch_week(LEAGUE["league_id"], week)
+
+    assert "10235" in bundle["players"]
+
+
+def test_fetch_week_players_response_not_an_object_raises_adapter_error() -> None:
+    players_path = "/v1/players/nfl"
+    transport = _week_transport(
+        override={players_path: lambda req: httpx.Response(200, json=["not", "an", "object"])}
+    )
+    adapter = _adapter_for(transport)
+
+    with pytest.raises(AdapterError):
+        adapter.fetch_week(LEAGUE["league_id"], 1)
 
 
 @pytest.mark.parametrize(

@@ -35,12 +35,21 @@ validation/error-wrap shape for a weekly ``Adapter.fetch_week`` bundle (keys
 sections, if present, are ignored -- not needed to build a
 :class:`~commishdesk.ingest.model.WeekModel`). No ids/enums/numbers it carries
 need :func:`sanitize` -- see ``ingest/sanitize.py``'s module docstring.
+
+Story 5.3b adds :func:`build_player_snapshot` -- a pure ``bundle ->
+{player_id: PlayerSnapshot}`` transform reading the weekly bundle's
+``"players"`` key -- and :func:`get_player_snapshot`, the one function in this
+module that is not a pure transform: it takes a :class:`~commishdesk.store.Store`
+and implements "reuse the persisted snapshot, never re-derive it live"
+(FR-5). Every other function here has no I/O; this one exists because that
+reuse decision *is* the story's AC3, and no CLI entry point exists yet
+(Story 5.11a) to host it instead.
 """
 
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import ValidationError
 
@@ -55,6 +64,7 @@ from .model import (
     Matchup,
     Pick,
     Player,
+    PlayerSnapshot,
     Roster,
     Team,
     TradedPick,
@@ -63,7 +73,15 @@ from .model import (
 )
 from .sanitize import sanitize
 
-__all__ = ["build_league_model", "build_week_model"]
+if TYPE_CHECKING:
+    # Type-checking only: a runtime import here would cycle back through
+    # commishdesk.store -> commishdesk.ingest.model -> commishdesk.ingest
+    # (this package's own __init__, which imports this module). Nothing in
+    # get_player_snapshot needs the Store *class* at runtime -- it only calls
+    # duck-typed methods on the instance it is handed.
+    from commishdesk.store import Store
+
+__all__ = ["build_league_model", "build_player_snapshot", "build_week_model", "get_player_snapshot"]
 
 # Flex slot -> the positions it will accept. Only slots that actually appear in
 # `roster_positions` land in the built `flex_eligibility`.
@@ -601,6 +619,75 @@ def _build_faab(transfer: Mapping[str, Any]) -> FaabTransfer:
         receiver=str(transfer["receiver"]),
         amount=_as_int(transfer.get("amount")) or 0,
     )
+
+
+# --------------------------------------------------------------------------- #
+# Story 5.3b: NFL bye data and the player snapshot
+# --------------------------------------------------------------------------- #
+
+
+def build_player_snapshot(bundle: Mapping[str, Any]) -> dict[str, PlayerSnapshot]:
+    """Build a pure ``player_id -> PlayerSnapshot`` map from a weekly
+    ``Adapter.fetch_week`` bundle's ``"players"`` key (``SleeperAdapter``'s
+    second ``/players/nfl`` call, filtered to that week's rostered players --
+    see ``adapters/sleeper.py::_fetch_players``).
+
+    ``"players"`` is optional in the bundle -- an older bundle, or one from a
+    hand-written fake ``Adapter`` that predates this story, simply has no
+    player snapshot data; this returns ``{}`` rather than raising. When
+    present it must be a JSON object mapping player id -> player record (the
+    same raw Sleeper ``/players/nfl`` shape ``build_league_model`` already
+    reads ``college`` from); a malformed shape raises a chained
+    :class:`~commishdesk.errors.IngestError`, never a partial map."""
+    if not isinstance(bundle, Mapping):
+        raise IngestError("bundle is not a JSON object")
+
+    raw_players = bundle.get("players")
+    if raw_players is None:
+        return {}
+    if not isinstance(raw_players, Mapping):
+        raise IngestError("bundle 'players' section is not a JSON object")
+
+    try:
+        snapshot: dict[str, PlayerSnapshot] = {}
+        for player_id, record in raw_players.items():
+            if not isinstance(record, Mapping):
+                raise IngestError(f"'players' contains a non-object item ({type(record).__name__})")
+            pid = str(player_id)
+            position = record.get("position")
+            nfl_team = record.get("team")
+            snapshot[pid] = PlayerSnapshot(
+                player_id=pid,
+                position=str(position) if position is not None else None,
+                nfl_team=str(nfl_team) if nfl_team is not None else None,
+            )
+        return snapshot
+    except _CAUGHT as exc:
+        raise IngestError(f"could not build a player snapshot from the bundle ({type(exc).__name__})") from exc
+
+
+def get_player_snapshot(
+    store: Store, league_id: str, week: int, bundle: Mapping[str, Any]
+) -> dict[str, PlayerSnapshot]:
+    """Persisted-or-build: the one function in this module with I/O.
+
+    Reads ``store.read_player_snapshot(league_id, week)`` first. If a
+    snapshot was already persisted for this league-week -- meaning it was
+    generated once before -- that persisted snapshot is returned **verbatim**,
+    never re-derived from *bundle* even though *bundle* may reflect a fresher
+    live lookup (a trade since the first generation). This is what FR-5 and
+    this story's AC3 require: a past week's facts must not silently change
+    when it is regenerated.
+
+    Only on the *first* generation (``read_player_snapshot`` returns
+    ``None``) is a fresh snapshot built via :func:`build_player_snapshot` and
+    persisted via ``store.write_player_snapshot`` before being returned."""
+    existing = store.read_player_snapshot(league_id, week)
+    if existing is not None:
+        return existing
+    snapshot = build_player_snapshot(bundle)
+    store.write_player_snapshot(league_id, week, snapshot)
+    return snapshot
 
 
 # --------------------------------------------------------------------------- #
