@@ -23,7 +23,7 @@ not tickets — see [`unclaimed-territory.md`](unclaimed-territory.md).
 
 | Zone package | Protocol | Signature | Eval fixtures |
 |---|---|---|---|
-| `commishdesk/adapters/` | `Adapter` | `fetch(self, league_id: str) -> Mapping[str, Any]` | `tests/eval/adapters/` |
+| `commishdesk/adapters/` | `Adapter` | `fetch(self, league_id: str) -> Mapping[str, Any]`, `fetch_week(self, league_id: str, week: int) -> Mapping[str, Any]` | `tests/eval/adapters/` |
 | `commishdesk/voices/` | `Voice` | `system_prompt: str`, `banned_topics: frozenset[str]`, `voice_id: str` | `tests/eval/voices/` |
 | `commishdesk/themes/` | `Renderer` | `render(self, facts: FactsJSON) -> str` | `tests/eval/themes/` |
 | `commishdesk/statmods/` | `StatModule` | `module_id: str` and `compute(self, facts: FactsJSON) -> Mapping[str, object]` | `tests/eval/statmods/` |
@@ -39,6 +39,18 @@ origin league is not counted as a hop). Evaluation
 material — recorded platform responses, replay fixtures — goes in `tests/eval/adapters/`.
 The reference `Adapter`, `SleeperAdapter` in `commishdesk/adapters/sleeper.py`, landed in
 Epic 2 (Story 2.2).
+
+`fetch_week(self, league_id: str, week: int) -> Mapping[str, Any]` (Story 5.3a) returns one
+league-week's raw platform data: rosters (season totals, IR, taxi), matchups for every week
+`1..week` (Story 5.4's cumulative all-play record needs the full history, not just the
+target week), and week `week`'s transactions filtered to settled (`status == "complete"`)
+only — with the same id-normalization convention `fetch()` already applies. Winners/losers
+brackets populate only once `week` reaches `league.settings.playoff_week_start`; before that
+they're `[]`/`[]`. This is the `Adapter` protocol's second member — still within the
+one-or-two-member zone rule below. `ingest/build.py::build_week_model` turns a `fetch_week`
+bundle into a shape-agnostic `WeekModel` exactly the way `build_league_model` does for
+`fetch()`; no file under `stats/`, `facts/`, `narrate/`, or `render/` imports
+`commishdesk.adapters.sleeper` directly — they consume the ingest models instead.
 
 ### `Voice` — `commishdesk/voices/`
 

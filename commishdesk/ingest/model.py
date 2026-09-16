@@ -15,6 +15,16 @@ key is simply ignored upstream). Ids that Sleeper hands us as strings stay
 strings; ``season`` is an ``int`` year. Every string that originates with the
 league has already been through ``sanitize()`` by the time it reaches a field
 here.
+
+Story 5.3a adds a second, parallel family: :class:`Roster`, :class:`Matchup`,
+:class:`Transaction` (plus :class:`TradedPick` / :class:`FaabTransfer`) and the
+:class:`WeekModel` container they build into, produced by
+:func:`~commishdesk.ingest.build.build_week_model` from a weekly ``Adapter``
+bundle. Same conventions -- frozen, ``extra="forbid"``, ids stay ``str``. These
+carry only ids/enums/numbers -- matchups and transactions stay at
+``player_id``/``roster_id`` level, never joined to a display name, so no
+league-supplied free text is introduced and ``sanitize()`` has no call site
+here (a future facts-building story's job).
 """
 
 from __future__ import annotations
@@ -24,11 +34,17 @@ from pydantic import BaseModel, ConfigDict, Field
 __all__ = [
     "Division",
     "Draft",
+    "FaabTransfer",
     "LeagueFormat",
     "LeagueModel",
+    "Matchup",
     "Pick",
     "Player",
+    "Roster",
     "Team",
+    "TradedPick",
+    "Transaction",
+    "WeekModel",
 ]
 
 
@@ -137,3 +153,98 @@ class LeagueModel(_Frozen):
     teams: list[Team]
     picks: list[Pick]
     draft: Draft
+
+
+# --------------------------------------------------------------------------- #
+# Story 5.3a: weekly ingest (rosters / matchups / transactions)
+# --------------------------------------------------------------------------- #
+
+
+class Roster(_Frozen):
+    """One roster's season-cumulative state as of the week this model was
+    built for: record, points totals, and current IR/taxi occupants. Never
+    raises for a missing ``settings`` sub-object -- absent numeric fields
+    default to ``0``."""
+
+    roster_id: str
+    wins: int = 0
+    losses: int = 0
+    ties: int = 0
+    fpts: float = 0.0
+    fpts_against: float = 0.0
+    ppts: float = 0.0
+    ir: list[str] = []
+    taxi: list[str] = []
+
+
+class Matchup(_Frozen):
+    """One roster's participation in one week: which opponent it was paired
+    against (``None`` for a bye / no-opponent week), the week's point total,
+    the starting lineup, the bench, and every rostered player's points for the
+    week. A roster with no opponent, an orphan roster (absent from
+    :class:`Roster`), or an empty starter slot builds without raising. Player
+    and roster ids only -- no display-name join (a future facts-building
+    story's job)."""
+
+    week: int
+    roster_id: str
+    matchup_id: int | None = None
+    opponent_roster_id: str | None = None
+    points: float = 0.0
+    starters: list[str] = []
+    starters_points: list[float] = []
+    bench: list[str] = []
+    players_points: dict[str, float] = {}
+
+
+class TradedPick(_Frozen):
+    """One draft pick that changed hands as part of a :class:`Transaction`."""
+
+    season: str
+    round: int
+    roster_id: str
+    owner_id: str | None = None
+    previous_owner_id: str | None = None
+
+
+class FaabTransfer(_Frozen):
+    """One FAAB (waiver budget) transfer between rosters, part of a trade."""
+
+    sender: str
+    receiver: str
+    amount: int = 0
+
+
+class Transaction(_Frozen):
+    """One settled (``status == "complete"``) roster move: a waiver claim, a
+    free-agent add/drop, or a trade. Assets moved are carried as ids only --
+    ``player_id``/``roster_id``, draft picks, FAAB -- never a player display
+    name; a real transaction's ``metadata`` (where a commissioner note could
+    live) is never carried into this model."""
+
+    transaction_id: str
+    type: str
+    status: str
+    roster_ids: list[str] = []
+    adds: dict[str, str] = {}
+    drops: dict[str, str] = {}
+    draft_picks: list[TradedPick] = []
+    faab: list[FaabTransfer] = []
+    waiver_bid: int | None = None
+
+
+class WeekModel(_Frozen):
+    """The whole stage-1 weekly-ingest output for one league-week: every
+    roster's season-cumulative state, one :class:`Matchup` per roster for
+    every week ``1..week`` (Story 5.4's cumulative all-play record needs the
+    full history), and ``week``'s settled :class:`Transaction` log.
+
+    ``rosters`` is ordered by ``roster_id``, ``matchups`` by ``(week,
+    roster_id)``, and ``transactions`` by ``transaction_id`` -- so two builds
+    of one bundle produce equal models regardless of the bundle's list
+    order."""
+
+    week: int
+    rosters: list[Roster]
+    matchups: list[Matchup]
+    transactions: list[Transaction]

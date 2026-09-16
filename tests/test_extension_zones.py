@@ -8,6 +8,7 @@ Story 1.6 shipped zero reference implementations; Story 2.2 (Epic 2) landed the 
 
 from __future__ import annotations
 
+import ast
 import importlib
 import re
 import shutil
@@ -156,7 +157,7 @@ def _protocol_members(cls: type) -> list[str]:
 
 def test_protocol_member_surfaces_match_the_v0_spec() -> None:
     protos = _live_protocols()
-    assert _protocol_members(protos["Adapter"]) == ["fetch"]
+    assert _protocol_members(protos["Adapter"]) == ["fetch", "fetch_week"]
     assert _protocol_members(protos["Renderer"]) == ["render"]
     # Voice gained voice_id when its reference impl (the beat-writer default) landed
     # in Story 3.3 — blessed by the Story 1.6 deferral audit.
@@ -180,6 +181,11 @@ def test_protocol_annotations_match_the_spec() -> None:
         "league_id": str,
         "return": Mapping[str, Any],
     }
+    assert get_type_hints(protos["Adapter"].fetch_week) == {
+        "league_id": str,
+        "week": int,
+        "return": Mapping[str, Any],
+    }
     assert get_type_hints(protos["Renderer"].render)["return"] is str
     assert get_type_hints(protos["StatModule"].compute)["return"] == Mapping[str, object]
 
@@ -198,6 +204,48 @@ def test_extending_doc_lists_every_live_protocol_member() -> None:
         assert name in text, f"docs/EXTENDING.md never mentions {name}"
         for member in _protocol_members(cls):
             assert member in text, f"docs/EXTENDING.md omits {name}.{member}"
+
+
+# --------------------------------------------------------------------------- #
+# Row: Weekly-ingest import boundary (Story 5.3a, AC4)
+# --------------------------------------------------------------------------- #
+
+_INGEST_ONLY_ZONES = ("stats", "facts", "narrate", "render")
+
+
+def _imports_sleeper_adapter(path: Path) -> bool:
+    """``True`` if the module at ``path`` imports ``commishdesk.adapters.sleeper``
+    (directly, or the ``sleeper`` name out of ``commishdesk.adapters``), by AST
+    inspection rather than a text search -- immune to the module merely being
+    mentioned in a comment or docstring."""
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            if any(alias.name == "commishdesk.adapters.sleeper" for alias in node.names):
+                return True
+        elif isinstance(node, ast.ImportFrom):
+            if node.module == "commishdesk.adapters.sleeper":
+                return True
+            if node.module == "commishdesk.adapters" and any(
+                alias.name == "sleeper" for alias in node.names
+            ):
+                return True
+    return False
+
+
+def test_no_stats_facts_narrate_or_render_module_imports_the_sleeper_adapter() -> None:
+    """Downstream stages consume the shape-agnostic ``ingest/`` models --
+    ``LeagueModel`` / ``WeekModel`` -- never the platform adapter directly
+    (AD-1). A future stats/facts/narrate/render story reaching straight into
+    ``commishdesk.adapters.sleeper`` would silently reintroduce the Sleeper
+    coupling Story 5.3a's ``ingest`` layer exists to prevent."""
+    offenders = [
+        str(path.relative_to(REPO_ROOT))
+        for zone in _INGEST_ONLY_ZONES
+        for path in (PKG_ROOT / zone).rglob("*.py")
+        if _imports_sleeper_adapter(path)
+    ]
+    assert not offenders, offenders
 
 
 # --------------------------------------------------------------------------- #
@@ -354,6 +402,7 @@ def test_zone_packages_ship_in_the_wheel_and_import_from_it(tmp_path: Path) -> N
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
+        encoding="utf-8",
     )
     assert build.returncode == 0, build.stderr
     wheels = list(tmp_path.glob("*.whl"))

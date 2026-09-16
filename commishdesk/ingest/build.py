@@ -28,6 +28,13 @@ or mistyped section, a non-object list item, a field the model rejects -- raises
 :class:`~commishdesk.errors.IngestError` chained (where an underlying exception
 exists) from the original ``KeyError`` / ``TypeError`` / ``ValueError`` /
 ``OverflowError`` / ``ValidationError``; no partial model escapes.
+
+Story 5.3a adds :func:`build_week_model`, mirroring this exact
+validation/error-wrap shape for a weekly ``Adapter.fetch_week`` bundle (keys
+``rosters`` / ``matchups`` / ``transactions``; ``league`` and the two bracket
+sections, if present, are ignored -- not needed to build a
+:class:`~commishdesk.ingest.model.WeekModel`). No ids/enums/numbers it carries
+need :func:`sanitize` -- see ``ingest/sanitize.py``'s module docstring.
 """
 
 from __future__ import annotations
@@ -39,10 +46,24 @@ from pydantic import ValidationError
 
 from commishdesk.errors import IngestError
 
-from .model import Division, Draft, LeagueFormat, LeagueModel, Pick, Player, Team
+from .model import (
+    Division,
+    Draft,
+    FaabTransfer,
+    LeagueFormat,
+    LeagueModel,
+    Matchup,
+    Pick,
+    Player,
+    Roster,
+    Team,
+    TradedPick,
+    Transaction,
+    WeekModel,
+)
 from .sanitize import sanitize
 
-__all__ = ["build_league_model"]
+__all__ = ["build_league_model", "build_week_model"]
 
 # Flex slot -> the positions it will accept. Only slots that actually appear in
 # `roster_positions` land in the built `flex_eligibility`.
@@ -107,6 +128,57 @@ def build_league_model(bundle: Mapping[str, Any]) -> LeagueModel:
         )
     except _CAUGHT as exc:
         raise IngestError(f"could not build a league model from the bundle ({type(exc).__name__})") from exc
+
+
+def build_week_model(bundle: Mapping[str, Any]) -> WeekModel:
+    """Build a validated :class:`WeekModel` from a raw weekly ``Adapter``
+    bundle (``rosters`` / ``matchups`` / ``transactions`` -- ``league`` and
+    the two bracket sections, if present, are ignored). The target week is the
+    highest week key present in ``matchups`` (``fetch_week(league_id, n)``
+    always carries matchups for every week ``1..n``, so its max key is ``n``).
+    Raises :class:`~commishdesk.errors.IngestError` (chained where possible,
+    never a partial model) on any structural failure."""
+    if not isinstance(bundle, Mapping):
+        raise IngestError("bundle is not a JSON object")
+
+    rosters_raw = _section(bundle, "rosters", _LIST)
+    matchups_raw = _section(bundle, "matchups", _MAPPING)
+    transactions_raw = _section(bundle, "transactions", _MAPPING)
+
+    if not rosters_raw:
+        raise IngestError("bundle has no rosters")
+
+    try:
+        week = _target_week(matchups_raw)
+
+        rosters = sorted(
+            (_build_roster(_object(item, "rosters")) for item in rosters_raw),
+            key=lambda roster: _sort_key(roster.roster_id),
+        )
+
+        matchups: list[Matchup] = []
+        for wk in range(1, week + 1):
+            week_rows = matchups_raw.get(str(wk))
+            week_rows = week_rows if isinstance(week_rows, list) else []
+            opponents = _opponents_for_week(week_rows)
+            for row in week_rows:
+                matchups.append(_build_matchup(_object(row, f"matchups[{wk}]"), wk, opponents))
+        matchups.sort(key=lambda m: (m.week, _sort_key(m.roster_id)))
+
+        week_transactions_raw = transactions_raw.get(str(week))
+        week_transactions_raw = week_transactions_raw if isinstance(week_transactions_raw, list) else []
+        transactions = sorted(
+            (
+                _build_transaction(_object(item, "transactions"))
+                for item in week_transactions_raw
+                if isinstance(item, Mapping) and item.get("status") == "complete"
+            ),
+            key=lambda txn: txn.transaction_id,
+        )
+
+        return WeekModel(week=week, rosters=rosters, matchups=matchups, transactions=transactions)
+    except _CAUGHT as exc:
+        raise IngestError(f"could not build a week model from the bundle ({type(exc).__name__})") from exc
 
 
 # --------------------------------------------------------------------------- #
@@ -377,6 +449,157 @@ def _build_draft(draft: Mapping[str, Any]) -> Draft:
         rounds=_as_int(_mapping(draft.get("settings")).get("rounds")),
         started_at_ms=_as_int(draft.get("start_time")),
         completed_at_ms=_as_int(draft.get("last_picked")),
+    )
+
+
+# --------------------------------------------------------------------------- #
+# Story 5.3a: weekly ingest (rosters / matchups / transactions)
+# --------------------------------------------------------------------------- #
+
+
+def _target_week(matchups: Mapping[str, Any]) -> int:
+    """The highest week key present in ``matchups`` -- ``fetch_week(league_id,
+    n)`` always carries matchups for every week ``1..n``, so its max key is
+    the target week. Raises :class:`~commishdesk.errors.IngestError` if
+    ``matchups`` has no weeks at all, or if its keys don't form a contiguous
+    ``1..week`` range -- a gap week must fail loudly, not silently vanish from
+    the model (no partial model escapes)."""
+    weeks = {int(key) for key in matchups}
+    if not weeks:
+        raise IngestError("bundle 'matchups' section has no weeks")
+    week = max(weeks)
+    missing = sorted(set(range(1, week + 1)) - weeks)
+    if missing:
+        raise IngestError(
+            f"bundle 'matchups' section is missing week(s) {missing} "
+            f"(expected a contiguous 1..{week} range)"
+        )
+    return week
+
+
+def _build_roster(roster: Mapping[str, Any]) -> Roster:
+    settings = _mapping(roster.get("settings"))
+    return Roster(
+        roster_id=str(roster["roster_id"]),
+        wins=_as_int(settings.get("wins")) or 0,
+        losses=_as_int(settings.get("losses")) or 0,
+        ties=_as_int(settings.get("ties")) or 0,
+        fpts=_combine_points(settings.get("fpts"), settings.get("fpts_decimal")),
+        fpts_against=_combine_points(settings.get("fpts_against"), settings.get("fpts_against_decimal")),
+        ppts=_combine_points(settings.get("ppts"), settings.get("ppts_decimal")),
+        ir=[str(pid) for pid in (roster.get("reserve") or [])],
+        taxi=[str(pid) for pid in (roster.get("taxi") or [])],
+    )
+
+
+def _combine_points(whole: Any, decimal: Any) -> float:
+    """Sleeper splits a points total into an integer ``whole`` plus a
+    ``decimal`` (hundredths) sibling field, e.g. ``fpts=2766``,
+    ``fpts_decimal=12`` -> ``2766.12``. Either half missing or unparseable
+    contributes ``0``."""
+    return (_as_float(whole) or 0.0) + (_as_int(decimal) or 0) / 100
+
+
+def _opponents_for_week(rows: list[Any]) -> dict[Any, Any]:
+    """Map each row's raw ``roster_id`` to its opponent's raw ``roster_id`` for
+    one week, by grouping rows on ``matchup_id``. A group of exactly two
+    distinct rosters pairs them; a lone roster (a bye) or a null
+    ``matchup_id`` is simply absent from the result (``.get`` then yields
+    ``None`` -- no raise)."""
+    by_matchup: dict[Any, list[Any]] = {}
+    for row in rows:
+        if not isinstance(row, Mapping):
+            continue
+        matchup_id = row.get("matchup_id")
+        if matchup_id is None:
+            continue
+        by_matchup.setdefault(matchup_id, []).append(row.get("roster_id"))
+
+    opponents: dict[Any, Any] = {}
+    for roster_ids in by_matchup.values():
+        if len(roster_ids) == 2 and roster_ids[0] != roster_ids[1]:
+            a, b = roster_ids
+            opponents[a] = b
+            opponents[b] = a
+    return opponents
+
+
+def _build_matchup(row: Mapping[str, Any], week: int, opponents: dict[Any, Any]) -> Matchup:
+    roster_id_raw = row["roster_id"]
+    starters = [str(pid) for pid in (row.get("starters") or [])]
+    players = [str(pid) for pid in (row.get("players") or [])]
+    starters_set = set(starters)
+    bench = [pid for pid in players if pid not in starters_set]
+
+    raw_points = row.get("players_points")
+    players_points = (
+        {str(pid): (_as_float(pts) or 0.0) for pid, pts in raw_points.items()}
+        if isinstance(raw_points, Mapping)
+        else {}
+    )
+
+    opponent = opponents.get(roster_id_raw)
+    return Matchup(
+        week=week,
+        roster_id=str(roster_id_raw),
+        matchup_id=_as_int(row.get("matchup_id")),
+        opponent_roster_id=str(opponent) if opponent is not None else None,
+        points=_as_float(row.get("points")) or 0.0,
+        starters=starters,
+        starters_points=[_as_float(pts) or 0.0 for pts in (row.get("starters_points") or [])],
+        bench=bench,
+        players_points=players_points,
+    )
+
+
+def _build_transaction(item: Mapping[str, Any]) -> Transaction:
+    settings = _mapping(item.get("settings"))
+    txn_type = item.get("type")
+    status = item.get("status")
+    return Transaction(
+        transaction_id=str(item["transaction_id"]),
+        type=str(txn_type) if txn_type is not None else "",
+        status=str(status) if status is not None else "",
+        roster_ids=[str(rid) for rid in (item.get("roster_ids") or [])],
+        adds=_id_map(item.get("adds")),
+        drops=_id_map(item.get("drops")),
+        draft_picks=[
+            _build_traded_pick(_object(p, "transactions.draft_picks"))
+            for p in (item.get("draft_picks") or [])
+        ],
+        faab=[
+            _build_faab(_object(f, "transactions.waiver_budget"))
+            for f in (item.get("waiver_budget") or [])
+        ],
+        waiver_bid=_as_int(settings.get("waiver_bid")),
+    )
+
+
+def _id_map(raw: Any) -> dict[str, str]:
+    """Normalize a ``{player_id: roster_id}`` mapping (``adds`` / ``drops``) to
+    ``str`` keys and values; anything other than a mapping becomes ``{}``."""
+    if not isinstance(raw, Mapping):
+        return {}
+    return {str(k): str(v) for k, v in raw.items() if v is not None}
+
+
+def _build_traded_pick(pick: Mapping[str, Any]) -> TradedPick:
+    owner_id = pick.get("owner_id")
+    previous_owner_id = pick.get("previous_owner_id")
+    return TradedPick(
+        season=_text(pick.get("season")),
+        round=_as_int(pick.get("round")) or 0,
+        roster_id=str(pick["roster_id"]),
+        owner_id=str(owner_id) if owner_id is not None else None,
+        previous_owner_id=str(previous_owner_id) if previous_owner_id is not None else None,
+    )
+
+
+def _build_faab(transfer: Mapping[str, Any]) -> FaabTransfer:
+    return FaabTransfer(
+        sender=str(transfer["sender"]),
+        receiver=str(transfer["receiver"]),
+        amount=_as_int(transfer.get("amount")) or 0,
     )
 
 

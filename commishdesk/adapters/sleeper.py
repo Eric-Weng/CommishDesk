@@ -6,6 +6,14 @@ the league, the draft, every draft pick, the rosters, the users, and (capped at
 per league plus at most 10 history hops — never concurrent, trivially under
 Sleeper's rate ceiling, no throttling logic needed.
 
+``fetch_week`` (Story 5.3a) pulls one league-week instead: the league (read
+only for ``settings.playoff_week_start``), the current rosters, every week
+``1..week``'s matchups, week ``week``'s transactions (filtered to
+``status == "complete"``), and — only once ``week`` reaches the playoff
+period — the winners/losers brackets (``[]``/``[]`` otherwise, mirroring
+``tools/assemble_bundle.py``'s Story 5.2 convention). Also sequential, same
+``_get``/``AdapterError``/id-normalization conventions as ``fetch``.
+
 Everything comes back in the platform's own shape, unmodified, except that
 ``league_id`` / ``draft_id`` / ``roster_id`` / ``user_id`` are normalized to
 ``str`` wherever they appear as a field (Sleeper returns ``roster_id`` as an
@@ -78,6 +86,32 @@ def _stringify_ids(value: Any) -> Any:
     if isinstance(value, list):
         return [_stringify_ids(item) for item in value]
     return value
+
+
+def _completed_only(value: Any) -> Any:
+    """Drop every transaction whose ``status`` isn't ``"complete"``. Anything
+    other than a list (e.g. a null response body) passes through unmodified —
+    shape validation is ``ingest/build.py``'s job, not the adapter's (mirrors
+    ``fetch()`` passing ``draft_picks`` etc. through unvalidated)."""
+    if isinstance(value, list):
+        return [txn for txn in value if isinstance(txn, Mapping) and txn.get("status") == "complete"]
+    return value
+
+
+def _in_playoff_period(league: Any, week: int) -> bool:
+    """``True`` once ``week`` reaches ``league["settings"]["playoff_week_start"]``.
+    Any missing or malformed shape defaults to ``False`` — a bracket fetch is a
+    nice-to-have gated on an optional field, never worth an ``AdapterError`` of
+    its own."""
+    if not isinstance(league, Mapping):
+        return False
+    settings = league.get("settings")
+    if not isinstance(settings, Mapping):
+        return False
+    start = settings.get("playoff_week_start")
+    if isinstance(start, bool) or not isinstance(start, int):
+        return False
+    return week >= start
 
 
 class SleeperAdapter:
@@ -176,6 +210,55 @@ class SleeperAdapter:
             visited.append(current_id)
             current = hop_league.get("previous_league_id")
         return visited
+
+    def fetch_week(self, league_id: str, week: int) -> Mapping[str, Any]:
+        """Sequentially pull one league-week's raw Sleeper data: the league
+        (read only for ``settings.playoff_week_start``), the current rosters,
+        every week ``1..week``'s matchups, week ``week``'s transactions
+        (filtered to ``status == "complete"``), and — only once ``week``
+        reaches the playoff period — the winners/losers brackets (``[]``/
+        ``[]`` otherwise). Returns the platform's own shape in one
+        ``Mapping``. Top-level ``league_id`` / ``roster_id`` / ``user_id``
+        fields are normalized to ``str`` by the same ``_stringify_ids`` pass
+        ``fetch()`` uses; it does not reach a *plural* key like
+        ``transactions[].roster_ids`` or the ids inside ``adds``/``drops`` --
+        ``ingest/build.py`` normalizes those independently. Raises
+        ``AdapterError`` (never a partial bundle) on any request, parsing, or
+        shape failure."""
+        league_id = str(league_id)
+        try:
+            week = int(week)
+        except (TypeError, ValueError) as exc:
+            raise AdapterError(f"Sleeper fetch_week: {week!r} is not a valid week") from exc
+
+        league = self._get(f"/league/{league_id}")
+        rosters = self._get(f"/league/{league_id}/rosters")
+
+        matchups: dict[str, Any] = {
+            str(wk): self._get(f"/league/{league_id}/matchups/{wk}") for wk in range(1, week + 1)
+        }
+        transactions = {str(week): _completed_only(self._get(f"/league/{league_id}/transactions/{week}"))}
+
+        if _in_playoff_period(league, week):
+            winners_bracket = self._get(f"/league/{league_id}/winners_bracket")
+            losers_bracket = self._get(f"/league/{league_id}/losers_bracket")
+        else:
+            # A fixture/response reaching only the regular season must never
+            # carry bracket data — mirrors tools/assemble_bundle.py's Story 5.2
+            # convention (the raw bracket endpoints hold the *completed*
+            # season's results, which would otherwise leak future outcomes).
+            winners_bracket = []
+            losers_bracket = []
+
+        bundle: dict[str, Any] = {
+            "league": league,
+            "rosters": rosters,
+            "matchups": matchups,
+            "transactions": transactions,
+            "winners_bracket": winners_bracket,
+            "losers_bracket": losers_bracket,
+        }
+        return _stringify_ids(bundle)
 
     def _get(self, path: str) -> Any:
         """Issue one ``GET`` with the identifying ``User-Agent`` and explicit
