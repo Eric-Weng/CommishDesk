@@ -21,7 +21,7 @@ from commishdesk import __version__
 from commishdesk.adapters import Adapter
 from commishdesk.adapters.sleeper import SleeperAdapter
 from commishdesk.errors import AdapterError, IngestError
-from commishdesk.ingest import build_league_model
+from commishdesk.ingest import build_league_model, build_week_model
 from tests.conftest import REPO_ROOT
 
 EVAL_DIR = REPO_ROOT / "tests" / "eval" / "adapters"
@@ -38,7 +38,17 @@ ROSTERS: list[dict[str, Any]] = _load("rosters.json")
 USERS: list[dict[str, Any]] = _load("users.json")
 HISTORY: dict[str, dict[str, dict[str, Any]]] = _load("history.json")
 
+# Story 5.3a: sliced from the same private league as the above (league_id
+# id_rq867j4w7p, playoff_week_start 15) -- see tests/fixtures/week17-playoffs.json,
+# whose league/rosters sections are byte-identical to LEAGUE/ROSTERS.
+MATCHUPS_BY_WEEK: dict[str, list[dict[str, Any]]] = _load("matchups_by_week.json")
+TRANSACTIONS_BY_WEEK: dict[str, list[dict[str, Any]]] = _load("transactions_by_week.json")
+WINNERS_BRACKET: list[dict[str, Any]] = _load("winners_bracket.json")
+LOSERS_BRACKET: list[dict[str, Any]] = _load("losers_bracket.json")
+PLAYOFF_WEEK_START = LEAGUE["settings"]["playoff_week_start"]
+
 _BUNDLE_KEYS = {"league", "draft", "draft_picks", "rosters", "users", "previous_league_ids"}
+_WEEK_BUNDLE_KEYS = {"league", "rosters", "matchups", "transactions", "winners_bracket", "losers_bracket"}
 
 
 def _league_with_previous(previous_league_id: str | None) -> dict[str, Any]:
@@ -58,15 +68,23 @@ def _build_transport(
     rosters: list[dict[str, Any]],
     users: list[dict[str, Any]],
     history: dict[str, dict[str, Any]] | None = None,
+    matchups_by_week: dict[str, list[dict[str, Any]]] | None = None,
+    transactions_by_week: dict[str, list[dict[str, Any]]] | None = None,
+    winners_bracket: list[dict[str, Any]] | None = None,
+    losers_bracket: list[dict[str, Any]] | None = None,
     requests: list[httpx.Request] | None = None,
     override: dict[str, Callable[[httpx.Request], httpx.Response]] | None = None,
 ) -> httpx.MockTransport:
-    """A router over the five base Sleeper endpoints plus any ``history`` hop
-    leagues, backed entirely by in-memory fixtures -- no real network. Every
-    request is appended to *requests* (if given) before routing, so a test can
-    assert on call count, path, headers, or timeout. *override* lets a test
-    replace one path's normal 200 response with a failure."""
+    """A router over the five base Sleeper endpoints, the four Story 5.3a
+    weekly endpoints (matchups/transactions/winners_bracket/losers_bracket),
+    plus any ``history`` hop leagues -- backed entirely by in-memory fixtures,
+    no real network. Every request is appended to *requests* (if given) before
+    routing, so a test can assert on call count, path, headers, or timeout.
+    *override* lets a test replace one path's normal 200 response with a
+    failure."""
     history = history or {}
+    matchups_by_week = matchups_by_week or {}
+    transactions_by_week = transactions_by_week or {}
     override = override or {}
     league_id = league["league_id"]
     draft_id = draft["draft_id"]
@@ -87,6 +105,20 @@ def _build_transport(
             return httpx.Response(200, json=rosters)
         if path == f"/v1/league/{league_id}/users":
             return httpx.Response(200, json=users)
+        if path == f"/v1/league/{league_id}/winners_bracket":
+            return httpx.Response(200, json=winners_bracket if winners_bracket is not None else [])
+        if path == f"/v1/league/{league_id}/losers_bracket":
+            return httpx.Response(200, json=losers_bracket if losers_bracket is not None else [])
+        matchup_prefix = f"/v1/league/{league_id}/matchups/"
+        if path.startswith(matchup_prefix):
+            week = path[len(matchup_prefix) :]
+            if week in matchups_by_week:
+                return httpx.Response(200, json=matchups_by_week[week])
+        txn_prefix = f"/v1/league/{league_id}/transactions/"
+        if path.startswith(txn_prefix):
+            week = path[len(txn_prefix) :]
+            if week in transactions_by_week:
+                return httpx.Response(200, json=transactions_by_week[week])
         for hop_id, hop_doc in history.items():
             if path == f"/v1/league/{hop_id}":
                 return httpx.Response(200, json=hop_doc)
@@ -460,13 +492,21 @@ def test_close_does_not_close_an_injected_client() -> None:
 
 class _FakeAdapter:
     """A hand-written fake satisfying ``Adapter`` structurally. Imports nothing
-    from ``commishdesk.adapters.sleeper`` -- only stdlib typing."""
+    from ``commishdesk.adapters.sleeper`` -- only stdlib typing. ``Adapter`` now
+    has two members (Story 5.3a's ``fetch_week``), so a structural fake must
+    implement both for ``isinstance(fake, Adapter)`` to hold."""
 
-    def __init__(self, payload: Mapping[str, Any]) -> None:
+    def __init__(
+        self, payload: Mapping[str, Any], week_payload: Mapping[str, Any] | None = None
+    ) -> None:
         self._payload = payload
+        self._week_payload = payload if week_payload is None else week_payload
 
     def fetch(self, league_id: str) -> Mapping[str, Any]:
         return self._payload
+
+    def fetch_week(self, league_id: str, week: int) -> Mapping[str, Any]:
+        return self._week_payload
 
 
 def _run_through_adapter(adapter: Adapter, league_id: str) -> Mapping[str, Any]:
@@ -501,6 +541,102 @@ def test_protocol_isolation_sleeper_and_a_hand_written_fake_both_satisfy_adapter
 
     assert set(real_result) == set(fake_result) == _BUNDLE_KEYS
     assert fake_result is fake_payload
+
+
+def test_a_week_runs_through_the_engine_against_a_hand_written_fake_adapter_with_no_network() -> (
+    None
+):
+    """AC: a week runs through the engine against a hand-written fake adapter
+    with no network. ``_FakeAdapter.fetch_week`` returns an in-memory bundle
+    built entirely by hand -- no fixture file, no ``httpx`` transport --
+    proving ``build_week_model`` needs only the ``Adapter`` protocol's shape,
+    never ``SleeperAdapter`` or a real Sleeper response."""
+    week_bundle: dict[str, Any] = {
+        "league": {"league_id": "fake-league", "settings": {"playoff_week_start": 15}},
+        "rosters": [
+            {
+                "roster_id": 1,
+                "reserve": ["100"],
+                "taxi": [],
+                "settings": {"wins": 5, "losses": 3, "ties": 0, "fpts": 600, "fpts_decimal": 5},
+            },
+            {
+                "roster_id": 2,
+                "reserve": None,
+                "taxi": ["200"],
+                "settings": {"wins": 3, "losses": 5, "ties": 0, "fpts": 500, "fpts_decimal": 0},
+            },
+        ],
+        "matchups": {
+            "1": [
+                {
+                    "roster_id": 1,
+                    "matchup_id": 1,
+                    "points": 105.5,
+                    "starters": ["10", "11"],
+                    "starters_points": [55.0, 50.5],
+                    "players": ["10", "11", "12"],
+                    "players_points": {"10": 55.0, "11": 50.5, "12": 0.0},
+                },
+                {
+                    "roster_id": 2,
+                    "matchup_id": 1,
+                    "points": 98.0,
+                    "starters": ["20", "21"],
+                    "starters_points": [48.0, 50.0],
+                    "players": ["20", "21"],
+                    "players_points": {"20": 48.0, "21": 50.0},
+                },
+            ]
+        },
+        "transactions": {
+            "1": [
+                {
+                    "transaction_id": "txn1",
+                    "type": "waiver",
+                    "status": "complete",
+                    "roster_ids": [2],
+                    "adds": {"30": 2},
+                    "drops": {"12": 2},
+                    "settings": {"waiver_bid": 5},
+                },
+                {
+                    "transaction_id": "txn2",
+                    "type": "waiver",
+                    "status": "failed",
+                    "roster_ids": [1],
+                },
+            ]
+        },
+        "winners_bracket": [],
+        "losers_bracket": [],
+    }
+    fake_adapter: Adapter = _FakeAdapter({}, week_payload=week_bundle)
+    assert isinstance(fake_adapter, Adapter)
+
+    bundle = fake_adapter.fetch_week("fake-league", 1)
+    week_model = build_week_model(bundle)
+
+    assert week_model.week == 1
+    rosters_by_id = {r.roster_id: r for r in week_model.rosters}
+    assert set(rosters_by_id) == {"1", "2"}
+    assert rosters_by_id["1"].fpts == 600.05
+    assert rosters_by_id["1"].ir == ["100"]
+    assert rosters_by_id["2"].taxi == ["200"]
+    assert rosters_by_id["2"].ir == []  # a null `reserve` never raises
+
+    matchups_by_roster = {m.roster_id: m for m in week_model.matchups}
+    assert set(matchups_by_roster) == {"1", "2"}
+    assert matchups_by_roster["1"].opponent_roster_id == "2"
+    assert matchups_by_roster["2"].opponent_roster_id == "1"
+    assert matchups_by_roster["1"].bench == ["12"]  # the one player not a starter
+
+    assert len(week_model.transactions) == 1  # the "failed" one is dropped
+    txn = week_model.transactions[0]
+    assert txn.transaction_id == "txn1"
+    assert txn.adds == {"30": "2"}
+    assert txn.drops == {"12": "2"}
+    assert txn.waiver_bid == 5
 
 
 # --------------------------------------------------------------------------- #
@@ -635,3 +771,216 @@ def test_a_null_picks_response_becomes_a_typed_ingest_error_naming_the_section()
     with pytest.raises(IngestError) as exc_info:
         build_league_model(bundle)
     assert "draft_picks" in str(exc_info.value)
+
+
+# --------------------------------------------------------------------------- #
+# Story 5.3a: fetch_week
+# --------------------------------------------------------------------------- #
+
+
+def _week_transport(
+    *,
+    week: int | None = None,
+    league: dict[str, Any] | None = None,
+    requests: list[httpx.Request] | None = None,
+    override: dict[str, Callable[[httpx.Request], httpx.Response]] | None = None,
+) -> httpx.MockTransport:
+    """A transport pre-loaded with every base + weekly Sleeper fixture, keyed
+    off the shared ``MATCHUPS_BY_WEEK`` / ``TRANSACTIONS_BY_WEEK`` /
+    ``*_BRACKET`` eval slices (sliced from ``tests/fixtures/week17-playoffs.json``,
+    the same private league as ``LEAGUE`` / ``ROSTERS``)."""
+    return _build_transport(
+        league=league if league is not None else LEAGUE,
+        draft=DRAFT,
+        draft_picks=DRAFT_PICKS,
+        rosters=ROSTERS,
+        users=USERS,
+        matchups_by_week=MATCHUPS_BY_WEEK,
+        transactions_by_week=TRANSACTIONS_BY_WEEK,
+        winners_bracket=WINNERS_BRACKET,
+        losers_bracket=LOSERS_BRACKET,
+        requests=requests,
+        override=override,
+    )
+
+
+# Row: Regular-season week
+def test_fetch_week_regular_season_matchups_cumulative_transactions_single_week_no_brackets() -> (
+    None
+):
+    week = 10
+    assert week < PLAYOFF_WEEK_START  # sanity: this fixture's regular season
+    requests: list[httpx.Request] = []
+    transport = _week_transport(requests=requests)
+    adapter = _adapter_for(transport)
+
+    bundle = adapter.fetch_week(LEAGUE["league_id"], week)
+
+    assert set(bundle) == _WEEK_BUNDLE_KEYS
+    assert set(bundle["matchups"]) == {str(w) for w in range(1, week + 1)}
+    assert set(bundle["transactions"]) == {str(week)}
+    assert bundle["winners_bracket"] == []
+    assert bundle["losers_bracket"] == []
+    assert bundle["rosters"], "fixture has no rosters"
+    for roster in bundle["rosters"]:
+        assert isinstance(roster["roster_id"], str)
+    for row in bundle["matchups"][str(week)]:
+        assert isinstance(row["roster_id"], str)
+
+    # exactly: league + rosters + `week` matchup calls + 1 transactions call
+    assert len(requests) == 2 + week + 1
+
+
+# Row: Playoff week
+def test_fetch_week_playoff_week_populates_both_brackets() -> None:
+    week = 17
+    assert week >= PLAYOFF_WEEK_START  # sanity: this fixture's championship round
+    requests: list[httpx.Request] = []
+    transport = _week_transport(requests=requests)
+    adapter = _adapter_for(transport)
+
+    bundle = adapter.fetch_week(LEAGUE["league_id"], week)
+
+    assert bundle["winners_bracket"] == WINNERS_BRACKET
+    assert bundle["losers_bracket"] == LOSERS_BRACKET
+    assert bundle["winners_bracket"] and bundle["losers_bracket"]
+
+    # exactly: league + rosters + `week` matchup calls + 1 transactions call
+    # + winners_bracket + losers_bracket
+    assert len(requests) == 2 + week + 1 + 2
+
+
+@pytest.mark.parametrize(
+    "malformed_league",
+    [
+        pytest.param({"league_id": "id_missing_settings"}, id="missing_settings"),
+        pytest.param({"league_id": "id_missing_pws", "settings": {}}, id="missing_playoff_week_start"),
+        pytest.param(
+            {"league_id": "id_bool_pws", "settings": {"playoff_week_start": True}},
+            id="bool_playoff_week_start",
+        ),
+    ],
+)
+def test_fetch_week_malformed_playoff_week_start_shape_degrades_to_non_playoff(
+    malformed_league: dict[str, Any],
+) -> None:
+    """``_in_playoff_period`` must fail soft, not raise, on a league response
+    with no ``settings`` at all, a ``settings`` missing
+    ``playoff_week_start``, or a ``bool`` where an ``int`` week number is
+    expected (``bool`` is an ``int`` subclass in Python, so this needs its own
+    guard). Each degrades to non-playoff: empty brackets, no exception."""
+    transport = _week_transport(league=malformed_league)
+    adapter = _adapter_for(transport)
+
+    bundle = adapter.fetch_week(malformed_league["league_id"], 1)
+
+    assert bundle["winners_bracket"] == []
+    assert bundle["losers_bracket"] == []
+
+
+# Row: Eliminated roster (fixture already carries the drop -- confirms the
+# adapter passes it through unmodified, no raise).
+def test_fetch_week_eliminated_rosters_are_simply_absent_from_that_weeks_matchups() -> (
+    None
+):
+    adapter = _adapter_for(_week_transport())
+
+    bundle = adapter.fetch_week(LEAGUE["league_id"], 17)
+
+    present = {row["roster_id"] for row in bundle["matchups"]["17"]}
+    all_rosters = {str(r["roster_id"]) for r in ROSTERS}
+    assert all_rosters - present == {"3", "6", "7", "9"}
+
+
+# Row: Failed/non-final transaction
+def test_fetch_week_drops_non_complete_transactions() -> None:
+    week = 1
+    txn_path = f"/v1/league/{LEAGUE['league_id']}/transactions/{week}"
+    live_payload = [
+        {**TRANSACTIONS_BY_WEEK["1"][0], "status": "complete"},
+        {**TRANSACTIONS_BY_WEEK["1"][0], "transaction_id": "id_pending999", "status": "pending"},
+    ]
+    transport = _week_transport(
+        override={txn_path: lambda req: httpx.Response(200, json=live_payload)}
+    )
+    adapter = _adapter_for(transport)
+
+    bundle = adapter.fetch_week(LEAGUE["league_id"], week)
+
+    statuses = {txn["status"] for txn in bundle["transactions"][str(week)]}
+    assert statuses == {"complete"}
+    assert len(bundle["transactions"][str(week)]) == 1
+
+
+# Row: Regular-season week -- request/parse failure
+def test_fetch_week_platform_error_status_raises_adapter_error() -> None:
+    week = 3
+    matchup_path = f"/v1/league/{LEAGUE['league_id']}/matchups/{week}"
+    transport = _week_transport(
+        override={matchup_path: lambda req: httpx.Response(503, json={"error": "down"})}
+    )
+    adapter = _adapter_for(transport)
+
+    with pytest.raises(AdapterError) as exc_info:
+        adapter.fetch_week(LEAGUE["league_id"], week)
+    assert isinstance(exc_info.value.__cause__, httpx.HTTPStatusError)
+
+
+def test_fetch_week_non_int_week_raises_adapter_error_chained() -> None:
+    adapter = _adapter_for(_week_transport())
+
+    with pytest.raises(AdapterError) as exc_info:
+        adapter.fetch_week(LEAGUE["league_id"], "not-a-week")  # type: ignore[arg-type]
+    assert isinstance(exc_info.value.__cause__, ValueError)
+
+
+def test_fetch_week_transport_failure_raises_adapter_error() -> None:
+    txn_path = f"/v1/league/{LEAGUE['league_id']}/transactions/1"
+    transport = _week_transport(override={txn_path: _raise_connect_error})
+    adapter = _adapter_for(transport)
+
+    with pytest.raises(AdapterError) as exc_info:
+        adapter.fetch_week(LEAGUE["league_id"], 1)
+    assert isinstance(exc_info.value.__cause__, httpx.ConnectError)
+
+
+def test_fetch_week_carries_the_identifying_user_agent_on_every_request() -> None:
+    requests: list[httpx.Request] = []
+    transport = _week_transport(requests=requests)
+    adapter = _adapter_for(transport)
+
+    adapter.fetch_week(LEAGUE["league_id"], 17)
+
+    expected = f"CommishDesk/{__version__} (+https://github.com/Eric-Weng/CommishDesk)"
+    assert requests, "no requests captured"
+    assert all(r.headers.get("user-agent") == expected for r in requests)
+
+
+def test_fetch_week_makes_zero_real_network_calls(monkeypatch: pytest.MonkeyPatch) -> None:
+    def boom(*args: Any, **kwargs: Any) -> Any:  # pragma: no cover - must never run
+        raise AssertionError("real network access attempted")
+
+    monkeypatch.setattr(socket, "socket", boom)
+    monkeypatch.setattr(socket, "create_connection", boom)
+
+    adapter = _adapter_for(_week_transport())
+
+    bundle = adapter.fetch_week(LEAGUE["league_id"], 17)
+
+    assert bundle["winners_bracket"]
+
+
+def test_fetch_week_result_builds_a_week_model_through_the_ingest_seam() -> None:
+    """Drives a real ``fetch_week()`` result straight into ``build_week_model``
+    -- the same seam-soundness check ``fetch()`` gets against
+    ``build_league_model`` above."""
+    adapter = _adapter_for(_week_transport())
+
+    bundle = adapter.fetch_week(LEAGUE["league_id"], 17)
+    week_model = build_week_model(bundle)
+
+    assert week_model.week == 17
+    assert len(week_model.rosters) == len(ROSTERS)
+    assert any(m.week == 1 for m in week_model.matchups)
+    assert any(m.week == 17 for m in week_model.matchups)
+    assert all(txn.status == "complete" for txn in week_model.transactions)

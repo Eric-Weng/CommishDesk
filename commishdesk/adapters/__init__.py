@@ -12,3 +12,8 @@ __all__ = ["Adapter"]
 class Adapter(Protocol):
     # v0 — later epics extend this when the reference impl lands (Sleeper, Epic 2).
     def fetch(self, league_id: str) -> Mapping[str, Any]: ...
+
+    # Story 5.3a: one league-week's rosters, cumulative matchups (weeks 1..week),
+    # and week `week`'s settled transactions. Stays within the 2-member-per-zone
+    # cap (Voice excepted) — see docs/EXTENDING.md.
+    def fetch_week(self, league_id: str, week: int) -> Mapping[str, Any]: ...
