@@ -1,5 +1,8 @@
-"""Stage 2 — deterministic statistics (all-play, luck, coaching efficiency,
-power-model score, draft grades); no model, no clock, no network."""
+"""Stage 2 — deterministic statistics (all-play/luck, coaching efficiency,
+power-model score, draft grades); no model, no clock, no network.
+
+All-play, expected wins, luck, and blowouts are implemented in
+:mod:`commishdesk.stats.weekly` (Story 5.4)."""
 
 from __future__ import annotations
 
@@ -31,8 +34,23 @@ _GRADE_NAMES = frozenset(
         "compute_draft_grades",
     }
 )
+_WEEKLY_NAMES = frozenset(
+    {
+        "BLOWOUT_RATIO",
+        "MEANINGFUL_FROM_WEEK",
+        "AllPlayRecord",
+        "Period",
+        "TeamGame",
+        "TeamPoints",
+        "TeamWeekStats",
+        "WeekMargin",
+        "WeekSummary",
+        "WeeklyStats",
+        "compute_weekly_stats",
+    }
+)
 
-__all__ = sorted(_DRAFT_NAMES | _CONSENSUS_NAMES | _GRADE_NAMES)
+__all__ = sorted(_DRAFT_NAMES | _CONSENSUS_NAMES | _GRADE_NAMES | _WEEKLY_NAMES)
 
 if TYPE_CHECKING:
     # Explicit "as X" re-export idiom: these names are only for static type
@@ -54,6 +72,17 @@ if TYPE_CHECKING:
     from .grades import GradeMethod as GradeMethod
     from .grades import TeamGrade as TeamGrade
     from .grades import compute_draft_grades as compute_draft_grades
+    from .weekly import BLOWOUT_RATIO as BLOWOUT_RATIO
+    from .weekly import MEANINGFUL_FROM_WEEK as MEANINGFUL_FROM_WEEK
+    from .weekly import AllPlayRecord as AllPlayRecord
+    from .weekly import Period as Period
+    from .weekly import TeamGame as TeamGame
+    from .weekly import TeamPoints as TeamPoints
+    from .weekly import TeamWeekStats as TeamWeekStats
+    from .weekly import WeeklyStats as WeeklyStats
+    from .weekly import WeekMargin as WeekMargin
+    from .weekly import WeekSummary as WeekSummary
+    from .weekly import compute_weekly_stats as compute_weekly_stats
 
 
 def __getattr__(name: str) -> object:
@@ -69,6 +98,10 @@ def __getattr__(name: str) -> object:
         from . import grades
 
         return getattr(grades, name)
+    if name in _WEEKLY_NAMES:
+        from . import weekly
+
+        return getattr(weekly, name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
