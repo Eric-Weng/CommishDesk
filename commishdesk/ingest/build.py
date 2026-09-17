@@ -31,10 +31,17 @@ exists) from the original ``KeyError`` / ``TypeError`` / ``ValueError`` /
 
 Story 5.3a adds :func:`build_week_model`, mirroring this exact
 validation/error-wrap shape for a weekly ``Adapter.fetch_week`` bundle (keys
-``rosters`` / ``matchups`` / ``transactions``; ``league`` and the two bracket
-sections, if present, are ignored -- not needed to build a
-:class:`~commishdesk.ingest.model.WeekModel`). No ids/enums/numbers it carries
-need :func:`sanitize` -- see ``ingest/sanitize.py``'s module docstring.
+``rosters`` / ``matchups`` / ``transactions``). No ids/enums/numbers it
+carries need :func:`sanitize` -- see ``ingest/sanitize.py``'s module
+docstring.
+
+Story 5.4 extends :func:`build_week_model` to also read the bundle's
+``league`` and the two bracket sections -- ``league.settings.playoff_week_start``
+and ``winners_bracket``/``losers_bracket`` -- into :class:`WeekModel`'s three
+new fields, so playoff/consolation classification (``stats/weekly.py``) has
+the bracket shape it needs. All three are optional: a bundle missing
+``league`` (or one predating this story) simply yields
+``playoff_week_start=None`` and empty bracket lists, never a raise.
 
 Story 5.3b adds :func:`build_player_snapshot` -- a pure ``bundle ->
 {player_id: PlayerSnapshot}`` transform reading the weekly bundle's
@@ -56,6 +63,7 @@ from pydantic import ValidationError
 from commishdesk.errors import IngestError
 
 from .model import (
+    BracketMatch,
     Division,
     Draft,
     FaabTransfer,
@@ -150,12 +158,13 @@ def build_league_model(bundle: Mapping[str, Any]) -> LeagueModel:
 
 def build_week_model(bundle: Mapping[str, Any]) -> WeekModel:
     """Build a validated :class:`WeekModel` from a raw weekly ``Adapter``
-    bundle (``rosters`` / ``matchups`` / ``transactions`` -- ``league`` and
-    the two bracket sections, if present, are ignored). The target week is the
-    highest week key present in ``matchups`` (``fetch_week(league_id, n)``
-    always carries matchups for every week ``1..n``, so its max key is ``n``).
-    Raises :class:`~commishdesk.errors.IngestError` (chained where possible,
-    never a partial model) on any structural failure."""
+    bundle (``rosters`` / ``matchups`` / ``transactions``, plus the optional
+    ``league`` / ``winners_bracket`` / ``losers_bracket`` sections Story 5.4
+    reads for playoff classification). The target week is the highest week
+    key present in ``matchups`` (``fetch_week(league_id, n)`` always carries
+    matchups for every week ``1..n``, so its max key is ``n``). Raises
+    :class:`~commishdesk.errors.IngestError` (chained where possible, never a
+    partial model) on any structural failure."""
     if not isinstance(bundle, Mapping):
         raise IngestError("bundle is not a JSON object")
 
@@ -194,7 +203,20 @@ def build_week_model(bundle: Mapping[str, Any]) -> WeekModel:
             key=lambda txn: txn.transaction_id,
         )
 
-        return WeekModel(week=week, rosters=rosters, matchups=matchups, transactions=transactions)
+        league_settings = _mapping(_mapping(bundle.get("league")).get("settings"))
+        playoff_week_start = _as_int(league_settings.get("playoff_week_start"))
+        winners_bracket = _build_bracket(bundle.get("winners_bracket"))
+        losers_bracket = _build_bracket(bundle.get("losers_bracket"))
+
+        return WeekModel(
+            week=week,
+            rosters=rosters,
+            matchups=matchups,
+            transactions=transactions,
+            playoff_week_start=playoff_week_start,
+            winners_bracket=winners_bracket,
+            losers_bracket=losers_bracket,
+        )
     except _CAUGHT as exc:
         raise IngestError(f"could not build a week model from the bundle ({type(exc).__name__})") from exc
 
@@ -568,6 +590,30 @@ def _build_matchup(row: Mapping[str, Any], week: int, opponents: dict[Any, Any])
         bench=bench,
         players_points=players_points,
     )
+
+
+def _build_bracket(raw: Any) -> list[BracketMatch]:
+    """Build a :class:`BracketMatch` list from a raw ``winners_bracket`` /
+    ``losers_bracket`` section (each row shaped ``{"r": round, "t1": id,
+    "t2": id, ...}`` -- ``w``/``l``/``p``/``t*_from`` are Sleeper's own
+    progression bookkeeping, not needed for round-membership classification
+    and not carried). Absent, non-list, a row missing ``r``/``t1``/``t2``, or
+    a degenerate self-paired row (``t1 == t2``) is skipped -- a bye,
+    not-yet-decided slot, or malformed entry in an incomplete bracket --
+    never a raise."""
+    if not isinstance(raw, list):
+        return []
+    matches: list[BracketMatch] = []
+    for row in raw:
+        if not isinstance(row, Mapping):
+            continue
+        round_no = _as_int(row.get("r"))
+        t1 = row.get("t1")
+        t2 = row.get("t2")
+        if round_no is None or t1 is None or t2 is None or str(t1) == str(t2):
+            continue
+        matches.append(BracketMatch(round=round_no, roster_ids=[str(t1), str(t2)]))
+    return matches
 
 
 def _build_transaction(item: Mapping[str, Any]) -> Transaction:

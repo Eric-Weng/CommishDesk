@@ -1,0 +1,302 @@
+{
+  "period": {
+    "has_prior_week": true,
+    "type": "regular",
+    "week": 10
+  },
+  "summary": {
+    "avg_team_score": 159.24,
+    "biggest_blowout": {
+      "margin": 138.19,
+      "roster_ids": [
+        "1",
+        "5"
+      ]
+    },
+    "blowout_count": 3,
+    "blowout_threshold": 0.65,
+    "closest": {
+      "margin": 6.06,
+      "roster_ids": [
+        "12",
+        "7"
+      ]
+    },
+    "games": 6,
+    "high": {
+      "points": 247.2,
+      "roster_id": "3"
+    },
+    "low": {
+      "points": 91.77,
+      "roster_id": "5"
+    },
+    "total_points": 1910.9
+  },
+  "teams": [
+    {
+      "all_play": {
+        "losses": 22,
+        "pct": 0.8,
+        "ties": 0,
+        "wins": 88
+      },
+      "bracket": null,
+      "expected_wins": 8.0,
+      "losses": 4,
+      "luck": 2.0,
+      "roster_id": "1",
+      "this_week": {
+        "is_blowout": true,
+        "margin": 138.19,
+        "opponent_points": 91.77,
+        "opponent_roster_id": "5",
+        "points": 229.96
+      },
+      "ties": 0,
+      "wins": 10
+    },
+    {
+      "all_play": {
+        "losses": 22,
+        "pct": 0.798,
+        "ties": 1,
+        "wins": 87
+      },
+      "bracket": null,
+      "expected_wins": 8.0,
+      "losses": 1,
+      "luck": 5.0,
+      "roster_id": "2",
+      "this_week": {
+        "is_blowout": true,
+        "margin": 129.66,
+        "opponent_points": 112.37,
+        "opponent_roster_id": "10",
+        "points": 242.03
+      },
+      "ties": 0,
+      "wins": 13
+    },
+    {
+      "all_play": {
+        "losses": 49,
+        "pct": 0.555,
+        "ties": 0,
+        "wins": 61
+      },
+      "bracket": null,
+      "expected_wins": 5.5,
+      "losses": 5,
+      "luck": 3.5,
+      "roster_id": "3",
+      "this_week": {
+        "is_blowout": true,
+        "margin": 132.51,
+        "opponent_points": 114.69,
+        "opponent_roster_id": "6",
+        "points": 247.2
+      },
+      "ties": 0,
+      "wins": 9
+    },
+    {
+      "all_play": {
+        "losses": 58,
+        "pct": 0.473,
+        "ties": 0,
+        "wins": 52
+      },
+      "bracket": null,
+      "expected_wins": 4.7,
+      "losses": 7,
+      "luck": 2.3,
+      "roster_id": "4",
+      "this_week": {
+        "is_blowout": false,
+        "margin": 55.1,
+        "opponent_points": 117.13,
+        "opponent_roster_id": "9",
+        "points": 172.23
+      },
+      "ties": 0,
+      "wins": 7
+    },
+    {
+      "all_play": {
+        "losses": 68,
+        "pct": 0.382,
+        "ties": 0,
+        "wins": 42
+      },
+      "bracket": null,
+      "expected_wins": 3.8,
+      "losses": 5,
+      "luck": 5.2,
+      "roster_id": "5",
+      "this_week": {
+        "is_blowout": true,
+        "margin": -138.19,
+        "opponent_points": 229.96,
+        "opponent_roster_id": "1",
+        "points": 91.77
+      },
+      "ties": 0,
+      "wins": 9
+    },
+    {
+      "all_play": {
+        "losses": 56,
+        "pct": 0.491,
+        "ties": 0,
+        "wins": 54
+      },
+      "bracket": null,
+      "expected_wins": 4.9,
+      "losses": 9,
+      "luck": 0.1,
+      "roster_id": "6",
+      "this_week": {
+        "is_blowout": true,
+        "margin": -132.51,
+        "opponent_points": 247.2,
+        "opponent_roster_id": "3",
+        "points": 114.69
+      },
+      "ties": 0,
+      "wins": 5
+    },
+    {
+      "all_play": {
+        "losses": 84,
+        "pct": 0.236,
+        "ties": 0,
+        "wins": 26
+      },
+      "bracket": null,
+      "expected_wins": 2.4,
+      "losses": 9,
+      "luck": 2.6,
+      "roster_id": "7",
+      "this_week": {
+        "is_blowout": false,
+        "margin": -6.06,
+        "opponent_points": 126.03,
+        "opponent_roster_id": "12",
+        "points": 119.97
+      },
+      "ties": 0,
+      "wins": 5
+    },
+    {
+      "all_play": {
+        "losses": 55,
+        "pct": 0.5,
+        "ties": 0,
+        "wins": 55
+      },
+      "bracket": null,
+      "expected_wins": 5.0,
+      "losses": 9,
+      "luck": 0.0,
+      "roster_id": "8",
+      "this_week": {
+        "is_blowout": false,
+        "margin": 28.76,
+        "opponent_points": 154.38,
+        "opponent_roster_id": "11",
+        "points": 183.14
+      },
+      "ties": 0,
+      "wins": 5
+    },
+    {
+      "all_play": {
+        "losses": 24,
+        "pct": 0.782,
+        "ties": 0,
+        "wins": 86
+      },
+      "bracket": null,
+      "expected_wins": 7.8,
+      "losses": 7,
+      "luck": -0.8,
+      "roster_id": "9",
+      "this_week": {
+        "is_blowout": false,
+        "margin": -55.1,
+        "opponent_points": 172.23,
+        "opponent_roster_id": "4",
+        "points": 117.13
+      },
+      "ties": 0,
+      "wins": 7
+    },
+    {
+      "all_play": {
+        "losses": 63,
+        "pct": 0.427,
+        "ties": 0,
+        "wins": 47
+      },
+      "bracket": null,
+      "expected_wins": 4.3,
+      "losses": 10,
+      "luck": -0.3,
+      "roster_id": "10",
+      "this_week": {
+        "is_blowout": true,
+        "margin": -129.66,
+        "opponent_points": 242.03,
+        "opponent_roster_id": "2",
+        "points": 112.37
+      },
+      "ties": 0,
+      "wins": 4
+    },
+    {
+      "all_play": {
+        "losses": 76,
+        "pct": 0.303,
+        "ties": 1,
+        "wins": 33
+      },
+      "bracket": null,
+      "expected_wins": 3.0,
+      "losses": 10,
+      "luck": 1.0,
+      "roster_id": "11",
+      "this_week": {
+        "is_blowout": false,
+        "margin": -28.76,
+        "opponent_points": 183.14,
+        "opponent_roster_id": "8",
+        "points": 154.38
+      },
+      "ties": 0,
+      "wins": 4
+    },
+    {
+      "all_play": {
+        "losses": 82,
+        "pct": 0.255,
+        "ties": 0,
+        "wins": 28
+      },
+      "bracket": null,
+      "expected_wins": 2.5,
+      "losses": 8,
+      "luck": 3.5,
+      "roster_id": "12",
+      "this_week": {
+        "is_blowout": false,
+        "margin": 6.06,
+        "opponent_points": 119.97,
+        "opponent_roster_id": "7",
+        "points": 126.03
+      },
+      "ties": 0,
+      "wins": 6
+    }
+  ]
+}

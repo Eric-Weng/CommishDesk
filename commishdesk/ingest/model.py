@@ -35,6 +35,7 @@ from __future__ import annotations
 from pydantic import BaseModel, ConfigDict, Field
 
 __all__ = [
+    "BracketMatch",
     "Division",
     "Draft",
     "FaabTransfer",
@@ -237,21 +238,41 @@ class Transaction(_Frozen):
     waiver_bid: int | None = None
 
 
+class BracketMatch(_Frozen):
+    """One playoff-bracket pairing at a given round, ids only -- mirrors this
+    family's id-only convention (no ``w``/``l``/``p``/``t*_from`` fields; not
+    needed for the round-membership classification Story 5.4 uses this for).
+    ``roster_ids`` holds exactly the two participants of that round's match."""
+
+    round: int
+    roster_ids: list[str]
+
+
 class WeekModel(_Frozen):
     """The whole stage-1 weekly-ingest output for one league-week: every
     roster's season-cumulative state, one :class:`Matchup` per roster for
     every week ``1..week`` (Story 5.4's cumulative all-play record needs the
-    full history), and ``week``'s settled :class:`Transaction` log.
+    full history), ``week``'s settled :class:`Transaction` log, and (Story
+    5.4) the playoff shape needed to classify a roster's bracket: the
+    league's ``playoff_week_start`` and the ``winners``/``losers`` bracket
+    pairings. ``playoff_week_start`` is ``None`` and both bracket lists are
+    empty when the source bundle carries no ``league``/bracket data (e.g. a
+    hand-built bundle predating this story).
 
     ``rosters`` is ordered by ``roster_id``, ``matchups`` by ``(week,
     roster_id)``, and ``transactions`` by ``transaction_id`` -- so two builds
     of one bundle produce equal models regardless of the bundle's list
-    order."""
+    order. ``winners_bracket``/``losers_bracket`` are carried in the source
+    bundle's own order (no per-roster ambiguity to sort out -- classification
+    reads them by ``round`` + membership, not by position)."""
 
     week: int
     rosters: list[Roster]
     matchups: list[Matchup]
     transactions: list[Transaction]
+    playoff_week_start: int | None = None
+    winners_bracket: list[BracketMatch] = []
+    losers_bracket: list[BracketMatch] = []
 
 
 # --------------------------------------------------------------------------- #

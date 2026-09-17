@@ -24,6 +24,7 @@ import pytest
 
 from commishdesk.errors import CommishDeskError, IngestError
 from commishdesk.ingest import (
+    BracketMatch,
     FaabTransfer,
     Matchup,
     PlayerSnapshot,
@@ -44,10 +45,11 @@ FIXTURE_DIR = REPO_ROOT / "tests" / "fixtures"
 
 
 def _load_fixture(name: str) -> dict[str, Any]:
-    """The raw fixture bundle. ``build_week_model`` only reads ``rosters`` /
-    ``matchups`` / ``transactions`` -- every other key (``league``,
-    ``winners_bracket``, ...) is simply ignored, exactly like
-    ``build_league_model`` ignores an unknown bundle key."""
+    """The raw fixture bundle. ``build_week_model`` reads ``rosters`` /
+    ``matchups`` / ``transactions`` plus (Story 5.4) ``league`` (for
+    ``playoff_week_start``) and ``winners_bracket``/``losers_bracket``; every
+    other key is simply ignored, exactly like ``build_league_model`` ignores
+    an unknown bundle key."""
     return json.loads((FIXTURE_DIR / name).read_text(encoding="utf-8"))
 
 
@@ -159,15 +161,93 @@ def test_regular_season_week_matchups_cumulative_target_week_only_transactions()
 
 def test_playoff_week_week17_playoffs_fixture() -> None:
     """Row: Playoff week -- ``week17-playoffs.json`` (``target_week`` 17,
-    ``playoff_week_start`` 15). ``WeekModel`` itself carries no bracket data
-    (out of this story's scope); this asserts the matchup/roster/transaction
-    surface builds cleanly for the championship-round fixture."""
+    ``playoff_week_start`` 15). Asserts the matchup/roster/transaction
+    surface builds cleanly for the championship-round fixture, plus (Story
+    5.4) the playoff shape now carried on ``WeekModel``."""
     bundle = _load_fixture("week17-playoffs.json")
     model = build_week_model(bundle)
 
     assert model.week == 17
     assert {m.week for m in model.matchups} == set(range(1, 18))
     assert len(model.rosters) == 12
+    assert model.playoff_week_start == 15
+    assert model.winners_bracket
+    assert model.losers_bracket
+    assert all(isinstance(b, BracketMatch) for b in model.winners_bracket + model.losers_bracket)
+
+
+# --------------------------------------------------------------------------- #
+# Story 5.4: playoff_week_start + BracketMatch
+# --------------------------------------------------------------------------- #
+
+
+def test_playoff_week_start_and_brackets_absent_when_league_key_missing() -> None:
+    """A bundle predating this story (no ``league`` key at all, like
+    ``_synthetic_bundle``) never raises -- ``playoff_week_start`` is ``None``
+    and both bracket lists are empty."""
+    model = build_week_model(_synthetic_bundle())
+    assert model.playoff_week_start is None
+    assert model.winners_bracket == []
+    assert model.losers_bracket == []
+
+
+def test_playoff_week_start_read_from_league_settings_even_pre_playoff() -> None:
+    """``playoff_week_start`` is read from ``league.settings`` regardless of
+    whether the target week has reached the playoffs -- ``week10-blowout``'s
+    target week (10) is pre-playoff, but the league's declared start (15) is
+    still carried."""
+    model = build_week_model(_load_fixture("week10-blowout.json"))
+    assert model.playoff_week_start == 15
+    assert model.winners_bracket == []
+    assert model.losers_bracket == []
+
+
+def test_bracket_matches_carry_round_and_both_roster_ids() -> None:
+    """``week17-playoffs.json``'s round-3 winners bracket has the
+    championship (rosters 1 vs 2) and third-place game (rosters 4 vs 5); the
+    round-3 losers bracket has the two consolation placement games (rosters
+    11 vs 12, 8 vs 10) -- cross-checked against the fixture's own raw
+    ``winners_bracket``/``losers_bracket`` sections."""
+    model = build_week_model(_load_fixture("week17-playoffs.json"))
+
+    round3_winners = {frozenset(b.roster_ids) for b in model.winners_bracket if b.round == 3}
+    round3_losers = {frozenset(b.roster_ids) for b in model.losers_bracket if b.round == 3}
+    assert round3_winners == {frozenset({"1", "2"}), frozenset({"4", "5"})}
+    assert round3_losers == {frozenset({"11", "12"}), frozenset({"8", "10"})}
+
+
+def test_bracket_row_missing_t1_or_t2_is_skipped_never_raises() -> None:
+    bundle = _synthetic_bundle()
+    bundle["winners_bracket"] = [
+        {"r": 1, "t1": 1, "t2": 2},
+        {"r": 1, "t1": 3},  # missing t2 -- a bye or undecided slot, skipped
+        {"r": "bad", "t1": 4, "t2": 5},  # unparseable round, skipped
+        "not-an-object",  # skipped
+    ]
+    model = build_week_model(bundle)
+    assert model.winners_bracket == [BracketMatch(round=1, roster_ids=["1", "2"])]
+
+
+def test_bracket_row_with_t1_equal_t2_is_skipped_never_raises() -> None:
+    """A degenerate self-paired row (``t1 == t2``) is skipped -- it would
+    otherwise build a ``BracketMatch`` whose ``roster_ids`` names the same
+    roster twice. Covers both a same-type match (``1 == 1``) and a
+    cross-type one (``int`` ``1`` vs ``str`` ``"1"``, compared as strings)."""
+    bundle = _synthetic_bundle()
+    bundle["winners_bracket"] = [
+        {"r": 1, "t1": 1, "t2": 1},
+        {"r": 1, "t1": "2", "t2": 2},
+        {"r": 1, "t1": 3, "t2": 4},
+    ]
+    model = build_week_model(bundle)
+    assert model.winners_bracket == [BracketMatch(round=1, roster_ids=["3", "4"])]
+
+
+def test_bracket_section_non_list_is_ignored_never_raises() -> None:
+    bundle = _synthetic_bundle()
+    bundle["losers_bracket"] = {"not": "a list"}
+    model = build_week_model(bundle)
+    assert model.losers_bracket == []
 
 
 def test_eliminated_roster_has_no_matchup_row_that_week_but_builds_without_raising() -> None:

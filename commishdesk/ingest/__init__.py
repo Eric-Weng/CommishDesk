@@ -16,6 +16,7 @@ from __future__ import annotations
 from .build import build_league_model, build_player_snapshot, build_week_model, get_player_snapshot
 from .byes import bye_teams, load_byes
 from .model import (
+    BracketMatch,
     Division,
     Draft,
     FaabTransfer,
@@ -35,6 +36,7 @@ from .sanitize import MAX_NAME_LENGTH, sanitize
 
 __all__ = [
     "MAX_NAME_LENGTH",
+    "BracketMatch",
     "Division",
     "Draft",
     "FaabTransfer",
