@@ -4,7 +4,10 @@ power-model score, draft grades); no model, no clock, no network.
 All-play, expected wins, luck, and blowouts are implemented in
 :mod:`commishdesk.stats.weekly` (Story 5.4); the optimal-lineup solver and
 coaching efficiency it feeds are in :mod:`commishdesk.stats.lineup` (Story
-5.5)."""
+5.5); the matchup-derived standings, the derived playoff picture and the
+Sleeper cross-check are in :mod:`commishdesk.stats.standings`, and the model
+power rank and its per-week history in :mod:`commishdesk.stats.power` (Story
+5.6)."""
 
 from __future__ import annotations
 
@@ -46,6 +49,32 @@ _LINEUP_NAMES = frozenset(
         "compute_weekly_lineups",
     }
 )
+_STANDINGS_NAMES = frozenset(
+    {
+        "POINTS_FOR_ROUNDING_TOLERANCE",
+        "TIEBREAK",
+        "DivisionOrder",
+        "PlayoffPicture",
+        "Standings",
+        "Streak",
+        "TeamRecord",
+        "TeamStanding",
+        "WeekPoints",
+        "compute_standings",
+        "cross_check_standings",
+        "regular_season_records",
+    }
+)
+_POWER_NAMES = frozenset(
+    {
+        "POWER_NUDGE_CAP",
+        "POWER_WEIGHTS",
+        "PowerRanks",
+        "TeamPower",
+        "compute_power_history",
+        "compute_power_ranks",
+    }
+)
 _WEEKLY_NAMES = frozenset(
     {
         "BLOWOUT_RATIO",
@@ -62,7 +91,15 @@ _WEEKLY_NAMES = frozenset(
     }
 )
 
-__all__ = sorted(_DRAFT_NAMES | _CONSENSUS_NAMES | _GRADE_NAMES | _LINEUP_NAMES | _WEEKLY_NAMES)
+__all__ = sorted(
+    _CONSENSUS_NAMES
+    | _DRAFT_NAMES
+    | _GRADE_NAMES
+    | _LINEUP_NAMES
+    | _POWER_NAMES
+    | _STANDINGS_NAMES
+    | _WEEKLY_NAMES
+)
 
 if TYPE_CHECKING:
     # Explicit "as X" re-export idiom: these names are only for static type
@@ -90,6 +127,24 @@ if TYPE_CHECKING:
     from .lineup import TeamLineup as TeamLineup
     from .lineup import WeeklyLineups as WeeklyLineups
     from .lineup import compute_weekly_lineups as compute_weekly_lineups
+    from .power import POWER_NUDGE_CAP as POWER_NUDGE_CAP
+    from .power import POWER_WEIGHTS as POWER_WEIGHTS
+    from .power import PowerRanks as PowerRanks
+    from .power import TeamPower as TeamPower
+    from .power import compute_power_history as compute_power_history
+    from .power import compute_power_ranks as compute_power_ranks
+    from .standings import POINTS_FOR_ROUNDING_TOLERANCE as POINTS_FOR_ROUNDING_TOLERANCE
+    from .standings import TIEBREAK as TIEBREAK
+    from .standings import DivisionOrder as DivisionOrder
+    from .standings import PlayoffPicture as PlayoffPicture
+    from .standings import Standings as Standings
+    from .standings import Streak as Streak
+    from .standings import TeamRecord as TeamRecord
+    from .standings import TeamStanding as TeamStanding
+    from .standings import WeekPoints as WeekPoints
+    from .standings import compute_standings as compute_standings
+    from .standings import cross_check_standings as cross_check_standings
+    from .standings import regular_season_records as regular_season_records
     from .weekly import BLOWOUT_RATIO as BLOWOUT_RATIO
     from .weekly import MEANINGFUL_FROM_WEEK as MEANINGFUL_FROM_WEEK
     from .weekly import AllPlayRecord as AllPlayRecord
@@ -120,6 +175,14 @@ def __getattr__(name: str) -> object:
         from . import lineup
 
         return getattr(lineup, name)
+    if name in _STANDINGS_NAMES:
+        from . import standings
+
+        return getattr(standings, name)
+    if name in _POWER_NAMES:
+        from . import power
+
+        return getattr(power, name)
     if name in _WEEKLY_NAMES:
         from . import weekly
 

@@ -104,9 +104,27 @@ that explain how to regenerate or contribute the league that exposed it. A
 ``except (CommishDeskError, OSError)`` already isolates it -- one-line stderr,
 exit 1, and the next league in the run list still builds. The raising happens in
 ``commishdesk/stats/lineup.py``, not here.
+
+``CrossCheckError``: the stage-2 standings module
+(``commishdesk/stats/standings.py::cross_check_standings``) raises it when the
+standings it folded from ``WeekModel.matchups`` disagree with the season-cumulative
+totals Sleeper reports on ``Roster`` -- a win/loss/tie count that differs, or a
+points-for total outside the half-cent-per-folded-week rounding tolerance. This is
+the one place the engine's own numbers are checked against the platform's, so a
+divergence means the fixture is a different slice of the season (or the fold is
+wrong), not that the league is unusual: the message names every mismatched roster /
+field / computed value / Sleeper value in one line and points to
+``tools/anonymize.py`` and ``CONTRIBUTING.md``. ``mismatches`` carries the same
+data typed, as a tuple of :class:`CrossCheckMismatch` in ``(roster, field)``
+order. A ``CommishDeskError``, so the CLI's existing per-league
+``except (CommishDeskError, OSError)`` already isolates it (one-line stderr,
+exit 1, next league still builds). The raising happens in
+``commishdesk/stats/standings.py``, not here.
 """
 
 from __future__ import annotations
+
+from dataclasses import dataclass
 
 __all__ = [
     "AdapterError",
@@ -114,6 +132,8 @@ __all__ = [
     "ConsensusError",
     "ContentSafetyError",
     "CostCeilingExceededError",
+    "CrossCheckError",
+    "CrossCheckMismatch",
     "DeliveryError",
     "IngestError",
     "NarratorError",
@@ -152,6 +172,48 @@ class CostCeilingExceededError(CommishDeskError):
     """A pre-call cost estimate exceeded ``LLMConfig.cost_ceiling_usd``, or a
     model id has no ``narrate/pricing.py::MODEL_PRICES`` entry to price against.
     Raised before any paid call — fail closed, zero spend."""
+
+
+@dataclass(frozen=True, slots=True)
+class CrossCheckMismatch:
+    """One roster's computed season total disagreeing with Sleeper's own.
+
+    ``field`` is one of ``"wins"`` / ``"losses"`` / ``"ties"`` / ``"points_for"``;
+    ``computed`` is what the matchup fold in ``stats/standings.py`` produced and
+    ``sleeper`` is the value the fixture's ``Roster`` carries. ``computed`` and
+    ``sleeper`` are ``int`` for the three counting fields and ``float`` for
+    ``points_for``. Pure stdlib, so ``errors.py`` keeps its stdlib-only import
+    contract."""
+
+    roster_id: str
+    field: str
+    computed: int | float
+    sleeper: int | float
+
+
+class CrossCheckError(CommishDeskError):
+    """The computed standings disagree with Sleeper's own season totals.
+
+    Raised by ``commishdesk/stats/standings.py::cross_check_standings``. This is
+    the one place the engine checks its own numbers against the platform's, so a
+    divergence is a hold, never a wrong number shipped. ``mismatches`` is the
+    typed list, in ``(roster, field)`` order; the message names each one and
+    points to ``tools/anonymize.py`` and ``CONTRIBUTING.md``. Caught per league
+    like any other ``CommishDeskError`` (AD-9).
+    """
+
+    def __init__(self, mismatches: tuple[CrossCheckMismatch, ...]) -> None:
+        self.mismatches = mismatches
+        details = "; ".join(
+            f"roster {mismatch.roster_id} {mismatch.field}: "
+            f"computed {mismatch.computed}, Sleeper {mismatch.sleeper}"
+            for mismatch in mismatches
+        )
+        super().__init__(
+            f"computed standings disagree with Sleeper's season totals ({details}). "
+            "Regenerate the fixture's rosters with tools/anonymize.py, or see "
+            "CONTRIBUTING.md for how to contribute the league that exposed it."
+        )
 
 
 class DeliveryError(CommishDeskError):
