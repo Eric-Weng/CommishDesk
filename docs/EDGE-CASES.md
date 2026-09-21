@@ -41,6 +41,93 @@ with an `IR`/`Out`/`Questionable` tag. A player who was ruled out before kickoff
 never played is simply *not scored*, so he naturally contributes nothing — the solver
 fills the slot from whoever is left.
 
+The pool does drop `Roster.ir` occupants — **except the ones who actually started that
+week**. An IR slot is not startable, but the fixtures' IR list is *season-end* state, not
+week-N state (five week-10 rosters started a player who is on it), so a strict exclusion
+would remove a starter and report coaching efficiency above 100 %. `Roster.taxi`
+occupants are **not** dropped: a taxi player is startable in this league, so he is
+available.
+
+**Why this is accepted, not fixed.** Nothing in the Sleeper API (or this engine) tracks
+an NFL player's team *as of* an arbitrary past week — only draft-pick metadata (frozen at
+draft time) and the live `/players/nfl` table (today's snapshot) exist. Reconstructing a
+true historical team/position would need a third, dated data source this story does not
+have. The bug this story *does* fix — a past week silently changing on every
+regeneration — is still fixed: once the first snapshot is taken (even a backfilled one),
+it is frozen from then on.
+
+**Where this shows up.** A backfilled week's box score or recap may cite a player's
+*current* team instead of the team they played for that week. This is most visible for a
+player traded mid-season into a league that backfills its early weeks afterward.
+
+## Availability is "whoever Sleeper scored", whatever the injury tag says (Story 5.5)
+
+**What happens.** `stats/lineup.py::compute_weekly_lineups` builds each roster's optimal
+pool from the players Sleeper published a week score for. An injury designation never
+removes a player: if Sleeper scored him on that roster that week, he is placeable, even
+with an `IR`/`Out`/`Questionable` tag. A player who was ruled out before kickoff and
+never played is simply *not scored*, so he naturally contributes nothing — the solver
+fills the slot from whoever is left.
+
+The pool does drop `Roster.ir` / `Roster.taxi` occupants — **except the ones who
+actually started that week**. That carve-out is deliberate: the fixtures' IR/taxi lists
+are *season-end* state, not week-N state, so a strict exclusion would remove a starter
+who happens to sit on the season-end IR list and report coaching efficiency above 100 %.
+
+**Why this is accepted, not fixed.** Sleeper's own weekly points are the league's ground
+truth (PRD §17 Q6); re-deriving availability from depth charts, injury reports, or
+kickoff times would need dated data sources this engine does not have.
+
+**Divergence from the phase-0 golden.** Excluding IR and taxi together (the first cut of
+this story) reconciled only six of twelve rosters; excluding IR only reconciles eleven.
+The one that remains is roster 4: the private `brief/phase-0/week10-facts.json` golden
+counted a non-starting player who is on the season-end IR list, so its `optimal` (181.22)
+is higher than this module's (178.37). Per the project's golden-file rule, that divergence
+is recorded here rather than bent to match: `tests/test_stats_lineup.py` reconciles the
+other eleven exactly and asserts roster 4 is at or below its golden value on `optimal`,
+`points_left_on_bench`, and `bench_regret`.
+
+**Where this shows up.** A backfilled week's box score or recap may cite a player's
+*current* team instead of the team they played for that week. This is most visible for a
+player traded mid-season into a league that backfills its early weeks afterward.
+
+## Availability is "whoever Sleeper scored", whatever the injury tag says (Story 5.5)
+
+**What happens.** `stats/lineup.py::compute_weekly_lineups` builds each roster's optimal
+pool from the players Sleeper published a week score for. An injury designation never
+removes a player: if Sleeper scored him on that roster that week, he is placeable, even
+with an `IR`/`Out`/`Questionable` tag. A player who was ruled out before kickoff and
+never played is simply *not scored*, so he naturally contributes nothing — the solver
+fills the slot from whoever is left.
+
+The pool does drop `Roster.ir` occupants — **except the ones who actually started that
+week**. An IR slot is not startable, but the fixtures' IR list is *season-end* state, not
+week-N state (five week-10 rosters started a player who is on it), so a strict exclusion
+would remove a starter and report coaching efficiency above 100 %. `Roster.taxi`
+occupants are **not** dropped: a taxi player is startable in this league, so he is
+available.
+
+**Why this is accepted, not fixed.** Nothing in the Sleeper API (or this engine) tracks
+an NFL player's team *as of* an arbitrary past week — only draft-pick metadata (frozen at
+draft time) and the live `/players/nfl` table (today's snapshot) exist. Reconstructing a
+true historical team/position would need a third, dated data source this story does not
+have. The bug this story *does* fix — a past week silently changing on every
+regeneration — is still fixed: once the first snapshot is taken (even a backfilled one),
+it is frozen from then on.
+
+**Where this shows up.** A backfilled week's box score or recap may cite a player's
+*current* team instead of the team they played for that week. This is most visible for a
+player traded mid-season into a league that backfills its early weeks afterward.
+
+## Availability is "whoever Sleeper scored", whatever the injury tag says (Story 5.5)
+
+**What happens.** `stats/lineup.py::compute_weekly_lineups` builds each roster's optimal
+pool from the players Sleeper published a week score for. An injury designation never
+removes a player: if Sleeper scored him on that roster that week, he is placeable, even
+with an `IR`/`Out`/`Questionable` tag. A player who was ruled out before kickoff and
+never played is simply *not scored*, so he naturally contributes nothing — the solver
+fills the slot from whoever is left.
+
 The pool does drop `Roster.ir` / `Roster.taxi` occupants — **except the ones who
 actually started that week**. That carve-out is deliberate: the fixtures' IR/taxi lists
 are *season-end* state, not week-N state, so a strict exclusion would remove a starter
@@ -60,8 +147,9 @@ six perturbed rosters are at or below their golden value on `optimal`,
 `points_left_on_bench`, and `bench_regret`.
 
 **Where this shows up.** A week-10 (or later) recap built from a season-end backfill can
-show a slightly lower `optimal` and `points_left_on_bench` for a roster whose IR/taxi
-stash scored but never started.
+show a slightly lower `optimal` and `points_left_on_bench` for a roster whose IR stash
+scored but never started. A live Wednesday run reads current IR state, so this is mainly
+a backfill and fixture limitation; Sleeper has no historical per-week IR view.
 
 ## A player added after his game kicked off can still be scored for it (Story 5.5)
 

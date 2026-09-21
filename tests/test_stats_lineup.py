@@ -13,13 +13,13 @@ and every ``points_left_on_bench`` non-negative. The **phase-0 golden**
 (``brief/phase-0/week10-facts.json``) is a private planning artifact that is not
 committed to this repo (CLAUDE.md s1), so the ``@requires_golden`` checks below
 only run in a workspace that has the sibling ``../brief/`` directory. They
-reconcile the six rosters the DECIDED pool rule does not perturb against the
-golden exactly, and for the six it does perturb (2, 3, 4, 6, 7, 9 -- each
-carried a non-starting IR/taxi scorer the golden counted and this module does
-not) they assert the divergence direction the story's Boundaries require to be
-recorded rather than bent to match: this module's ``optimal``,
-``points_left_on_bench`` and ``bench_regret`` are each at or below the golden's,
-and this module's ``pct`` never exceeds ``1.0``. The golden's bye-week data
+reconcile eleven of the twelve rosters against the golden exactly, and for the
+one the DECIDED pool rule perturbs (roster 4 -- a non-starting player who was on
+IR by season end, which the golden counted and this module does not) they assert
+the divergence direction the story's Boundaries require to be recorded rather
+than bent to match: this module's ``optimal``, ``points_left_on_bench`` and
+``bench_regret`` are each at or below the golden's, and its ``pct`` never
+exceeds ``1.0``. The golden's bye-week data
 likewise comes from the private tree; the committed ``ingest/nfl_byes.toml`` has
 no 2025 season, so every bye-driven assertion is skip-gated too.
 """
@@ -79,11 +79,11 @@ requires_golden = pytest.mark.skipif(
     reason="phase-0 golden is a private planning artifact, not in the tree",
 )
 
-# The rosters whose optimal pool the DECIDED IR/taxi rule narrows: each carried
-# at least one non-starting IR/taxi scorer in week 10, so the golden's optimal
-# (which counted him) is at or above this module's.
-_PERTURBED_ROSTERS = frozenset({"2", "3", "4", "6", "7", "9"})
-_UNPERTURBED_ROSTERS = frozenset({"1", "5", "8", "10", "11", "12"})
+# The rosters whose optimal pool the DECIDED IR rule narrows: roster 4 carried a
+# non-starting scorer who is on the season-end IR list, so the golden's optimal
+# (which counted him) is above this module's. Taxi players are not excluded.
+_PERTURBED_ROSTERS = frozenset({"4"})
+_UNPERTURBED_ROSTERS = frozenset({"1", "2", "3", "5", "6", "7", "8", "9", "10", "11", "12"})
 
 WEEK10 = "week10-blowout.json"
 
@@ -485,23 +485,39 @@ def test_equal_scores_resolve_to_the_lower_player_id_regardless_of_input_order()
 
 
 # --------------------------------------------------------------------------- #
-# Row: the DECIDED IR/taxi pool rule
+# Row: the DECIDED IR pool rule (taxi is startable, so taxi players count)
 # --------------------------------------------------------------------------- #
 
 
-def test_non_starting_ir_and_taxi_players_are_not_placeable() -> None:
+def test_non_starting_ir_players_are_not_placeable() -> None:
     league = _league_model(["QB", "RB"])
     week = _week_model(
         2,
-        [_roster("1", ir=["p9"], taxi=["p8"])],
-        [_matchup(2, "1", {"p1": 10.0, "p2": 5.0}, {"p3": 20.0, "p8": 40.0, "p9": 50.0})],
+        [_roster("1", ir=["p9"])],
+        [_matchup(2, "1", {"p1": 10.0, "p2": 5.0}, {"p3": 20.0, "p9": 50.0})],
     )
-    snapshots = _snapshots({"p1": "QB", "p2": "RB", "p3": "RB", "p8": "RB", "p9": "RB"})
+    snapshots = _snapshots({"p1": "QB", "p2": "RB", "p3": "RB", "p9": "RB"})
     result = compute_weekly_lineups(week, league, snapshots)
 
     team = _team(result, "1")
     assert team.optimal == 30.0  # p3, not the 50.0 sitting on IR
     assert team.best_benched == BenchedPlayer(player_id="p3", points=20.0)
+
+
+def test_non_starting_taxi_players_are_placeable() -> None:
+    """A taxi player is startable in this league, so he counts as available --
+    unlike an IR player."""
+    league = _league_model(["QB", "RB"])
+    week = _week_model(
+        2,
+        [_roster("1", taxi=["p8"])],
+        [_matchup(2, "1", {"p1": 10.0, "p2": 5.0}, {"p3": 20.0, "p8": 40.0})],
+    )
+    snapshots = _snapshots({"p1": "QB", "p2": "RB", "p3": "RB", "p8": "RB"})
+    team = _team(compute_weekly_lineups(week, league, snapshots), "1")
+
+    assert team.optimal == 50.0  # p1 + the 40.0 taxi RB
+    assert team.best_benched == BenchedPlayer(player_id="p8", points=40.0)
 
 
 def test_an_ir_player_who_actually_started_is_still_placeable() -> None:
@@ -622,20 +638,20 @@ def test_committed_superflex_fixture_solves_every_slot() -> None:
 
 
 # roster_id -> (actual, optimal, pct, points_left_on_bench, bench_regret) for the
-# committed week-10 bundle under the DECIDED pool rule. Rosters 1, 5, 8, 10, 11, 12
-# equal the phase-0 golden; 2, 3, 4, 6, 7, 9 sit below it (a non-starting IR/taxi
-# scorer excluded). Always-on: a solver, eligibility or pool regression on real
-# slot/position names cannot hide behind the ``optimal >= actual`` floor.
+# committed week-10 bundle under the DECIDED pool rule. Every roster but 4 equals
+# the phase-0 golden; 4 sits below it (a non-starting IR scorer excluded).
+# Always-on: a solver, eligibility or pool regression on real slot/position
+# names cannot hide behind the ``optimal >= actual`` floor.
 _WEEK10_PINNED = {
     "1": (229.96, 244.97, 0.939, 15.01, 26.74),
-    "2": (242.03, 242.6, 0.998, 0.57, 18.39),
-    "3": (247.2, 269.43, 0.917, 22.23, 22.31),
+    "2": (242.03, 243.98, 0.992, 1.95, 18.39),
+    "3": (247.2, 280.24, 0.882, 33.04, 22.31),
     "4": (172.23, 178.37, 0.966, 6.14, 15.63),
     "5": (91.77, 135.49, 0.677, 43.72, 18.33),
-    "6": (114.69, 125.13, 0.917, 10.44, 5.88),
-    "7": (119.97, 176.09, 0.681, 56.12, 23.45),
+    "6": (114.69, 126.9, 0.904, 12.21, 5.88),
+    "7": (119.97, 228.83, 0.524, 108.86, 51.66),
     "8": (183.14, 209.73, 0.873, 26.59, 33.25),
-    "9": (117.13, 157.07, 0.746, 39.94, 18.15),
+    "9": (117.13, 173.67, 0.674, 56.54, 23.58),
     "10": (112.37, 116.13, 0.968, 3.76, 3.76),
     "11": (154.38, 168.6, 0.916, 14.22, 12.74),
     "12": (126.03, 136.46, 0.924, 10.43, 13.38),
@@ -706,7 +722,7 @@ def test_week10_blowout_lineups_reconcile_with_the_phase0_golden() -> None:
         assert team.optimal >= team.actual
         assert team.pct is not None
         assert team.pct <= 1.0
-        # This module's pool is the golden's minus the non-starting IR/taxi
+        # This module's pool is the golden's minus the non-starting IR
         # scorers, so optimal, bench gap and bench regret can only be at or
         # below the golden's -- never above (the golden-file rule: the divergence
         # is recorded in docs/EDGE-CASES.md, not bent to match).

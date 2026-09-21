@@ -20,15 +20,17 @@ negative score), so a slot is only ever left empty when nothing eligible is
 left. The solve is a module-private Kuhn-Munkres (Jonker-Volgenant short form),
 integers only -- pure Python, no new dependency, no network, no clock.
 
-**Candidate pool (DECIDED).** ``Roster.ir``/``taxi`` players are excluded from
-the placeable pool *except the ones who actually started that week*: the
-fixtures' IR/taxi lists are season-end state, not week-N state, so a strict
-exclusion can push coaching efficiency above 100% on the committed week-10
-fixture (roster 4). Divergence from the phase-0 golden's ``optimal`` for the
-rosters that carried a non-starting IR/taxi scorer (2, 3, 4, 6, 7, 9) is
-recorded per the golden-file rule in ``docs/EDGE-CASES.md``, never bent to
-match. Availability itself is "whatever Sleeper scored" (PRD section 17 Q6):
-an injury tag never removes a player who was scored.
+**Candidate pool (DECIDED, amended).** ``Roster.ir`` players are excluded from
+the placeable pool *except the ones who actually started that week*: an IR slot
+is not startable, but the fixtures' IR list is season-end state, not week-N
+state, so a strict exclusion can push coaching efficiency above 100% on the
+committed week-10 fixture (roster 4). ``Roster.taxi`` players are **not**
+excluded -- in this league a taxi player is startable, so he is available. The
+one remaining divergence from the phase-0 golden's ``optimal`` (roster 4, a
+non-starting player who was on IR by season end) is recorded per the golden-file
+rule in ``docs/EDGE-CASES.md``, never bent to match. Availability itself is
+"whatever Sleeper scored" (PRD section 17 Q6): an injury tag never removes a
+player who was scored.
 
 A player with no known position (absent from *players*, or carrying a ``None``
 position) cannot be placed anywhere. To make sure that data gap can never read
@@ -52,7 +54,7 @@ byes" and "unknown byes" are different facts.
 
 Scope is the target week only. A roster gets a row only if it has a
 :class:`~commishdesk.ingest.Matchup` that week (a roster absent from
-``WeekModel.rosters`` still gets one -- it just has no IR/taxi list); season-cumulative coaching
+``WeekModel.rosters`` still gets one -- it just has no IR list); season-cumulative coaching
 efficiency is a later fold over per-week results. Rows are ordered by
 ``roster_id`` (numeric where parseable, matching
 :class:`~commishdesk.ingest.WeekModel`'s own convention).
@@ -351,15 +353,15 @@ def _candidates(
     placed this week, ordered by ``(-points, player_id)``.
 
     The pool is the whole week roster (``starters`` + ``bench`` +
-    ``players_points``). ``Roster.ir`` / ``Roster.taxi`` occupants are dropped
-    *unless they started* -- see the module docstring's DECIDED note. A player
+    ``players_points``). ``Roster.ir`` occupants are dropped *unless they
+    started*; taxi occupants are kept -- see the module docstring's DECIDED note. A player
     with no known position, or one whom no slot in this league accepts (a ``K``
     in a league with no ``K`` slot), is dropped too: he cannot be put in a slot,
     so he can neither be placed nor be named the best benched player."""
     starters = set(matchup.starters)
     excluded: set[str] = set()
     if roster is not None:
-        excluded = set(roster.ir) | set(roster.taxi)
+        excluded = set(roster.ir)
 
     roster_ids: list[str] = []
     for player_id in (*matchup.starters, *matchup.bench, *matchup.players_points):
@@ -480,7 +482,7 @@ def compute_weekly_lineups(
 
     # Driven by the target week's matchups, not by ``week.rosters``: an orphan
     # roster that played (absent from the roster list) still gets a row, it just
-    # carries no IR/taxi information to exclude by.
+    # carries no IR information to exclude by.
     rosters = {roster.roster_id: roster for roster in week.rosters}
     teams: list[TeamLineup] = []
     for roster_id in sorted(target_rows, key=_sort_key):
