@@ -474,6 +474,95 @@ def test_week_model_exposes_the_expected_shape() -> None:
 
 
 # --------------------------------------------------------------------------- #
+# Story 5.7: next_matchups and past_transactions
+# --------------------------------------------------------------------------- #
+
+
+def test_a_bundle_without_the_story_5_7_sections_builds_with_both_fields_empty() -> None:
+    bundle = _synthetic_bundle()
+    assert "next_matchups" not in bundle
+
+    model = build_week_model(bundle)
+
+    assert model.next_matchups == []
+    # the synthetic bundle carries week 1's transactions: week 1 < target week 2
+    assert set(model.past_transactions) == {1}
+
+
+def test_next_matchups_are_pairing_only_rows_for_the_week_after_the_target() -> None:
+    bundle = _synthetic_bundle()
+    bundle["next_matchups"] = [
+        {"roster_id": 2, "matchup_id": 7},
+        {"roster_id": 1, "matchup_id": 7},
+        {"roster_id": 3, "matchup_id": 8},  # lone row: a bye
+        {"roster_id": 4, "matchup_id": None},
+        "not-a-row",
+        {"matchup_id": 9},  # no roster_id
+    ]
+
+    model = build_week_model(bundle)
+
+    assert [(m.roster_id, m.opponent_roster_id, m.matchup_id) for m in model.next_matchups] == [
+        ("1", "2", 7),
+        ("2", "1", 7),
+        ("3", None, 8),
+        ("4", None, None),
+    ]
+    assert {m.week for m in model.next_matchups} == {model.week + 1}
+    assert all(m.points == 0.0 and m.starters == [] and m.players_points == {} for m in model.next_matchups)
+
+
+def test_a_non_list_next_matchups_section_is_ignored() -> None:
+    bundle = _synthetic_bundle()
+    bundle["next_matchups"] = {"1": []}
+    assert build_week_model(bundle).next_matchups == []
+
+
+def test_past_transactions_hold_only_settled_earlier_weeks_keyed_by_week() -> None:
+    bundle = _synthetic_bundle()
+    week = build_week_model(bundle).week
+    settled = {
+        "transaction_id": "txn_prior",
+        "type": "waiver",
+        "status": "complete",
+        "roster_ids": [1],
+        "adds": {"111": 1},
+        "drops": {},
+    }
+    failed = {**settled, "transaction_id": "txn_failed", "status": "failed"}
+    bundle["transactions"]["1"] = [failed, settled]
+
+    model = build_week_model(bundle)
+
+    assert [t.transaction_id for t in model.past_transactions[1]] == ["txn_prior"]
+    assert all(wk < week for wk in model.past_transactions)
+    # the target week's own moves stay on ``transactions``, not the history
+    assert week not in model.past_transactions
+    assert "txn_ok" in {t.transaction_id for t in model.transactions}
+
+
+def test_a_week_with_nothing_settled_still_gets_a_history_key() -> None:
+    bundle = _synthetic_bundle()
+    bundle["transactions"]["1"] = []
+    assert build_week_model(bundle).past_transactions == {1: []}
+
+
+def test_a_null_earlier_week_body_becomes_an_empty_history_week() -> None:
+    bundle = _synthetic_bundle()
+    bundle["transactions"]["1"] = None
+    assert build_week_model(bundle).past_transactions == {1: []}
+
+
+def test_a_committed_fixture_builds_the_full_history_and_the_next_weeks_pairings() -> None:
+    model = build_week_model(_load_fixture("week10-blowout.json"))
+
+    assert set(model.past_transactions) == set(range(1, 10))
+    assert len(model.next_matchups) == 12
+    assert {m.week for m in model.next_matchups} == {11}
+    assert all(m.opponent_roster_id is not None for m in model.next_matchups)
+
+
+# --------------------------------------------------------------------------- #
 # Story 5.3b: build_player_snapshot
 # --------------------------------------------------------------------------- #
 

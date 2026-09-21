@@ -59,6 +59,7 @@ _WEEK_BUNDLE_KEYS = {
     "league",
     "rosters",
     "matchups",
+    "next_matchups",
     "transactions",
     "winners_bracket",
     "losers_bracket",
@@ -855,7 +856,9 @@ def test_fetch_week_regular_season_matchups_cumulative_transactions_single_week_
 
     assert set(bundle) == _WEEK_BUNDLE_KEYS
     assert set(bundle["matchups"]) == {str(w) for w in range(1, week + 1)}
-    assert set(bundle["transactions"]) == {str(week)}
+    assert set(bundle["transactions"]) == {str(w) for w in range(1, week + 1)}
+    assert bundle["next_matchups"]
+    assert all(set(row) == {"roster_id", "matchup_id"} for row in bundle["next_matchups"])
     assert bundle["winners_bracket"] == []
     assert bundle["losers_bracket"] == []
     assert bundle["rosters"], "fixture has no rosters"
@@ -868,9 +871,9 @@ def test_fetch_week_regular_season_matchups_cumulative_transactions_single_week_
     assert UNREFERENCED_PLAYER_ID not in bundle["players"]
     assert set(bundle["players"]) <= set(PLAYERS)
 
-    # exactly: league + rosters + `week` matchup calls + 1 transactions call
-    # + 1 players call
-    assert len(requests) == 2 + week + 1 + 1
+    # exactly: league + rosters + `week` matchup calls + `week` transactions
+    # calls + 1 next-week pairings call + 1 players call
+    assert len(requests) == 2 + week + week + 1 + 1
 
 
 # Row: Playoff week
@@ -887,9 +890,92 @@ def test_fetch_week_playoff_week_populates_both_brackets() -> None:
     assert bundle["losers_bracket"] == LOSERS_BRACKET
     assert bundle["winners_bracket"] and bundle["losers_bracket"]
 
-    # exactly: league + rosters + `week` matchup calls + 1 transactions call
-    # + winners_bracket + losers_bracket + 1 players call
-    assert len(requests) == 2 + week + 1 + 2 + 1
+    assert bundle["next_matchups"] == []
+
+    # exactly: league + rosters + `week` matchup calls + `week` transactions
+    # calls + winners_bracket + losers_bracket + 1 players call (no next-week
+    # pairings call: week + 1 is not regular season)
+    assert len(requests) == 2 + week + week + 2 + 1
+
+
+# Row: Story 5.7 -- the next-week pairings cutoff
+def test_fetch_week_final_regular_week_skips_the_next_week_request() -> None:
+    week = PLAYOFF_WEEK_START - 1  # week + 1 == playoff_week_start: not regular season
+    requests: list[httpx.Request] = []
+    adapter = _adapter_for(_week_transport(requests=requests))
+
+    bundle = adapter.fetch_week(LEAGUE["league_id"], week)
+
+    assert bundle["next_matchups"] == []
+    league_id = LEAGUE["league_id"]
+    assert not any(
+        request.url.path == f"/v1/league/{league_id}/matchups/{week + 1}" for request in requests
+    )
+
+
+def test_fetch_week_last_pre_cutoff_week_requests_the_next_week() -> None:
+    week = PLAYOFF_WEEK_START - 2  # week + 1 == playoff_week_start - 1: still regular season
+    requests: list[httpx.Request] = []
+    adapter = _adapter_for(_week_transport(requests=requests))
+
+    bundle = adapter.fetch_week(LEAGUE["league_id"], week)
+
+    assert bundle["next_matchups"]
+    assert all(set(row) == {"roster_id", "matchup_id"} for row in bundle["next_matchups"])
+    league_id = LEAGUE["league_id"]
+    assert (
+        sum(request.url.path == f"/v1/league/{league_id}/matchups/{week + 1}" for request in requests)
+        == 1
+    )
+
+
+def test_fetch_week_league_without_a_playoff_week_start_has_no_next_matchups() -> None:
+    league = {**LEAGUE, "settings": {k: v for k, v in LEAGUE["settings"].items() if k != "playoff_week_start"}}
+    requests: list[httpx.Request] = []
+    adapter = _adapter_for(_week_transport(league=league, requests=requests))
+
+    bundle = adapter.fetch_week(LEAGUE["league_id"], 10)
+
+    assert bundle["next_matchups"] == []
+    league_id = LEAGUE["league_id"]
+    assert not any(request.url.path == f"/v1/league/{league_id}/matchups/11" for request in requests)
+
+
+# Row: Story 5.7 -- a malformed next-week response degrades, it never leaks or raises
+@pytest.mark.parametrize(
+    "body, expected",
+    [
+        pytest.param(None, [], id="null_body"),
+        pytest.param({"not": "a list"}, [], id="object_body"),
+        pytest.param(
+            [
+                {"roster_id": 1, "matchup_id": 4, "points": 88.8, "starters": ["p1"]},
+                "not-a-row",
+                None,
+                {"roster_id": 2, "matchup_id": 4, "players_points": {"p1": 1.0}},
+            ],
+            [{"roster_id": "1", "matchup_id": 4}, {"roster_id": "2", "matchup_id": 4}],
+            id="non_object_rows_skipped_and_fields_projected",
+        ),
+    ],
+)
+def test_fetch_week_next_week_response_is_projected_and_never_leaks_a_score(
+    body: Any, expected: list[dict[str, Any]]
+) -> None:
+    week = 10
+    league_id = LEAGUE["league_id"]
+    override = {
+        # ``json=None`` would send an empty body; a literal ``null`` is what a
+        # platform "no data" answer looks like.
+        f"/v1/league/{league_id}/matchups/{week + 1}": lambda request: httpx.Response(
+            200, content=json.dumps(body).encode(), headers={"content-type": "application/json"}
+        )
+    }
+    adapter = _adapter_for(_week_transport(override=override))
+
+    bundle = adapter.fetch_week(league_id, week)
+
+    assert bundle["next_matchups"] == expected
 
 
 # Row: Story 5.3b -- the "players" bundle key
@@ -987,6 +1073,7 @@ def test_fetch_week_malformed_playoff_week_start_shape_degrades_to_non_playoff(
 
     assert bundle["winners_bracket"] == []
     assert bundle["losers_bracket"] == []
+    assert bundle["next_matchups"] == []
 
 
 # Row: Eliminated roster (fixture already carries the drop -- confirms the

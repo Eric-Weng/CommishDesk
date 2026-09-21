@@ -12,6 +12,9 @@ script:
 * drop non-settled transactions (``status != "complete"``);
 * for the synthetic superflex case, change the second ``QB`` roster slot to
   ``SUPER_FLEX`` (a roster-slot property; scoring is untouched);
+* for a case whose ``target_week + 1`` is still regular season, add
+  ``next_matchups`` -- that next week's pairings only (``roster_id`` and
+  ``matchup_id``), never scores or lineups (Story 5.7);
 * for a case whose ``target_week`` falls in the playoff period
   (``league.settings.playoff_week_start``), populate ``winners_bracket`` /
   ``losers_bracket`` from the raw export, and drop any curated set of roster
@@ -339,6 +342,21 @@ def assemble(raw_dir: str | Path, case_name: str) -> dict[str, Any]:
         winners_bracket = []
         losers_bracket = []
 
+    # Week ``target_week + 1``'s *pairings* (roster_id + matchup_id only -- never a
+    # score, lineup or player list, so no future outcome leaks), and only while
+    # that week is still regular season. Everything else gets an empty list.
+    next_matchups: list[dict[str, Any]] = []
+    if (
+        case.target_week is not None
+        and isinstance(playoff_week_start, int)
+        and case.target_week + 1 < playoff_week_start
+    ):
+        for row in raw["matchups"].get(str(case.target_week + 1)) or []:
+            if isinstance(row, dict):
+                next_matchups.append(
+                    {"roster_id": row.get("roster_id"), "matchup_id": row.get("matchup_id")}
+                )
+
     if case.drop_rosters_at_target and case.target_week is not None:
         tw = str(case.target_week)
         if tw in matchups:
@@ -388,6 +406,7 @@ def assemble(raw_dir: str | Path, case_name: str) -> dict[str, Any]:
         "users": raw["users"],
         "rosters": raw["rosters"],
         "matchups": matchups,
+        "next_matchups": next_matchups,
         "transactions": transactions,
         "draft": raw["draft"],
         "draft_picks": raw["draft_picks"],
