@@ -237,9 +237,11 @@ def _min_cost_assignment(cost: list[list[int]]) -> list[int]:
     its columns. Returns ``assignment[row] = column``.
 
     Kuhn-Munkres (the Jonker-Volgenant short form), O(n^3), integer arithmetic
-    only: exact, deterministic, and dependency-free. Ties resolve toward the
-    lower column index -- which is what makes the caller's ``(-points,
-    player_id)`` candidate ordering the solver's tie-break."""
+    only: exact, deterministic, and dependency-free. Determinism across runs
+    comes from the caller: candidates arrive in a canonical ``(-points,
+    player_id)`` order, so equal inputs always build the same matrix and get the
+    same assignment. Which of several equal-scoring players fills which slot is
+    a fixed but arbitrary consequence of that order, not a "lower id wins" rule."""
     size = len(cost)
     if size == 0:
         return []

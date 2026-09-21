@@ -361,6 +361,17 @@ def test_a_starter_who_scored_is_never_flagged_even_if_his_snapshot_team_is_on_b
     assert _team(result, "1").started_on_bye == []
 
 
+def test_multiple_bye_starters_are_ordered_by_player_id() -> None:
+    league = _league_model(["QB", "RB"])
+    week = _week_model(2, [_roster("1")], [_matchup(2, "1", {"p2": 0.0, "p1": 0.0})])
+    snapshots = _snapshots({"p1": "QB", "p2": "RB"}, {"p1": "KC", "p2": "DAL"})
+    result = compute_weekly_lineups(week, league, snapshots, frozenset({"KC", "DAL"}))
+    assert _team(result, "1").started_on_bye == [
+        ByeStarter(player_id="p1", nfl_team="KC", points=0.0),
+        ByeStarter(player_id="p2", nfl_team="DAL", points=0.0),
+    ]
+
+
 def test_bye_flagging_ignores_a_starter_with_no_known_nfl_team() -> None:
     league = _league_model(["QB"])
     week = _week_model(2, [_roster("1")], [_matchup(2, "1", {"p1": 10.0})])
@@ -470,6 +481,21 @@ def test_multi_slot_negative_scorers_still_fill_every_eligible_slot() -> None:
     team = _team(compute_weekly_lineups(week, league, snapshots), "1")
     assert all(slot.player_id is not None for slot in team.lineup)
     assert {slot.slot: slot.player_id for slot in team.lineup} == {"FLEX": "t1", "WR": "w1"}
+
+
+def test_multi_slot_ties_are_identical_regardless_of_input_order() -> None:
+    """Several equal scorers across overlapping slots: the assignment is the same
+    whichever order the roster arrives in (the canonical candidate order)."""
+    league = _league_model(["RB", "FLEX", "FLEX"], {"FLEX": ["RB", "WR", "TE"]})
+    ids = ["a", "b", "c", "d", "e"]
+    snapshots = _snapshots({"a": "RB", "b": "WR", "c": "TE", "d": "RB", "e": "WR"})
+    results = []
+    for order in (ids, list(reversed(ids)), ["c", "e", "a", "d", "b"]):
+        bench = {player_id: 9.0 for player_id in order}
+        week = _week_model(2, [_roster("1")], [_matchup(2, "1", {}, bench)])
+        results.append(_team(compute_weekly_lineups(week, league, snapshots), "1"))
+    assert results[0] == results[1] == results[2]
+    assert results[0].optimal == 27.0
 
 
 def test_equal_scores_resolve_to_the_lower_player_id_regardless_of_input_order() -> None:

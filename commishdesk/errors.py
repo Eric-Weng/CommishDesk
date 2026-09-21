@@ -90,7 +90,7 @@ skipping pricing. A ``CommishDeskError`` caught by the same per-league
 catch site. The estimate is a worst-case bound, never an average — see
 ``narrate/pricing.py`` for the char-proxy token approximation.
 
-``OptimalLineupError`` is the ninth: the stage-2 lineup solver
+``OptimalLineupError``: the stage-2 lineup solver
 (``commishdesk/stats/lineup.py::compute_weekly_lineups``) raises it when
 ``league.format.roster_slots`` cannot be solved at all — an empty slot list, a
 slot with an empty name, or a flex slot that declares no eligible position
