@@ -3,6 +3,10 @@
 One test per I/O & Edge-Case Matrix row, plus a cross-fixture anonymity scan and
 an offline guard. ``tools/`` is not importable (no ``__init__.py``, not on the
 path), so the module is loaded by file location the way a contributor's CI would.
+
+Story 5.7 extends the fixture set's contract: every weekly fixture now carries a
+``next_matchups`` key (week ``n+1``'s pairings, ``{roster_id, matchup_id}`` only,
+``[]`` at or past the playoff cutoff) -- see the story's own fixtures rows below.
 """
 
 from __future__ import annotations
@@ -236,6 +240,10 @@ def synthetic_raw() -> dict[str, Any]:
                 }
             ]
         },
+        "next_matchups": [
+            {"roster_id": 1, "matchup_id": 7, "points": 999.9, "starters": ["100"]},
+            {"roster_id": 2, "matchup_id": 7},
+        ],
         "draft": {
             "type": "linear", "status": "complete", "season": "2025",
             "draft_id": "1180087120844189697", "league_id": REAL_LEAGUE,
@@ -418,6 +426,33 @@ def test_player_record_keeps_public_fact_fields() -> None:
 
 
 # --------------------------------------------------------------------------- #
+# Story 5.7: the next-week schedule key
+# --------------------------------------------------------------------------- #
+
+
+def test_next_matchups_is_projected_to_pairings_only() -> None:
+    """A row's score / lineup / player list is dropped, not passed through --
+    a fixture must never leak a future outcome."""
+    raw = synthetic_raw()
+    assert raw["next_matchups"][0]["points"] == 999.9  # planted, must not survive
+    out = anonymize.anonymize_bundle(raw, seed=0)
+    assert out["next_matchups"] == [
+        {"roster_id": 1, "matchup_id": 7},
+        {"roster_id": 2, "matchup_id": 7},
+    ]
+    assert "999.9" not in json.dumps(out["next_matchups"])
+
+
+def test_absent_next_matchups_stays_absent() -> None:
+    """A bundle that predates the key keeps its shape -- the anonymizer emits
+    no phantom empty section."""
+    raw = synthetic_raw()
+    del raw["next_matchups"]
+    out = anonymize.anonymize_bundle(raw, seed=0)
+    assert "next_matchups" not in out
+
+
+# --------------------------------------------------------------------------- #
 # Free-text / metadata scrub (findings 1-3)
 # --------------------------------------------------------------------------- #
 
@@ -585,6 +620,40 @@ def test_fixture_carries_a_meta_scenario(path: Path) -> None:
 
 
 @pytest.mark.parametrize("path", FIXTURES, ids=lambda p: p.name)
+def test_fixture_next_matchups_is_a_pairing_or_empty(path: Path) -> None:
+    """Story 5.7: every fixture carries the key; every row is projected to
+    ``{roster_id, matchup_id}``; each ``matchup_id`` groups exactly two
+    distinct roster ids (a real pairing, never a bye row)."""
+    data = json.loads(path.read_text(encoding="utf-8"))
+    rows = data.get("next_matchups")
+    assert isinstance(rows, list), f"{path.name} is missing next_matchups"
+
+    rosters = {r["roster_id"] for r in data["rosters"]}
+    by_matchup: dict[Any, list[Any]] = {}
+    for row in rows:
+        assert set(row) == {"roster_id", "matchup_id"}, (path.name, row)
+        assert row["roster_id"] in rosters, f"{path.name}: unknown roster {row['roster_id']}"
+        by_matchup.setdefault(row["matchup_id"], []).append(row["roster_id"])
+    for matchup_id, roster_ids in by_matchup.items():
+        assert matchup_id is not None, path.name
+        assert len(roster_ids) == 2 and len(set(roster_ids)) == 2, (path.name, matchup_id)
+
+
+def test_next_matchups_present_only_before_the_playoff_cutoff() -> None:
+    """Mid-season fixtures carry week ``n+1``'s pairings; a fixture whose
+    ``n + 1`` reaches the playoff period does not (and the pre-week-1 fixture
+    has no schedule at all)."""
+    mid = json.loads((FIXTURE_DIR / "week08-median.json").read_text("utf-8"))
+    assert mid["next_matchups"]
+
+    blowout = json.loads((FIXTURE_DIR / "week10-blowout.json").read_text("utf-8"))
+    assert blowout["next_matchups"]
+
+    playoff = json.loads((FIXTURE_DIR / "week17-playoffs.json").read_text("utf-8"))
+    assert playoff["next_matchups"] == []
+
+
+@pytest.mark.parametrize("path", FIXTURES, ids=lambda p: p.name)
 def test_fixture_contains_no_real_identity(path: Path) -> None:
     text = path.read_text(encoding="utf-8")
     data = json.loads(text)
@@ -656,6 +725,7 @@ def test_rookie_draft_fixture_is_pre_week_one() -> None:
     assert data["meta"]["target_week"] is None
     assert data["matchups"] == {}
     assert data["transactions"] == {}
+    assert data["next_matchups"] == []
     assert data["draft"] is not None
     assert data["draft_picks"], "the draft recap needs the picks"
 
@@ -982,8 +1052,23 @@ def test_assemble_rookie_draft_is_pre_week_one(mini_raw: Path) -> None:
     assert bundle["meta"]["target_week"] is None
     assert bundle["matchups"] == {}
     assert bundle["transactions"] == {}
+    assert bundle["next_matchups"] == []
     assert bundle["winners_bracket"] == [] and bundle["losers_bracket"] == []
     assert bundle["draft_picks"], "the draft recap needs the picks"
+
+
+def test_assemble_carries_next_week_pairings(mini_raw: Path) -> None:
+    """Story 5.7: a case whose ``target_week + 1`` is still regular season
+    carries that week's pairings, projected to ``{roster_id, matchup_id}``."""
+    mod = _load_assemble()
+    bundle = mod.assemble(mini_raw, "week05-trade")
+    assert bundle["next_matchups"]
+    for row in bundle["next_matchups"]:
+        assert set(row) == {"roster_id", "matchup_id"}
+    assert {row["roster_id"] for row in bundle["next_matchups"]} == {1, 2}
+    assert bundle["next_matchups"] == [
+        row for row in bundle["next_matchups"] if row["matchup_id"] == 1
+    ]
 
 
 def test_assemble_truncates_window_and_drops_non_settled_transactions(
@@ -1055,10 +1140,58 @@ def test_assemble_populates_brackets_only_in_the_playoff_period(
     playoff_bundle = mod.assemble(mini_raw, "week10-blowout")  # target_week 10 >= 10
     assert playoff_bundle["winners_bracket"] == winners
     assert playoff_bundle["losers_bracket"] == []
+    # the schedule is at/after the (lowered) cutoff, so no pairings are carried
+    assert playoff_bundle["next_matchups"] == []
 
     pre_playoff_bundle = mod.assemble(mini_raw, "week02-nailbiter")  # target_week 2 < 10
     assert pre_playoff_bundle["winners_bracket"] == []
     assert pre_playoff_bundle["losers_bracket"] == []
+    assert pre_playoff_bundle["next_matchups"]
+
+
+def _give_mini_week_distinct_pairings(mini_raw: Path, week: int, matchup_id: int) -> None:
+    """Rewrite one week of the mini raw export so its rows carry a *different*
+    ``matchup_id`` from every other week -- the only way a test can tell which
+    week ``assemble`` read the pairings from."""
+    path = mini_raw / "matchups_by_week.json"
+    data = json.loads(path.read_text("utf-8"))
+    data[str(week)] = [{**row, "matchup_id": matchup_id} for row in data[str(week)]]
+    path.write_text(json.dumps(data), encoding="utf-8")
+
+
+def test_assemble_reads_the_pairings_from_the_week_after_the_target(mini_raw: Path) -> None:
+    _give_mini_week_distinct_pairings(mini_raw, week=6, matchup_id=77)
+    mod = _load_assemble()
+
+    bundle = mod.assemble(mini_raw, "week05-trade")  # target_week 5 -> week 6
+
+    assert {row["matchup_id"] for row in bundle["next_matchups"]} == {77}
+    # the target week itself is untouched
+    assert {row["matchup_id"] for row in bundle["matchups"]["5"]} == {1}
+
+
+@pytest.mark.parametrize(
+    ("playoff_week_start", "carries_pairings"),
+    [
+        pytest.param(6, False, id="next_week_is_the_first_playoff_week"),
+        pytest.param(7, True, id="next_week_is_the_last_regular_season_week"),
+    ],
+)
+def test_assemble_cutoff_is_next_week_strictly_before_playoff_week_start(
+    mini_raw: Path, playoff_week_start: int, carries_pairings: bool
+) -> None:
+    _lower_mini_playoff_week_start(mini_raw, playoff_week_start)
+    mod = _load_assemble()
+
+    bundle = mod.assemble(mini_raw, "week05-trade")  # target_week 5
+
+    assert bool(bundle["next_matchups"]) is carries_pairings
+
+
+def test_assemble_skips_a_pre_week_one_case_with_no_schedule(mini_raw: Path) -> None:
+    """``target_week is None`` has no week ``n + 1`` to project."""
+    mod = _load_assemble()
+    assert mod.assemble(mini_raw, "rookie-draft")["next_matchups"] == []
 
 
 def test_assemble_drops_rostered_rows_at_the_target_week(
@@ -1115,6 +1248,10 @@ def test_assemble_then_anonymize_round_trips_and_scrubs(mini_raw: Path) -> None:
     assert ts and all((v - SYNTH_BASE) % SYNTH_STEP == 0 and v >= SYNTH_BASE for v in ts)
     rec = next(r for r in out["players"].values() if r.get("rookie_year"))
     assert set(rec) <= set(anonymize._PLAYER_FIELDS)  # college/age/rookie_year ok, junk not
+    # Story 5.7: the pairings survive the round trip, still two fields.
+    assert out["next_matchups"]
+    for row in out["next_matchups"]:
+        assert set(row) == {"roster_id", "matchup_id"}
 
 
 def test_assemble_raises_when_a_needed_week_is_absent(mini_raw: Path) -> None:

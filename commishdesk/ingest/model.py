@@ -32,6 +32,12 @@ Story 5.3b adds :class:`PlayerSnapshot`, kept deliberately separate from
 Story 5.6 adds :class:`PlayoffFormat` and :class:`LeagueFormat.playoff` -- the
 league's declared playoff bracket size as data, so no downstream stage hardcodes
 "six teams make the playoffs".
+
+Story 5.7 adds two more fields to :class:`WeekModel` -- ``next_matchups`` (week
+``n+1``'s pairings, ids and ``matchup_id`` only) and ``past_transactions`` (the
+settled moves for every week before ``n``, keyed by week) -- so a weekly Issue
+can preview the next week and read the league's trade market. Both default
+empty, so a bundle that predates the story still builds unchanged.
 """
 
 from __future__ import annotations
@@ -217,7 +223,12 @@ class Matchup(_Frozen):
     week. A roster with no opponent, an orphan roster (absent from
     :class:`Roster`), or an empty starter slot builds without raising. Player
     and roster ids only -- no display-name join (a future facts-building
-    story's job)."""
+    story's job).
+
+    A Story 5.7 ``next_matchups`` row is the same shape for week ``n+1``, but
+    projects only ``roster_id`` / ``matchup_id`` from the platform (no score,
+    lineup or player list), so ``points`` is ``0.0`` and every scoring field is
+    left at its default."""
 
     week: int
     roster_id: str
@@ -253,7 +264,9 @@ class Transaction(_Frozen):
     free-agent add/drop, or a trade. Assets moved are carried as ids only --
     ``player_id``/``roster_id``, draft picks, FAAB -- never a player display
     name; a real transaction's ``metadata`` (where a commissioner note could
-    live) is never carried into this model."""
+    live) is never carried into this model. No timestamp either: the platform
+    bucketed the move by week at the adapter, and this model deliberately does
+    not re-date it."""
 
     transaction_id: str
     type: str
@@ -287,6 +300,13 @@ class WeekModel(_Frozen):
     empty when the source bundle carries no ``league``/bracket data (e.g. a
     hand-built bundle predating this story).
 
+    Story 5.7 adds two more, both defaulting empty so an older bundle still
+    builds: ``next_matchups`` -- week ``n+1``'s pairings (``week =
+    week + 1``, ``points = 0.0``, ids and ``matchup_id`` only, no future
+    outcome) -- and ``past_transactions`` -- the settled transactions for
+    every week *before* ``n`` that the bundle carries, keyed by week. The
+    target week's own moves stay on ``transactions``.
+
     ``rosters`` is ordered by ``roster_id``, ``matchups`` by ``(week,
     roster_id)``, and ``transactions`` by ``transaction_id`` -- so two builds
     of one bundle produce equal models regardless of the bundle's list
@@ -301,6 +321,8 @@ class WeekModel(_Frozen):
     playoff_week_start: int | None = None
     winners_bracket: list[BracketMatch] = []
     losers_bracket: list[BracketMatch] = []
+    next_matchups: list[Matchup] = []
+    past_transactions: dict[int, list[Transaction]] = {}
 
 
 # --------------------------------------------------------------------------- #

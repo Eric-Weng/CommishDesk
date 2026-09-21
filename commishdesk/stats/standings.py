@@ -30,7 +30,7 @@ has engaged.
 
 **Playoff picture.** Derived, never hardcoded: the bracket is the top
 ``league.format.playoff.bracket_teams`` ranks clamped to the roster count, the
-byes are the top ``2^ceil(log2 N) - N`` of them, ``first_out`` is rank ``N+1``
+byes are the top :func:`bye_count` of them, ``first_out`` is rank ``N+1``
 (``None`` when the whole league is in), ``bubble`` is ranks ``N-1..N+2`` clipped
 to valid ranks, ``cut_line_after_rank`` is ``N``, and ``consolation`` is
 everything below the cut. The commissioner override is a later story (5.15).
@@ -69,6 +69,7 @@ __all__ = [
     "TeamRecord",
     "TeamStanding",
     "WeekPoints",
+    "bye_count",
     "compute_standings",
     "cross_check_standings",
     "regular_season_records",
@@ -175,10 +176,10 @@ class PlayoffPicture(_Frozen):
     story).
 
     ``in_bracket`` is ranks ``1..N`` (``N = league.format.playoff.bracket_teams``
-    clamped to the roster count); ``byes`` the top ``2^ceil(log2 N) - N`` of
-    them; ``first_out`` rank ``N+1`` (``None`` when the whole league is in);
-    ``bubble`` ranks ``N-1..N+2`` clipped to valid ranks; ``cut_line_after_rank``
-    is ``N``; ``consolation`` ranks ``N+1..end``."""
+    clamped to the roster count); ``byes`` the top :func:`bye_count` of them;
+    ``first_out`` rank ``N+1`` (``None`` when the whole league is in); ``bubble``
+    ranks ``N-1..N+2`` clipped to valid ranks; ``cut_line_after_rank`` is ``N``;
+    ``consolation`` ranks ``N+1..end``."""
 
     source: str
     in_bracket: list[str]
@@ -207,6 +208,20 @@ class Standings(_Frozen):
     teams: list[TeamStanding]
     divisions: list[DivisionOrder]
     playoff_picture: PlayoffPicture | None
+
+
+def bye_count(bracket_teams: int) -> int:
+    """The number of first-round byes that turns ``bracket_teams`` into a clean
+    power-of-two playoff field: the smallest power of two at or above
+    ``bracket_teams``, minus ``bracket_teams`` (``2^ceil(log2 N) - N``). A
+    non-positive size has no byes.
+
+    Declared once, here, and read by both :func:`_playoff_picture` and Story
+    5.7's ``stats/stakes.py`` -- the rules that decide a bye must never drift
+    apart into two copies."""
+    if bracket_teams <= 0:
+        return 0
+    return (1 << (bracket_teams - 1).bit_length()) - bracket_teams
 
 
 # --------------------------------------------------------------------------- #
@@ -358,14 +373,14 @@ def _playoff_picture(ordered: list[str], league: LeagueModel) -> PlayoffPicture 
 
     bracket = min(playoff.bracket_teams, len(ordered))
     in_bracket = ordered[:bracket]
-    # The bye count that makes the bracket a clean power-of-two field: the
-    # smallest power of two at or above the bracket size, minus the bracket size.
-    bye_count = (1 << (bracket - 1).bit_length()) - bracket
+    # The bye count that makes the bracket a clean power-of-two field -- the one
+    # shared rule (Story 5.7's stats/stakes.py reads the same helper).
+    byes = bye_count(bracket)
     bubble = ordered[max(bracket - 1, 1) - 1 : min(bracket + 2, len(ordered))]
     return PlayoffPicture(
         source="derived",
         in_bracket=in_bracket,
-        byes=in_bracket[:bye_count],
+        byes=in_bracket[:byes],
         first_out=ordered[bracket] if bracket < len(ordered) else None,
         bubble=bubble,
         cut_line_after_rank=bracket,

@@ -64,6 +64,15 @@ into a :class:`PlayoffFormat` on ``LeagueFormat.playoff``, so the derived playof
 picture in ``stats/standings.py`` reads the league's real bracket size instead of
 a hardcoded one. Additive and optional: a league that declares no (or a
 non-positive) playoff size carries ``playoff=None``, never a raise.
+
+Story 5.7 extends :func:`build_week_model` with two additive, optional reads:
+the bundle's ``next_matchups`` section (week ``n+1``'s pairings, projected to
+``roster_id`` / ``matchup_id`` only) into ``WeekModel.next_matchups``, and the
+bundle's earlier weeks of ``transactions`` (every week ``< n``,
+``status == "complete"`` only) into ``WeekModel.past_transactions``. A bundle
+that carries neither still builds exactly as before -- both fields default
+empty. The target week's own settled transactions stay on
+``WeekModel.transactions``, unchanged.
 """
 
 from __future__ import annotations
@@ -175,11 +184,12 @@ def build_week_model(bundle: Mapping[str, Any]) -> WeekModel:
     """Build a validated :class:`WeekModel` from a raw weekly ``Adapter``
     bundle (``rosters`` / ``matchups`` / ``transactions``, plus the optional
     ``league`` / ``winners_bracket`` / ``losers_bracket`` sections Story 5.4
-    reads for playoff classification). The target week is the highest week
-    key present in ``matchups`` (``fetch_week(league_id, n)`` always carries
-    matchups for every week ``1..n``, so its max key is ``n``). Raises
-    :class:`~commishdesk.errors.IngestError` (chained where possible, never a
-    partial model) on any structural failure."""
+    reads for playoff classification and the optional ``next_matchups``
+    section Story 5.7 reads for the next-week preview). The target week is
+    the highest week key present in ``matchups`` (``fetch_week(league_id, n)``
+    always carries matchups for every week ``1..n``, so its max key is ``n``).
+    Raises :class:`~commishdesk.errors.IngestError` (chained where possible,
+    never a partial model) on any structural failure."""
     if not isinstance(bundle, Mapping):
         raise IngestError("bundle is not a JSON object")
 
@@ -218,6 +228,9 @@ def build_week_model(bundle: Mapping[str, Any]) -> WeekModel:
             key=lambda txn: txn.transaction_id,
         )
 
+        next_matchups = _build_next_matchups(bundle.get("next_matchups"), week + 1)
+        past_transactions = _build_past_transactions(transactions_raw, week)
+
         league_settings = _mapping(_mapping(bundle.get("league")).get("settings"))
         playoff_week_start = _as_int(league_settings.get("playoff_week_start"))
         winners_bracket = _build_bracket(bundle.get("winners_bracket"))
@@ -231,6 +244,8 @@ def build_week_model(bundle: Mapping[str, Any]) -> WeekModel:
             playoff_week_start=playoff_week_start,
             winners_bracket=winners_bracket,
             losers_bracket=losers_bracket,
+            next_matchups=next_matchups,
+            past_transactions=past_transactions,
         )
     except _CAUGHT as exc:
         raise IngestError(f"could not build a week model from the bundle ({type(exc).__name__})") from exc
@@ -618,6 +633,72 @@ def _build_matchup(row: Mapping[str, Any], week: int, opponents: dict[Any, Any])
         bench=bench,
         players_points=players_points,
     )
+
+
+def _build_next_matchups(rows: Any, week: int) -> list[Matchup]:
+    """Story 5.7: week ``n+1``'s pairings as :class:`Matchup` rows.
+
+    An additive, optional bundle section -- a missing or non-list value (an
+    older bundle) yields ``[]``. Each row carries only ``roster_id`` /
+    ``matchup_id`` (the adapter never projects a score, lineup or player list,
+    so a fixture cannot leak a future outcome), so ``points`` is ``0.0`` and
+    the opponent is resolved by ``matchup_id`` through the same pairing rule a
+    played week uses. A non-object row, or one with no ``roster_id``, is
+    skipped -- never a raise."""
+    if not isinstance(rows, list):
+        return []
+    opponents = _opponents_for_week(rows)
+    matchups: list[Matchup] = []
+    for row in rows:
+        if not isinstance(row, Mapping):
+            continue
+        roster_id_raw = row.get("roster_id")
+        if roster_id_raw is None:
+            continue
+        opponent = opponents.get(roster_id_raw)
+        matchups.append(
+            Matchup(
+                week=week,
+                roster_id=str(roster_id_raw),
+                matchup_id=_as_int(row.get("matchup_id")),
+                opponent_roster_id=str(opponent) if opponent is not None else None,
+                points=0.0,
+            )
+        )
+    matchups.sort(key=lambda m: (m.week, _sort_key(m.roster_id)))
+    return matchups
+
+
+def _build_past_transactions(
+    transactions: Mapping[str, Any], target_week: int
+) -> dict[int, list[Transaction]]:
+    """Story 5.7: the settled (``status == "complete"``) transactions for every
+    week ``< target_week`` the bundle carries, keyed by week and each list
+    sorted by ``transaction_id``.
+
+    A week present in the bundle always gets a key -- an empty list when nothing
+    in it settled -- because Story 5.7's ``market_note.complete`` reads that
+    presence to tell "no trades" apart from "a week missing from this bundle".
+    Weeks at or after ``target_week`` are ignored: the target week's own moves
+    stay on :attr:`WeekModel.transactions`."""
+    result: dict[int, list[Transaction]] = {}
+    for key, rows in transactions.items():
+        try:
+            week = int(key)
+        except (TypeError, ValueError):
+            continue
+        if week >= target_week:
+            continue
+        week_rows = rows if isinstance(rows, list) else []
+        result[week] = sorted(
+            (
+                _build_transaction(_object(item, "transactions"))
+                for item in week_rows
+                if isinstance(item, Mapping) and item.get("status") == "complete"
+            ),
+            key=lambda txn: txn.transaction_id,
+        )
+    return result
 
 
 def _build_bracket(raw: Any) -> list[BracketMatch]:

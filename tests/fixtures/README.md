@@ -25,6 +25,7 @@ renders as one full-line replacement.
   "users":    [ /* display_name + team_name from the generated pool; user_id tokenized; avatar dropped */ ],
   "rosters":  [ /* owner_id / co_owners tokenized; players / starters / settings verbatim */ ],
   "matchups": { "1": [ /* points, players, starters, matchup_id, players_points, starters_points */ ], "…": [] },
+  "next_matchups": [ /* week n+1's pairings, {roster_id, matchup_id} ONLY — [] at/after playoff_week_start */ ],
   "transactions": { "1": [ /* settled transactions only; ids tokenized; metadata dropped;
                              created / status_updated remapped onto a synthetic grid */ ], "…": [] },
   "draft":        { /* ids tokenized; settings verbatim; metadata → name + scoring_type only */ },
@@ -43,6 +44,13 @@ raw export only for a fixture whose `target_week` falls in the playoff period
 (`league.settings.playoff_week_start`); every other fixture emits `[]` for
 both — the raw bracket files hold the *completed* season's results, which
 would otherwise leak future outcomes into an earlier week's fixture.
+
+**`next_matchups`.** The week-`n+1` schedule (Story 5.7), projected to
+`{roster_id, matchup_id}` only — never a score, a lineup or a player list, so a
+fixture cannot leak a future outcome. It is populated only while `n+1` is still
+regular season (`n + 1 < playoff_week_start`); at the cutoff and after, and for
+the pre-week-1 `rookie-draft.json`, it is `[]`. Only a `matchup_id` grouping
+exactly two distinct rosters is a real pairing.
 
 **Timestamps.** Every `created` / `status_updated` epoch-ms is replaced,
 order-preserving, by a point on a synthetic grid (`2025-01-01T00:00:00Z` +
@@ -66,9 +74,15 @@ its regular-season fold matches W-L-T exactly and points-for within
 each week's 2-dp points can drift; the real week-17 drift is exactly
 `14 × 0.005`).
 
+**`transactions` is every week, not just the target week.** Story 5.7's
+`WeekModel.past_transactions` reads each earlier week's settled moves (week 1's
+bucket is also where Sleeper files a league's offseason trades), and
+`stats/transactions.py` builds the desk's market note from them. The target
+week's own moves stay on `WeekModel.transactions`.
+
 `rookie-draft.json` is the pre-week-1 state: `meta.target_week` is `null` and
-`matchups` / `transactions` / brackets are empty. It is the fixture the Epic 2
-draft recap is built against.
+`matchups` / `next_matchups` / `transactions` / brackets are empty. It is the
+fixture the Epic 2 draft recap is built against.
 
 ## The fixtures
 
@@ -93,9 +107,13 @@ hand-checkable lineup optimum possible at all.
 `week10-blowout.json` is the fixture Story 5.6's standings and power rank are
 pinned against (its ranks, divisions and derived playoff picture are copied
 verbatim into `tests/test_stats_standings.py`), and it is the fixture whose
-cross-check raises — its season-final `rosters` cannot match a week-10 fold.
+cross-check raises — its season-final `rosters` cannot match a week-10 fold. It
+is also Story 5.7's next-week-preview and transactions-desk fixture: its
+`next_matchups` pair the twelve rosters into six week-11 cards, and its week-9
+trade and week-10 waiver are pinned in `tests/test_stats_transactions.py`.
 `week17-playoffs.json` is the fixture Story 5.6's regular-season freeze and
-passing cross-check are pinned against.
+passing cross-check are pinned against — and, for Story 5.7, the fixture whose
+`n + 1` is past the playoff cutoff, so its `next_matchups` is `[]`.
 
 ## Provenance and regeneration
 
@@ -111,14 +129,16 @@ per-endpoint files in `../brief/phase-0/raw/` and builds one bundle for a named
 case — truncating the week window, dropping non-settled transactions, applying
 the `QB → SUPER_FLEX` slot change for `week10-superflex`, populating
 `winners_bracket`/`losers_bracket` for a case whose `target_week` reaches the
-playoff period (`week17-playoffs`), applying each case's curated matchup
-mutation (the eliminated-roster drop for `week17-playoffs`, the `custom_points`
-override for `week08-median`), and attaching `meta`. Then
+playoff period (`week17-playoffs`), adding `next_matchups` (week `target_week +
+1`'s pairings, `{roster_id, matchup_id}` only) for a case whose next week is
+still regular season, applying each case's curated matchup mutation (the
+eliminated-roster drop for `week17-playoffs`, the `custom_points` override for
+`week08-median`), and attaching `meta`. Then
 [`tools/anonymize.py`](../../tools/anonymize.py) strips every section (and
 every `metadata` sub-object) to an allowlist, replaces member/team names from a
 bundled pool, rewrites every Sleeper account/league/draft id to an opaque `id_…`
-token, remaps timestamps onto the synthetic grid, and drops avatar hashes and
-URLs:
+token, remaps timestamps onto the synthetic grid, projects `next_matchups` to
+its two id fields, and drops avatar hashes and URLs:
 
 ```bash
 uv run python tools/assemble_bundle.py ../brief/phase-0/raw <case> \

@@ -194,6 +194,7 @@ class Bundle(BaseModel):
     users: list[Any]
     rosters: list[Any]
     matchups: dict[str, Any] = Field(default_factory=dict)
+    next_matchups: list[Any] | None = None
     transactions: dict[str, Any] = Field(default_factory=dict)
     draft: dict[str, Any] | None = None
     draft_picks: list[Any] = Field(default_factory=list)
@@ -520,6 +521,16 @@ class _Anonymizer:
     def _matchup(self, m: dict[str, Any]) -> dict[str, Any]:
         return {k: m.get(k) for k in _MATCHUP_FIELDS if k in m}
 
+    def next_matchups(self) -> list[dict[str, Any]]:
+        """Week ``n+1``'s pairings: ``roster_id`` and ``matchup_id`` only (Story
+        5.7). Anything else a contributor's bundle carries here -- a score, a
+        lineup -- is dropped, so a fixture never leaks a future outcome."""
+        return [
+            {k: m.get(k) for k in ("roster_id", "matchup_id") if k in m}
+            for j, row in enumerate(self.src.get("next_matchups") or [])
+            for m in [_require_dict(row, f"next_matchups[{j}]")]
+        ]
+
     def _transaction(self, t: dict[str, Any]) -> dict[str, Any]:
         picks = t.get("draft_picks") or []
         return {
@@ -638,6 +649,10 @@ class _Anonymizer:
             "losers_bracket": self.src.get("losers_bracket") or [],
             "players": self.players(),
         }
+        # Story 5.7: mirror the input -- a bundle that predates the key keeps its
+        # shape (no phantom empty section), one that carries it keeps it.
+        if self.src.get("next_matchups") is not None:
+            result["next_matchups"] = self.next_matchups()
         # Safety net over the whole result: tokenize any id-typed key's value and
         # any 15+-digit run that a passthrough subtree (settings, adds/drops, a
         # contributor's schema drift) still carries. Roster ids, weeks, slots,

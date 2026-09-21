@@ -5,9 +5,11 @@ All-play, expected wins, luck, and blowouts are implemented in
 :mod:`commishdesk.stats.weekly` (Story 5.4); the optimal-lineup solver and
 coaching efficiency it feeds are in :mod:`commishdesk.stats.lineup` (Story
 5.5); the matchup-derived standings, the derived playoff picture and the
-Sleeper cross-check are in :mod:`commishdesk.stats.standings`, and the model
-power rank and its per-week history in :mod:`commishdesk.stats.power` (Story
-5.6)."""
+Sleeper cross-check are in :mod:`commishdesk.stats.standings`, the model
+power rank and its per-week history in :mod:`commishdesk.stats.power`, and the
+next-week stakes/game-of-the-week/bye impact in :mod:`commishdesk.stats.stakes`
+and the transactions desk in :mod:`commishdesk.stats.transactions` (Story 5.6 /
+5.7)."""
 
 from __future__ import annotations
 
@@ -60,6 +62,7 @@ _STANDINGS_NAMES = frozenset(
         "TeamRecord",
         "TeamStanding",
         "WeekPoints",
+        "bye_count",
         "compute_standings",
         "cross_check_standings",
         "regular_season_records",
@@ -73,6 +76,27 @@ _POWER_NAMES = frozenset(
         "TeamPower",
         "compute_power_history",
         "compute_power_ranks",
+    }
+)
+_STAKES_NAMES = frozenset(
+    {
+        "ByeImpact",
+        "GameOfWeek",
+        "NextWeek",
+        "NextWeekCard",
+        "NextWeekSide",
+        "compute_next_week",
+    }
+)
+_TRANSACTIONS_NAMES = frozenset(
+    {
+        "RECENT_TRADE_WEEKS",
+        "MarketNote",
+        "Move",
+        "Trade",
+        "TradeSide",
+        "TransactionsDesk",
+        "compute_transactions_desk",
     }
 )
 _WEEKLY_NAMES = frozenset(
@@ -97,7 +121,9 @@ __all__ = sorted(
     | _GRADE_NAMES
     | _LINEUP_NAMES
     | _POWER_NAMES
+    | _STAKES_NAMES
     | _STANDINGS_NAMES
+    | _TRANSACTIONS_NAMES
     | _WEEKLY_NAMES
 )
 
@@ -133,6 +159,12 @@ if TYPE_CHECKING:
     from .power import TeamPower as TeamPower
     from .power import compute_power_history as compute_power_history
     from .power import compute_power_ranks as compute_power_ranks
+    from .stakes import ByeImpact as ByeImpact
+    from .stakes import GameOfWeek as GameOfWeek
+    from .stakes import NextWeek as NextWeek
+    from .stakes import NextWeekCard as NextWeekCard
+    from .stakes import NextWeekSide as NextWeekSide
+    from .stakes import compute_next_week as compute_next_week
     from .standings import POINTS_FOR_ROUNDING_TOLERANCE as POINTS_FOR_ROUNDING_TOLERANCE
     from .standings import TIEBREAK as TIEBREAK
     from .standings import DivisionOrder as DivisionOrder
@@ -142,9 +174,17 @@ if TYPE_CHECKING:
     from .standings import TeamRecord as TeamRecord
     from .standings import TeamStanding as TeamStanding
     from .standings import WeekPoints as WeekPoints
+    from .standings import bye_count as bye_count
     from .standings import compute_standings as compute_standings
     from .standings import cross_check_standings as cross_check_standings
     from .standings import regular_season_records as regular_season_records
+    from .transactions import RECENT_TRADE_WEEKS as RECENT_TRADE_WEEKS
+    from .transactions import MarketNote as MarketNote
+    from .transactions import Move as Move
+    from .transactions import Trade as Trade
+    from .transactions import TradeSide as TradeSide
+    from .transactions import TransactionsDesk as TransactionsDesk
+    from .transactions import compute_transactions_desk as compute_transactions_desk
     from .weekly import BLOWOUT_RATIO as BLOWOUT_RATIO
     from .weekly import MEANINGFUL_FROM_WEEK as MEANINGFUL_FROM_WEEK
     from .weekly import AllPlayRecord as AllPlayRecord
@@ -183,6 +223,14 @@ def __getattr__(name: str) -> object:
         from . import power
 
         return getattr(power, name)
+    if name in _STAKES_NAMES:
+        from . import stakes
+
+        return getattr(stakes, name)
+    if name in _TRANSACTIONS_NAMES:
+        from . import transactions
+
+        return getattr(transactions, name)
     if name in _WEEKLY_NAMES:
         from . import weekly
 

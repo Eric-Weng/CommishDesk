@@ -123,6 +123,9 @@ which is the designed behaviour for "the engine and the platform disagree".
 **Where this shows up.** A median-scoring league cannot ship a weekly Issue until a later
 story models the median result. The standings module itself is unchanged — the league
 simply holds.
+`stats/stakes.py` (Story 5.7) inherits the limit: it assumes one decision per week when it
+sizes a roster's ceiling, but a median league is held by the cross-check before a preview
+can ship, so it never states a wrong "clinched" or "eliminated".
 
 ## The standings tiebreak is named, never implicit (Story 5.6)
 
@@ -131,3 +134,78 @@ parseable). The key consulted after win percentage is exposed as
 `stats/standings.py::TIEBREAK` and surfaced as `Standings.tiebreak`, so a reader — or a
 later story — never has to guess which one decided a rank. Division order uses the same
 key, restricted to that division's rosters.
+
+## The next-week schedule exists only inside the regular season (Story 5.7)
+
+**What happens.** `SleeperAdapter.fetch_week` fills the bundle's `next_matchups` key with
+week `n + 1`'s pairings only while `n + 1` is still regular season (the league's
+`settings.playoff_week_start` is an int and `n + 1 < playoff_week_start`). At the last
+regular-season week and every week after, `next_matchups` is `[]` and no request is made.
+`stats/stakes.py` mirrors that: once the previewed week `n + 1` reaches `playoff_week_start`
+(i.e. `n` is the last regular-season week), every card's `stakes` is `[]` even if a caller
+hand-supplies pairings. Only the tags stand down; the clinch and elimination flags stay
+computed, since with no games left they are the final regular-season picture.
+
+**Why this is accepted, not fixed.** The pairings are projected to `{roster_id,
+matchup_id}` only — never a score, a lineup or a player list — so a fixture can never leak
+a future outcome. Past the cutoff there is no regular-season pairing to project (Sleeper
+reuses the matchup endpoints for bracket games), and playoff-week framing is a later
+story's (5.15 / 5.16).
+
+**Where this shows up.** A week-14 run (`playoff_week_start` 15) writes no
+`matchups.next_week` cards, and a week-17 run has none either. The transactions desk is
+unaffected — the market note still spans the whole season.
+
+## Week 1's transaction bucket also holds the offseason (Story 5.7)
+
+**What happens.** Sleeper files a league's offseason trades (and every other settled move
+made before the season started) under week 1's transactions endpoint. A week-1 run's
+`this_week` can therefore list moves made months earlier, and
+`market_note.weeks_since_last_trade` can be large while still being honest about the
+league's last trade.
+
+**Why this is accepted, not fixed.** Sleeper buckets a move by week and nothing else;
+there is no separate "offseason" bucket to read. `ingest/model.py::Transaction` carries no
+timestamp either (`created` / `status_updated` are on the raw payload), so the engine
+could not re-bucket a move even if it wanted to.
+
+**Where this shows up.** A week-1 or early-season desk may attribute an offseason trade to
+week 1. Every later week's history is unaffected: `past_transactions` keys each move by
+the week the bundle carries it under.
+
+## Clinch and elimination are conservative (Story 5.7)
+
+**What happens.** `stats/stakes.py` decides every clinch/elimination claim in win
+equivalents, and only ever claims what a tiebreak cannot flip. Elimination needs `N`
+others *strictly* above a roster's maximum; a playoff berth needs at most `N - 1` others
+able to reach its current total. A roster exactly level with `N` others on its ceiling is
+therefore reported as neither clinched nor eliminated.
+
+**Why this is accepted, not fixed.** A tiebreak (points-for, then roster id) can decide a
+real berth, and this module has no view into it. Erring toward "the race is live" is the
+safe direction: a reader is never told a race is over when it is not. Concretely, roster
+7 of a hand-built twelve-team league whose ceiling equals the six leaders' current total
+is `eliminated=False` — the six are not *strictly* above it.
+
+**Where this shows up.** A genuinely-clinched roster can still carry a `wildcard_race`
+tag, and a genuinely-eliminated one can carry an `elimination` tag, in the narrow band
+where a tiebreak would decide it. The flags are conservative on purpose.
+
+## No divisions, no playoff format: the stakes stand down (Story 5.7)
+
+**What happens.** A league whose `format.divisions` is empty never emits `division_race`
+and never reports `clinched_division`. A league whose `league.format.playoff` is `None`
+stands the playoff flags down (all `False`) and emits no playoff tag, because `N` is
+undefined. And a league whose `playoff_week_start` is `None`, or whose previewed week is
+at or past `playoff_week_start`, stands *every* stake down — every card's `stakes` is
+`[]`, with the cards, ranks, records and one game of the week still emitted.
+
+**Why this is accepted, not fixed.** Divisions and the playoff bracket shape are
+league-as-data (`LeagueFormat`), and a league that declares neither has no race to model.
+Playoff-week framing is a later story's (5.15 / 5.16), so this one deliberately frames
+nothing rather than guessing.
+
+**Where this shows up.** A week-14 run (`playoff_week_start` 15) has no cards at all, because
+the adapter fetched no pairings; pairings supplied by hand get `stakes == []`, which is the
+right answer for the last regular-season week. A league with no `playoff_week_start` gets
+every flag `False` as well.
