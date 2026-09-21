@@ -85,3 +85,49 @@ times — a second and third data source this story does not have.
 roster may show an "optimal" lineup that includes a player the manager could not legally
 have started. The overstatement is bounded by the late-added players' scores and only ever affects
 that week's lineup stats, never the record or the standings.
+
+## Standings are folded from matchups; Sleeper's roster totals are season-final (Story 5.6)
+
+**What happens.** `stats/standings.py::compute_standings` derives every standing —
+W-L-T, points for and against, streak, high/low week — by folding `WeekModel.matchups`
+over weeks `1..cutoff`. It never reads `Roster.wins` / `losses` / `ties` / `fpts`. Those
+roster fields feed exactly one thing: `cross_check_standings`, which compares the fold
+against Sleeper's own totals.
+
+**Why.** Every committed fixture's `rosters` section is a single *season-final* pull, so a
+mid-season slice carries week-10 matchups next to week-14 records — `week10-blowout.json`
+roster 1 reads 10–4 while the week-10 fold is 7–3. Reading the roster totals would ship a
+wrong table; folding the matchups reproduces the phase-0 golden exactly for all twelve
+rosters (verified in `tests/test_stats_standings.py`).
+
+**Where this shows up.** A weekly run against a committed mid-season fixture trips the
+cross-check by construction (its roster totals are season-final). That is a hold, not a
+wrong number: the CLI's per-league `except CommishDeskError` prints one line and moves on.
+`week17-playoffs.json` is regular-season-final, so it is the fixture whose cross-check
+passes — with points-for matched to within `POINTS_FOR_ROUNDING_TOLERANCE` times the
+number of folded weeks (0.005 per week, the half-cent each week's 2-dp points can drift;
+the real week-17 drift is exactly `14 × 0.005`).
+
+## A median-scoring league trips the cross-check by design (Story 5.6)
+
+**What happens.** Some Sleeper leagues set `league_average_match` (median scoring), which
+awards an extra win or loss each week against the league median. Sleeper folds those into
+the W-L-T it reports on `Roster`; `compute_standings` folds head-to-head matchups only, so
+the two disagree by roughly one decision per week and `cross_check_standings` raises.
+
+**Why this is accepted, not fixed.** The median result is not in `WeekModel.matchups` —
+the extra decision lives only in Sleeper's own aggregate, and Sleeper's median formula is
+undocumented. Guessing at it risks a wrong number; the cross-check instead fails closed,
+which is the designed behaviour for "the engine and the platform disagree".
+
+**Where this shows up.** A median-scoring league cannot ship a weekly Issue until a later
+story models the median result. The standings module itself is unchanged — the league
+simply holds.
+
+## The standings tiebreak is named, never implicit (Story 5.6)
+
+Win percentage descending, then points-for descending, then `roster_id` (numeric where
+parseable). The key consulted after win percentage is exposed as
+`stats/standings.py::TIEBREAK` and surfaced as `Standings.tiebreak`, so a reader — or a
+later story — never has to guess which one decided a rank. Division order uses the same
+key, restricted to that division's rosters.

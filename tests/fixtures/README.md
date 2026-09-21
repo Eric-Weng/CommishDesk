@@ -54,6 +54,18 @@ every NFL roster site); `birth_date` / `birth_city` / `high_school` and every
 third-party id are dropped. `rookie_year` is lifted out of the raw record's
 `metadata` sub-object.
 
+**`rosters` is one season-final pull, not a weekly snapshot.** Every fixture's
+`rosters` section carries the *season-end* record, points-for and points-against
+— a mid-season slice has week-10 matchups next to week-14 totals. Story 5.6's
+`stats/standings.py` therefore folds `matchups` instead of reading those fields,
+and uses them only to cross-check the fold (`cross_check_standings`). That is why
+a weekly run against a committed mid-season fixture trips the cross-check by
+design, and why `week17-playoffs.json` is the fixture whose cross-check passes:
+its regular-season fold matches W-L-T exactly and points-for within
+`POINTS_FOR_ROUNDING_TOLERANCE × folded weeks` (`0.005` per week — the half-cent
+each week's 2-dp points can drift; the real week-17 drift is exactly
+`14 × 0.005`).
+
 `rookie-draft.json` is the pre-week-1 state: `meta.target_week` is `null` and
 `matchups` / `transactions` / brackets are empty. It is the fixture the Epic 2
 draft recap is built against.
@@ -77,6 +89,13 @@ which `tests/test_stats_lineup.py` asserts directly on the committed bundle. `we
 and `week10-superflex` are the two fixtures that carry per-player
 `players_points`/`starters_points` for *every* week (Story 5.2), which is what makes a
 hand-checkable lineup optimum possible at all.
+
+`week10-blowout.json` is the fixture Story 5.6's standings and power rank are
+pinned against (its ranks, divisions and derived playoff picture are copied
+verbatim into `tests/test_stats_standings.py`), and it is the fixture whose
+cross-check raises — its season-final `rosters` cannot match a week-10 fold.
+`week17-playoffs.json` is the fixture Story 5.6's regular-season freeze and
+passing cross-check are pinned against.
 
 ## Provenance and regeneration
 

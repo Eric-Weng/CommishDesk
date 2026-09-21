@@ -28,6 +28,10 @@ here (a future facts-building story's job).
 
 Story 5.3b adds :class:`PlayerSnapshot`, kept deliberately separate from
 :class:`WeekModel` for the same id-only reason -- see its own docstring.
+
+Story 5.6 adds :class:`PlayoffFormat` and :class:`LeagueFormat.playoff` -- the
+league's declared playoff bracket size as data, so no downstream stage hardcodes
+"six teams make the playoffs".
 """
 
 from __future__ import annotations
@@ -45,6 +49,7 @@ __all__ = [
     "Pick",
     "Player",
     "PlayerSnapshot",
+    "PlayoffFormat",
     "Roster",
     "Team",
     "TradedPick",
@@ -67,6 +72,20 @@ class Division(_Frozen):
     name: str | None = None
 
 
+class PlayoffFormat(_Frozen):
+    """The league's playoff shape, as data (Story 5.6).
+
+    ``bracket_teams`` is how many teams make the championship bracket, read from
+    ``league.settings.playoff_teams``. Always strictly positive: a league that
+    declares no playoff size at all carries ``LeagueFormat.playoff is None``
+    rather than a zero, so ``stats/standings.py`` never has to interpret a
+    meaningless bracket size. Only values the platform stores as positive ints
+    are read -- everything else (absent, ``0``, negative, non-numeric) yields
+    ``None``."""
+
+    bracket_teams: int = Field(gt=0)
+
+
 class LeagueFormat(_Frozen):
     """The league's shape, as data. No downstream stage branches on a hardcoded
     league shape -- it reads these fields instead."""
@@ -82,6 +101,10 @@ class LeagueFormat(_Frozen):
     is_superflex_or_2qb: bool
     te_premium: bool
     divisions: list[Division] = []
+    #: The declared playoff bracket shape, or ``None`` when the league declares
+    #: none. Story 5.6's derived playoff picture reads this instead of a
+    #: hardcoded bracket size.
+    playoff: PlayoffFormat | None = None
 
 
 class Team(_Frozen):
@@ -169,7 +192,12 @@ class Roster(_Frozen):
     """One roster's season-cumulative state as of the week this model was
     built for: record, points totals, and current IR/taxi occupants. Never
     raises for a missing ``settings`` sub-object -- absent numeric fields
-    default to ``0``."""
+    default to ``0``.
+
+    These totals are **Sleeper's own** and are one season-final pull in every
+    committed fixture, so they cannot reproduce a mid-season standing. Story
+    5.6's ``stats/standings.py`` folds ``WeekModel.matchups`` instead and reads
+    these fields only to cross-check the fold against the platform."""
 
     roster_id: str
     wins: int = 0

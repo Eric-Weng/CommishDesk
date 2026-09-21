@@ -13,7 +13,8 @@ Pipeline:
 * index users by id;
 * derive :class:`LeagueFormat` from ``league.roster_positions`` /
   ``scoring_settings`` / ``settings`` -- team count, ordered starting slots, flex
-  eligibility, a best-effort scoring label, divisions -- all as data;
+  eligibility, a best-effort scoring label, divisions, the declared playoff
+  bracket size -- all as data;
 * join each roster to its owning user into a :class:`Team` (co-owned and orphan
   rosters tolerated, never a raise), ordered by ``roster_id``;
 * snapshot each ``draft_picks`` entry into a :class:`Pick` whose player position
@@ -57,6 +58,12 @@ slot over ``DL`` / ``LB`` / ``DB``. Without an entry, ``_build_format`` falls
 through to its "unrecognized flex slot" branch and records an empty eligibility
 list, which ``stats/lineup.py`` then (correctly) refuses to solve; naming the
 three defensive positions here is what makes an IDP league solvable.
+
+Story 5.6 adds :func:`_build_playoff` -- ``league.settings.playoff_teams`` read
+into a :class:`PlayoffFormat` on ``LeagueFormat.playoff``, so the derived playoff
+picture in ``stats/standings.py`` reads the league's real bracket size instead of
+a hardcoded one. Additive and optional: a league that declares no (or a
+non-positive) playoff size carries ``playoff=None``, never a raise.
 """
 
 from __future__ import annotations
@@ -79,6 +86,7 @@ from .model import (
     Pick,
     Player,
     PlayerSnapshot,
+    PlayoffFormat,
     Roster,
     Team,
     TradedPick,
@@ -318,7 +326,20 @@ def _build_format(league: Mapping[str, Any], rosters: list[Any]) -> LeagueFormat
         is_superflex_or_2qb=is_superflex_or_2qb,
         te_premium=_te_premium(scoring),
         divisions=_divisions(league, rosters, settings),
+        playoff=_build_playoff(settings),
     )
+
+
+def _build_playoff(settings: Mapping[str, Any]) -> PlayoffFormat | None:
+    """``league.settings.playoff_teams`` as a :class:`PlayoffFormat`, or ``None``
+    when the league declares no usable bracket size (absent, zero, negative, or
+    a non-numeric value). Read through :func:`_as_int`, this module's existing
+    settings reader. Never raises -- a league without a declared playoff size
+    simply has no derived playoff picture."""
+    bracket_teams = _as_int(settings.get("playoff_teams"))
+    if bracket_teams is None or bracket_teams <= 0:
+        return None
+    return PlayoffFormat(bracket_teams=bracket_teams)
 
 
 def _te_premium(scoring: Mapping[str, Any]) -> bool:

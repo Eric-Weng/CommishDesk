@@ -4,6 +4,9 @@ One test per I/O & Edge-Case Matrix row, both committed fixtures parametrized
 through ``build_league_model``, ``sanitize`` unit tests, a determinism check, and
 an AST test that ``commishdesk/ingest/*.py`` imports nothing from ``adapters`` or
 a later pipeline stage (AD-1).
+
+Story 5.6 adds the ``PlayoffFormat`` rows: ``league.settings.playoff_teams``
+carried as data on ``LeagueFormat.playoff``.
 """
 
 from __future__ import annotations
@@ -23,6 +26,7 @@ from commishdesk.ingest import (
     Division,
     LeagueFormat,
     LeagueModel,
+    PlayoffFormat,
     build_league_model,
     sanitize,
 )
@@ -261,6 +265,47 @@ def test_no_divisions() -> None:
         roster["settings"].pop("division", None)
     model = build_league_model(bundle)
     assert model.format.divisions == []
+
+
+# --------------------------------------------------------------------------- #
+# Story 5.6: the declared playoff shape, as data
+# --------------------------------------------------------------------------- #
+
+
+def test_playoff_format_is_built_from_settings() -> None:
+    bundle = _synthetic_bundle()
+    bundle["league"]["settings"]["playoff_teams"] = 6
+    fmt = build_league_model(bundle).format
+    assert fmt.playoff == PlayoffFormat(bracket_teams=6)
+    assert fmt.playoff is not None
+    assert fmt.playoff.bracket_teams == 6
+
+
+def test_playoff_format_absent_is_none() -> None:
+    """A league that declares no playoff size carries ``None``, never a zero."""
+    assert "playoff_teams" not in _synthetic_bundle()["league"]["settings"]
+    assert build_league_model(_synthetic_bundle()).format.playoff is None
+
+
+@pytest.mark.parametrize("bad", [0, -2, "six", None, True])
+def test_playoff_format_rejects_a_non_positive_or_non_int_size(bad: Any) -> None:
+    bundle = _synthetic_bundle()
+    bundle["league"]["settings"]["playoff_teams"] = bad
+    assert build_league_model(bundle).format.playoff is None
+
+
+def test_playoff_format_model_rejects_a_non_positive_bracket() -> None:
+    with pytest.raises(ValidationError):
+        PlayoffFormat(bracket_teams=0)
+    with pytest.raises(ValidationError):
+        PlayoffFormat(bracket_teams=-1)
+
+
+def test_playoff_format_is_exported_from_the_ingest_package() -> None:
+    import commishdesk.ingest as ingest
+
+    assert ingest.PlayoffFormat is PlayoffFormat
+    assert "PlayoffFormat" in ingest.__all__
 
 
 # --------------------------------------------------------------------------- #
