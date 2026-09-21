@@ -45,8 +45,9 @@ The pool does drop `Roster.ir` occupants — **except the ones who actually star
 week**. An IR slot is not startable, but the fixtures' IR list is *season-end* state, not
 week-N state (five week-10 rosters started a player who is on it), so a strict exclusion
 would remove a starter and report coaching efficiency above 100 %. `Roster.taxi`
-occupants are **not** dropped: a taxi player is startable in this league, so he is
-available.
+occupants are **not** dropped: Sleeper lets a taxi player be activated to the bench at
+any time (taxi is a second bench), so he is available. Activating one needs an open
+roster spot, which the solver does not model.
 
 **Why this is accepted, not fixed.** Sleeper's own weekly points are the league's ground
 truth (PRD §17 Q6); re-deriving availability from depth charts, injury reports, or

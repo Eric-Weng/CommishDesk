@@ -511,7 +511,7 @@ def test_equal_scores_resolve_to_the_lower_player_id_regardless_of_input_order()
 
 
 # --------------------------------------------------------------------------- #
-# Row: the DECIDED IR pool rule (taxi is startable, so taxi players count)
+# Row: the DECIDED IR pool rule (taxi is a second bench, so taxi players count)
 # --------------------------------------------------------------------------- #
 
 
@@ -531,7 +531,7 @@ def test_non_starting_ir_players_are_not_placeable() -> None:
 
 
 def test_non_starting_taxi_players_are_placeable() -> None:
-    """A taxi player is startable in this league, so he counts as available --
+    """A taxi player can be activated to the bench at any time, so he counts as available --
     unlike an IR player."""
     league = _league_model(["QB", "RB"])
     week = _week_model(

@@ -25,7 +25,8 @@ the placeable pool *except the ones who actually started that week*: an IR slot
 is not startable, but the fixtures' IR list is season-end state, not week-N
 state, so a strict exclusion can push coaching efficiency above 100% on the
 committed week-10 fixture (roster 4). ``Roster.taxi`` players are **not**
-excluded -- in this league a taxi player is startable, so he is available. The
+excluded -- Sleeper lets a taxi player be activated to the bench at any time, so
+he is available (taxi is a second bench). The
 one remaining divergence from the phase-0 golden's ``optimal`` (roster 4, a
 non-starting player who was on IR by season end) is recorded per the golden-file
 rule in ``docs/EDGE-CASES.md``, never bent to match. Availability itself is
