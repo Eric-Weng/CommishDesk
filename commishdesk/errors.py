@@ -89,6 +89,21 @@ skipping pricing. A ``CommishDeskError`` caught by the same per-league
 ``except (CommishDeskError, OSError)`` as every other engine fault (AD-9); no new
 catch site. The estimate is a worst-case bound, never an average — see
 ``narrate/pricing.py`` for the char-proxy token approximation.
+
+``OptimalLineupError`` is the ninth: the stage-2 lineup solver
+(``commishdesk/stats/lineup.py::compute_weekly_lineups``) raises it when
+``league.format.roster_slots`` cannot be solved at all — an empty slot list, a
+slot with an empty name, or a flex slot that declares no eligible position
+(``flex_eligibility[slot] == []``, the shape a league whose real slot name is
+outside ``ingest/build.py``'s known flex table produces). This is a broken
+*league format*, not a broken league-week, so it is deliberately a distinct class
+rather than an ``IngestError``: the message names the league id, the offending
+slot list, and the two documents (``tools/anonymize.py``, ``CONTRIBUTING.md``)
+that explain how to regenerate or contribute the league that exposed it. A
+``CommishDeskError``, so the CLI's existing per-league
+``except (CommishDeskError, OSError)`` already isolates it -- one-line stderr,
+exit 1, and the next league in the run list still builds. The raising happens in
+``commishdesk/stats/lineup.py``, not here.
 """
 
 from __future__ import annotations
@@ -102,6 +117,7 @@ __all__ = [
     "DeliveryError",
     "IngestError",
     "NarratorError",
+    "OptimalLineupError",
     "SchemaValidationError",
     "StoreError",
 ]
@@ -150,6 +166,18 @@ class IngestError(CommishDeskError):
 
 class NarratorError(CommishDeskError):
     """An LLM narrator provider adapter is unusable, or both providers failed."""
+
+
+class OptimalLineupError(CommishDeskError):
+    """A league's ``roster_slots`` cannot be solved into a legal lineup.
+
+    Raised by ``commishdesk/stats/lineup.py::compute_weekly_lineups`` for a
+    structurally unsolvable league format — an empty slot list, an empty slot
+    name, or a flex slot with no eligible positions. The message names the league
+    id, the slot list, ``tools/anonymize.py``, and ``CONTRIBUTING.md``. Caught
+    per league like any other ``CommishDeskError`` (AD-9); never a bare
+    ``KeyError``.
+    """
 
 
 class SchemaValidationError(CommishDeskError):

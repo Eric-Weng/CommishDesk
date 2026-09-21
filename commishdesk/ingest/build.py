@@ -51,6 +51,12 @@ and implements "reuse the persisted snapshot, never re-derive it live"
 (FR-5). Every other function here has no I/O; this one exists because that
 reuse decision *is* the story's AC3, and no CLI entry point exists yet
 (Story 5.11a) to host it instead.
+
+Story 5.5 adds ``IDP_FLEX`` to :data:`_FLEX_ELIGIBILITY` -- a defensive flex
+slot over ``DL`` / ``LB`` / ``DB``. Without an entry, ``_build_format`` falls
+through to its "unrecognized flex slot" branch and records an empty eligibility
+list, which ``stats/lineup.py`` then (correctly) refuses to solve; naming the
+three defensive positions here is what makes an IDP league solvable.
 """
 
 from __future__ import annotations
@@ -98,6 +104,7 @@ _FLEX_ELIGIBILITY: dict[str, tuple[str, ...]] = {
     "SUPER_FLEX": ("QB", "RB", "WR", "TE"),
     "REC_FLEX": ("WR", "TE"),
     "WRRB_FLEX": ("RB", "WR"),
+    "IDP_FLEX": ("DL", "LB", "DB"),
 }
 _NON_STARTING_SLOTS = frozenset({"BN", "IR", "TAXI"})
 
@@ -296,7 +303,7 @@ def _build_format(league: Mapping[str, Any], rosters: list[Any]) -> LeagueFormat
         if slot in _FLEX_ELIGIBILITY:
             flex_eligibility[slot] = list(_FLEX_ELIGIBILITY[slot])
         elif "FLEX" in slot:
-            # An unrecognized flex slot (e.g. IDP_FLEX): keep it in roster_slots
+            # An unrecognized flex slot (e.g. K_FLEX): keep it in roster_slots
             # but record eligibility unknown so a downstream lookup never KeyErrors.
             flex_eligibility[slot] = []
 

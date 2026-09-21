@@ -2,7 +2,9 @@
 power-model score, draft grades); no model, no clock, no network.
 
 All-play, expected wins, luck, and blowouts are implemented in
-:mod:`commishdesk.stats.weekly` (Story 5.4)."""
+:mod:`commishdesk.stats.weekly` (Story 5.4); the optimal-lineup solver and
+coaching efficiency it feeds are in :mod:`commishdesk.stats.lineup` (Story
+5.5)."""
 
 from __future__ import annotations
 
@@ -34,6 +36,16 @@ _GRADE_NAMES = frozenset(
         "compute_draft_grades",
     }
 )
+_LINEUP_NAMES = frozenset(
+    {
+        "BenchedPlayer",
+        "ByeStarter",
+        "LineupSlot",
+        "TeamLineup",
+        "WeeklyLineups",
+        "compute_weekly_lineups",
+    }
+)
 _WEEKLY_NAMES = frozenset(
     {
         "BLOWOUT_RATIO",
@@ -50,7 +62,7 @@ _WEEKLY_NAMES = frozenset(
     }
 )
 
-__all__ = sorted(_DRAFT_NAMES | _CONSENSUS_NAMES | _GRADE_NAMES | _WEEKLY_NAMES)
+__all__ = sorted(_DRAFT_NAMES | _CONSENSUS_NAMES | _GRADE_NAMES | _LINEUP_NAMES | _WEEKLY_NAMES)
 
 if TYPE_CHECKING:
     # Explicit "as X" re-export idiom: these names are only for static type
@@ -72,6 +84,12 @@ if TYPE_CHECKING:
     from .grades import GradeMethod as GradeMethod
     from .grades import TeamGrade as TeamGrade
     from .grades import compute_draft_grades as compute_draft_grades
+    from .lineup import BenchedPlayer as BenchedPlayer
+    from .lineup import ByeStarter as ByeStarter
+    from .lineup import LineupSlot as LineupSlot
+    from .lineup import TeamLineup as TeamLineup
+    from .lineup import WeeklyLineups as WeeklyLineups
+    from .lineup import compute_weekly_lineups as compute_weekly_lineups
     from .weekly import BLOWOUT_RATIO as BLOWOUT_RATIO
     from .weekly import MEANINGFUL_FROM_WEEK as MEANINGFUL_FROM_WEEK
     from .weekly import AllPlayRecord as AllPlayRecord
@@ -98,6 +116,10 @@ def __getattr__(name: str) -> object:
         from . import grades
 
         return getattr(grades, name)
+    if name in _LINEUP_NAMES:
+        from . import lineup
+
+        return getattr(lineup, name)
     if name in _WEEKLY_NAMES:
         from . import weekly
 

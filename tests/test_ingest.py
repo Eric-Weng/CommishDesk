@@ -306,12 +306,23 @@ def test_ir_and_taxi_are_filtered_from_roster_slots() -> None:
     assert slots == ["QB", "RB"]
 
 
-def test_unknown_flex_slot_gets_empty_eligibility() -> None:
+def test_idp_flex_slot_gets_its_defensive_eligibility() -> None:
+    """Story 5.5: ``IDP_FLEX`` is a real flex slot over the three defensive
+    positions. ``stats/lineup.py`` refuses to solve a flex slot with an empty
+    eligibility list, so naming it here is what makes an IDP league solvable."""
     bundle = _synthetic_bundle()
     bundle["league"]["roster_positions"] = ["QB", "RB", "IDP_FLEX", "BN"]
     fmt = build_league_model(bundle).format
     assert "IDP_FLEX" in fmt.roster_slots
-    assert fmt.flex_eligibility["IDP_FLEX"] == []
+    assert fmt.flex_eligibility["IDP_FLEX"] == ["DL", "LB", "DB"]
+
+
+def test_unknown_flex_slot_gets_empty_eligibility() -> None:
+    bundle = _synthetic_bundle()
+    bundle["league"]["roster_positions"] = ["QB", "RB", "K_FLEX", "BN"]
+    fmt = build_league_model(bundle).format
+    assert "K_FLEX" in fmt.roster_slots
+    assert fmt.flex_eligibility["K_FLEX"] == []
 
 
 def test_hostile_division_count_does_not_blow_up_memory() -> None:

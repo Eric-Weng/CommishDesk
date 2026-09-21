@@ -31,3 +31,53 @@ it is frozen from then on.
 **Where this shows up.** A backfilled week's box score or recap may cite a player's
 *current* team instead of the team they played for that week. This is most visible for a
 player traded mid-season into a league that backfills its early weeks afterward.
+
+## Availability is "whoever Sleeper scored", whatever the injury tag says (Story 5.5)
+
+**What happens.** `stats/lineup.py::compute_weekly_lineups` builds each roster's optimal
+pool from the players Sleeper published a week score for. An injury designation never
+removes a player: if Sleeper scored him on that roster that week, he is placeable, even
+with an `IR`/`Out`/`Questionable` tag. A player who was ruled out before kickoff and
+never played is simply *not scored*, so he naturally contributes nothing — the solver
+fills the slot from whoever is left.
+
+The pool does drop `Roster.ir` / `Roster.taxi` occupants — **except the ones who
+actually started that week**. That carve-out is deliberate: the fixtures' IR/taxi lists
+are *season-end* state, not week-N state, so a strict exclusion would remove a starter
+who happens to sit on the season-end IR list and report coaching efficiency above 100 %.
+
+**Why this is accepted, not fixed.** Sleeper's own weekly points are the league's ground
+truth (PRD §17 Q6); re-deriving availability from depth charts, injury reports, or
+kickoff times would need dated data sources this engine does not have.
+
+**Divergence from the phase-0 golden.** The private `brief/phase-0/week10-facts.json`
+golden counted the non-starting IR/taxi scorers this module excludes, so for the six
+rosters that carried one in week 10 (2, 3, 4, 6, 7, 9 — including a 51.66 and a 23.58
+that never started) its `optimal` is *higher* than this module's. Per the project's
+golden-file rule, that divergence is recorded here rather than bent to match:
+`tests/test_stats_lineup.py` reconciles the other six rosters exactly and asserts the
+six perturbed rosters are at or below their golden value on `optimal`,
+`points_left_on_bench`, and `bench_regret`.
+
+**Where this shows up.** A week-10 (or later) recap built from a season-end backfill can
+show a slightly lower `optimal` and `points_left_on_bench` for a roster whose IR/taxi
+stash scored but never started.
+
+## A player added after his game kicked off can still be scored for it (Story 5.5)
+
+**What happens.** A manager can add a player whose NFL game has *already finished* — a
+waiver claim or free-agent add processed after kickoff. Sleeper will then score that
+player's already-played game onto the roster, and `stats/lineup.py` has no way to tell
+that apart from a legitimate pre-kickoff start: the points landed, so the pool sees them.
+
+**Why this is accepted, not fixed.** Nothing the ingest layer carries can date the
+addition. `ingest/model.py::Transaction` records the settled assets and roster ids but
+**no timestamp** (`created` / `status_updated` are on the raw Sleeper payload; the model
+deliberately does not carry them), and the bundle carries no NFL kickoff schedule at all.
+Detecting a too-late add would need both a dated transaction log and per-game kickoff
+times — a second and third data source this story does not have.
+
+**Where this shows up.** In a league whose waivers clear after Sunday's early games, a
+roster may show an "optimal" lineup that includes a player the manager could not legally
+have started. The overstatement is bounded by the late-added players' scores and only ever affects
+that week's lineup stats, never the record or the standings.

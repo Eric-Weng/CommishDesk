@@ -71,6 +71,13 @@ draft recap is built against.
 | `week10-superflex.json` | The week-10 bundle with the second `QB` roster slot changed to `SUPER_FLEX` (a roster-slot property; scoring is unchanged), then run through the anonymizer. A synthetic superflex league to exercise the optimal-lineup solver. |
 | `week17-playoffs.json` | The championship round (`playoff_week_start` is 15). Non-empty `winners_bracket`/`losers_bracket`; four rosters eliminated in an earlier round have no matchup entry this week. Weeks 1–17. |
 
+`week10-superflex.json` is the fixture the Story 5.5 optimal-lineup solver is
+exercised end to end against: its `SUPER_FLEX` slot must accept a second `QB`,
+which `tests/test_stats_lineup.py` asserts directly on the committed bundle. `week10-blowout`
+and `week10-superflex` are the two fixtures that carry per-player
+`players_points`/`starters_points` for *every* week (Story 5.2), which is what makes a
+hand-checkable lineup optimum possible at all.
+
 ## Provenance and regeneration
 
 All eight derive from one private Phase-0 pull of a real 12-team Sleeper league
