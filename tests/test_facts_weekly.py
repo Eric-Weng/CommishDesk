@@ -66,7 +66,7 @@ _GOLDEN_PATH = REPO_ROOT.parent / "brief" / "phase-0" / "week10-facts.json"
 GOLDEN = json.loads(_GOLDEN_PATH.read_text(encoding="utf-8")) if _GOLDEN_PATH.is_file() else None
 requires_golden = pytest.mark.skipif(
     GOLDEN is None,
-    reason="phase-0 week10 golden is a private planning artifact, not in the tree",
+    reason="phase-0 golden is a private planning artifact, not in the tree",
 )
 requires_committed_oracle = pytest.mark.skipif(
     not EXPECTED_WEEKLY_PATH.is_file(),
