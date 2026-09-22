@@ -1,4 +1,4 @@
-"""Stage 3 — board-only lead angles (Story 2.6).
+"""Stage 3 — board-only lead angles (Story 2.6, extended Story 5.9).
 
 :func:`build_lead_candidates` ranks the story angles a draft-recap lead could open
 on, computed **in code** from the stage results the builder already holds — no
@@ -7,6 +7,11 @@ angle is a :class:`~commishdesk.facts.schema.LeadCandidate`
 (``{rank, kind, roster_ids, hook}``); the ``hook`` is a deterministic sentence
 built from the numbers, factual and terminal, which the narrator may later
 rewrite in voice.
+
+Story 5.9 adds :func:`build_weekly_lead_candidates` — the weekly counterpart,
+reading the weekly document's own ``teams`` / ``period`` blocks and firing in
+:data:`WEEKLY_LEAD_KIND_PRIORITY` order (a team losing a game it should have won
+leads; the week's high score is only the floor).
 
 Pure / deterministic / offline: a valid stage-result set in, a ranked list out.
 Two calls on one input return equal ``model_dump()`` output. Every board number
@@ -29,9 +34,21 @@ from __future__ import annotations
 from commishdesk.ingest import LeagueModel
 from commishdesk.stats import BoardMetrics, ConsensusMetrics, DraftGrades
 
-from .schema import DraftSummary, LeadCandidate, Superlatives
+from .schema import (
+    DraftSummary,
+    LeadCandidate,
+    Superlatives,
+    WeeklyPeriod,
+    WeeklyTeam,
+    WeekMarginRef,
+)
 
-__all__ = ["LEAD_KIND_PRIORITY", "build_lead_candidates"]
+__all__ = [
+    "LEAD_KIND_PRIORITY",
+    "WEEKLY_LEAD_KIND_PRIORITY",
+    "build_lead_candidates",
+    "build_weekly_lead_candidates",
+]
 
 LEAD_KIND_PRIORITY: tuple[str, ...] = (
     "positional_run",
@@ -78,6 +95,28 @@ def _spell(n: int) -> str:
     range falls back to the digits. Keeps the hooks reading like prose without a
     dependency."""
     return _ONES[n] if 0 <= n < len(_ONES) else str(n)
+
+
+def _roster_key(roster_id: str) -> tuple[int, object]:
+    """Numeric-aware ordering for a roster id string (mirrors
+    ``facts/weekly.py``'s ``_sort_key``) so a 10+-roster league orders ``2``
+    before ``10``. Ids that do not parse as an int sort lexically after the
+    numeric ones."""
+    try:
+        return (0, int(roster_id))
+    except (TypeError, ValueError):
+        return (1, roster_id)
+
+
+def _team_label(team: WeeklyTeam) -> str:
+    """The label a narrator reads for one weekly roster: the team name, else the
+    manager, else a roster-id fallback."""
+    return team.team_name or team.manager or f"Roster {team.roster_id}"
+
+
+def _points(value: float) -> str:
+    """Two-decimal point total — the weekly hooks' numeric formatter."""
+    return f"{value:.2f}"
 
 
 def build_lead_candidates(
@@ -214,3 +253,168 @@ def _biggest_score(league: LeagueModel) -> LeadCandidate | None:
         [pick.roster_id],
         f"{pick.player.name} went {pick.board_label}.",
     )
+
+
+# --------------------------------------------------------------------------- #
+# Story 5.9 — weekly lead angles
+# --------------------------------------------------------------------------- #
+
+WEEKLY_LEAD_KIND_PRIORITY: tuple[str, ...] = (
+    "lineup_loss",
+    "biggest_blowout",
+    "closest_game",
+    "week_high_score",
+)
+"""Editorial priority order for the weekly lead angles (FR-14). The team that
+lost a game it should have won leads; the week's shape (its biggest blowout, its
+closest game) follows; the week's high score is the floor, never the default.
+Every ``kind`` a detector below emits must appear here."""
+
+
+def build_weekly_lead_candidates(
+    teams: list[WeeklyTeam], period: WeeklyPeriod
+) -> list[LeadCandidate]:
+    """Ranked lead angles for the weekly recap (Story 5.9).
+
+    Mirrors :func:`build_lead_candidates`'s shape: only detectors that fire are
+    emitted, in :data:`WEEKLY_LEAD_KIND_PRIORITY` order, then ``rank`` is
+    renumbered ``1..N``. Returns ``[]`` only when no roster played a game this
+    week — the ``week_high_score`` floor otherwise guarantees at least one angle,
+    so a ``lineup_loss`` read is never buried behind a single high score (FR-14).
+    """
+    angles = [
+        _lineup_loss(teams),
+        _biggest_blowout(teams, period),
+        _closest_game(teams, period),
+        _week_high_score(teams),
+    ]
+    fired = [a for a in angles if a is not None]
+    fired.sort(key=lambda a: WEEKLY_LEAD_KIND_PRIORITY.index(a.kind))
+    return [a.model_copy(update={"rank": i}) for i, a in enumerate(fired, start=1)]
+
+
+def _lineup_loss(teams: list[WeeklyTeam]) -> LeadCandidate | None:
+    """The roster that lost a game it ought to have won — more points left on the
+    bench than it lost by. Among qualifiers the largest such gap leads; ties break
+    to the lower roster id."""
+    best: WeeklyTeam | None = None
+    best_gap = 0.0
+    for team in sorted(teams, key=lambda t: _roster_key(t.roster_id)):
+        game = team.this_week
+        if game is None or game.result != "L":
+            continue
+        if game.margin is None or game.points_left_on_bench is None:
+            continue
+        margin = abs(game.margin)
+        if game.points_left_on_bench <= margin:
+            continue
+        gap = game.points_left_on_bench - margin
+        if best is None or gap > best_gap:
+            best, best_gap = team, gap
+    if best is None:
+        return None
+
+    game = best.this_week
+    assert game is not None and game.margin is not None and game.points_left_on_bench is not None
+    label = _team_label(best)
+    regret = game.bench_regret
+    if regret is not None:
+        hook = (
+            f"{label} lost by {_points(abs(game.margin))} with "
+            f"{_points(game.points_left_on_bench)} on the bench, including {regret.name}."
+        )
+    else:
+        hook = (
+            f"{label} lost by {_points(abs(game.margin))} with "
+            f"{_points(game.points_left_on_bench)} on the bench."
+        )
+    return _candidate("lineup_loss", [best.roster_id], hook)
+
+
+def _biggest_blowout(teams: list[WeeklyTeam], period: WeeklyPeriod) -> LeadCandidate | None:
+    """The week's widest margin, off ``period.summary.biggest_blowout``."""
+    return _game_angle(
+        teams,
+        period.summary.biggest_blowout,
+        kind="biggest_blowout",
+        verb="beat",
+        tail="the week's biggest blowout",
+    )
+
+
+def _closest_game(teams: list[WeeklyTeam], period: WeeklyPeriod) -> LeadCandidate | None:
+    """The week's narrowest margin, off ``period.summary.closest``. Skipped when
+    it names the same pairing as :func:`_biggest_blowout` (only reachable when
+    the week has exactly one game, so the two summary fields degenerate to the
+    same matchup) -- the two angles would otherwise describe one score as both
+    the week's biggest blowout and its closest game."""
+    blowout = period.summary.biggest_blowout
+    closest = period.summary.closest
+    if blowout is not None and closest is not None and set(closest.roster_ids) == set(blowout.roster_ids):
+        return None
+    return _game_angle(
+        teams,
+        closest,
+        kind="closest_game",
+        verb="edged",
+        tail="the week's closest game",
+    )
+
+
+def _game_angle(
+    teams: list[WeeklyTeam],
+    margin_ref: WeekMarginRef | None,
+    *,
+    kind: str,
+    verb: str,
+    tail: str,
+) -> LeadCandidate | None:
+    """A game-shaped angle (``biggest_blowout`` / ``closest_game``) built from a
+    :class:`~commishdesk.facts.schema.WeekMarginRef`. ``None`` when the reference
+    is absent (``None`` skips, per the spec), does not name exactly two distinct
+    rosters, or either participant is missing from *teams*. ``roster_ids`` is
+    winner-first, matching ``_lineup_loss``/``_week_high_score``'s
+    subject-first convention. A tie (``margin == 0``, reachable per
+    ``stats/weekly.py``'s own tie handling) gets its own wording rather than
+    being misdescribed as one side edging the other."""
+    if margin_ref is None or len(set(margin_ref.roster_ids)) != 2:
+        return None
+    by_roster = {team.roster_id: team for team in teams}
+    ids = sorted(margin_ref.roster_ids, key=_roster_key)
+    first = by_roster.get(ids[0])
+    second = by_roster.get(ids[1])
+    if first is None or second is None:
+        return None
+    first_points = first.this_week.points if first.this_week is not None else None
+    second_points = second.this_week.points if second.this_week is not None else None
+    if first_points is None or second_points is None:
+        return None
+    if first_points == second_points:
+        hook = (
+            f"{_team_label(first)} and {_team_label(second)} tied at {_points(first_points)}, "
+            f"{tail}."
+        )
+        return _candidate(kind, [first.roster_id, second.roster_id], hook)
+    winner, loser = (first, second) if first_points > second_points else (second, first)
+    hook = f"{_team_label(winner)} {verb} {_team_label(loser)} by {_points(margin_ref.margin)}, {tail}."
+    return _candidate(kind, [winner.roster_id, loser.roster_id], hook)
+
+
+def _week_high_score(teams: list[WeeklyTeam]) -> LeadCandidate | None:
+    """The floor: the week's highest-scoring roster among those that played a
+    game. ``None`` only when no roster has a game (matching the empty-week
+    contract: no games, no angles). Ties break to the lower roster id."""
+    best: WeeklyTeam | None = None
+    best_points = 0.0
+    for team in sorted(teams, key=lambda t: _roster_key(t.roster_id)):
+        game = team.this_week
+        if game is None:
+            continue
+        if best is None or game.points > best_points:
+            best, best_points = team, game.points
+    if best is None:
+        return None
+    game = best.this_week
+    assert game is not None
+    hook = f"{_team_label(best)} posted the week's high score, {_points(game.points)}."
+    return _candidate("week_high_score", [best.roster_id], hook)
