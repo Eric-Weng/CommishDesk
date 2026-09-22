@@ -36,6 +36,12 @@ outcome — and only while ``week + 1`` is still regular season
 (``settings.playoff_week_start`` an int and ``week + 1 < playoff_week_start``);
 past that cutoff it is ``[]``, with no request made.
 
+Story 5.11a adds one more, again inside the unchanged ``fetch_week``
+signature: a ``GET /state/nfl`` projected to ``{"week", "season_type"}`` under
+a new ``"nfl_state"`` key. That is Sleeper's own "which week is it" signal, and
+it is what lets the weekly CLI refuse a ``--week`` whose games are not final
+yet — a bundle *key*, not a third ``Adapter`` protocol member.
+
 Everything comes back in the platform's own shape, unmodified, except that
 ``league_id`` / ``draft_id`` / ``roster_id`` / ``user_id`` are normalized to
 ``str`` wherever they appear as a field (Sleeper returns ``roster_id`` as an
@@ -133,6 +139,24 @@ def _project_pairings(value: Any) -> list[dict[str, Any]]:
         for row in value
         if isinstance(row, Mapping)
     ]
+
+
+def _nfl_state(state: Any) -> dict[str, Any]:
+    """Story 5.11a: project Sleeper's ``GET /state/nfl`` response to
+    ``{"week": int | None, "season_type": str | None}`` — the two fields the
+    weekly CLI's week-finality check reads.
+
+    A non-object response, or a non-int ``week`` / non-str ``season_type``
+    (``bool`` is an ``int`` subclass and is rejected) projects to ``None`` on
+    that field: an unreadable state means "finality unknown", never an
+    ``AdapterError`` of its own (mirrors :func:`_playoff_week_start`)."""
+    if not isinstance(state, Mapping):
+        return {"week": None, "season_type": None}
+    week = state.get("week")
+    week = week if isinstance(week, int) and not isinstance(week, bool) else None
+    season_type = state.get("season_type")
+    season_type = season_type if isinstance(season_type, str) else None
+    return {"week": week, "season_type": season_type}
 
 
 def _rostered_player_ids(rosters: Any, matchups: Mapping[str, Any]) -> set[str]:
@@ -295,6 +319,8 @@ class SleeperAdapter:
     def fetch_week(self, league_id: str, week: int) -> Mapping[str, Any]:
         """Sequentially pull one league-week's raw Sleeper data: the league
         (read only for ``settings.playoff_week_start``), the current rosters,
+        Sleeper's own NFL state (``GET /state/nfl``, projected to
+        ``{"week", "season_type"}`` under ``"nfl_state"`` — Story 5.11a),
         every week ``1..week``'s matchups, every week ``1..week``'s
         transactions (each filtered to ``status == "complete"``), — only once
         ``week`` reaches the playoff period — the winners/losers brackets
@@ -318,6 +344,11 @@ class SleeperAdapter:
 
         league = self._get(f"/league/{league_id}")
         rosters = self._get(f"/league/{league_id}/rosters")
+        # Story 5.11a: Sleeper's own "which week is it" signal, for the weekly
+        # CLI's week-finality check. Projected down to the two fields the check
+        # reads, so the raw response's dozens of other keys never reach a
+        # bundle.
+        nfl_state = _nfl_state(self._get("/state/nfl"))
 
         matchups: dict[str, Any] = {
             str(wk): self._get(f"/league/{league_id}/matchups/{wk}") for wk in range(1, week + 1)
@@ -350,6 +381,7 @@ class SleeperAdapter:
         bundle: dict[str, Any] = {
             "league": league,
             "rosters": rosters,
+            "nfl_state": nfl_state,
             "matchups": matchups,
             "transactions": transactions,
             "next_matchups": next_matchups,

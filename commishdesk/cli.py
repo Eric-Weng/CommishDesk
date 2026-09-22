@@ -3,9 +3,10 @@
 A draft recap for ``--league demo`` runs offline against the committed fixture; a
 real Sleeper id fetches the board from Sleeper and the consensus rank from
 FantasyCalc (``/values/current``), with the Sleeper players file as the offline
-fallback. The weekly recap is still Epic 5 (``--week`` alone prints a
-not-yet-implemented notice). ``cli.py`` is the only module that imports across
-every pipeline stage (AD-1).
+fallback. A weekly recap (``--week``) chains the weekly ingest → stats → facts →
+template narrator → deliver path to a local text Issue plus the Story 2.7 generic
+HTML dump, and optionally posts an idempotent Discord summary. ``cli.py`` is the
+only module that imports across every pipeline stage (AD-1).
 """
 
 from __future__ import annotations
@@ -13,6 +14,7 @@ from __future__ import annotations
 import logging
 import os
 import tempfile
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -29,6 +31,7 @@ if TYPE_CHECKING:
     from commishdesk.llmconfig import LLMConfig
     from commishdesk.narrate import Recap, SafetyReport, TieredResponse
     from commishdesk.narrate.llm import CallUsage
+    from commishdesk.narrate.weekly_template import WeeklyIssue
     from commishdesk.store import FileStore, IssueKind
     from commishdesk.voices import Voice
 
@@ -90,8 +93,9 @@ def run(
         "--post",
         help=(
             "Deliver the rendered Issue to Discord after rendering (requires "
-            "--draft-recap and COMMISHDESK_DISCORD_WEBHOOK_URL). Idempotent — a "
-            "recipient already confirmed for this league-week is not re-sent."
+            "--draft-recap or --week, and COMMISHDESK_DISCORD_WEBHOOK_URL). "
+            "Idempotent — a recipient already confirmed for this league-week is "
+            "not re-sent."
         ),
     ),
     llm: bool | None = typer.Option(
@@ -100,7 +104,8 @@ def run(
         help=(
             "Force the voiced LLM narrator on/off. Default: on when a provider API "
             "key is set (ANTHROPIC_API_KEY / LLM_API_KEY / GEMINI_API_KEY / "
-            "GOOGLE_API_KEY). '--league demo' is always the template narrator."
+            "GOOGLE_API_KEY). '--league demo' is always the template narrator, and "
+            "the weekly recap is always the template narrator."
         ),
     ),
     out_dir: Path = typer.Option(  # noqa: B008 -- canonical typer idiom
@@ -128,12 +133,15 @@ def run(
     ),
 ) -> None:
     """Configure logging, bind the league/week log context, and dispatch to the
-    draft-recap pipeline (or the not-yet-implemented weekly recap).
+    draft-recap or weekly-recap pipeline.
 
     Adding the first ``@app.command`` (``verify-webhook``) flips Click into group
     mode, so this callback also fires ahead of a subcommand — return immediately
     in that case and let the subcommand own the run. Every bare
     ``commishdesk --league …`` invocation still lands here unchanged.
+
+    Exactly one of ``--draft-recap`` / ``--week`` selects the mode; ``--post`` is
+    legal with either. Neither flag keeps the unchanged informational path.
     """
     if ctx.invoked_subcommand is not None:
         return
@@ -141,8 +149,8 @@ def run(
     with log_context(league_id=league, week=week):
         if draft_recap and week is not None:
             raise typer.BadParameter("--draft-recap builds the draft recap and cannot be combined with --week")
-        if post and not draft_recap:
-            raise typer.BadParameter("--post requires --draft-recap")
+        if post and not (draft_recap or week is not None):
+            raise typer.BadParameter("--post requires --draft-recap or --week")
         if draft_recap:
             if not league:
                 raise typer.BadParameter("--draft-recap requires --league")
@@ -161,7 +169,27 @@ def run(
                 raise typer.Exit(code=1) from exc
             raise typer.Exit(code=exit_code)
 
-        mode = f"week {week} recap" if week is not None else "recap"
+        if week is not None:
+            if not league:
+                raise typer.BadParameter("--week requires --league")
+            if llm is not None:
+                # Story 5.11a: the weekly narrator is always the deterministic
+                # template until Story 5.12 adds the LLM voice -- an explicit
+                # --llm/--no-llm here would otherwise be silently ignored.
+                logger.warning(
+                    "--%sllm has no effect on a weekly run: the weekly narrator "
+                    "is always the deterministic template (Story 5.12 adds the LLM voice)",
+                    "" if llm else "no-",
+                )
+            logger.debug("cli invoked: mode=week %s recap", week)
+            try:
+                exit_code = _run_weekly(league, week, out_dir, logger, post=post)
+            except (CommishDeskError, OSError) as exc:
+                typer.echo(_one_line(exc), err=True)
+                raise typer.Exit(code=1) from exc
+            raise typer.Exit(code=exit_code)
+
+        mode = "recap"
         logger.debug("cli invoked: mode=%s", mode)
         league_label = league if league else "<none>"
         typer.echo(
@@ -285,7 +313,8 @@ def _llm_enabled(cli_flag: bool | None) -> bool:
     """Resolve the narrator selection (FR-17): an explicit ``--llm`` / ``--no-llm``
     wins; otherwise the LLM narrator is on when a provider API key is present, and
     the template narrator otherwise. ``--league demo`` is always the template
-    narrator regardless of this result (forced in :func:`_recap_one_league`).
+    narrator regardless of this result (forced in :func:`_recap_one_league`), and
+    the weekly path never consults this at all.
 
     This is *selection*, not a budget gate: whatever it returns, every league in
     the run still yields a complete Issue — a stubbed-failing or unusable LLM
@@ -406,6 +435,69 @@ def _run_draft_recap(
             typer.echo(_one_line(exc), err=True)
             exit_code = 1
     return exit_code
+
+
+def _run_weekly(
+    league: str,
+    week: int,
+    out_dir: Path,
+    logger: logging.Logger,
+    *,
+    post: bool,
+) -> int:
+    """Derive the run list (the one Generation Set constructor) and build a weekly
+    Issue for each activated league. Returns the process exit code: ``0`` when
+    every league in the set produced an Issue, ``1`` when one or more faulted
+    (each fault — a not-yet-final week, a cross-check hold, an
+    :class:`~commishdesk.errors.OptimalLineupError`, anything else — is isolated
+    and printed as a one-line message, AD-9). Raises
+    :class:`~commishdesk.errors.CommishDeskError` before any league runs when the
+    league is not activated for a run.
+
+    No LLM config is loaded and no paid call is made anywhere on this path: the
+    weekly narrator is the deterministic template only (Story 5.12 adds the
+    voiced weekly narrator), so there is no cost-ceiling machinery here either."""
+    from commishdesk.generation import build_generation_set
+
+    run_list = build_generation_set([league]).league_ids
+    if not run_list:
+        raise CommishDeskError(f"league {league!r} is not activated for a run")
+
+    exit_code = 0
+    for resolved in run_list:
+        try:
+            _recap_one_league_weekly(resolved, week, out_dir, logger, post=post)
+        except (CommishDeskError, OSError) as exc:
+            logger.debug("league %s faulted: %s", resolved, _one_line(exc))
+            typer.echo(_one_line(exc), err=True)
+            exit_code = 1
+    return exit_code
+
+
+def _week_not_final_reason(nfl_state: object, week: int) -> str | None:
+    """Story 5.11a: why the requested ``week`` is not final yet, per Sleeper's own
+    ``GET /state/nfl`` projection carried on the week bundle's ``"nfl_state"`` key
+    — or ``None`` when it is final.
+
+    Not final when the season has not started (``season_type == "pre"``), or when
+    the regular season has not advanced past ``week`` yet (``season_type ==
+    "regular"`` and Sleeper's own week counter is ``<= week``). An unreadable or
+    absent state means "finality unknown" and fails **open** — a courtesy check
+    that must never block a real league on a missing platform field."""
+    if not isinstance(nfl_state, Mapping):
+        return None
+    season_type = nfl_state.get("season_type")
+    if season_type == "pre":
+        return "the NFL season has not started"
+    current = nfl_state.get("week")
+    if (
+        season_type == "regular"
+        and isinstance(current, int)
+        and not isinstance(current, bool)
+        and current <= week
+    ):
+        return f"week {week} is not final yet — Sleeper's NFL state is only through week {current}"
+    return None
 
 
 def _recap_one_league(
@@ -680,9 +772,10 @@ def _recap_one_league(
         assert webhook_url is not None  # checked fail-fast at the top of this function
         assert recipient_id is not None  # computed alongside webhook_url, same guard
         assert store is not None  # post=True guarantees a store on every path, demo included
+        from commishdesk.render import render_discord_summary
+
         _deliver_issue(
-            doc,
-            body,
+            summary=render_discord_summary(doc, recap=body.recap, llm_text=body.llm_text),
             store=store,
             resolved=resolved,
             week=DRAFT_RECAP_WEEK,
@@ -692,15 +785,197 @@ def _recap_one_league(
         )
 
 
+def _recap_one_league_weekly(
+    resolved: str,
+    week: int,
+    out_dir: Path,
+    logger: logging.Logger,
+    *,
+    post: bool,
+) -> None:
+    """Story 5.11a: chain ingest → stats → facts → template narrator → render for
+    one league-week, writing the local text Issue plus the Story 2.7 generic HTML
+    dump and (with ``--post``) delivering an idempotent Discord summary.
+
+    No paid call is made on this path — the weekly narrator is the deterministic
+    template only, so there is no LLM selection and no cost-ceiling check here.
+
+    Ordering (epic-3-retro-item-35, applied to the weekly kind from the start):
+
+    1. the ``--post`` webhook fail-fast + already-confirmed ledger short-circuit,
+       before any fetch at all;
+    2. the fetch and Sleeper's own week-finality refusal;
+    3. the standings cross-check — a ``CrossCheckError`` is a **hold** under
+       ``--post`` (nothing rendered, written or posted) and an ``UNVERIFIED —``
+       dateline otherwise (the mismatch is printed and the local Issue still
+       ships);
+    4. the durable writes (the persisted-or-built player snapshot, then the
+       advanced storylines once the Issue exists and any hold has resolved).
+    """
+    from commishdesk.deliver.discord import webhook_id
+    from commishdesk.errors import CrossCheckError
+    from commishdesk.facts.storylines import advance_storylines
+    from commishdesk.facts.weekly import build_weekly_facts
+    from commishdesk.ingest import (
+        build_league_model,
+        build_player_names,
+        build_week_model,
+        bye_teams,
+        get_player_snapshot,
+    )
+    from commishdesk.stats.standings import compute_standings, cross_check_standings
+    from commishdesk.store import FileStore
+
+    weekly_kind: IssueKind = "weekly"
+    store = FileStore(_cache_dir())
+
+    # --post fails fast on a missing/blank/malformed webhook before any fetch or
+    # any work (mirrors _recap_one_league's draft fast-path), and an
+    # already-confirmed (league, week, kind="weekly") Send Ledger entry
+    # short-circuits the whole run before any fetch at all.
+    webhook_url: str | None = None
+    recipient_id: str | None = None
+    if post:
+        webhook_url = (os.environ.get(_DISCORD_WEBHOOK_VAR) or "").strip()
+        if not webhook_url:
+            raise DeliveryError(
+                f"set {_DISCORD_WEBHOOK_VAR} to the league's Discord channel webhook URL before running --post"
+            )
+        recipient_id = webhook_id(webhook_url)
+        already_confirmed = {
+            entry.recipient
+            for entry in store.read_ledger(resolved, week)
+            if entry.channel == "discord" and entry.kind == weekly_kind
+        }
+        if recipient_id in already_confirmed:
+            typer.echo(f"Discord post already confirmed for webhook {recipient_id} — skipped")
+            return
+
+    from commishdesk.adapters.sleeper import SleeperAdapter
+
+    logger.debug("fetching Sleeper week %s for league %s", week, resolved)
+    adapter = SleeperAdapter()
+    try:
+        week_bundle = adapter.fetch_week(resolved, week)
+        # Refuse before any stats work when Sleeper's own state says this week's
+        # games are not final yet (or the season has not started).
+        reason = _week_not_final_reason(week_bundle.get("nfl_state"), week)
+        if reason is not None:
+            raise CommishDeskError(
+                f"league {resolved!r}: cannot build a Week {week} recap — {reason}"
+            )
+        league_bundle = adapter.fetch(resolved)
+    finally:
+        adapter.close()
+
+    logger.debug("building the weekly models")
+    model = build_league_model(league_bundle)
+    week_model = build_week_model(week_bundle)
+    player_names = build_player_names(week_bundle)
+
+    season = model.season
+    nfl_byes = bye_teams(season, week)
+    nfl_byes_next_week = bye_teams(season, week + 1)
+
+    # Cross-check before the Facts JSON is built (Story 5.11a). This is the one
+    # stats call facts/weekly.py::_build does not make itself, so the CLI owns it.
+    logger.debug("computing weekly standings + cross-check")
+    standings = compute_standings(week_model, model)
+    cross_check_passed = True
+    try:
+        cross_check_standings(standings, week_model)
+    except CrossCheckError as exc:
+        if post:
+            # A --post run must not ship an Issue whose numbers disagree with
+            # Sleeper's own season totals: hold (nothing rendered, written or
+            # posted), one-line alert, exit 1 — the same shape as the
+            # ContentSafetyError hold on the draft path.
+            raise
+        cross_check_passed = False
+        logger.warning("league %s cross-check failed: %s", resolved, _one_line(exc))
+        typer.echo(_one_line(exc), err=True)
+
+    # Durable writes begin only now that the week is final and any cross-check
+    # hold has resolved: the persisted-or-built player snapshot (FR-5), then the
+    # league's narrative memory.
+    players = get_player_snapshot(store, resolved, week, week_bundle)
+    previous_storylines = store.read_storylines(resolved)
+
+    logger.debug("building the weekly Facts JSON")
+    doc = build_weekly_facts(
+        week_model,
+        model,
+        players,
+        player_names,
+        generated_at=datetime.now(tz=UTC),
+        nfl_byes=nfl_byes,
+        nfl_byes_next_week=nfl_byes_next_week,
+        previous_storylines=previous_storylines,
+    )
+
+    logger.debug("narrating the weekly Issue (template narrator)")
+    from commishdesk.narrate.weekly_template import render_weekly_issue
+
+    issue = render_weekly_issue(doc.narration)
+    if not cross_check_passed:
+        # Visible on every surface that reads the dateline (stdout, the text
+        # file, the HTML dump) — the same technique _render_and_write_issue uses
+        # to stamp the generation timestamp onto the draft-recap dateline.
+        issue = issue.model_copy(update={"dateline": f"UNVERIFIED — {issue.dateline}"})
+
+    # epic-3-retro-item-35: narrative memory is durably updated only once the
+    # narratable Issue exists and any cross-check hold has resolved. Extended
+    # (step-04 review, blind-hunter): "resolved" means *passed* -- a
+    # cross-check failure without --post still ships an UNVERIFIED local
+    # Issue built from the mismatched numbers, but must not let those same
+    # numbers durably taint next week's storyline continuity. Computing
+    # next_storylines is pure and harmless either way; only the write is
+    # gated, mirroring how the draft-recap path already gates its write (not
+    # the computation) on success.
+    next_storylines = [
+        storyline.model_copy(update={"league_id": resolved})
+        for storyline in advance_storylines(
+            previous_storylines,
+            kind=weekly_kind,
+            week=week,
+            teams=doc.teams,
+            period=doc.period,
+        )
+    ]
+    if cross_check_passed:
+        store.write_storylines(resolved, next_storylines)
+
+    _render_and_write_weekly_issue(
+        issue,
+        out_dir=out_dir,
+        resolved=resolved,
+        week=week,
+        logger=logger,
+    )
+
+    if post:
+        assert webhook_url is not None  # checked fail-fast at the top of this function
+        assert recipient_id is not None  # computed alongside webhook_url, same guard
+        from commishdesk.render import render_weekly_discord_summary
+
+        _deliver_issue(
+            summary=render_weekly_discord_summary(issue, week=week),
+            store=store,
+            resolved=resolved,
+            week=week,
+            kind=weekly_kind,
+            webhook_url=webhook_url,
+            recipient_id=recipient_id,
+        )
+
+
 def _issue_filename_stem(week: int, kind: IssueKind) -> str:
     """Filename stem for one Issue's output files — stable across ``week`` /
-    ``kind`` so a future weekly path can reuse :func:`_render_and_write_issue`
-    / :func:`_deliver_issue` unchanged. ``draft_recap`` reproduces the exact
-    pre-existing ``"draft-recap"`` stem (``week`` is unused — a draft recap is
-    always week 1); the ``weekly`` branch (``f"{kind}-week{week}"``) is a
-    placeholder default with no current caller — this story deliberately does
-    not decide Epic 5's real weekly naming convention (see the frozen
-    Boundaries)."""
+    ``kind`` so the weekly path reuses :func:`_render_and_write_issue` /
+    :func:`_deliver_issue` / :func:`_render_and_write_weekly_issue` unchanged.
+    ``draft_recap`` reproduces the exact pre-existing ``"draft-recap"`` stem
+    (``week`` is unused — a draft recap is always week 1); the ``weekly`` branch
+    (``f"{kind}-week{week}"``) is what the Story 5.11a weekly path writes."""
     if kind == "draft_recap":
         return "draft-recap"
     return f"{kind}-week{week}"
@@ -770,10 +1045,44 @@ def _render_and_write_issue(
     typer.echo(str(email_text))
 
 
-def _deliver_issue(
-    doc: DraftRecapFacts,
-    body: IssueBody,
+def _render_and_write_weekly_issue(
+    issue: WeeklyIssue,
     *,
+    out_dir: Path,
+    resolved: str,
+    week: int,
+    logger: logging.Logger,
+) -> None:
+    """Story 5.11a: print the weekly Issue's plain text and write the local text
+    Issue plus the Story 2.7 generic HTML dump next to it.
+
+    There is no LLM prose and no email surface on this path — the weekly Issue is
+    the deterministic template narrator's output, so the HTML is the same generic
+    ``recap_to_html`` dump the draft path already had, and Discord delivery is a
+    separate step (see ``--post``)."""
+    from commishdesk.narrate.weekly_template import weekly_issue_to_text
+    from commishdesk.render import recap_to_html, write_html_file, write_text_file
+
+    stem = _issue_filename_stem(week, "weekly")
+    text = weekly_issue_to_text(issue)
+    typer.echo(text)
+
+    written_html = write_html_file(
+        recap_to_html(issue),
+        Path(out_dir) / f"commishdesk-{resolved}-{stem}.html",
+    )
+    typer.echo(str(written_html))
+    written_text = write_text_file(
+        text,
+        Path(out_dir) / f"commishdesk-{resolved}-{stem}.txt",
+    )
+    typer.echo(str(written_text))
+    logger.debug("wrote the weekly Issue for league %s week %s", resolved, week)
+
+
+def _deliver_issue(
+    *,
+    summary: str,
     store: FileStore,
     resolved: str,
     week: int,
@@ -781,16 +1090,18 @@ def _deliver_issue(
     webhook_url: str,
     recipient_id: str,
 ) -> None:
-    """Story 4.6: deliver one produced Issue to Discord through Story 4.4's
-    idempotent Send Ledger and Story 4.3's webhook post. ``week`` / ``kind``
-    key the ledger entry, so a future weekly path shares this delivery logic
-    unchanged; ``--draft-recap`` always passes ``kind="draft_recap"`` /
-    ``week=DRAFT_RECAP_WEEK``, reproducing today's exact behavior (AC4). Lazy
-    imports (mirrors the verify-webhook comment above) keep httpx off the
+    """Story 4.6: deliver one pre-composed Issue summary to Discord through
+    Story 4.4's idempotent Send Ledger and Story 4.3's webhook post.
+
+    Both surfaces build their own ``summary`` first — the draft path via
+    :func:`~commishdesk.render.render_discord_summary`, the weekly path via
+    :func:`~commishdesk.render.render_weekly_discord_summary` — so this function
+    owns only the send/ledger logic, shared unchanged. ``week`` / ``kind`` key
+    the ledger entry, so a future weekly path uses the same delivery machinery.
+    Lazy imports (mirrors the verify-webhook comment above) keep httpx off the
     default --post-less import path."""
     from commishdesk.deliver import send_issue
     from commishdesk.deliver.discord import post_discord_text
-    from commishdesk.render import render_discord_summary
 
     url = webhook_url  # a plain local narrows the closure below for mypy
 
@@ -812,7 +1123,6 @@ def _deliver_issue(
             )
         return post_discord_text(url, content)
 
-    summary = render_discord_summary(doc, recap=body.recap, llm_text=body.llm_text)
     report = send_issue(
         store,
         league_id=resolved,

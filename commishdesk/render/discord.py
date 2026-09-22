@@ -15,23 +15,46 @@ Slug" needs a hosted URL the MVP cannot mint; the polished embed lands in v1.
 produce a byte-identical ``str``; ``\\n`` newlines only; the result is always
 ``< 2000`` characters.
 
+Story 5.11a adds the weekly twin: :func:`render_weekly_discord_summary` composes
+the same shape — a title line, a blank line, and the first lead block, clipped
+under 2000 characters — for a
+:class:`~commishdesk.narrate.weekly_template.WeeklyIssue`, then runs the whole
+composed string through :func:`_escape_discord_markdown` so a league-supplied
+name (league / team / manager) can never italicize, embolden, quote or
+table-ify a posted message. No surface escaped Discord markdown before this.
+
 **Pipeline fence (AD-1).** Standard library + :mod:`commishdesk.facts` schema
-types + :class:`commishdesk.narrate.Recap` + the shared ``render/_body`` helpers —
-nothing upstream of ``facts/``, no cloud or HTTP SDK.
+types + :class:`commishdesk.narrate.Recap` /
+:class:`~commishdesk.narrate.weekly_template.WeeklyIssue` + the shared
+``render/_body`` helpers — nothing upstream of ``facts/``, no cloud or HTTP SDK.
 """
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 from commishdesk.facts.schema import DraftRecapFacts
 from commishdesk.narrate import Recap
+from commishdesk.narrate.weekly_template import WeeklyIssue
 from commishdesk.render._body import _plain, _sections_from_llm, _sections_from_recap
 
-__all__ = ["render_discord_summary"]
+__all__ = ["render_discord_summary", "render_weekly_discord_summary"]
 
 #: Discord caps a message at 2000 characters; the summary stays well under it.
 _MAX = 2000
 #: Soft budget for the lead sentence before it is cut at a word boundary.
 _LEAD_BUDGET = 320
+
+#: The Discord-markdown control characters escaped in a composed summary —
+#: ``*``/``_``/``~`` emphasis, ``\``` inline code, ``|`` a table cell, ``>`` a
+#: block quote, ``#`` a heading (only live at the start of a line, but escaped
+#: everywhere the same way every other character here is). The backslash is
+#: deliberately first: it is escaped before the rest, so the backslashes this
+#: helper inserts are never re-escaped. ``@`` needs no entry — Discord mention
+#: parsing is already fully suppressed at the API layer
+#: (``deliver/discord.py::post_discord_text``'s ``allowed_mentions: {"parse":
+#: []}``), independent of anything in the text.
+_DISCORD_MARKDOWN_CHARS = ("\\", "*", "_", "~", "`", "|", ">", "#")
 
 
 def render_discord_summary(
@@ -75,9 +98,56 @@ def render_discord_summary(
     return summary
 
 
-def _lead_sentence(sections: list[tuple[str | None, list[str]]]) -> str:
+def render_weekly_discord_summary(issue: WeeklyIssue, *, week: int) -> str:
+    """Compose the plain-text Discord summary for a weekly Issue (Story 5.11a).
+
+    A title line, a blank line, and the first lead block — the exact shape
+    :func:`render_discord_summary` composes for a draft recap, clipped under
+    2000 characters the same way. The title is *issue*'s own masthead title
+    (``"<league> — Week <n> Recap"``, from
+    ``narrate/weekly_template.py::_masthead``); ``week`` seeds a title only when
+    the issue carries none.
+
+    The whole composed string — masthead title included — is escaped through
+    :func:`_escape_discord_markdown` *before* the 2000-character clip (escaping
+    grows the string, so escaping after clipping could push an
+    already-under-the-limit summary back over it), so a league-supplied name
+    (league, team or manager) can never reformat the posted message.
+    Deterministic; ``\\n`` newlines only; always shorter than 2000 characters.
+    """
+    title = " ".join(issue.title.split()) or f"Week {week} Recap"
+
+    sections = [(section.heading, list(section.blocks)) for section in issue.sections]
+    lead = _lead_sentence(sections)
+
+    summary = _escape_discord_markdown(_plain(f"{title}\n\n{lead}" if lead else title))
+    if len(summary) >= _MAX:
+        clipped = summary[: _MAX - 2].rsplit(" ", 1)[0].rstrip() or summary[: _MAX - 2]
+        summary = f"{clipped}…"
+    return summary
+
+
+def _escape_discord_markdown(text: str) -> str:
+    """Backslash-escape every Discord-markdown control character in ``text``
+    (:data:`_DISCORD_MARKDOWN_CHARS`), the backslash first so the escapes this
+    helper inserts are never themselves re-escaped.
+
+    Composers call this once on the whole composed summary, so no interpolated
+    league-supplied name can italicize, embolden, quote, table-ify or code-span
+    a posted message — the literal characters reach Discord intact."""
+    for char in _DISCORD_MARKDOWN_CHARS:
+        text = text.replace(char, f"\\{char}")
+    return text
+
+
+def _lead_sentence(sections: Sequence[tuple[str | None, list[str]]]) -> str:
     """The first non-empty block of ``sections[0]``, whitespace-collapsed and, if
-    long, truncated at a word boundary near :data:`_LEAD_BUDGET` with an ellipsis."""
+    long, truncated at a word boundary near :data:`_LEAD_BUDGET` with an ellipsis.
+
+    Declared over a covariant :class:`~collections.abc.Sequence` so both the
+    draft path (``list[tuple[str | None, list[str]]]``, from the shared
+    ``_body`` helpers) and the weekly path (``list[tuple[str, list[str]]]``, from
+    the narrower ``WeeklySection`` heading) call it without a copy."""
     if not sections:
         return ""
     _, blocks = sections[0]

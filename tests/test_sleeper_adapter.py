@@ -54,10 +54,16 @@ PLAYOFF_WEEK_START = LEAGUE["settings"]["playoff_week_start"]
 PLAYERS: dict[str, dict[str, Any]] = _load("players.json")
 UNREFERENCED_PLAYER_ID = "88888"
 
+# Story 5.11a: Sleeper's own "which week is it" signal. week 18 / season_type
+# "post" reads as "everything through this fixture's week 17 is final" -- the
+# neutral default for every test below that isn't itself about finality.
+NFL_STATE: dict[str, Any] = _load("nfl_state.json")
+
 _BUNDLE_KEYS = {"league", "draft", "draft_picks", "rosters", "users", "previous_league_ids"}
 _WEEK_BUNDLE_KEYS = {
     "league",
     "rosters",
+    "nfl_state",
     "matchups",
     "next_matchups",
     "transactions",
@@ -89,20 +95,22 @@ def _build_transport(
     winners_bracket: list[dict[str, Any]] | None = None,
     losers_bracket: list[dict[str, Any]] | None = None,
     players: dict[str, dict[str, Any]] | None = None,
+    nfl_state: dict[str, Any] | None = None,
     requests: list[httpx.Request] | None = None,
     override: dict[str, Callable[[httpx.Request], httpx.Response]] | None = None,
 ) -> httpx.MockTransport:
-    """A router over the five base Sleeper endpoints, the five Story 5.3a/5.3b
-    weekly endpoints (matchups/transactions/winners_bracket/losers_bracket/
-    players), plus any ``history`` hop leagues -- backed entirely by in-memory
-    fixtures, no real network. Every request is appended to *requests* (if
-    given) before routing, so a test can assert on call count, path, headers,
-    or timeout. *override* lets a test replace one path's normal 200 response
-    with a failure."""
+    """A router over the five base Sleeper endpoints, the six Story
+    5.3a/5.3b/5.11a weekly endpoints (matchups/transactions/winners_bracket/
+    losers_bracket/players/state), plus any ``history`` hop leagues -- backed
+    entirely by in-memory fixtures, no real network. Every request is appended
+    to *requests* (if given) before routing, so a test can assert on call
+    count, path, headers, or timeout. *override* lets a test replace one
+    path's normal 200 response with a failure."""
     history = history or {}
     matchups_by_week = matchups_by_week or {}
     transactions_by_week = transactions_by_week or {}
     players = players or {}
+    nfl_state = nfl_state if nfl_state is not None else NFL_STATE
     override = override or {}
     league_id = league["league_id"]
     draft_id = draft["draft_id"]
@@ -129,6 +137,8 @@ def _build_transport(
             return httpx.Response(200, json=losers_bracket if losers_bracket is not None else [])
         if path == "/v1/players/nfl":
             return httpx.Response(200, json=players)
+        if path == "/v1/state/nfl":
+            return httpx.Response(200, json=nfl_state)
         matchup_prefix = f"/v1/league/{league_id}/matchups/"
         if path.startswith(matchup_prefix):
             week = path[len(matchup_prefix) :]
@@ -819,6 +829,7 @@ def _week_transport(
     *,
     week: int | None = None,
     league: dict[str, Any] | None = None,
+    nfl_state: dict[str, Any] | None = None,
     requests: list[httpx.Request] | None = None,
     override: dict[str, Callable[[httpx.Request], httpx.Response]] | None = None,
 ) -> httpx.MockTransport:
@@ -837,6 +848,7 @@ def _week_transport(
         winners_bracket=WINNERS_BRACKET,
         losers_bracket=LOSERS_BRACKET,
         players=PLAYERS,
+        nfl_state=nfl_state,
         requests=requests,
         override=override,
     )
@@ -855,6 +867,10 @@ def test_fetch_week_regular_season_matchups_cumulative_transactions_single_week_
     bundle = adapter.fetch_week(LEAGUE["league_id"], week)
 
     assert set(bundle) == _WEEK_BUNDLE_KEYS
+    # Story 5.11a: the raw /state/nfl response is projected down to exactly
+    # these two fields -- the fixture's extra season/league_season/display_week
+    # keys must not leak through.
+    assert bundle["nfl_state"] == {"week": 18, "season_type": "post"}
     assert set(bundle["matchups"]) == {str(w) for w in range(1, week + 1)}
     assert set(bundle["transactions"]) == {str(w) for w in range(1, week + 1)}
     assert bundle["next_matchups"]
@@ -871,9 +887,9 @@ def test_fetch_week_regular_season_matchups_cumulative_transactions_single_week_
     assert UNREFERENCED_PLAYER_ID not in bundle["players"]
     assert set(bundle["players"]) <= set(PLAYERS)
 
-    # exactly: league + rosters + `week` matchup calls + `week` transactions
-    # calls + 1 next-week pairings call + 1 players call
-    assert len(requests) == 2 + week + week + 1 + 1
+    # exactly: league + rosters + nfl_state + `week` matchup calls + `week`
+    # transactions calls + 1 next-week pairings call + 1 players call
+    assert len(requests) == 3 + week + week + 1 + 1
 
 
 # Row: Playoff week
@@ -892,10 +908,10 @@ def test_fetch_week_playoff_week_populates_both_brackets() -> None:
 
     assert bundle["next_matchups"] == []
 
-    # exactly: league + rosters + `week` matchup calls + `week` transactions
-    # calls + winners_bracket + losers_bracket + 1 players call (no next-week
-    # pairings call: week + 1 is not regular season)
-    assert len(requests) == 2 + week + week + 2 + 1
+    # exactly: league + rosters + nfl_state + `week` matchup calls + `week`
+    # transactions calls + winners_bracket + losers_bracket + 1 players call
+    # (no next-week pairings call: week + 1 is not regular season)
+    assert len(requests) == 3 + week + week + 2 + 1
 
 
 # Row: Story 5.7 -- the next-week pairings cutoff
@@ -1074,6 +1090,54 @@ def test_fetch_week_malformed_playoff_week_start_shape_degrades_to_non_playoff(
     assert bundle["winners_bracket"] == []
     assert bundle["losers_bracket"] == []
     assert bundle["next_matchups"] == []
+
+
+@pytest.mark.parametrize(
+    "raw_state,expected",
+    [
+        pytest.param(["not", "an", "object"], {"week": None, "season_type": None}, id="non_mapping"),
+        pytest.param(
+            {"week": True, "season_type": "regular"},
+            {"week": None, "season_type": "regular"},
+            id="bool_week_rejected",
+        ),
+        pytest.param(
+            {"week": 5, "season_type": 5},
+            {"week": 5, "season_type": None},
+            id="non_str_season_type_rejected",
+        ),
+    ],
+)
+def test_fetch_week_malformed_nfl_state_degrades_field_by_field(
+    raw_state: Any, expected: dict[str, Any]
+) -> None:
+    """Story 5.11a: ``_nfl_state`` must fail soft, per field, on a ``/state/nfl``
+    response that is not a mapping at all, or one whose ``week`` is a ``bool``
+    (an ``int`` subclass in Python) or whose ``season_type`` is not a ``str`` --
+    each degrades that one field to ``None`` (``_week_not_final_reason``'s
+    documented "finality unknown, fail open" contract reads exactly this
+    shape), never an ``AdapterError``."""
+    state_path = "/v1/state/nfl"
+    transport = _week_transport(override={state_path: lambda req: httpx.Response(200, json=raw_state)})
+    adapter = _adapter_for(transport)
+
+    bundle = adapter.fetch_week(LEAGUE["league_id"], 1)
+
+    assert bundle["nfl_state"] == expected
+
+
+def test_fetch_week_null_nfl_state_body_degrades_not_raises() -> None:
+    """A literal JSON ``null`` body (Sleeper genuinely returns this for some
+    empty states, mirrors the null-picks-response precedent above) is valid
+    JSON but not a ``Mapping`` -- ``_nfl_state`` degrades it the same as any
+    other non-mapping shape."""
+    state_path = "/v1/state/nfl"
+    transport = _week_transport(override={state_path: lambda req: httpx.Response(200, content=b"null")})
+    adapter = _adapter_for(transport)
+
+    bundle = adapter.fetch_week(LEAGUE["league_id"], 1)
+
+    assert bundle["nfl_state"] == {"week": None, "season_type": None}
 
 
 # Row: Eliminated roster (fixture already carries the drop -- confirms the
