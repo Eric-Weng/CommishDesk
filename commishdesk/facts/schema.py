@@ -30,12 +30,17 @@ private ``week10-facts.json`` golden, plus :class:`WeeklyNarration`. The
 a ``0.4.0`` draft-recap document still loads and renders — removing it is a
 major-bump concern.
 
+Story 5.9 (``0.5.0`` -> ``0.6.0``) adds the additive
+``StorylineCandidate.weeks_running`` field, tolerated on read when absent (see
+``_stamp_missing_weeks_running``), and populates weekly ``lead_candidates`` /
+``storyline_candidates`` for the first time.
+
 This module imports stdlib + pydantic only — no engine package.
 """
 
 from __future__ import annotations
 
-from typing import Final, Literal
+from typing import Any, Final, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -128,11 +133,12 @@ __all__ = [
     "WeeklyWeekPoints",
 ]
 
-SCHEMA_VERSION = "0.5.0"
+SCHEMA_VERSION = "0.6.0"
 """Semver contract version. Additive key -> minor bump; shape change -> major.
 ``0.4.0`` -> ``0.5.0`` (Story 5.8): the empty ``WeeklyFacts`` placeholder becomes
 the real weekly document and its ``WeeklyNarration``; ``DraftRecapFacts.weekly``
-is retyped ``None`` (reserved, always null)."""
+is retyped ``None`` (reserved, always null). ``0.5.0`` -> ``0.6.0`` (Story 5.9)
+adds ``StorylineCandidate.weeks_running`` additively."""
 
 _ISSUE_TYPE: Literal["draft_recap"] = "draft_recap"
 _IssueType = Literal["draft_recap", "weekly"]
@@ -459,11 +465,14 @@ class GradeMethodRef(_Doc):
 
 class LeadCandidate(_Doc):
     """A ranked lead angle the narrator can open on (delta D7). Populated by
-    Story 2.6's ``facts/leads.py``: ``kind`` is one of its
-    ``LEAD_KIND_PRIORITY`` values, ``roster_ids`` attributes the angle (empty for
-    a room-wide observation), and ``hook`` is a deterministic factual sentence
-    (never ``None`` on a lead angle — the ``str | None`` type is shared with
-    :class:`StorylineCandidate`, whose ``hook`` is still the narrator's)."""
+    Story 2.6's ``facts/leads.py::build_lead_candidates`` (draft recap) and
+    Story 5.9's ``build_weekly_lead_candidates`` (weekly): ``kind`` is one of
+    the calling builder's own kind-priority values (``LEAD_KIND_PRIORITY`` or
+    ``WEEKLY_LEAD_KIND_PRIORITY`` — disjoint namespaces), ``roster_ids``
+    attributes the angle (empty for a room-wide observation), and ``hook`` is a
+    deterministic factual sentence (never ``None`` on a lead angle — the
+    ``str | None`` type is shared with :class:`StorylineCandidate`, whose
+    ``hook`` is still the narrator's)."""
 
     rank: int
     kind: str
@@ -475,14 +484,40 @@ class StorylineCandidate(_Doc):
     """A "still arguing about it in December" angle — the narrator projection of an
     *active* :class:`Storyline`. Populated by Story 3.1's
     ``facts/storylines.py::project_storyline_candidates``: ``id`` is
-    ``"<kind>:<roster_id>"``, ``kind`` is one of
-    ``storylines.STORYLINE_KIND_PRIORITY``, ``roster_ids`` attributes the thread,
-    and ``hook`` is the thread's one-sentence summary."""
+    ``"<kind>:<roster_id>"``, ``kind`` is one of the storyline detectors'
+    priority values, ``roster_ids`` attributes the thread, ``hook`` is the
+    thread's one-sentence summary, and ``weeks_running`` (Story 5.9) is the
+    calendar span since it first opened (``last_week - first_week + 1``) — see
+    the field's own note for what that does and does not guarantee."""
 
     id: str
     kind: str
     roster_ids: list[str] = []
     hook: str | None = None
+    #: Weeks since the thread first opened, inclusive (1 for a brand-new one),
+    #: stamped by ``project_storyline_candidates`` — never a caller argument.
+    #: Calendar span, not a count of continuously active weeks: a thread that
+    #: resolves and later re-fires keeps its original ``first_week`` (Story
+    #: 3.1's `advance_storylines` re-activates in place), so this number
+    #: includes any dormant/resolved weeks in between, and a build that skips
+    #: a period advances it just the same. Required in the published schema,
+    #: because the engine's own projection always supplies it; an input that
+    #: omits it (a candidate built by hand, or a payload written before Story
+    #: 5.9) is stamped ``1`` on read rather than rejected, mirroring the
+    #: schema-tolerance invariant the rest of this module follows for
+    #: additive keys.
+    weeks_running: int
+
+    @model_validator(mode="before")
+    @classmethod
+    def _stamp_missing_weeks_running(cls, data: Any) -> Any:
+        """Stamp ``1`` (a thread one period old) when ``weeks_running`` is
+        absent, so a hand-built candidate or an older payload still validates.
+        A present value is never touched, and the field stays required in the
+        generated JSON schema -- the engine always computes it."""
+        if isinstance(data, dict) and "weeks_running" not in data:
+            return {**data, "weeks_running": 1}
+        return data
 
 
 class Storyline(BaseModel):
@@ -1261,7 +1296,11 @@ class WeeklyFacts(_Doc):
     """The whole weekly Facts JSON — a standalone root laid out like the private
     ``week10-facts.json`` golden, built by ``facts/weekly.py::build_weekly_facts``
     (Story 5.8). Every computed number comes from ``commishdesk.stats``; names
-    are joined from the bundle's ``players`` blob."""
+    are joined from the bundle's ``players`` blob.
+
+    ``lead_candidates`` and ``storyline_candidates`` are populated by Story 5.9
+    from ``facts/leads.py::build_weekly_lead_candidates`` and the
+    ``kind="weekly"`` branch of ``facts/storylines.py``."""
 
     schema_version: str = SCHEMA_VERSION
     generated_at: str
@@ -1276,7 +1315,6 @@ class WeeklyFacts(_Doc):
     standings: WeeklyStandings
     transactions: WeeklyTransactions
     leaders: WeeklyLeaders
-    #: Both always ``[]`` here — Story 5.9 fills them.
     lead_candidates: list[LeadCandidate] = []
     storyline_candidates: list[StorylineCandidate] = []
     narration: WeeklyNarration

@@ -7,6 +7,11 @@ runs the weekly stats modules (5.4-5.7), joins names, builds per-week history,
 projects and caps the :class:`~commishdesk.facts.schema.WeeklyNarration`, and
 self-validates.
 
+Story 5.9 wires the weekly lead angles
+(``facts/leads.py::build_weekly_lead_candidates``) and the ``kind="weekly"``
+branch of the storyline lifecycle (``facts/storylines.py``) into both the
+document and its narration projection, replacing the two ``[]`` placeholders.
+
 Pure, deterministic, offline: no network, no clock, no filesystem.
 ``generated_at`` is a caller argument, so two builds of one input produce an
 equal ``model_dump()`` modulo nothing.
@@ -35,7 +40,7 @@ clock, PRNG or network.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from datetime import datetime
 from typing import cast
 
@@ -60,9 +65,13 @@ from commishdesk.stats.weekly import (
 )
 
 from .build import _current_cap, _generated_at, _violation_message, _within_cap
+from .leads import build_weekly_lead_candidates
 from .schema import (
     DivisionRef,
+    LeadCandidate,
     Source,
+    Storyline,
+    StorylineCandidate,
     TeamPointsRef,
     WeeklyAllPlay,
     WeeklyBenchRegret,
@@ -115,6 +124,7 @@ from .schema import (
     WeekMarginRef,
     WeekSummaryRef,
 )
+from .storylines import advance_storylines, project_storyline_candidates
 
 __all__ = [
     "DUD_LIMIT",
@@ -218,11 +228,14 @@ def build_weekly_facts(
     nfl_byes_next_week: frozenset[str] | None = None,
     fetched_at: str | None = None,
     provisional: bool = True,
+    previous_storylines: Sequence[Storyline] = (),
 ) -> WeeklyFacts:
     """Merge the weekly stats modules into a validated :class:`WeeklyFacts`.
 
     Pure / deterministic / offline. ``generated_at`` follows the
-    ``build_draft_recap_facts`` rule. Raises
+    ``build_draft_recap_facts`` rule. ``previous_storylines`` is the league's
+    persisted narrative memory (Story 5.9), advanced by the ``kind="weekly"``
+    branch of :func:`~commishdesk.facts.storylines.advance_storylines`. Raises
     :class:`~commishdesk.errors.SchemaValidationError` (chained from the
     underlying error, message naming ``weekly``) when the merged document does
     not satisfy the schema; returns no partial document. A malformed
@@ -240,6 +253,7 @@ def build_weekly_facts(
             nfl_byes_next_week=nfl_byes_next_week,
             fetched_at=fetched_at,
             provisional=provisional,
+            previous_storylines=previous_storylines,
         )
     except (ValidationError, KeyError, AttributeError, TypeError, ValueError) as exc:
         raise SchemaValidationError(_violation_message(exc, document="weekly")) from exc
@@ -256,6 +270,7 @@ def _build(
     nfl_byes_next_week: frozenset[str] | None,
     fetched_at: str | None,
     provisional: bool,
+    previous_storylines: Sequence[Storyline],
 ) -> WeeklyFacts:
     weekly = compute_weekly_stats(week)
     lineups = compute_weekly_lineups(week, league, players, nfl_byes)
@@ -369,6 +384,21 @@ def _build(
     transactions_block = _transactions_block(desk, name_of, players)
     leaders_block = _leaders(roster_ids, starters_by_roster, lineups_by_roster, week)
     period_block = _period_block(week, weekly, nfl_byes, nfl_byes_next_week)
+
+    # Story 5.9: the weekly lead angles, and the weekly-kind storyline lifecycle
+    # advanced from the league's persisted narrative memory.
+    lead_candidates = build_weekly_lead_candidates(teams_block, period_block)
+    storyline_candidates = project_storyline_candidates(
+        advance_storylines(
+            previous_storylines,
+            kind="weekly",
+            week=week.week,
+            teams=teams_block,
+            period=period_block,
+        ),
+        kind="weekly",
+    )
+
     narration = _weekly_narration(
         week,
         league,
@@ -381,6 +411,8 @@ def _build(
         weekly,
         standings,
         period_block.nfl_byes_next_week,
+        lead_candidates=lead_candidates,
+        storyline_candidates=storyline_candidates,
     )
 
     doc = WeeklyFacts(
@@ -399,8 +431,8 @@ def _build(
         standings=standings_block,
         transactions=transactions_block,
         leaders=leaders_block,
-        lead_candidates=[],
-        storyline_candidates=[],
+        lead_candidates=lead_candidates,
+        storyline_candidates=storyline_candidates,
         narration=narration,
     )
     WeeklyFacts.model_validate(doc.model_dump())
@@ -1056,6 +1088,9 @@ def _weekly_narration(
     weekly: object,
     standings: object,
     nfl_byes_next_week: list[str] | None,
+    *,
+    lead_candidates: list[LeadCandidate],
+    storyline_candidates: list[StorylineCandidate],
 ) -> WeeklyNarration:
     by_roster = {t.roster_id: t for t in teams_block}
 
@@ -1186,8 +1221,8 @@ def _weekly_narration(
             this_week_count=len(transactions_block.this_week),
             recent_trade_count=len(transactions_block.recent_trades),
         ),
-        lead_candidates=[],
-        storyline_candidates=[],
+        lead_candidates=lead_candidates,
+        storyline_candidates=storyline_candidates,
     )
     return _apply_weekly_narration_cap(narration)
 

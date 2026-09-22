@@ -1,6 +1,6 @@
 {
   "_derived_from": "Story 5.8 oracle. build_weekly_facts() over week10-blowout.json (the anonymized week-10 fixture); generated_at pinned to '2026-09-07T00:00:00Z'; nfl_byes_next_week={IND, NO}.",
-  "schema_version": "0.5.0",
+  "schema_version": "0.6.0",
   "generated_at": "2026-09-07T00:00:00Z",
   "provisional": true,
   "issue_type": "weekly",
@@ -5666,8 +5666,62 @@
       "pct": 0.524
     }
   },
-  "lead_candidates": [],
-  "storyline_candidates": [],
+  "lead_candidates": [
+    {
+      "rank": 1,
+      "kind": "lineup_loss",
+      "roster_ids": [
+        "7"
+      ],
+      "hook": "Kneel-Down Koalas lost by 6.06 with 108.86 on the bench, including TreVeyon Henderson."
+    },
+    {
+      "rank": 2,
+      "kind": "biggest_blowout",
+      "roster_ids": [
+        "1",
+        "5"
+      ],
+      "hook": "Flea Flicker Union beat Nickel Newts by 138.19, the week's biggest blowout."
+    },
+    {
+      "rank": 3,
+      "kind": "closest_game",
+      "roster_ids": [
+        "12",
+        "7"
+      ],
+      "hook": "Yardage Yaks edged Kneel-Down Koalas by 6.06, the week's closest game."
+    },
+    {
+      "rank": 4,
+      "kind": "week_high_score",
+      "roster_ids": [
+        "3"
+      ],
+      "hook": "Backpedal Buffalo posted the week's high score, 247.20."
+    }
+  ],
+  "storyline_candidates": [
+    {
+      "id": "luck_extreme:5",
+      "kind": "luck_extreme",
+      "roster_ids": [
+        "5"
+      ],
+      "hook": "Nickel Newts has run the league's best luck, +5.2 wins over expectation.",
+      "weeks_running": 1
+    },
+    {
+      "id": "streak:11",
+      "kind": "streak",
+      "roster_ids": [
+        "11"
+      ],
+      "hook": "Bubble-Screen Bobcats has lost six straight.",
+      "weeks_running": 1
+    }
+  ],
   "narration": {
     "league": {
       "name": "Trench Warfare",
@@ -6188,7 +6242,61 @@
       "this_week_count": 1,
       "recent_trade_count": 1
     },
-    "lead_candidates": [],
-    "storyline_candidates": []
+    "lead_candidates": [
+      {
+        "rank": 1,
+        "kind": "lineup_loss",
+        "roster_ids": [
+          "7"
+        ],
+        "hook": "Kneel-Down Koalas lost by 6.06 with 108.86 on the bench, including TreVeyon Henderson."
+      },
+      {
+        "rank": 2,
+        "kind": "biggest_blowout",
+        "roster_ids": [
+          "1",
+          "5"
+        ],
+        "hook": "Flea Flicker Union beat Nickel Newts by 138.19, the week's biggest blowout."
+      },
+      {
+        "rank": 3,
+        "kind": "closest_game",
+        "roster_ids": [
+          "12",
+          "7"
+        ],
+        "hook": "Yardage Yaks edged Kneel-Down Koalas by 6.06, the week's closest game."
+      },
+      {
+        "rank": 4,
+        "kind": "week_high_score",
+        "roster_ids": [
+          "3"
+        ],
+        "hook": "Backpedal Buffalo posted the week's high score, 247.20."
+      }
+    ],
+    "storyline_candidates": [
+      {
+        "id": "luck_extreme:5",
+        "kind": "luck_extreme",
+        "roster_ids": [
+          "5"
+        ],
+        "hook": "Nickel Newts has run the league's best luck, +5.2 wins over expectation.",
+        "weeks_running": 1
+      },
+      {
+        "id": "streak:11",
+        "kind": "streak",
+        "roster_ids": [
+          "11"
+        ],
+        "hook": "Bubble-Screen Bobcats has lost six straight.",
+        "weeks_running": 1
+      }
+    ]
   }
 }

@@ -179,7 +179,7 @@ def _synthetic(
 def test_week10_build_validates_and_has_twelve_teams() -> None:
     doc = _week10_facts()
     assert isinstance(doc, WeeklyFacts)
-    assert doc.schema_version == "0.5.0" == SCHEMA_VERSION
+    assert doc.schema_version == "0.6.0" == SCHEMA_VERSION
     assert doc.issue_type == "weekly"
     assert doc.week == 10
     assert len(doc.teams) == 12
@@ -290,6 +290,252 @@ def test_week10_leaders_are_present_and_named() -> None:
     assert len(doc.leaders.worst_starters) <= 5
     assert doc.leaders.best_coaching is not None
     assert doc.leaders.worst_coaching is not None
+
+
+# --------------------------------------------------------------------------- #
+# Matrix: weekly lead candidates and cross-week storylines (Story 5.9)
+# --------------------------------------------------------------------------- #
+
+
+def _weekly_facts(fixture_name: str, *, previous_storylines: Any = ()) -> WeeklyFacts:
+    bundle = _bundle(fixture_name)
+    week = build_week_model(bundle)
+    league = build_league_model(bundle)
+    players = build_player_snapshot(bundle)
+    names = build_player_names(bundle)
+    return build_weekly_facts(
+        week,
+        league,
+        players,
+        names,
+        generated_at=GENERATED_AT,
+        previous_storylines=previous_storylines,
+    )
+
+
+def test_week10_lead_candidates_open_on_the_lineup_loss_angle() -> None:
+    """FR-14 / AC1: the roster that lost a game it should have won leads, not
+    the week's highest score."""
+    doc = _week10_facts()
+    assert [c.kind for c in doc.lead_candidates] == [
+        "lineup_loss",
+        "biggest_blowout",
+        "closest_game",
+        "week_high_score",
+    ]
+    assert doc.lead_candidates[0].roster_ids == ["7"]
+    assert [c.rank for c in doc.lead_candidates] == [1, 2, 3, 4]
+    assert all(c.hook for c in doc.lead_candidates)
+    assert doc.lead_candidates == _week10_facts().lead_candidates  # deterministic
+
+
+def test_lead_candidates_skip_lineup_loss_when_no_team_qualifies() -> None:
+    """No roster left more on the bench than it lost by this week -> the next
+    fired kind leads; the list is never empty (the ``week_high_score`` floor)."""
+    week_model, league, players, names = _synthetic(12, week=5, playoff_week_start=10)
+    doc = build_weekly_facts(week_model, league, players, names, generated_at=GENERATED_AT)
+    kinds = [c.kind for c in doc.lead_candidates]
+    assert kinds  # never empty
+    assert "lineup_loss" not in kinds
+    assert doc.lead_candidates[0].kind != "week_high_score"  # a higher-priority kind still fired
+
+
+def test_weekly_storylines_carry_across_weeks_with_growing_weeks_running() -> None:
+    """AD-14 / FR-20: a storyline active in one week's payload is active in a
+    later week's, ``weeks_running`` growing with it -- traced on the real
+    week02/week05 fixtures (same league), which happen to open and sustain
+    ``luck_extreme:2``."""
+    week2 = _weekly_facts("week02-nailbiter.json")
+    opened = [c for c in week2.storyline_candidates if c.id == "luck_extreme:2"]
+    assert opened and opened[0].weeks_running == 1
+
+    from commishdesk.facts.storylines import advance_storylines
+
+    after_week2 = advance_storylines((), kind="weekly", week=2, teams=week2.teams, period=week2.period)
+    week5 = _weekly_facts("week05-trade.json", previous_storylines=after_week2)
+    carried = [c for c in week5.storyline_candidates if c.id == "luck_extreme:2"]
+    assert carried and carried[0].weeks_running == 4  # weeks 2,3,4,5
+
+    # week05-trade.json also opens power_climb:8 fresh -- verified in review to
+    # be otherwise unasserted anywhere in the suite (only luck_extreme:2 was
+    # checked here). Pin its kind/roster/wording directly.
+    climbed = [c for c in week5.storyline_candidates if c.id == "power_climb:8"]
+    assert climbed and climbed[0].roster_ids == ["8"]
+    assert climbed[0].hook == "Screen Pass Syndicate climbed five spots in the power ranks."
+
+
+def test_weekly_storylines_grow_by_exactly_one_across_truly_consecutive_weeks() -> None:
+    """AD-14 / FR-20, the matrix's literal claim: two genuinely back-to-back
+    periods (N then N+1, no gap) grow ``weeks_running`` by exactly one. Hand
+    -built ``WeeklyTeam`` rows (not a real fixture pair) because none of the
+    committed weekly fixtures happen to open a storyline at week 1 that a
+    real week 2 build could carry -- see the review note on this test."""
+    from commishdesk.facts.schema import (
+        WeeklyCoachingEfficiency,
+        WeeklyHistory,
+        WeeklyPeriod,
+        WeeklyPower,
+        WeeklyRecord,
+        WeeklySeason,
+        WeeklyTeam,
+        WeekSummaryRef,
+    )
+    from commishdesk.facts.storylines import advance_storylines, project_storyline_candidates
+
+    def _team(luck: float) -> WeeklyTeam:
+        return WeeklyTeam(
+            roster_id="1",
+            manager="m1",
+            team_name="Team One",
+            season=WeeklySeason(
+                record=WeeklyRecord(w=1, l=0, t=0),
+                rank=1,
+                points_for=0.0,
+                points_against=0.0,
+                avg_for=0.0,
+                luck=luck,
+                power=WeeklyPower(),
+                coaching_efficiency=WeeklyCoachingEfficiency(actual=0.0, optimal=0.0),
+            ),
+            history=WeeklyHistory(),
+        )
+
+    summary = WeekSummaryRef(games=1, total_points=0.0, avg_team_score=0.0, blowout_count=0, blowout_threshold=0.65)
+    period = WeeklyPeriod(week=1, type="regular", has_prior_week=False, summary=summary)
+    week1_teams = [_team(2.0)]
+    at_week1 = advance_storylines((), kind="weekly", week=1, teams=week1_teams, period=period)
+    opened = [c for c in project_storyline_candidates(at_week1, kind="weekly") if c.id == "luck_extreme:1"]
+    assert opened and opened[0].weeks_running == 1
+
+    at_week2 = advance_storylines(at_week1, kind="weekly", week=2, teams=week1_teams, period=period)
+    carried = [c for c in project_storyline_candidates(at_week2, kind="weekly") if c.id == "luck_extreme:1"]
+    assert carried and carried[0].weeks_running == 2  # one more, not four
+
+
+def test_luck_extreme_fires_the_unlucky_branch_independently_of_the_lucky_one() -> None:
+    """Story 5.9 review: the ``season.luck <= -1.5`` branch was unexercised by
+    every committed fixture. Hand-built ``WeeklyTeam`` rows drive both sides of
+    the threshold directly, without authoring a new fixture file."""
+    from commishdesk.facts.schema import (
+        WeeklyCoachingEfficiency,
+        WeeklyHistory,
+        WeeklyPeriod,
+        WeeklyPower,
+        WeeklyRecord,
+        WeeklySeason,
+        WeeklyTeam,
+        WeekSummaryRef,
+    )
+    from commishdesk.facts.storylines import advance_storylines
+
+    def _team(roster_id: str, luck: float) -> WeeklyTeam:
+        return WeeklyTeam(
+            roster_id=roster_id,
+            manager=f"m{roster_id}",
+            team_name=f"Team {roster_id}",
+            season=WeeklySeason(
+                record=WeeklyRecord(w=1, l=0, t=0),
+                rank=1,
+                points_for=0.0,
+                points_against=0.0,
+                avg_for=0.0,
+                luck=luck,
+                power=WeeklyPower(),
+                coaching_efficiency=WeeklyCoachingEfficiency(actual=0.0, optimal=0.0),
+            ),
+            history=WeeklyHistory(),
+        )
+
+    teams = [_team("1", 2.0), _team("2", -2.0)]
+    summary = WeekSummaryRef(games=1, total_points=0.0, avg_team_score=0.0, blowout_count=0, blowout_threshold=0.65)
+    period = WeeklyPeriod(week=5, type="regular", has_prior_week=True, summary=summary)
+    storylines = advance_storylines((), kind="weekly", week=5, teams=teams, period=period)
+    by_id = {s.id: s for s in storylines}
+    assert by_id["luck_extreme:1"].headline.startswith("Team 1 has run the league's best luck")
+    assert by_id["luck_extreme:2"].headline.startswith("Team 2 has run the league's worst luck")
+
+
+def test_storyline_persists_through_a_mid_season_rename() -> None:
+    """Storylines are keyed by roster id, never by name -- a team renamed
+    between two builds keeps its storyline."""
+    from commishdesk.facts.storylines import advance_storylines
+
+    week2 = _weekly_facts("week02-nailbiter.json")
+    after_week2 = advance_storylines((), kind="weekly", week=2, teams=week2.teams, period=week2.period)
+
+    bundle5 = _bundle("week05-trade.json")
+    week_model5 = build_week_model(bundle5)
+    league5 = build_league_model(bundle5)
+    renamed_teams = [
+        t.model_copy(update={"team_name": "Brand New Name"}) if t.roster_id == "2" else t
+        for t in league5.teams
+    ]
+    league5 = league5.model_copy(update={"teams": renamed_teams})
+    week5 = build_weekly_facts(
+        week_model5,
+        league5,
+        build_player_snapshot(bundle5),
+        build_player_names(bundle5),
+        generated_at=GENERATED_AT,
+        previous_storylines=after_week2,
+    )
+    carried = [c for c in week5.storyline_candidates if c.id == "luck_extreme:2"]
+    assert carried and carried[0].roster_ids == ["2"]
+    assert "Brand New Name" in carried[0].hook  # the label follows the rename; the key does not
+
+
+def test_weekly_storylines_stand_down_on_a_cold_start() -> None:
+    """``luck_extreme`` / ``power_climb`` need a prior week (``None`` inputs);
+    ``streak`` cannot reach its length-3 floor in one week either -- no weekly
+    storyline can fire at week 1. Leads still compute."""
+    week_model, league, players, names = _synthetic(12, week=1, playoff_week_start=10)
+    doc = build_weekly_facts(week_model, league, players, names, generated_at=GENERATED_AT)
+    assert doc.storyline_candidates == []
+    assert doc.lead_candidates  # leads don't need history
+
+
+def test_advance_storylines_prunes_resolved_threads_after_the_configured_window() -> None:
+    """Story 5.9 / AC5 (deferred-work.md spec-3-1): a resolved thread more than
+    ``STORYLINE_PRUNE_AFTER_WEEKS`` behind the current week is dropped; one
+    still inside the window survives, and a passthrough row of the other kind
+    is never pruned by this call regardless of its own age."""
+    from commishdesk.facts.schema import Storyline
+    from commishdesk.facts.storylines import STORYLINE_PRUNE_AFTER_WEEKS, advance_storylines
+
+    aged_weekly = Storyline(
+        id="luck_extreme:1", league_id="1", headline="old", status="resolved",
+        first_week=1, last_week=2, kind="weekly",
+    )
+    aged_draft = Storyline(
+        id="grade_extreme:3", league_id="1", headline="draft", status="resolved",
+        first_week=1, last_week=1, kind="draft_recap",
+    )
+    previous = [aged_weekly, aged_draft]
+
+    boundary_week = 2 + STORYLINE_PRUNE_AFTER_WEEKS  # exactly at the window -> kept
+    at_boundary = advance_storylines(previous, kind="weekly", week=boundary_week, teams=[])
+    assert {s.id for s in at_boundary} == {"luck_extreme:1", "grade_extreme:3"}
+
+    past_window = boundary_week + 1  # one week further -> the weekly row is pruned
+    pruned = advance_storylines(previous, kind="weekly", week=past_window, teams=[])
+    assert {s.id for s in pruned} == {"grade_extreme:3"}  # draft passthrough survives untouched
+
+
+def test_project_storyline_candidates_computes_weeks_running() -> None:
+    """Story 5.9 / AC4 (deferred-work.md spec-3-1): ``weeks_running`` is
+    ``last_week - first_week + 1``, not an incidental default."""
+    from commishdesk.facts.schema import Storyline
+    from commishdesk.facts.storylines import project_storyline_candidates
+
+    fresh = Storyline(
+        id="luck_extreme:1", league_id="1", headline="h", status="active", first_week=5, last_week=5, kind="weekly"
+    )
+    aged = Storyline(
+        id="streak:2", league_id="1", headline="h2", status="active", first_week=3, last_week=7, kind="weekly"
+    )
+    candidates = {c.id: c for c in project_storyline_candidates([fresh, aged], kind="weekly")}
+    assert candidates["luck_extreme:1"].weeks_running == 1
+    assert candidates["streak:2"].weeks_running == 5
 
 
 # --------------------------------------------------------------------------- #

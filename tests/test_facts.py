@@ -276,7 +276,7 @@ def _rookie_facts() -> DraftRecapFacts:
 def test_happy_path_shape() -> None:
     doc = _build_minimal()
     dump = doc.model_dump()
-    assert dump["schema_version"] == "0.5.0" == SCHEMA_VERSION
+    assert dump["schema_version"] == "0.6.0" == SCHEMA_VERSION
     assert dump["issue_type"] == "draft_recap"
     assert dump["week"] is None and dump["weekly"] is None
     assert [p["pick_no"] for p in dump["picks"]] == [1, 2]
@@ -361,7 +361,7 @@ def test_unknown_key_on_read_is_dropped() -> None:
     payload["narration"]["future_key"] = {"nested": True}
     doc = DraftRecapFacts.model_validate(payload)
     assert not hasattr(doc, "future_key")
-    assert doc.schema_version == "0.5.0"
+    assert doc.schema_version == "0.6.0"
 
 
 def test_schema_violation_raises_typed_chained_error() -> None:
@@ -1080,9 +1080,9 @@ def test_lead_kind_priority_covers_every_kind_a_detector_can_emit() -> None:
 
 
 def test_schema_version_bumped_additively_to_0_5_0() -> None:
-    assert SCHEMA_VERSION == "0.5.0"
+    assert SCHEMA_VERSION == "0.6.0"
     doc = _build_minimal()
-    assert doc.schema_version == "0.5.0"
+    assert doc.schema_version == "0.6.0"
     assert doc.week is None
     assert doc.weekly is None
 
@@ -1526,10 +1526,17 @@ def test_builder_storyline_candidates_match_a_standalone_advance() -> None:
 
 
 def test_advance_storylines_scopes_updates_to_matching_kind() -> None:
-    """Story 5.1 / AC3: a draft-time and a week-1 storyline sharing an ``id``
-    (the same firing signal) must remain two independent rows, distinguished
-    by ``kind`` -- neither ``advance_storylines`` call may update, resolve, or
-    even see the other's row."""
+    """Story 5.1 / AC3: a draft-time and a weekly storyline sharing an ``id``
+    must remain two independent rows, distinguished by ``kind`` -- neither
+    ``advance_storylines`` call may update, resolve, or even see the other's
+    row. Story 5.9 gives ``weekly`` its own detector (a disjoint id namespace
+    from the draft-recap one -- ``storylines.py``'s ``WEEKLY_STORYLINE_KIND_
+    PRIORITY`` vs ``STORYLINE_KIND_PRIORITY``), so a real collision is no
+    longer reachable through detection; the id is shared by direct
+    construction instead (the same technique already used by
+    ``test_project_storyline_candidates_filters_by_kind``), which still
+    exercises the same lifecycle-level isolation AC3 requires."""
+    from commishdesk.facts.schema import Storyline
     from commishdesk.facts.storylines import advance_storylines
 
     a = _period_stage_results("week02-nailbiter.json")
@@ -1538,19 +1545,29 @@ def test_advance_storylines_scopes_updates_to_matching_kind() -> None:
     assert draft_only, "fixture should open at least one thread"
     assert all(s.kind == "draft_recap" for s in draft_only)
 
-    # Same firing signal (identical stage results, same week) advanced under a
-    # different kind: the draft row must pass through completely untouched,
-    # and the weekly signals open as brand-new rows sharing the same ids.
-    combined = advance_storylines(draft_only, kind="weekly", week=1, **a)
+    weekly_row = Storyline(
+        id=draft_only[0].id,
+        league_id=draft_only[0].league_id,
+        headline="weekly thread",
+        status="active",
+        first_week=1,
+        last_week=1,
+        kind="weekly",
+    )
+
+    # Advancing kind="weekly" (no weekly signal fires -- empty teams) must
+    # leave every draft row completely untouched, even though one shares an
+    # id with the weekly row being advanced.
+    combined = advance_storylines([*draft_only, weekly_row], kind="weekly", week=1, teams=[])
     draft_rows = [s for s in combined if s.kind == "draft_recap"]
     weekly_rows = [s for s in combined if s.kind == "weekly"]
 
     assert draft_rows == draft_only
-    assert {s.id for s in weekly_rows} == {s.id for s in draft_only}
-    assert all(s.status == "active" and s.first_week == 1 and s.last_week == 1 for s in weekly_rows)
+    assert [s.id for s in weekly_rows] == [weekly_row.id]
+    assert weekly_rows[0].status == "resolved"  # its own signal didn't fire this period
 
     # advancing the weekly kind again must not touch the draft rows either
-    again = advance_storylines(combined, kind="weekly", week=2, **a)
+    again = advance_storylines(combined, kind="weekly", week=2, teams=[])
     assert [s for s in again if s.kind == "draft_recap"] == draft_only
 
 
