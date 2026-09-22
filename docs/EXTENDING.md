@@ -92,7 +92,8 @@ purpose — `injury`, `physical`, `trouble` — and they fired on ordinary scout
 in `safety_lists.toml`, where they can be calibrated; a voice contributes phrases.
 
 **A voice-keyword hit can only ever warn, never hold.** Even in the same sentence as a
-manager's name it produces a `banned_topic` (warn) finding, not a `hold_issue` — crude
+league person-label (a manager's name, or a weekly team label) it produces a `banned_topic`
+(warn) finding, not a `hold_issue` — crude
 keyword extraction over free-text prose is too false-positive-prone to silently block a
 whole league. Only the curated `[banned_topics]` and `personal_insults` in
 `safety_lists.toml` carry the hold tier.
@@ -124,15 +125,15 @@ template narrator.
 **Tiered failure response.** `commishdesk/narrate/response.py` (AD-12 Layer 3) turns a
 `narrate/safety.py` report into a decision the CLI acts on, graded by the finding's tier:
 
-- **`hold_issue`** (a manager's name in the same sentence as a banned-category term *or* a
-  personal-insult-lexicon hit; also a section suppression that would drop *The Lead* /
-  leave fewer than two sections / not localize to any section) — hold the whole Issue:
-  `ContentSafetyError`, exit 1, no HTML — unless the operator passed
-  `--allow-content-hold` (see below).
+- **`hold_issue`** (a league person-label — a manager's name, or a weekly team label — in
+  the same sentence as a banned-category term *or* a personal-insult-lexicon hit; also a
+  section suppression that would drop *The Lead* / leave fewer than two sections / not
+  localize to any section) — hold the whole Issue: `ContentSafetyError`, exit 1, no HTML —
+  unless the operator passed `--allow-content-hold` (see below).
 - **`regenerate`** (a hallucination — a proper noun / number absent from the payload, LLM
   narrator only) — regenerate the LLM narration **once**, then degrade to the template if
   still unclean. This is the single retry the whole layer permits.
-- **`suppress_section`** (slop or a banned-topic pattern with no manager name) — drop that
+- **`suppress_section`** (slop or a banned-topic pattern with no league person-label) — drop that
   section from the template recap; on LLM prose, degrade straight to the template with
   **no** retry.
 
@@ -160,7 +161,8 @@ replaces whole-token occurrences of `narration.league.name` with the inert place
 or "Politics League" would otherwise trip a curated pattern on every run and could never
 produce an Issue at all. The rendered recap keeps the real name everywhere, and findings
 report the *unmasked* sentence so section suppression still localizes. Masking is skipped
-when the league name contains a manager's name (that would defeat the proximity check) and
+when the league name contains a league person-label (a manager's name, or a weekly team
+label — that would defeat the proximity check) and
 for a single-word name that is an ordinary English word.
 
 ### `Renderer` — `commishdesk/themes/`

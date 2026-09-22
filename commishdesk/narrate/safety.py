@@ -3,10 +3,15 @@
 ``check_narration(text, narration, *, voice=None)`` runs a fixed, credential-free
 pipeline over the prose *any* narrator produced — the template narrator, the LLM
 narrator, or the demo path alike — and returns a :class:`SafetyReport` of
-:class:`SafetyFinding`\\ s. It **returns findings; it does not act** —
-``narrate/response.py`` (AD-12 Layer 3) turns the report into a graded decision
-(suppress the offending section / one LLM regeneration / hold the whole Issue)
-and ``cli.py`` applies it alongside narrator *selection*.
+:class:`SafetyFinding`\\ s. It accepts *either* narration shape the package
+publishes: the draft-recap :class:`~commishdesk.facts.schema.Narration`
+(person-labels spelled under ``manager`` / ``left_waiting``, plus a graded
+``teams[]``) and the weekly :class:`~commishdesk.facts.schema.WeeklyNarration`
+(one ``standings[].team`` label per roster, and no grade concept at all). It
+**returns findings; it does not act** — ``narrate/response.py`` (AD-12 Layer 3)
+turns the report into a graded decision (suppress the offending section / one LLM
+regeneration / hold the whole Issue) and ``cli.py`` applies it alongside narrator
+*selection*.
 
 Import fence (AD-4 / I4): this module imports **stdlib +
 ``commishdesk.facts.schema`` + ``commishdesk.voices`` + ``commishdesk.errors``
@@ -25,10 +30,10 @@ Fixed order (AD-12 Layer 2):
    then mask the league's own name out of the *working copy* (see
    :func:`_mask_league_name`) so a league called "The Sportsbook League" cannot
    brick its own Issue.
-2. **Named-person proximity** — a sentence carrying a manager's name (from the
-   ``narration`` projection) *and* a banned-category term *or* a personal-insult
-   hit → ``named_person_proximity`` / ``hold_issue``.
-3. **Banned-topic patterns** — the same term with no manager name in that
+2. **Named-person proximity** — a sentence carrying a manager (draft) or team
+   (weekly) label from the ``narration`` projection *and* a banned-category term
+   *or* a personal-insult hit → ``named_person_proximity`` / ``hold_issue``.
+3. **Banned-topic patterns** — the same term with no league person-label in that
    sentence → the lesser ``banned_topic`` tier.
 4. **Closed-world** — every digit-bearing token and every letter grade in the
    output must be a **member** of the token set built from
@@ -38,10 +43,13 @@ Fixed order (AD-12 Layer 2):
    complete record of this world's numbers and grades, so one it does not
    contain is refuted. Capitalisation is no longer evidence of anything here —
    a proper noun the payload merely cannot trace is *unverifiable, not false*,
-   and is reported by the non-gating :func:`unverified_entities` instead. This
-   is the package's own gate against gross hallucination, not a proof of
-   accuracy; ``tests/test_voices.py``'s eval scorer *calls* :func:`_closed_world`
-   rather than carrying a copy of it.
+   and is reported by the non-gating :func:`unverified_entities` instead. The
+   *grade* half of this check is draft-recap-only: a weekly narration has no
+   grade concept, so its ``awarded`` set is empty and only the bare
+   scale-letter mention ("the scale runs A to F") is exempt. This is the
+   package's own gate against gross hallucination, not a proof of accuracy;
+   ``tests/test_voices.py``'s eval scorer *calls* :func:`_closed_world` rather
+   than carrying a copy of it.
 5. **Slop / tone** — a cliché from the ``slop`` list → ``slop``.
 
 Pattern lists live in ``commishdesk/narrate/safety_lists.toml`` (shipped as
@@ -65,9 +73,9 @@ from typing import TYPE_CHECKING, Literal
 from pydantic import BaseModel, ConfigDict
 
 from commishdesk.errors import NarratorError
+from commishdesk.facts.schema import Narration, WeeklyNarration
 
 if TYPE_CHECKING:
-    from commishdesk.facts.schema import Narration
     from commishdesk.voices import Voice
 
 __all__ = [
@@ -231,7 +239,12 @@ def _league_name_pattern(name: str) -> re.Pattern[str] | None:
     )
 
 
-def _mask_league_name(text: str, narration: Narration, *, manager_names: frozenset[str] | None = None) -> str:
+def _mask_league_name(
+    text: str,
+    narration: Narration | WeeklyNarration,
+    *,
+    manager_names: frozenset[str] | None = None,
+) -> str:
     """Replace whole-token, case-insensitive occurrences of the league's own name
     with :data:`_LEAGUE_PLACEHOLDER` — in ``check_narration``'s **internal
     working copy only**.
@@ -257,16 +270,16 @@ def _mask_league_name(text: str, narration: Narration, *, manager_names: frozens
     the Epic-7 classifier is the real answer to evasion, and
     ``--allow-content-hold`` is the operator backstop for every other hold.
 
-    Masking is skipped entirely when the league name **contains a manager's
-    name** ("Marcus Memorial League"): stripping it would take the manager's name
-    out of the sentence before the proximity check ever sees it, silently
-    downgrading a genuine ``hold_issue``. A false positive on such a league is
-    the operator's problem to override; a missed hold is not.
+    Masking is skipped entirely when the league name **contains a league
+    person-label** ("Marcus Memorial League"): stripping it would take the
+    person-label out of the sentence before the proximity check ever sees it,
+    silently downgrading a genuine ``hold_issue``. A false positive on such a
+    league is the operator's problem to override; a missed hold is not.
     """
     pattern = _league_name_pattern(narration.league.name)
     if pattern is None:
         return text
-    names = _manager_names(narration) if manager_names is None else manager_names
+    names = _name_source(narration) if manager_names is None else manager_names
     normalized_name = _normalize(narration.league.name)
     if any(name_pattern.search(normalized_name) for name_pattern in _compile_name_patterns(names)):
         return text
@@ -274,7 +287,7 @@ def _mask_league_name(text: str, narration: Narration, *, manager_names: frozens
 
 
 # --------------------------------------------------------------------------- #
-# (2) manager names from the narration projection
+# (2) league person-labels from the narration projection
 # --------------------------------------------------------------------------- #
 
 
@@ -301,6 +314,44 @@ def _manager_names(narration: Narration) -> frozenset[str]:
 
     walk(narration.model_dump())
     return frozenset(name for name in names if len(name) >= 2)
+
+
+def _weekly_team_names(narration: WeeklyNarration) -> frozenset[str]:
+    """Every team label a weekly narration carries — the weekly counterpart of
+    :func:`_manager_names`.
+
+    ``facts/weekly.py`` resolves each roster to one label
+    (:func:`~commishdesk.facts.weekly._team_label`: ``team_name or manager or
+    "Roster <id>"``) and threads that same string through every submodel that
+    names a team, so the label repeats under ``team`` / ``winner`` / ``loser`` /
+    ``top`` / ``a`` / ``b`` / ``in_bracket`` / ``byes`` / ``bubble`` /
+    ``first_out`` / ... — a walk for a fixed set of keys would be incomplete by
+    construction (a field added later would silently miss it).
+
+    ``standings[]`` sidesteps that: every roster has exactly one standings row,
+    so ``standings[].team`` is a provably complete source regardless of which
+    other fields happen to repeat a label this particular week. Blank and
+    single-character labels are dropped, exactly as :func:`_manager_names` does.
+
+    Deliberately unconditional: every ``standings[].team`` label is treated as a
+    protected person-label, whether it is a real name, a fantasy-team nickname,
+    or the ``"Roster <id>"`` fallback. A nickname is not provably a real person,
+    but this module's own bias is that a false positive is the operator's to
+    override while a missed hold is not — the same reasoning
+    :func:`_mask_league_name` already applies to the league's own name.
+    """
+    names = {row.team.strip() for row in narration.standings if row.team.strip()}
+    return frozenset(name for name in names if len(name) >= 2)
+
+
+def _name_source(narration: Narration | WeeklyNarration) -> frozenset[str]:
+    """The league person-labels the proximity check treats as "someone was
+    named" — read from whichever source the narration shape carries. Shared by
+    :func:`_mask_league_name` and :func:`check_narration` so the two can never
+    disagree about who is a person in this Issue."""
+    if isinstance(narration, Narration):
+        return _manager_names(narration)
+    return _weekly_team_names(narration)
 
 
 def _compile_name_patterns(names: frozenset[str]) -> tuple[re.Pattern[str], ...]:
@@ -977,7 +1028,7 @@ def _split_token(raw: str) -> list[str]:
     return parts
 
 
-def _payload_tokens(narration: Narration) -> frozenset[str]:
+def _payload_tokens(narration: Narration | WeeklyNarration) -> frozenset[str]:
     """The closed world: every token of ``narration.model_dump_json()``,
     lowercased and split by :func:`_split_token` exactly as the prose side is.
 
@@ -998,7 +1049,7 @@ def _payload_tokens(narration: Narration) -> frozenset[str]:
     return frozenset(tokens)
 
 
-def _closed_world(text: str, narration: Narration) -> list[str]:
+def _closed_world(text: str, narration: Narration | WeeklyNarration) -> list[str]:
     """Every token in *text* the payload can positively **refute**, order-stable
     and de-duplicated.
 
@@ -1007,6 +1058,9 @@ def _closed_world(text: str, narration: Narration) -> list[str]:
     * **numeric** — a token carrying a digit that the payload does not contain.
     * **grade** — a ``_GRADE``-shaped token that is not one of the grades
       actually *awarded* (bare scale letters excepted: "the scale runs A to F").
+      A draft-recap-only check: a ``WeeklyNarration`` carries no grade concept at
+      all, so its ``awarded`` set is empty and only the bare-scale-letter
+      exemption survives.
 
     Both are refutations in the strict sense: the payload is a complete record of
     every number and every grade in this world, so a number it does not contain
@@ -1032,7 +1086,12 @@ def _closed_world(text: str, narration: Narration) -> list[str]:
     what closes that, not a longer list.
     """
     payload = _payload_tokens(narration)
-    awarded = {team.grade.upper() for team in narration.teams}
+    # A WeeklyNarration has no ``teams[].grade`` — the grade half of this check is
+    # draft-recap-only, so its awarded set is empty (the isinstance guards the
+    # attribute access, not just the value).
+    awarded: set[str] = (
+        {team.grade.upper() for team in narration.teams} if isinstance(narration, Narration) else set()
+    )
     unknown: list[str] = []
 
     for match in _TOKEN.finditer(text):
@@ -1055,7 +1114,7 @@ def _closed_world(text: str, narration: Narration) -> list[str]:
     return list(dict.fromkeys(unknown))
 
 
-def _unverified_entities(text: str, narration: Narration) -> list[str]:
+def _unverified_entities(text: str, narration: Narration | WeeklyNarration) -> list[str]:
     """Every :data:`_CAP_RUN` — two or more consecutive capitalised words — none
     of whose words appears in the payload, order-stable and de-duplicated.
 
@@ -1095,7 +1154,7 @@ def _unverified_entities(text: str, narration: Narration) -> list[str]:
 # --------------------------------------------------------------------------- #
 
 
-def _working_text(text: str, narration: Narration) -> str:
+def _working_text(text: str, narration: Narration | WeeklyNarration) -> str:
     """The exact string every check in :func:`check_narration` matches against:
     ``_normalize``\\ d, then league-name-masked. Shared with
     :func:`closed_world_tokens` so no caller can score a *different* string than
@@ -1103,7 +1162,7 @@ def _working_text(text: str, narration: Narration) -> str:
     return _mask_league_name(_normalize(text), narration)
 
 
-def closed_world_tokens(text: str, narration: Narration) -> tuple[str, ...]:
+def closed_world_tokens(text: str, narration: Narration | WeeklyNarration) -> tuple[str, ...]:
     """The out-of-world tokens :func:`check_narration`'s closed-world check would
     report for *text* — normalize, league-name mask, closed-world, in that order.
 
@@ -1116,7 +1175,7 @@ def closed_world_tokens(text: str, narration: Narration) -> tuple[str, ...]:
     return tuple(_closed_world(_working_text(text, narration), narration))
 
 
-def unverified_entities(text: str, narration: Narration) -> tuple[str, ...]:
+def unverified_entities(text: str, narration: Narration | WeeklyNarration) -> tuple[str, ...]:
     """The multi-word capitalised phrases in *text* the payload cannot account
     for — normalize, league-name mask, :func:`_unverified_entities`, in that
     order, so this scores the exact string the gate itself works over.
@@ -1162,9 +1221,16 @@ def _sentence_pairs(working: str, normalized: str) -> tuple[tuple[str, str], ...
     return tuple(zip(masked, raw, strict=True))
 
 
-def check_narration(text: str, narration: Narration, *, voice: Voice | None = None) -> SafetyReport:
+def check_narration(
+    text: str, narration: Narration | WeeklyNarration, *, voice: Voice | None = None
+) -> SafetyReport:
     """Run the five checks in fixed order and return an ordered
     :class:`SafetyReport`. Pure, deterministic, credential-free.
+
+    Accepts either published narration shape — the draft-recap :class:`Narration`
+    or the weekly :class:`WeeklyNarration`; :func:`_name_source` and
+    :func:`_closed_world` resolve the shape-specific bits (the person-label
+    source, and whether a grade concept exists at all).
 
     Every check *matches* against the working copy (normalized + league-name
     masked); every finding *reports* the corresponding unmasked sentence.
@@ -1173,7 +1239,7 @@ def check_narration(text: str, narration: Narration, *, voice: Voice | None = No
     ``safety_lists.toml`` cannot be loaded or a pattern will not compile.
     """
     lists = _load_lists()
-    names = _manager_names(narration)
+    names = _name_source(narration)
     name_patterns = _compile_name_patterns(names)
     # The working copy: normalized, then the league's own name masked out (D1).
     # Nothing downstream of this function sees it — render_draft_recap /
@@ -1240,20 +1306,20 @@ def check_narration(text: str, narration: Narration, *, voice: Voice | None = No
                 continue
             add(
                 "named_person_proximity",
-                f"a manager's name and {category} content in one sentence: {matched!r}",
+                f"a league person-label and {category} content in one sentence: {matched!r}",
                 sentence,
                 matched,
             )
         for matched in insult_hits:
             add(
                 "named_person_proximity",
-                f"a manager's name and a personal insult in one sentence: {matched!r}",
+                f"a league person-label and a personal insult in one sentence: {matched!r}",
                 sentence,
                 matched,
             )
 
     # (3) banned-topic patterns — the lesser (warn) tier. Every hit in a sentence
-    # with no manager name lands here; in a *named* sentence, only the
+    # with no league person-label lands here; in a *named* sentence, only the
     # voice-derived categories do (the curated categories already produced a hold
     # in step 2 and must not double-report).
     for sentence, has_name, cat_hits, insult_hits in rows:

@@ -4,6 +4,10 @@ One test per I/O & Edge-Case Matrix row, plus units for the helpers
 (``_manager_names`` / ``_normalize`` / the voice keyword merge), the list-file
 load/compile path, the demo-recap-passes-clean assertion, and the structural
 guards (import fence, eager re-export).
+
+Story 5.10 pre-work adds the weekly rows: the same gate over
+:class:`~commishdesk.facts.schema.WeeklyNarration`, whose league person-labels
+live under ``standings[].team`` (not ``manager``) and which has no grade concept.
 """
 
 from __future__ import annotations
@@ -16,7 +20,13 @@ import pytest
 from commishdesk import demo
 from commishdesk.errors import NarratorError
 from commishdesk.facts import build_draft_recap_facts
-from commishdesk.facts.schema import Narration
+from commishdesk.facts.schema import (
+    Narration,
+    WeeklyNarration,
+    WeeklyNarrationLeague,
+    WeeklyNarrationStanding,
+    WeeklyNarrationTransactions,
+)
 from commishdesk.ingest import build_league_model
 from commishdesk.narrate import (
     SafetyFinding,
@@ -32,6 +42,7 @@ from commishdesk.stats import (
     compute_draft_grades,
 )
 from commishdesk.voices import load_default_voice
+from tests.test_facts_weekly import _week10_facts
 
 SAFETY_PY = Path(safety.__file__)
 
@@ -1166,3 +1177,127 @@ def test_a_real_body_comment_still_fires(narration: Narration) -> None:
     """Narrowing the weight pattern must not disarm the category."""
     report = check_narration("He showed up carrying extra weight around the middle.", narration)
     assert any(f.category == "banned_topic" for f in report.findings)
+
+
+# --------------------------------------------------------------------------- #
+# Weekly narration — the same gate over WeeklyNarration (Story 5.10 pre-work)
+# --------------------------------------------------------------------------- #
+
+
+def _weekly_narration(team_labels: list[str], *, league_name: str = "Weekly Test League") -> WeeklyNarration:
+    """A minimal hand-built ``WeeklyNarration`` whose only league person-label
+    source is ``standings[].team`` — exactly what ``safety._weekly_team_names``
+    reads. The weekly document has no grade concept at all."""
+    return WeeklyNarration(
+        league=WeeklyNarrationLeague(
+            name=league_name, season="2025", week=5, team_count=len(team_labels)
+        ),
+        week_shape="regular",
+        standings=[
+            WeeklyNarrationStanding(
+                rank=index + 1, team=label, roster_id=str(index + 1), rec="5-0", pf=100.0
+            )
+            for index, label in enumerate(team_labels)
+        ],
+        transactions=WeeklyNarrationTransactions(),
+    )
+
+
+@pytest.fixture(scope="module")
+def weekly_narration() -> WeeklyNarration:
+    """The real, fully-built week-10 weekly narration (``tests/test_facts_weekly``
+    owns the fixture; this module only reads its ``narration`` projection)."""
+    return _week10_facts().narration
+
+
+def test_weekly_bare_name_team_beside_a_banned_topic_holds() -> None:
+    """I/O matrix row 1: a ``standings[].team`` label that is a bare manager name
+    (no nickname) is a person the proximity check must hold on."""
+    weekly = _weekly_narration(["Marcus", "Dana"])
+    report = check_narration("Marcus clearly drafted hungover.", weekly)
+    assert report.held
+    hold = report.findings[0]
+    assert hold.category == "named_person_proximity"
+    assert hold.severity == "hold_issue"
+    assert "hungover" in hold.matched
+
+
+def test_weekly_bare_name_team_beside_a_personal_insult_holds() -> None:
+    weekly = _weekly_narration(["Dana"])
+    report = check_narration("Dana is an idiot.", weekly)
+    assert report.held
+    assert report.findings[0].category == "named_person_proximity"
+
+
+def test_a_built_weekly_narration_runs_the_gate_without_crashing(
+    weekly_narration: WeeklyNarration,
+) -> None:
+    """I/O matrix row 2: any built ``WeeklyNarration`` passes through
+    ``check_narration`` and yields a ``SafetyReport`` — never an ``AttributeError``
+    from the draft-only field access this gate removed."""
+    report = check_narration("The receiver room carried the week.", weekly_narration)
+    assert isinstance(report, SafetyReport)
+
+
+def test_a_built_weekly_narration_holds_on_its_own_team_label(
+    weekly_narration: WeeklyNarration,
+) -> None:
+    """The real week-10 document, driven end to end: naming one of its own team
+    labels beside a banned term holds."""
+    assert weekly_narration.standings
+    label = weekly_narration.standings[0].team
+    report = check_narration(f"{label} showed up hungover.", weekly_narration)
+    assert report.held, [f.message for f in report.findings]
+
+
+def test_weekly_grade_shaped_token_is_refuted_against_an_empty_awarded_set() -> None:
+    """I/O matrix row 4: ``WeeklyNarration`` has no ``teams[].grade``, so
+    ``awarded`` is empty — a suffixed grade is a token the payload refutes."""
+    weekly = _weekly_narration(["Marcus"])
+    report = check_narration("Marcus earned an A+ for that week.", weekly)
+    flagged = {f.matched for f in report.findings if f.category == "hallucination"}
+    assert "A+" in flagged, [f.message for f in report.findings]
+
+
+def test_weekly_bare_scale_letter_is_still_exempt() -> None:
+    """The one grade exemption that is narration-independent: a bare scale letter
+    named in a methodology sentence is in-world whatever was or wasn't awarded."""
+    weekly = _weekly_narration(["Marcus"])
+    report = check_narration("The scale runs A to F with plus and minus.", weekly)
+    assert not any(f.category == "hallucination" for f in report.findings), report.findings
+
+
+def test_weekly_team_names_are_the_standings_labels() -> None:
+    weekly = _weekly_narration(["Marcus", "Dana"])
+    assert safety._weekly_team_names(weekly) == frozenset({"Marcus", "Dana"})
+    # blank and single-character labels are dropped, exactly like _manager_names
+    assert safety._weekly_team_names(_weekly_narration(["A", "", "Bo"])) == frozenset({"Bo"})
+
+
+def test_weekly_nickname_team_label_is_also_protected() -> None:
+    """A fantasy-team nickname is not provably a real person, but
+    ``_weekly_team_names`` treats every ``standings[].team`` label alike — the
+    same over-inclusive bias ``_mask_league_name`` already applies elsewhere."""
+    weekly = _weekly_narration(["Blitz Alpacas"])
+    report = check_narration("Blitz Alpacas clearly drafted hungover.", weekly)
+    assert report.held
+    assert report.findings[0].category == "named_person_proximity"
+
+
+def test_weekly_mask_is_skipped_when_the_league_name_carries_a_team_label() -> None:
+    """The weekly counterpart of
+    ``test_mask_is_skipped_when_the_league_name_carries_a_manager_name``:
+    masking "Marcus Memorial League" would strip "Marcus" out of the sentence
+    before the proximity check ran, downgrading a real hold."""
+    weekly = _weekly_narration(["Marcus"], league_name="Marcus Memorial League")
+    text = "Marcus Memorial League saw Marcus show up hungover."
+    assert safety._mask_league_name(text, weekly) == text
+    assert check_narration(text, weekly).held
+
+
+def test_name_source_dispatches_by_narration_shape(narration: Narration) -> None:
+    """The dispatch the gate is built on: draft narration -> manager names,
+    weekly narration -> standings labels."""
+    assert safety._name_source(narration) == safety._manager_names(narration)
+    weekly = _weekly_narration(["Marcus"])
+    assert safety._name_source(weekly) == safety._weekly_team_names(weekly)
