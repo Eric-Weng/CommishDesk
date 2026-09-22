@@ -36,7 +36,7 @@ CONTRIBUTING = REPO_ROOT / "CONTRIBUTING.md"
 
 # Actions allowed by the spec (frozen "Ask First": anything else needs a renegotiation).
 # Story 4.7 adds the `actions/cache` restore/save sub-actions for the Send Ledger's
-# cache-ratchet persistence.
+# cache-ratchet persistence. Story 5.11b reuses exactly this set -- no new action type.
 ALLOWED_ACTIONS = {
     "actions/checkout",
     "astral-sh/setup-uv",
@@ -384,7 +384,8 @@ def test_no_workflow_references_a_repository_secret_other_than_github_token() ->
     ``schedule``/``workflow_dispatch``-only workflow (Story 4.7's scheduled run,
     operator-triggered against the operator's own league) is never fork-triggered, so it
     may reference the operator's own named secrets (Discord webhook, LLM provider key,
-    healthchecks.io ping URL).
+    healthchecks.io ping URL). Story 5.11b's ``scheduled-weekly.yml`` is the same shape
+    and reads its secrets from a GitHub Environment rather than the repository.
 
     retro A1(b) + P2: matches the index form ``secrets['NAME']`` / ``secrets["NAME"]``
     (any inner whitespace) alongside ``secrets.NAME``. The *bulk*-leak patterns --
@@ -758,6 +759,82 @@ def test_scheduled_draft_recap_workflow_content() -> None:
 
     # a real in-flight Discord post must never be cancelled by an overlapping
     # scheduled trigger (e.g. a manual workflow_dispatch during the daily cron)
+    assert "cancel-in-progress: false" in text
+
+
+# --------------------------------------------------------------------------- #
+# Row: scheduled-weekly.yml content (Story 5.11b)
+# --------------------------------------------------------------------------- #
+
+
+def test_scheduled_weekly_workflow_content() -> None:
+    """Retro item 64's precedent, applied to Story 5.11b's second unattended workflow:
+    the over-every-workflow guards above cover its generic shape but say nothing about
+    this file's actual content. Pins the disarmed-but-recorded schedule trigger, the
+    Environment scoping, the week-resolution gate, the cache ratchet (same namespace as
+    ``scheduled-draft-recap.yml``), the ``--week`` / ``--post`` invocation with no LLM
+    flag, and the *dedicated* weekly healthchecks.io ping URL."""
+    text = _read_github_file(WORKFLOW_DIR / "scheduled-weekly.yml")
+
+    # Ships disarmed, with the state recorded: the schedule trigger is commented out --
+    # not a live `schedule:` key -- and `workflow_dispatch` is the only active trigger,
+    # so an operator can still run a real week by hand.
+    assert re.search(r"^\s*#\s*schedule:\s*$", text, re.MULTILINE), "cron is not commented out"
+    assert re.search(r"^\s*#\s*- cron: '0 12 \* \* 3'\s*$", text, re.MULTILINE), (
+        "commented Wednesday cron expression not found"
+    )
+    assert _on_block_top_keys(text) == {"workflow_dispatch"}, (
+        "workflow_dispatch is not the only active trigger"
+    )
+    assert "DISARMED" in text, "no record that the workflow ships disarmed"
+
+    # Every secret is Environment-scoped, not repository-wide; the league id stays a
+    # plain repository variable, unchanged from 4.7's pattern (league ids are not secret).
+    assert re.search(r"^\s*environment:\s*commishdesk-weekly-schedule\s*$", text, re.MULTILINE), (
+        "job does not run under the commishdesk-weekly-schedule Environment"
+    )
+    assert "COMMISHDESK_LEAGUE_ID: ${{ vars.COMMISHDESK_LEAGUE_ID }}" in text
+
+    # A hung step is reported as `cancelled`, not `failed` -- the timeout is what
+    # makes the failure-ping branch below reachable at all.
+    assert re.search(r"^\s*timeout-minutes:\s*15\s*$", text, re.MULTILINE), "timeout-minutes: 15 not pinned"
+
+    # Week-resolution gate: one unauthenticated Sleeper call, before any commishdesk
+    # invocation, that resolves the just-completed week or records a clean skip.
+    assert "https://api.sleeper.app/v1/state/nfl" in text
+    assert "set -o pipefail" in text
+    assert "ready=false" in text and "ready=true" in text and "target_week=" in text
+    assert re.search(r"if:\s*steps\.week\.outputs\.ready\s*==\s*'true'", text), (
+        "the commishdesk step is not gated on the week-resolution result"
+    )
+
+    # The invocation itself: --week / --post, and no LLM selection flag (the weekly
+    # narrator is the deterministic template until Story 5.12).
+    assert re.search(r"uv run --frozen commishdesk\b", text)
+    assert "--week" in text and "--post" in text
+    assert "--llm" not in text and "--no-llm" not in text
+    # the delivery secret the invocation actually needs for --post to succeed
+    assert "${{ secrets.COMMISHDESK_DISCORD_WEBHOOK_URL }}" in text
+
+    # Cache ratchet: same namespace and shape as scheduled-draft-recap.yml, since both
+    # workflows write the same FileStore root.
+    assert "path: ~/.cache/commishdesk" in text
+    assert "key: commishdesk-ledger-${{ github.run_id }}" in text
+    assert "restore-keys: commishdesk-ledger-" in text
+    assert re.search(
+        r"name:\s*Save Send Ledger cache\s*\n\s*if:\s*always\(\)\s*\n\s*uses:\s*actions/cache/save@",
+        text,
+    ), "Save Send Ledger cache step does not set if: always()"
+
+    # Dead-man's-switch: a timeout is reported as `cancelled`, not `failed`, so the final
+    # step fires on either -- and it uses its OWN check, never the daily recap's shared one.
+    assert "if: failure() || cancelled()" in text
+    assert "${{ secrets.COMMISHDESK_WEEKLY_HEALTHCHECKS_PING_URL }}" in text
+    assert "secrets.HEALTHCHECKS_PING_URL" not in text, (
+        "the weekly run must not share scheduled-draft-recap.yml's DMS check"
+    )
+
+    # a real in-flight Discord post must never be cancelled by an overlapping firing
     assert "cancel-in-progress: false" in text
 
 
