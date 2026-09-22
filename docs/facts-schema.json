@@ -161,6 +161,148 @@
       "title": "ConsensusSource",
       "type": "object"
     },
+    "DivisionRef": {
+      "description": "One declared league division, as data.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "integer"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "DivisionRef",
+      "type": "object"
+    },
+    "DraftRecapFacts": {
+      "description": "The whole draft-recap Facts JSON — the contract every narrator and\nrenderer downstream of ``facts/`` reads for a ``draft_recap`` Issue (AD-2).\nTop-level key order matches ``brief/phase-0/draft-recap-facts.json``.\n\n``weekly`` is reserved and always ``None`` (Story 5.8): the weekly document\nis its own standalone root (:class:`WeeklyFacts`), and this field is kept —\nnever removed — so a ``0.4.0`` draft-recap document still loads and renders.",
+      "properties": {
+        "consensus_source": {
+          "$ref": "#/$defs/ConsensusSource"
+        },
+        "draft": {
+          "$ref": "#/$defs/DraftRef"
+        },
+        "draft_summary": {
+          "$ref": "#/$defs/DraftSummary"
+        },
+        "generated_at": {
+          "title": "Generated At",
+          "type": "string"
+        },
+        "grade_method": {
+          "$ref": "#/$defs/GradeMethodRef"
+        },
+        "issue_type": {
+          "default": "draft_recap",
+          "enum": [
+            "draft_recap",
+            "weekly"
+          ],
+          "title": "Issue Type",
+          "type": "string"
+        },
+        "lead_candidates": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/LeadCandidate"
+          },
+          "title": "Lead Candidates",
+          "type": "array"
+        },
+        "league": {
+          "$ref": "#/$defs/LeagueRef"
+        },
+        "narration": {
+          "$ref": "#/$defs/Narration"
+        },
+        "picks": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/PickRow"
+          },
+          "title": "Picks",
+          "type": "array"
+        },
+        "provisional": {
+          "default": true,
+          "title": "Provisional",
+          "type": "boolean"
+        },
+        "schema_version": {
+          "default": "0.5.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/Source"
+        },
+        "storyline_candidates": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/StorylineCandidate"
+          },
+          "title": "Storyline Candidates",
+          "type": "array"
+        },
+        "superlatives": {
+          "$ref": "#/$defs/Superlatives"
+        },
+        "teams": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/TeamRow"
+          },
+          "title": "Teams",
+          "type": "array"
+        },
+        "week": {
+          "anyOf": [
+            {
+              "maximum": 18,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Week"
+        },
+        "weekly": {
+          "default": null,
+          "title": "Weekly",
+          "type": "null"
+        }
+      },
+      "required": [
+        "generated_at",
+        "source",
+        "consensus_source",
+        "league",
+        "draft",
+        "draft_summary",
+        "superlatives",
+        "grade_method",
+        "narration"
+      ],
+      "title": "DraftRecapFacts",
+      "type": "object"
+    },
     "DraftRef": {
       "description": "Draft-level metadata. ``started_at`` / ``completed_at`` are UTC ISO 8601\n(the epoch-ms -> ISO conversion Story 2.2 deferred to the builder); ``None``\nwhen the platform reports no timestamp.",
       "properties": {
@@ -1489,6 +1631,25 @@
       "title": "TERunSummary",
       "type": "object"
     },
+    "TeamPointsRef": {
+      "description": "One roster's points for the week — the shape of\n:attr:`WeekSummaryRef.high` / :attr:`WeekSummaryRef.low`.",
+      "properties": {
+        "points": {
+          "title": "Points",
+          "type": "number"
+        },
+        "roster_id": {
+          "title": "Roster Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "roster_id",
+        "points"
+      ],
+      "title": "TeamPointsRef",
+      "type": "object"
+    },
     "TeamRow": {
       "description": "One roster: its board profile, its raw consensus extremes, and its grade,\njoined on ``roster_id`` in ``league.teams`` order.",
       "properties": {
@@ -1600,131 +1761,2714 @@
       "title": "TeamRow",
       "type": "object"
     },
+    "WeekMarginRef": {
+      "description": "One game's margin, identified by its two participants directly (the\nweekly Facts contract carries ``roster_ids``, never a matchup index).",
+      "properties": {
+        "margin": {
+          "title": "Margin",
+          "type": "number"
+        },
+        "roster_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Roster Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "roster_ids",
+        "margin"
+      ],
+      "title": "WeekMarginRef",
+      "type": "object"
+    },
+    "WeekSummaryRef": {
+      "description": "League-wide shape of the target week, mirrored from\n``stats/weekly.py::WeekSummary``.",
+      "properties": {
+        "avg_team_score": {
+          "title": "Avg Team Score",
+          "type": "number"
+        },
+        "biggest_blowout": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WeekMarginRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "blowout_count": {
+          "title": "Blowout Count",
+          "type": "integer"
+        },
+        "blowout_threshold": {
+          "title": "Blowout Threshold",
+          "type": "number"
+        },
+        "closest": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WeekMarginRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "games": {
+          "title": "Games",
+          "type": "integer"
+        },
+        "high": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TeamPointsRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "low": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TeamPointsRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "total_points": {
+          "title": "Total Points",
+          "type": "number"
+        }
+      },
+      "required": [
+        "games",
+        "total_points",
+        "avg_team_score",
+        "blowout_count",
+        "blowout_threshold"
+      ],
+      "title": "WeekSummaryRef",
+      "type": "object"
+    },
+    "WeeklyAllPlay": {
+      "description": "One roster's cumulative all-play round-robin record.",
+      "properties": {
+        "l": {
+          "title": "L",
+          "type": "integer"
+        },
+        "pct": {
+          "title": "Pct",
+          "type": "number"
+        },
+        "t": {
+          "title": "T",
+          "type": "integer"
+        },
+        "w": {
+          "title": "W",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "w",
+        "l",
+        "t",
+        "pct"
+      ],
+      "title": "WeeklyAllPlay",
+      "type": "object"
+    },
+    "WeeklyBenchRegret": {
+      "description": "The manager's single worst benching decision.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "player_id": {
+          "title": "Player Id",
+          "type": "string"
+        },
+        "points": {
+          "title": "Points",
+          "type": "number"
+        },
+        "pos": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pos"
+        }
+      },
+      "required": [
+        "player_id",
+        "name",
+        "points"
+      ],
+      "title": "WeeklyBenchRegret",
+      "type": "object"
+    },
+    "WeeklyByeImpact": {
+      "description": "One week-n starter whose NFL team is on bye next week.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "nfl_team": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Nfl Team"
+        },
+        "player_id": {
+          "title": "Player Id",
+          "type": "string"
+        },
+        "pos": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pos"
+        },
+        "roster_id": {
+          "title": "Roster Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "roster_id",
+        "player_id",
+        "name"
+      ],
+      "title": "WeeklyByeImpact",
+      "type": "object"
+    },
+    "WeeklyByeStarter": {
+      "description": "One starter whose NFL team is on bye. ``points`` is only populated on the\nweek-n ``started_on_bye`` shape; it defaults to ``0.0`` on the next-week\n``starters_on_bye`` shape.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "nfl_team": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Nfl Team"
+        },
+        "player_id": {
+          "title": "Player Id",
+          "type": "string"
+        },
+        "points": {
+          "default": 0.0,
+          "title": "Points",
+          "type": "number"
+        },
+        "pos": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pos"
+        }
+      },
+      "required": [
+        "player_id",
+        "name"
+      ],
+      "title": "WeeklyByeStarter",
+      "type": "object"
+    },
+    "WeeklyCoachingEfficiency": {
+      "description": "``actual / optimal`` for one roster, either for a single week or summed\nover the season. ``pct`` is ``None`` when ``optimal <= 0``.",
+      "properties": {
+        "actual": {
+          "title": "Actual",
+          "type": "number"
+        },
+        "optimal": {
+          "title": "Optimal",
+          "type": "number"
+        },
+        "pct": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pct"
+        }
+      },
+      "required": [
+        "actual",
+        "optimal"
+      ],
+      "title": "WeeklyCoachingEfficiency",
+      "type": "object"
+    },
     "WeeklyFacts": {
-      "description": "Schema-only placeholder for the Epic-5 weekly issue's stats (power rank,\nblowout, luck index, coaching efficiency). Intentionally empty at\n:data:`SCHEMA_VERSION` ``0.2.0`` — no builder emits it, and ``weekly`` is\n``None`` on every ``draft_recap`` document. Present so downstream consumers\ncan already name the type.",
-      "properties": {},
+      "description": "The whole weekly Facts JSON — a standalone root laid out like the private\n``week10-facts.json`` golden, built by ``facts/weekly.py::build_weekly_facts``\n(Story 5.8). Every computed number comes from ``commishdesk.stats``; names\nare joined from the bundle's ``players`` blob.",
+      "properties": {
+        "generated_at": {
+          "title": "Generated At",
+          "type": "string"
+        },
+        "issue_type": {
+          "const": "weekly",
+          "default": "weekly",
+          "title": "Issue Type",
+          "type": "string"
+        },
+        "lead_candidates": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/LeadCandidate"
+          },
+          "title": "Lead Candidates",
+          "type": "array"
+        },
+        "leaders": {
+          "$ref": "#/$defs/WeeklyLeaders"
+        },
+        "league": {
+          "$ref": "#/$defs/WeeklyLeagueRef"
+        },
+        "matchups": {
+          "$ref": "#/$defs/WeeklyMatchups"
+        },
+        "narration": {
+          "$ref": "#/$defs/WeeklyNarration"
+        },
+        "period": {
+          "$ref": "#/$defs/WeeklyPeriod"
+        },
+        "provisional": {
+          "default": true,
+          "title": "Provisional",
+          "type": "boolean"
+        },
+        "schema_version": {
+          "default": "0.5.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/Source"
+        },
+        "standings": {
+          "$ref": "#/$defs/WeeklyStandings"
+        },
+        "storyline_candidates": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/StorylineCandidate"
+          },
+          "title": "Storyline Candidates",
+          "type": "array"
+        },
+        "teams": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WeeklyTeam"
+          },
+          "title": "Teams",
+          "type": "array"
+        },
+        "transactions": {
+          "$ref": "#/$defs/WeeklyTransactions"
+        },
+        "week": {
+          "maximum": 18,
+          "minimum": 1,
+          "title": "Week",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "generated_at",
+        "week",
+        "source",
+        "league",
+        "period",
+        "matchups",
+        "standings",
+        "transactions",
+        "leaders",
+        "narration"
+      ],
       "title": "WeeklyFacts",
+      "type": "object"
+    },
+    "WeeklyFormatRef": {
+      "description": "``FormatRef`` plus the weekly-only shape: the declared divisions, the\nplayoff window, and the regular-season week count. All as data — no\ndownstream stage branches on a hardcoded league shape.",
+      "properties": {
+        "divisions": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/DivisionRef"
+          },
+          "title": "Divisions",
+          "type": "array"
+        },
+        "flex_eligibility": {
+          "additionalProperties": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "title": "Flex Eligibility",
+          "type": "object"
+        },
+        "is_superflex_or_2qb": {
+          "title": "Is Superflex Or 2Qb",
+          "type": "boolean"
+        },
+        "playoff": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WeeklyPlayoffRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "regular_season_weeks": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Regular Season Weeks"
+        },
+        "roster_slots": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Roster Slots",
+          "type": "array"
+        },
+        "scoring_label": {
+          "title": "Scoring Label",
+          "type": "string"
+        },
+        "te_premium": {
+          "title": "Te Premium",
+          "type": "boolean"
+        },
+        "team_count": {
+          "title": "Team Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "team_count",
+        "roster_slots",
+        "flex_eligibility",
+        "scoring_label",
+        "is_superflex_or_2qb",
+        "te_premium"
+      ],
+      "title": "WeeklyFormatRef",
+      "type": "object"
+    },
+    "WeeklyHeadlinePlayer": {
+      "description": "One side's top started scorer in a resolved pairing.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "player_id": {
+          "title": "Player Id",
+          "type": "string"
+        },
+        "points": {
+          "title": "Points",
+          "type": "number"
+        },
+        "pos": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pos"
+        },
+        "roster_id": {
+          "title": "Roster Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "roster_id",
+        "player_id",
+        "name",
+        "points"
+      ],
+      "title": "WeeklyHeadlinePlayer",
+      "type": "object"
+    },
+    "WeeklyHistory": {
+      "description": "One roster's weekly history, one row per week it played.",
+      "properties": {
+        "weekly": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WeeklyHistoryRow"
+          },
+          "title": "Weekly",
+          "type": "array"
+        }
+      },
+      "title": "WeeklyHistory",
+      "type": "object"
+    },
+    "WeeklyHistoryRow": {
+      "description": "One week of a roster's season, with the cumulative picture as of that\nweek. ``power_rank`` / ``all_play`` / ``luck`` are ``None`` before\n``MEANINGFUL_FROM_WEEK`` and past the regular season.",
+      "properties": {
+        "all_play": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WeeklyAllPlay"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "cum_record": {
+          "$ref": "#/$defs/WeeklyRecord"
+        },
+        "luck": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Luck"
+        },
+        "margin": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Margin"
+        },
+        "opponent_roster_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Opponent Roster Id"
+        },
+        "points": {
+          "title": "Points",
+          "type": "number"
+        },
+        "power_rank": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Power Rank"
+        },
+        "result": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Result"
+        },
+        "week": {
+          "title": "Week",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "week",
+        "points",
+        "cum_record"
+      ],
+      "title": "WeeklyHistoryRow",
+      "type": "object"
+    },
+    "WeeklyLeaderPlayer": {
+      "description": "One named player in a league-wide leaders list.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "player_id": {
+          "title": "Player Id",
+          "type": "string"
+        },
+        "points": {
+          "title": "Points",
+          "type": "number"
+        },
+        "pos": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pos"
+        },
+        "roster_id": {
+          "title": "Roster Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "roster_id",
+        "player_id",
+        "name",
+        "points"
+      ],
+      "title": "WeeklyLeaderPlayer",
+      "type": "object"
+    },
+    "WeeklyLeaderRef": {
+      "description": "A ``{roster_id, pct}`` coaching-efficiency leader.",
+      "properties": {
+        "pct": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pct"
+        },
+        "roster_id": {
+          "title": "Roster Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "roster_id"
+      ],
+      "title": "WeeklyLeaderRef",
+      "type": "object"
+    },
+    "WeeklyLeaders": {
+      "description": "The week's league-wide leaders: the high player, the top players, the\nworst starters, and the best / worst coaching weeks.",
+      "properties": {
+        "best_coaching": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WeeklyLeaderRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "top_players": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WeeklyLeaderPlayer"
+          },
+          "title": "Top Players",
+          "type": "array"
+        },
+        "week_high_player": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WeeklyWeekHighPlayer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "worst_coaching": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WeeklyLeaderRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "worst_starters": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WeeklyLeaderPlayer"
+          },
+          "title": "Worst Starters",
+          "type": "array"
+        }
+      },
+      "title": "WeeklyLeaders",
+      "type": "object"
+    },
+    "WeeklyLeagueRef": {
+      "description": "League identity on the weekly document (``LeagueRef`` with the richer\nweekly ``format``).",
+      "properties": {
+        "format": {
+          "$ref": "#/$defs/WeeklyFormatRef"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "platform": {
+          "title": "Platform",
+          "type": "string"
+        },
+        "season": {
+          "title": "Season",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "season",
+        "platform",
+        "format"
+      ],
+      "title": "WeeklyLeagueRef",
+      "type": "object"
+    },
+    "WeeklyMarketNote": {
+      "description": "When the league last traded. ``complete`` ``False`` (with both week\nfields ``None``) means a partial history could not tell.",
+      "properties": {
+        "complete": {
+          "default": false,
+          "title": "Complete",
+          "type": "boolean"
+        },
+        "last_trade_week": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Trade Week"
+        },
+        "weeks_since_last_trade": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Weeks Since Last Trade"
+        }
+      },
+      "title": "WeeklyMarketNote",
+      "type": "object"
+    },
+    "WeeklyMatchup": {
+      "description": "One resolved target-week pairing. ``home_roster_id`` is the lower numeric\nroster id; ``winner_roster_id`` is ``None`` on a tie. ``headline_players``\nis each side's top started scorer.",
+      "properties": {
+        "away_points": {
+          "title": "Away Points",
+          "type": "number"
+        },
+        "away_roster_id": {
+          "title": "Away Roster Id",
+          "type": "string"
+        },
+        "headline_players": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WeeklyHeadlinePlayer"
+          },
+          "title": "Headline Players",
+          "type": "array"
+        },
+        "home_points": {
+          "title": "Home Points",
+          "type": "number"
+        },
+        "home_roster_id": {
+          "title": "Home Roster Id",
+          "type": "string"
+        },
+        "is_blowout": {
+          "default": false,
+          "title": "Is Blowout",
+          "type": "boolean"
+        },
+        "margin": {
+          "title": "Margin",
+          "type": "number"
+        },
+        "matchup_id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Matchup Id"
+        },
+        "winner_roster_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Winner Roster Id"
+        }
+      },
+      "required": [
+        "home_roster_id",
+        "away_roster_id",
+        "home_points",
+        "away_points",
+        "margin"
+      ],
+      "title": "WeeklyMatchup",
+      "type": "object"
+    },
+    "WeeklyMatchups": {
+      "description": "The target week's resolved pairings, and the next week's cards.",
+      "properties": {
+        "next_week": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WeeklyNextWeekCard"
+          },
+          "title": "Next Week",
+          "type": "array"
+        },
+        "this_week": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WeeklyMatchup"
+          },
+          "title": "This Week",
+          "type": "array"
+        }
+      },
+      "title": "WeeklyMatchups",
+      "type": "object"
+    },
+    "WeeklyMove": {
+      "description": "One settled transaction from the target week, with names.",
+      "properties": {
+        "adds": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WeeklyMovePlayer"
+          },
+          "title": "Adds",
+          "type": "array"
+        },
+        "drops": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WeeklyMovePlayer"
+          },
+          "title": "Drops",
+          "type": "array"
+        },
+        "faab": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Faab"
+        },
+        "roster_ids": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Roster Ids",
+          "type": "array"
+        },
+        "transaction_id": {
+          "title": "Transaction Id",
+          "type": "string"
+        },
+        "type": {
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "transaction_id",
+        "type"
+      ],
+      "title": "WeeklyMove",
+      "type": "object"
+    },
+    "WeeklyMovePlayer": {
+      "description": "One player moved in a transaction, with the side it moved for.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "player_id": {
+          "title": "Player Id",
+          "type": "string"
+        },
+        "pos": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pos"
+        },
+        "roster_id": {
+          "title": "Roster Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "player_id",
+        "name",
+        "roster_id"
+      ],
+      "title": "WeeklyMovePlayer",
+      "type": "object"
+    },
+    "WeeklyNarration": {
+      "description": "The sanitized weekly projection the narrator sees — ids resolved to a\n``team`` label (``team_name or manager or \"Roster <id>\"``), with the\n``roster_id`` always alongside. No free prose. Held under\n:data:`NARRATION_TOKEN_CAP` by ``facts/weekly.py``'s reduction ladder.",
+      "properties": {
+        "games": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WeeklyNarrationGame"
+          },
+          "title": "Games",
+          "type": "array"
+        },
+        "lead_candidates": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/LeadCandidate"
+          },
+          "title": "Lead Candidates",
+          "type": "array"
+        },
+        "league": {
+          "$ref": "#/$defs/WeeklyNarrationLeague"
+        },
+        "luck": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WeeklyNarrationLuck"
+          },
+          "title": "Luck",
+          "type": "array"
+        },
+        "next_week": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WeeklyNarrationNextWeek"
+          },
+          "title": "Next Week",
+          "type": "array"
+        },
+        "next_week_nfl_byes": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Next Week Nfl Byes"
+        },
+        "playoff_picture": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WeeklyNarrationPlayoff"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "power": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WeeklyNarrationPower"
+          },
+          "title": "Power",
+          "type": "array"
+        },
+        "standings": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WeeklyNarrationStanding"
+          },
+          "title": "Standings",
+          "type": "array"
+        },
+        "storyline_candidates": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/StorylineCandidate"
+          },
+          "title": "Storyline Candidates",
+          "type": "array"
+        },
+        "transactions": {
+          "$ref": "#/$defs/WeeklyNarrationTransactions"
+        },
+        "week_shape": {
+          "title": "Week Shape",
+          "type": "string"
+        }
+      },
+      "required": [
+        "league",
+        "week_shape",
+        "transactions"
+      ],
+      "title": "WeeklyNarration",
+      "type": "object"
+    },
+    "WeeklyNarrationGame": {
+      "description": "One narrated game: the winner / loser labels, their points, the margin,\nand the game's top scorer label.",
+      "properties": {
+        "loser": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Loser"
+        },
+        "loser_pts": {
+          "title": "Loser Pts",
+          "type": "number"
+        },
+        "margin": {
+          "title": "Margin",
+          "type": "number"
+        },
+        "matchup_id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Matchup Id"
+        },
+        "top": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Top"
+        },
+        "winner": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Winner"
+        },
+        "winner_pts": {
+          "title": "Winner Pts",
+          "type": "number"
+        }
+      },
+      "required": [
+        "winner_pts",
+        "loser_pts",
+        "margin"
+      ],
+      "title": "WeeklyNarrationGame",
+      "type": "object"
+    },
+    "WeeklyNarrationLeague": {
+      "description": "Just enough league identity for a weekly headline.",
+      "properties": {
+        "divisions": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Divisions",
+          "type": "array"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "season": {
+          "title": "Season",
+          "type": "string"
+        },
+        "team_count": {
+          "title": "Team Count",
+          "type": "integer"
+        },
+        "week": {
+          "title": "Week",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "name",
+        "season",
+        "week",
+        "team_count"
+      ],
+      "title": "WeeklyNarrationLeague",
+      "type": "object"
+    },
+    "WeeklyNarrationLuck": {
+      "description": "One narrated luck row.",
+      "properties": {
+        "all_play": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "All Play"
+        },
+        "earned_wins": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Earned Wins"
+        },
+        "luck": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Luck"
+        },
+        "rec": {
+          "title": "Rec",
+          "type": "string"
+        },
+        "roster_id": {
+          "title": "Roster Id",
+          "type": "string"
+        },
+        "team": {
+          "title": "Team",
+          "type": "string"
+        }
+      },
+      "required": [
+        "team",
+        "roster_id",
+        "rec"
+      ],
+      "title": "WeeklyNarrationLuck",
+      "type": "object"
+    },
+    "WeeklyNarrationNextWeek": {
+      "description": "One narrated next-week card, both sides resolved to labels.",
+      "properties": {
+        "a": {
+          "title": "A",
+          "type": "string"
+        },
+        "a_model_rank": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "A Model Rank"
+        },
+        "a_rec": {
+          "title": "A Rec",
+          "type": "string"
+        },
+        "a_roster_id": {
+          "title": "A Roster Id",
+          "type": "string"
+        },
+        "b": {
+          "title": "B",
+          "type": "string"
+        },
+        "b_model_rank": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "B Model Rank"
+        },
+        "b_rec": {
+          "title": "B Rec",
+          "type": "string"
+        },
+        "b_roster_id": {
+          "title": "B Roster Id",
+          "type": "string"
+        },
+        "game_of_week": {
+          "default": false,
+          "title": "Game Of Week",
+          "type": "boolean"
+        },
+        "matchup_id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Matchup Id"
+        },
+        "stakes": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Stakes",
+          "type": "array"
+        }
+      },
+      "required": [
+        "a",
+        "a_roster_id",
+        "a_rec",
+        "b",
+        "b_roster_id",
+        "b_rec"
+      ],
+      "title": "WeeklyNarrationNextWeek",
+      "type": "object"
+    },
+    "WeeklyNarrationPlayoff": {
+      "description": "The narrated playoff picture, teams resolved to labels.",
+      "properties": {
+        "bubble": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Bubble",
+          "type": "array"
+        },
+        "byes": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Byes",
+          "type": "array"
+        },
+        "first_out": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "First Out"
+        },
+        "format": {
+          "title": "Format",
+          "type": "string"
+        },
+        "in_bracket": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "In Bracket",
+          "type": "array"
+        }
+      },
+      "required": [
+        "format"
+      ],
+      "title": "WeeklyNarrationPlayoff",
+      "type": "object"
+    },
+    "WeeklyNarrationPower": {
+      "description": "One narrated power-rank row. ``all_play`` is the first field the\nnarration reduction ladder drops.",
+      "properties": {
+        "all_play": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "All Play"
+        },
+        "avg_pf": {
+          "title": "Avg Pf",
+          "type": "number"
+        },
+        "luck": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Luck"
+        },
+        "model_rank": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model Rank"
+        },
+        "rec": {
+          "title": "Rec",
+          "type": "string"
+        },
+        "roster_id": {
+          "title": "Roster Id",
+          "type": "string"
+        },
+        "team": {
+          "title": "Team",
+          "type": "string"
+        },
+        "week_delta": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Week Delta"
+        }
+      },
+      "required": [
+        "team",
+        "roster_id",
+        "rec",
+        "avg_pf"
+      ],
+      "title": "WeeklyNarrationPower",
+      "type": "object"
+    },
+    "WeeklyNarrationStanding": {
+      "description": "One narrated standings row.",
+      "properties": {
+        "model_rank": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model Rank"
+        },
+        "pf": {
+          "title": "Pf",
+          "type": "number"
+        },
+        "rank": {
+          "title": "Rank",
+          "type": "integer"
+        },
+        "rec": {
+          "title": "Rec",
+          "type": "string"
+        },
+        "roster_id": {
+          "title": "Roster Id",
+          "type": "string"
+        },
+        "team": {
+          "title": "Team",
+          "type": "string"
+        }
+      },
+      "required": [
+        "rank",
+        "team",
+        "roster_id",
+        "rec",
+        "pf"
+      ],
+      "title": "WeeklyNarrationStanding",
+      "type": "object"
+    },
+    "WeeklyNarrationTransactions": {
+      "description": "The narrated transactions glance.",
+      "properties": {
+        "complete": {
+          "default": false,
+          "title": "Complete",
+          "type": "boolean"
+        },
+        "last_trade_week": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Trade Week"
+        },
+        "recent_trade_count": {
+          "default": 0,
+          "title": "Recent Trade Count",
+          "type": "integer"
+        },
+        "this_week_count": {
+          "default": 0,
+          "title": "This Week Count",
+          "type": "integer"
+        },
+        "weeks_since_last_trade": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Weeks Since Last Trade"
+        }
+      },
+      "title": "WeeklyNarrationTransactions",
+      "type": "object"
+    },
+    "WeeklyNextWeekCard": {
+      "description": "One week-``n+1`` pairing, flattened: each side's roster id, power rank,\nrecord and clinch/elimination flags, the card's stakes union, the flagged\nbye starters, and whether this is the game of the week.",
+      "properties": {
+        "a_clinched_bye": {
+          "default": false,
+          "title": "A Clinched Bye",
+          "type": "boolean"
+        },
+        "a_clinched_division": {
+          "default": false,
+          "title": "A Clinched Division",
+          "type": "boolean"
+        },
+        "a_clinched_playoff": {
+          "default": false,
+          "title": "A Clinched Playoff",
+          "type": "boolean"
+        },
+        "a_eliminated": {
+          "default": false,
+          "title": "A Eliminated",
+          "type": "boolean"
+        },
+        "a_power_rank": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "A Power Rank"
+        },
+        "a_record": {
+          "title": "A Record",
+          "type": "string"
+        },
+        "a_roster_id": {
+          "title": "A Roster Id",
+          "type": "string"
+        },
+        "b_clinched_bye": {
+          "default": false,
+          "title": "B Clinched Bye",
+          "type": "boolean"
+        },
+        "b_clinched_division": {
+          "default": false,
+          "title": "B Clinched Division",
+          "type": "boolean"
+        },
+        "b_clinched_playoff": {
+          "default": false,
+          "title": "B Clinched Playoff",
+          "type": "boolean"
+        },
+        "b_eliminated": {
+          "default": false,
+          "title": "B Eliminated",
+          "type": "boolean"
+        },
+        "b_power_rank": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "B Power Rank"
+        },
+        "b_record": {
+          "title": "B Record",
+          "type": "string"
+        },
+        "b_roster_id": {
+          "title": "B Roster Id",
+          "type": "string"
+        },
+        "bye_impact": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/WeeklyByeImpact"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bye Impact"
+        },
+        "game_of_week": {
+          "default": false,
+          "title": "Game Of Week",
+          "type": "boolean"
+        },
+        "matchup_id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Matchup Id"
+        },
+        "stakes": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Stakes",
+          "type": "array"
+        }
+      },
+      "required": [
+        "a_roster_id",
+        "b_roster_id",
+        "a_record",
+        "b_record"
+      ],
+      "title": "WeeklyNextWeekCard",
+      "type": "object"
+    },
+    "WeeklyPerformer": {
+      "description": "One named player with a week point total, ids alongside names.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "player_id": {
+          "title": "Player Id",
+          "type": "string"
+        },
+        "points": {
+          "title": "Points",
+          "type": "number"
+        },
+        "pos": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pos"
+        }
+      },
+      "required": [
+        "player_id",
+        "name",
+        "points"
+      ],
+      "title": "WeeklyPerformer",
+      "type": "object"
+    },
+    "WeeklyPeriod": {
+      "description": "The week this document covers: its type, whether it has prior-week\nhistory, the NFL teams on bye this week and next (``None`` when the caller\nsupplied no bye data), and the league-wide :class:`WeekSummaryRef`.",
+      "properties": {
+        "has_prior_week": {
+          "title": "Has Prior Week",
+          "type": "boolean"
+        },
+        "nfl_byes": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Nfl Byes"
+        },
+        "nfl_byes_next_week": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Nfl Byes Next Week"
+        },
+        "summary": {
+          "$ref": "#/$defs/WeekSummaryRef"
+        },
+        "type": {
+          "title": "Type",
+          "type": "string"
+        },
+        "week": {
+          "title": "Week",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "week",
+        "type",
+        "has_prior_week",
+        "summary"
+      ],
+      "title": "WeeklyPeriod",
+      "type": "object"
+    },
+    "WeeklyPickRef": {
+      "description": "One draft pick that moved in a trade.",
+      "properties": {
+        "from_roster_id": {
+          "title": "From Roster Id",
+          "type": "string"
+        },
+        "round": {
+          "title": "Round",
+          "type": "integer"
+        },
+        "season": {
+          "title": "Season",
+          "type": "string"
+        }
+      },
+      "required": [
+        "season",
+        "round",
+        "from_roster_id"
+      ],
+      "title": "WeeklyPickRef",
+      "type": "object"
+    },
+    "WeeklyPlayoffPicture": {
+      "description": "The derived playoff picture, mirrored from\n``stats/standings.py::PlayoffPicture``.",
+      "properties": {
+        "bubble": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Bubble",
+          "type": "array"
+        },
+        "byes": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Byes",
+          "type": "array"
+        },
+        "consolation": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Consolation",
+          "type": "array"
+        },
+        "cut_line_after_rank": {
+          "title": "Cut Line After Rank",
+          "type": "integer"
+        },
+        "first_out": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "First Out"
+        },
+        "in_bracket": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "In Bracket",
+          "type": "array"
+        },
+        "source": {
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source",
+        "cut_line_after_rank"
+      ],
+      "title": "WeeklyPlayoffPicture",
+      "type": "object"
+    },
+    "WeeklyPlayoffRef": {
+      "description": "The league's playoff shape on the weekly document: how many teams make\nthe bracket, how many first-round byes that implies, and the week the\nbracket starts.",
+      "properties": {
+        "bracket_teams": {
+          "title": "Bracket Teams",
+          "type": "integer"
+        },
+        "byes": {
+          "title": "Byes",
+          "type": "integer"
+        },
+        "start_week": {
+          "title": "Start Week",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "bracket_teams",
+        "byes",
+        "start_week"
+      ],
+      "title": "WeeklyPlayoffRef",
+      "type": "object"
+    },
+    "WeeklyPower": {
+      "description": "One roster's model-power row. ``published_rank`` / ``nudge`` are Story\n5.9's (AD-13) and are always ``None`` here; ``prev_model_rank`` /\n``week_delta`` are the rank's movement since the prior week (both ``None``\nwhen there is no prior week, or either side is unranked).",
+      "properties": {
+        "model_rank": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model Rank"
+        },
+        "model_score": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model Score"
+        },
+        "nudge": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Nudge"
+        },
+        "prev_model_rank": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Prev Model Rank"
+        },
+        "published_rank": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Published Rank"
+        },
+        "week_delta": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Week Delta"
+        }
+      },
+      "title": "WeeklyPower",
+      "type": "object"
+    },
+    "WeeklyRecord": {
+      "description": "A win-loss-tie triple.",
+      "properties": {
+        "l": {
+          "title": "L",
+          "type": "integer"
+        },
+        "t": {
+          "title": "T",
+          "type": "integer"
+        },
+        "w": {
+          "title": "W",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "w",
+        "l",
+        "t"
+      ],
+      "title": "WeeklyRecord",
+      "type": "object"
+    },
+    "WeeklySeason": {
+      "description": "One roster's whole-season block: the head-to-head fold, the all-play\nfold, the model power rank, and the season-long coaching efficiency.",
+      "properties": {
+        "all_play": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WeeklyAllPlay"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "avg_for": {
+          "title": "Avg For",
+          "type": "number"
+        },
+        "coaching_efficiency": {
+          "$ref": "#/$defs/WeeklyCoachingEfficiency"
+        },
+        "division_rank": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Division Rank"
+        },
+        "expected_wins": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected Wins"
+        },
+        "high_week": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WeeklyWeekPoints"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "low_week": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WeeklyWeekPoints"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "luck": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Luck"
+        },
+        "points_against": {
+          "title": "Points Against",
+          "type": "number"
+        },
+        "points_for": {
+          "title": "Points For",
+          "type": "number"
+        },
+        "power": {
+          "$ref": "#/$defs/WeeklyPower"
+        },
+        "rank": {
+          "title": "Rank",
+          "type": "integer"
+        },
+        "record": {
+          "$ref": "#/$defs/WeeklyRecord"
+        },
+        "streak": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WeeklyStreak"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "record",
+        "rank",
+        "points_for",
+        "points_against",
+        "avg_for",
+        "power",
+        "coaching_efficiency"
+      ],
+      "title": "WeeklySeason",
+      "type": "object"
+    },
+    "WeeklyStandings": {
+      "description": "The standings block: the overall order, the per-division order, the\nderived playoff picture, and how far the fold reached.",
+      "properties": {
+        "divisions": {
+          "additionalProperties": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "default": {},
+          "title": "Divisions",
+          "type": "object"
+        },
+        "overall": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Overall",
+          "type": "array"
+        },
+        "playoff_picture": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WeeklyPlayoffPicture"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "regular_season_complete": {
+          "default": false,
+          "title": "Regular Season Complete",
+          "type": "boolean"
+        },
+        "through_week": {
+          "title": "Through Week",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "through_week"
+      ],
+      "title": "WeeklyStandings",
+      "type": "object"
+    },
+    "WeeklyStarter": {
+      "description": "One slot of a roster's week lineup. ``player_id`` / ``name`` / ``pos`` /\n``nfl_team`` are ``None`` for an unfilled slot.",
+      "properties": {
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "nfl_team": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Nfl Team"
+        },
+        "player_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Player Id"
+        },
+        "points": {
+          "title": "Points",
+          "type": "number"
+        },
+        "pos": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pos"
+        },
+        "slot": {
+          "title": "Slot",
+          "type": "string"
+        }
+      },
+      "required": [
+        "slot",
+        "points"
+      ],
+      "title": "WeeklyStarter",
+      "type": "object"
+    },
+    "WeeklyStreak": {
+      "description": "One roster's current run of identical results.",
+      "properties": {
+        "count": {
+          "title": "Count",
+          "type": "integer"
+        },
+        "type": {
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "count"
+      ],
+      "title": "WeeklyStreak",
+      "type": "object"
+    },
+    "WeeklyTeam": {
+      "description": "One roster's whole weekly row: identity, season block, this week, history\nand next week — in numeric roster order.",
+      "properties": {
+        "co_owners": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Co Owners",
+          "type": "array"
+        },
+        "division_id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Division Id"
+        },
+        "history": {
+          "$ref": "#/$defs/WeeklyHistory"
+        },
+        "manager": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Manager"
+        },
+        "next_week": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WeeklyTeamNextWeek"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "roster_id": {
+          "title": "Roster Id",
+          "type": "string"
+        },
+        "season": {
+          "$ref": "#/$defs/WeeklySeason"
+        },
+        "team_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Team Name"
+        },
+        "this_week": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WeeklyTeamGame"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "roster_id",
+        "season",
+        "history"
+      ],
+      "title": "WeeklyTeam",
+      "type": "object"
+    },
+    "WeeklyTeamGame": {
+      "description": "One roster's target-week block. ``None`` for a roster with no game;\n``started_on_bye`` is ``None`` when the caller supplied no bye data.",
+      "properties": {
+        "bench_regret": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WeeklyBenchRegret"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "coaching_efficiency": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WeeklyCoachingEfficiency"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "duds": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WeeklyPerformer"
+          },
+          "title": "Duds",
+          "type": "array"
+        },
+        "margin": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Margin"
+        },
+        "opponent_points": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Opponent Points"
+        },
+        "opponent_roster_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Opponent Roster Id"
+        },
+        "points": {
+          "title": "Points",
+          "type": "number"
+        },
+        "points_left_on_bench": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Points Left On Bench"
+        },
+        "result": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Result"
+        },
+        "started_on_bye": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/WeeklyByeStarter"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Started On Bye"
+        },
+        "starters": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WeeklyStarter"
+          },
+          "title": "Starters",
+          "type": "array"
+        },
+        "top_performers": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WeeklyPerformer"
+          },
+          "title": "Top Performers",
+          "type": "array"
+        }
+      },
+      "required": [
+        "points"
+      ],
+      "title": "WeeklyTeamGame",
+      "type": "object"
+    },
+    "WeeklyTeamNextWeek": {
+      "description": "One roster's next-week preview. ``None`` when there is no card for it.\n``starters_on_bye`` is empty when the caller supplied no bye data.",
+      "properties": {
+        "opponent_roster_id": {
+          "title": "Opponent Roster Id",
+          "type": "string"
+        },
+        "power_rank_opp": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Power Rank Opp"
+        },
+        "power_rank_self": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Power Rank Self"
+        },
+        "stakes": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Stakes",
+          "type": "array"
+        },
+        "starters_on_bye": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WeeklyByeStarter"
+          },
+          "title": "Starters On Bye",
+          "type": "array"
+        }
+      },
+      "required": [
+        "opponent_roster_id"
+      ],
+      "title": "WeeklyTeamNextWeek",
+      "type": "object"
+    },
+    "WeeklyTrade": {
+      "description": "One settled trade with its sides.",
+      "properties": {
+        "sides": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WeeklyTradeSide"
+          },
+          "title": "Sides",
+          "type": "array"
+        },
+        "transaction_id": {
+          "title": "Transaction Id",
+          "type": "string"
+        },
+        "week": {
+          "title": "Week",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "week",
+        "transaction_id"
+      ],
+      "title": "WeeklyTrade",
+      "type": "object"
+    },
+    "WeeklyTradeSide": {
+      "description": "One participating roster's receipts from a trade, with names.",
+      "properties": {
+        "faab": {
+          "default": 0,
+          "title": "Faab",
+          "type": "integer"
+        },
+        "picks": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WeeklyPickRef"
+          },
+          "title": "Picks",
+          "type": "array"
+        },
+        "players": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WeeklyMovePlayer"
+          },
+          "title": "Players",
+          "type": "array"
+        },
+        "roster_id": {
+          "title": "Roster Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "roster_id"
+      ],
+      "title": "WeeklyTradeSide",
+      "type": "object"
+    },
+    "WeeklyTransactions": {
+      "description": "The transactions desk, with names.",
+      "properties": {
+        "market_note": {
+          "$ref": "#/$defs/WeeklyMarketNote"
+        },
+        "recent_trades": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WeeklyTrade"
+          },
+          "title": "Recent Trades",
+          "type": "array"
+        },
+        "this_week": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WeeklyMove"
+          },
+          "title": "This Week",
+          "type": "array"
+        }
+      },
+      "required": [
+        "market_note"
+      ],
+      "title": "WeeklyTransactions",
+      "type": "object"
+    },
+    "WeeklyWeekHighPlayer": {
+      "description": "``week_high_player`` only: whether this week's high score is also a new\nseason high (``points >= every prior week's best``, ties count).",
+      "properties": {
+        "is_season_high": {
+          "title": "Is Season High",
+          "type": "boolean"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "player_id": {
+          "title": "Player Id",
+          "type": "string"
+        },
+        "points": {
+          "title": "Points",
+          "type": "number"
+        },
+        "pos": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pos"
+        },
+        "roster_id": {
+          "title": "Roster Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "roster_id",
+        "player_id",
+        "name",
+        "points",
+        "is_season_high"
+      ],
+      "title": "WeeklyWeekHighPlayer",
+      "type": "object"
+    },
+    "WeeklyWeekPoints": {
+      "description": "One roster's points in one week.",
+      "properties": {
+        "points": {
+          "title": "Points",
+          "type": "number"
+        },
+        "week": {
+          "title": "Week",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "week",
+        "points"
+      ],
+      "title": "WeeklyWeekPoints",
       "type": "object"
     }
   },
-  "description": "The whole Facts JSON — the one published contract every narrator and\nrenderer downstream of ``facts/`` reads (AD-2). Top-level key order matches\n``brief/phase-0/draft-recap-facts.json``; ``week`` / ``weekly`` are the Story\n3.1 additive placeholders for the not-yet-built weekly issue.",
-  "properties": {
-    "consensus_source": {
-      "$ref": "#/$defs/ConsensusSource"
+  "anyOf": [
+    {
+      "$ref": "#/$defs/DraftRecapFacts"
     },
-    "draft": {
-      "$ref": "#/$defs/DraftRef"
-    },
-    "draft_summary": {
-      "$ref": "#/$defs/DraftSummary"
-    },
-    "generated_at": {
-      "title": "Generated At",
-      "type": "string"
-    },
-    "grade_method": {
-      "$ref": "#/$defs/GradeMethodRef"
-    },
-    "issue_type": {
-      "default": "draft_recap",
-      "enum": [
-        "draft_recap",
-        "weekly"
-      ],
-      "title": "Issue Type",
-      "type": "string"
-    },
-    "lead_candidates": {
-      "default": [],
-      "items": {
-        "$ref": "#/$defs/LeadCandidate"
-      },
-      "title": "Lead Candidates",
-      "type": "array"
-    },
-    "league": {
-      "$ref": "#/$defs/LeagueRef"
-    },
-    "narration": {
-      "$ref": "#/$defs/Narration"
-    },
-    "picks": {
-      "default": [],
-      "items": {
-        "$ref": "#/$defs/PickRow"
-      },
-      "title": "Picks",
-      "type": "array"
-    },
-    "provisional": {
-      "default": true,
-      "title": "Provisional",
-      "type": "boolean"
-    },
-    "schema_version": {
-      "default": "0.4.0",
-      "title": "Schema Version",
-      "type": "string"
-    },
-    "source": {
-      "$ref": "#/$defs/Source"
-    },
-    "storyline_candidates": {
-      "default": [],
-      "items": {
-        "$ref": "#/$defs/StorylineCandidate"
-      },
-      "title": "Storyline Candidates",
-      "type": "array"
-    },
-    "superlatives": {
-      "$ref": "#/$defs/Superlatives"
-    },
-    "teams": {
-      "default": [],
-      "items": {
-        "$ref": "#/$defs/TeamRow"
-      },
-      "title": "Teams",
-      "type": "array"
-    },
-    "week": {
-      "anyOf": [
-        {
-          "maximum": 18,
-          "minimum": 1,
-          "type": "integer"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Week"
-    },
-    "weekly": {
-      "anyOf": [
-        {
-          "$ref": "#/$defs/WeeklyFacts"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null
+    {
+      "$ref": "#/$defs/WeeklyFacts"
     }
-  },
-  "required": [
-    "generated_at",
-    "source",
-    "consensus_source",
-    "league",
-    "draft",
-    "draft_summary",
-    "superlatives",
-    "grade_method",
-    "narration"
-  ],
-  "title": "DraftRecapFacts",
-  "type": "object"
+  ]
 }

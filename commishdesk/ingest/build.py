@@ -73,6 +73,13 @@ bundle's earlier weeks of ``transactions`` (every week ``< n``,
 that carries neither still builds exactly as before -- both fields default
 empty. The target week's own settled transactions stay on
 ``WeekModel.transactions``, unchanged.
+
+Story 5.8 adds :func:`build_player_names`, the name-join counterpart to
+:func:`build_player_snapshot`: the same ``"players"`` blob, read for
+``first_name`` / ``last_name`` and sanitized, so the weekly Facts document can
+resolve a player id to a display name. Same contract -- ``{}`` when the key is
+absent, a chained :class:`~commishdesk.errors.IngestError` on a malformed
+section.
 """
 
 from __future__ import annotations
@@ -112,7 +119,13 @@ if TYPE_CHECKING:
     # duck-typed methods on the instance it is handed.
     from commishdesk.store import Store
 
-__all__ = ["build_league_model", "build_player_snapshot", "build_week_model", "get_player_snapshot"]
+__all__ = [
+    "build_league_model",
+    "build_player_names",
+    "build_player_snapshot",
+    "build_week_model",
+    "get_player_snapshot",
+]
 
 # Flex slot -> the positions it will accept. Only slots that actually appear in
 # `roster_positions` land in the built `flex_eligibility`.
@@ -819,6 +832,43 @@ def build_player_snapshot(bundle: Mapping[str, Any]) -> dict[str, PlayerSnapshot
         return snapshot
     except _CAUGHT as exc:
         raise IngestError(f"could not build a player snapshot from the bundle ({type(exc).__name__})") from exc
+
+
+def build_player_names(bundle: Mapping[str, Any]) -> dict[str, str]:
+    """Build a pure ``player_id -> display name`` map from a weekly
+    ``Adapter.fetch_week`` bundle's ``"players"`` key -- the name-join
+    counterpart to :func:`build_player_snapshot` (Story 5.8).
+
+    Each name is ``"first_name last_name"`` (stripped), passed through
+    :func:`~commishdesk.ingest.sanitize.sanitize`; a missing half simply
+    contributes no token. Same contract as :func:`build_player_snapshot`:
+    ``"players"`` is optional -- absent (an older bundle, or a fake adapter)
+    yields ``{}`` -- and a malformed section raises a chained
+    :class:`~commishdesk.errors.IngestError`, never a partial map. A blank name
+    is stored as ``""`` so the caller's fallback (snapshot team, then id) can
+    take over."""
+    if not isinstance(bundle, Mapping):
+        raise IngestError("bundle is not a JSON object")
+
+    raw_players = bundle.get("players")
+    if raw_players is None:
+        return {}
+    if not isinstance(raw_players, Mapping):
+        raise IngestError("bundle 'players' section is not a JSON object")
+
+    try:
+        names: dict[str, str] = {}
+        for player_id, record in raw_players.items():
+            if not isinstance(record, Mapping):
+                # Not IngestError directly -- caught by _CAUGHT below and
+                # re-raised chained, so this failure carries a __cause__ too.
+                raise ValueError(f"'players' contains a non-object item ({type(record).__name__})")
+            first = sanitize(_text(record.get("first_name"))).strip()
+            last = sanitize(_text(record.get("last_name"))).strip()
+            names[str(player_id)] = f"{first} {last}".strip()
+        return names
+    except _CAUGHT as exc:
+        raise IngestError(f"could not build player names from the bundle ({type(exc).__name__})") from exc
 
 
 def get_player_snapshot(

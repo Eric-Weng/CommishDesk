@@ -2,9 +2,11 @@
 
 ``FactsJSON`` is the loose input alias the ``Renderer`` / ``StatModule``
 extension zones import (AD-2); it stays a bare stdlib type so those zones import
-without pydantic. The validated contract — :class:`~commishdesk.facts.schema.DraftRecapFacts`,
-:data:`~commishdesk.facts.schema.SCHEMA_VERSION`, and
-:func:`~commishdesk.facts.build.build_draft_recap_facts` — is re-exported lazily
+without pydantic. The validated contracts — :class:`~commishdesk.facts.schema.DraftRecapFacts`,
+:class:`~commishdesk.facts.schema.WeeklyFacts`,
+:data:`~commishdesk.facts.schema.SCHEMA_VERSION`,
+:func:`~commishdesk.facts.build.build_draft_recap_facts` and
+:func:`~commishdesk.facts.weekly.build_weekly_facts` — are re-exported lazily
 (as in ``commishdesk.stats``) so ``from commishdesk.facts import DraftRecapFacts``
 resolves while ``import commishdesk.facts`` for ``FactsJSON`` alone does not pull
 in pydantic.
@@ -26,18 +28,23 @@ __all__ = [
     "DraftRecapFacts",
     "FactsJSON",
     "SchemaValidationError",
+    "WeeklyFacts",
     "build_draft_recap_facts",
+    "build_weekly_facts",
 ]
 
 _LAZY = {
     "DraftRecapFacts": ("commishdesk.facts.schema", "DraftRecapFacts"),
     "SCHEMA_VERSION": ("commishdesk.facts.schema", "SCHEMA_VERSION"),
+    "WeeklyFacts": ("commishdesk.facts.schema", "WeeklyFacts"),
     "build_draft_recap_facts": ("commishdesk.facts.build", "build_draft_recap_facts"),
+    "build_weekly_facts": ("commishdesk.facts.weekly", "build_weekly_facts"),
 }
 
 if TYPE_CHECKING:
     from commishdesk.facts.build import build_draft_recap_facts
-    from commishdesk.facts.schema import SCHEMA_VERSION, DraftRecapFacts
+    from commishdesk.facts.schema import SCHEMA_VERSION, DraftRecapFacts, WeeklyFacts
+    from commishdesk.facts.weekly import build_weekly_facts
 
 
 def __getattr__(name: str) -> object:

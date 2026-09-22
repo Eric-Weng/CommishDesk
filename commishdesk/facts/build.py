@@ -30,6 +30,13 @@ re-validates.
 This module imports only ``commishdesk.ingest`` + ``commishdesk.stats`` (prior
 stages), stdlib, and pydantic — nothing from ``adapters`` / ``consensus`` /
 ``narrate`` / ``render`` / ``deliver`` / ``store`` / ``httpx``.
+
+Story 5.8's ``facts/weekly.py`` reuses :func:`_generated_at`,
+:func:`_violation_message` and :func:`_within_cap` from here rather than copying
+them, and the draft-recap narration ladder gained its terminal guarantee
+(retro item 33): if the projection is still over
+:data:`~commishdesk.facts.schema.NARRATION_TOKEN_CAP` after the last tier, the
+builder raises rather than shipping an unbounded payload.
 """
 
 from __future__ import annotations
@@ -38,7 +45,7 @@ from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 from typing import cast
 
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 
 from commishdesk.errors import SchemaValidationError
 from commishdesk.ingest import LeagueModel
@@ -190,8 +197,10 @@ def build_draft_recap_facts(
     return doc
 
 
-def _violation_message(exc: Exception) -> str:
-    """A loud, self-contained summary — the reader should not need ``__cause__``."""
+def _violation_message(exc: Exception, *, document: str = "draft_recap") -> str:
+    """A loud, self-contained summary — the reader should not need ``__cause__``.
+    ``document`` names the contract that failed (``"draft_recap"`` or
+    ``"weekly"``); ``facts/weekly.py`` reuses this rather than copying it."""
     if isinstance(exc, ValidationError):
         errors = exc.errors()
         parts = [f"{'.'.join(str(p) for p in err.get('loc', ()))}: {err.get('msg', '')}" for err in errors[:3]]
@@ -200,7 +209,7 @@ def _violation_message(exc: Exception) -> str:
             detail += f"; (+{len(errors) - 3} more)"
     else:
         detail = f"{type(exc).__name__}: {exc}"[:200]
-    return f"draft_recap Facts JSON failed schema validation — {detail}"
+    return f"{document} Facts JSON failed schema validation — {detail}"
 
 
 # --------------------------------------------------------------------------- #
@@ -688,7 +697,10 @@ def _apply_narration_cap(narration: Narration) -> Narration:
        ``back_to_back`` / ``best_value_pick`` / ``biggest_reach_pick``;
     2. drop per-team grade rationale (``grade_rationale`` -> ``None``);
     3. keep only the lead ``storyline_candidates`` entry.
-    """
+
+    If the projection is *still* over the cap after the final tier, this raises
+    :class:`~commishdesk.errors.SchemaValidationError` — the terminal guarantee
+    (retro item 33): an unbounded payload is never shipped."""
     if _within_cap(narration):
         return narration
 
@@ -716,11 +728,28 @@ def _apply_narration_cap(narration: Narration) -> Narration:
     if _within_cap(narration):
         return narration
 
-    return narration.model_copy(update={"storyline_candidates": list(narration.storyline_candidates[:1])})
+    narration = narration.model_copy(update={"storyline_candidates": list(narration.storyline_candidates[:1])})
+    if _within_cap(narration):
+        return narration
+
+    raise SchemaValidationError(
+        f"draft_recap narration cannot be reduced under NARRATION_TOKEN_CAP "
+        f"({len(narration.model_dump_json())} > {NARRATION_TOKEN_CAP})"
+    )
 
 
-def _within_cap(narration: Narration) -> bool:
-    return len(narration.model_dump_json()) <= NARRATION_TOKEN_CAP
+def _within_cap(model: BaseModel) -> bool:
+    """Whether a document's serialized projection fits under
+    :data:`NARRATION_TOKEN_CAP`. Shared with ``facts/weekly.py``."""
+    return len(model.model_dump_json()) <= NARRATION_TOKEN_CAP
+
+
+def _current_cap() -> int:
+    """:data:`NARRATION_TOKEN_CAP` as this module currently sees it -- a
+    function, not a re-exported constant, so a test that monkeypatches this
+    module's copy (as the retro-item-33 tests do) is reflected here too,
+    including in ``facts/weekly.py``'s own terminal-guarantee message."""
+    return NARRATION_TOKEN_CAP
 
 
 def _validate(doc: DraftRecapFacts) -> None:
