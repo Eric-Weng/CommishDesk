@@ -11,6 +11,9 @@ persisted-vs-fresh branching against a fake ``Store``), and the committed
 NFL bye-week data loader (``commishdesk/ingest/byes.py``, ``nfl_byes.toml``)
 -- no dedicated test file was carved out for the bye data in this story's own
 Code Map, so its I/O & Edge-Case Matrix rows land here instead.
+
+Story 5.8 adds: ``build_player_names`` (the name-join counterpart to
+``build_player_snapshot``).
 """
 
 from __future__ import annotations
@@ -32,6 +35,7 @@ from commishdesk.ingest import (
     TradedPick,
     Transaction,
     WeekModel,
+    build_player_names,
     build_player_snapshot,
     build_week_model,
     bye_teams,
@@ -611,6 +615,69 @@ def test_build_player_snapshot_non_object_item_raises_ingest_error_chained() -> 
 def test_build_player_snapshot_bundle_not_a_mapping_raises_ingest_error() -> None:
     with pytest.raises(IngestError, match="not a JSON object"):
         build_player_snapshot(None)  # type: ignore[arg-type]
+
+
+# --------------------------------------------------------------------------- #
+# Story 5.8: build_player_names
+# --------------------------------------------------------------------------- #
+
+
+def test_build_player_names_joins_first_and_last_name() -> None:
+    bundle = _players_bundle(
+        {
+            "10": {"first_name": "Bijan", "last_name": "Robinson"},
+            "20": {"first_name": "Ja'Marr", "last_name": "Chase"},
+        }
+    )
+    assert build_player_names(bundle) == {"10": "Bijan Robinson", "20": "Ja'Marr Chase"}
+
+
+def test_build_player_names_sanitizes_each_half() -> None:
+    """A league-supplied string never reaches a model field unsanitized; the
+    name join is no exception (AD-24)."""
+    from commishdesk.ingest import sanitize
+
+    bundle = _players_bundle({"10": {"first_name": "A\u0000B", "last_name": "C"}})
+    (name,) = build_player_names(bundle).values()
+    assert name == f"{sanitize('A\u0000B').strip()} {sanitize('C').strip()}".strip()
+
+
+def test_build_player_names_missing_players_key_returns_empty_map() -> None:
+    assert build_player_names(_players_bundle(None)) == {}
+
+
+def test_build_player_names_blank_halves_collapse_to_an_empty_string() -> None:
+    bundle = _players_bundle({"10": {"first_name": "", "last_name": ""}})
+    assert build_player_names(bundle) == {"10": ""}
+
+
+def test_build_player_names_missing_last_name_contributes_no_token() -> None:
+    bundle = _players_bundle({"10": {"first_name": "Bijan"}})
+    assert build_player_names(bundle) == {"10": "Bijan"}
+
+
+def test_build_player_names_missing_first_name_contributes_no_token() -> None:
+    bundle = _players_bundle({"10": {"last_name": "Robinson"}})
+    assert build_player_names(bundle) == {"10": "Robinson"}
+
+
+def test_build_player_names_non_mapping_players_section_raises_ingest_error() -> None:
+    bundle = _players_bundle(["not", "an", "object"])
+    with pytest.raises(IngestError, match="players"):
+        build_player_names(bundle)
+
+
+def test_build_player_names_non_object_item_raises_ingest_error_chained() -> None:
+    bundle = _players_bundle({"10": "not-an-object"})
+    with pytest.raises(IngestError) as exc_info:
+        build_player_names(bundle)
+    assert isinstance(exc_info.value, CommishDeskError)
+    assert exc_info.value.__cause__ is not None
+
+
+def test_build_player_names_bundle_not_a_mapping_raises_ingest_error() -> None:
+    with pytest.raises(IngestError, match="not a JSON object"):
+        build_player_names(None)  # type: ignore[arg-type]
 
 
 # --------------------------------------------------------------------------- #

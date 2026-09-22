@@ -1,0 +1,6194 @@
+{
+  "_derived_from": "Story 5.8 oracle. build_weekly_facts() over week10-blowout.json (the anonymized week-10 fixture); generated_at pinned to '2026-09-07T00:00:00Z'; nfl_byes_next_week={IND, NO}.",
+  "schema_version": "0.5.0",
+  "generated_at": "2026-09-07T00:00:00Z",
+  "provisional": true,
+  "issue_type": "weekly",
+  "week": 10,
+  "source": {
+    "platform": "sleeper",
+    "league_id": "id_rq867j4w7p",
+    "draft_id": null,
+    "fetched_at": null
+  },
+  "league": {
+    "id": "id_rq867j4w7p",
+    "name": "Trench Warfare",
+    "season": "2025",
+    "platform": "sleeper",
+    "format": {
+      "team_count": 12,
+      "roster_slots": [
+        "QB",
+        "QB",
+        "RB",
+        "RB",
+        "WR",
+        "WR",
+        "TE",
+        "FLEX",
+        "FLEX",
+        "FLEX",
+        "FLEX"
+      ],
+      "flex_eligibility": {
+        "FLEX": [
+          "RB",
+          "WR",
+          "TE"
+        ]
+      },
+      "scoring_label": "Half PPR · 2QB · dynasty",
+      "is_superflex_or_2qb": true,
+      "te_premium": false,
+      "divisions": [
+        {
+          "id": 1,
+          "name": null
+        },
+        {
+          "id": 2,
+          "name": null
+        },
+        {
+          "id": 3,
+          "name": null
+        }
+      ],
+      "playoff": {
+        "bracket_teams": 6,
+        "byes": 2,
+        "start_week": 15
+      },
+      "regular_season_weeks": 14
+    }
+  },
+  "period": {
+    "week": 10,
+    "type": "regular",
+    "has_prior_week": true,
+    "nfl_byes": null,
+    "nfl_byes_next_week": [
+      "IND",
+      "NO"
+    ],
+    "summary": {
+      "games": 6,
+      "total_points": 1910.9,
+      "avg_team_score": 159.24,
+      "high": {
+        "roster_id": "3",
+        "points": 247.2
+      },
+      "low": {
+        "roster_id": "5",
+        "points": 91.77
+      },
+      "closest": {
+        "roster_ids": [
+          "12",
+          "7"
+        ],
+        "margin": 6.06
+      },
+      "biggest_blowout": {
+        "roster_ids": [
+          "1",
+          "5"
+        ],
+        "margin": 138.19
+      },
+      "blowout_count": 3,
+      "blowout_threshold": 0.65
+    }
+  },
+  "teams": [
+    {
+      "roster_id": "1",
+      "manager": "Goal-Line Gazelles",
+      "team_name": "Flea Flicker Union",
+      "division_id": 3,
+      "co_owners": [],
+      "season": {
+        "record": {
+          "w": 7,
+          "l": 3,
+          "t": 0
+        },
+        "rank": 2,
+        "division_rank": 1,
+        "points_for": 2100.85,
+        "points_against": 1683.24,
+        "avg_for": 210.08,
+        "high_week": {
+          "week": 1,
+          "points": 232.86
+        },
+        "low_week": {
+          "week": 5,
+          "points": 178.99
+        },
+        "streak": {
+          "type": "W",
+          "count": 2
+        },
+        "all_play": {
+          "w": 88,
+          "l": 22,
+          "t": 0,
+          "pct": 0.8
+        },
+        "expected_wins": 8.0,
+        "luck": 2.0,
+        "power": {
+          "model_score": 0.85,
+          "model_rank": 2,
+          "published_rank": null,
+          "nudge": null,
+          "prev_model_rank": 2,
+          "week_delta": 0
+        },
+        "coaching_efficiency": {
+          "actual": 2100.85,
+          "optimal": 2215.34,
+          "pct": 0.948
+        }
+      },
+      "this_week": {
+        "opponent_roster_id": "5",
+        "points": 229.96,
+        "opponent_points": 91.77,
+        "result": "W",
+        "margin": 138.19,
+        "coaching_efficiency": {
+          "actual": 229.96,
+          "optimal": 244.97,
+          "pct": 0.939
+        },
+        "points_left_on_bench": 15.01,
+        "starters": [
+          {
+            "player_id": "6904",
+            "name": "Jalen Hurts",
+            "pos": "QB",
+            "nfl_team": "PHI",
+            "slot": "QB",
+            "points": 18.23
+          },
+          {
+            "player_id": "11565",
+            "name": "J.J. McCarthy",
+            "pos": "QB",
+            "nfl_team": "MIN",
+            "slot": "QB",
+            "points": 18.85
+          },
+          {
+            "player_id": "9226",
+            "name": "De'Von Achane",
+            "pos": "RB",
+            "nfl_team": "MIA",
+            "slot": "RB",
+            "points": 56.52
+          },
+          {
+            "player_id": "8138",
+            "name": "James Cook",
+            "pos": "RB",
+            "nfl_team": "BUF",
+            "slot": "RB",
+            "points": 11.73
+          },
+          {
+            "player_id": "9488",
+            "name": "Jaxon Smith-Njigba",
+            "pos": "WR",
+            "nfl_team": "SEA",
+            "slot": "WR",
+            "points": 25.81
+          },
+          {
+            "player_id": "9997",
+            "name": "Zay Flowers",
+            "pos": "WR",
+            "nfl_team": "BAL",
+            "slot": "WR",
+            "points": 15.34
+          },
+          {
+            "player_id": "12518",
+            "name": "Tyler Warren",
+            "pos": "TE",
+            "nfl_team": "IND",
+            "slot": "TE",
+            "points": 20.23
+          },
+          {
+            "player_id": "9753",
+            "name": "Zach Charbonnet",
+            "pos": "RB",
+            "nfl_team": "SEA",
+            "slot": "FLEX",
+            "points": 17.16
+          },
+          {
+            "player_id": "9754",
+            "name": "Quentin Johnston",
+            "pos": "WR",
+            "nfl_team": "LAC",
+            "slot": "FLEX",
+            "points": 8.96
+          },
+          {
+            "player_id": "9756",
+            "name": "Jordan Addison",
+            "pos": "WR",
+            "nfl_team": "MIN",
+            "slot": "FLEX",
+            "points": 7.38
+          },
+          {
+            "player_id": "8112",
+            "name": "Drake London",
+            "pos": "WR",
+            "nfl_team": "ATL",
+            "slot": "FLEX",
+            "points": 29.75
+          }
+        ],
+        "top_performers": [
+          {
+            "player_id": "9226",
+            "name": "De'Von Achane",
+            "pos": "RB",
+            "points": 56.52
+          },
+          {
+            "player_id": "8112",
+            "name": "Drake London",
+            "pos": "WR",
+            "points": 29.75
+          },
+          {
+            "player_id": "9488",
+            "name": "Jaxon Smith-Njigba",
+            "pos": "WR",
+            "points": 25.81
+          }
+        ],
+        "duds": [],
+        "bench_regret": {
+          "player_id": "2307",
+          "name": "Marcus Mariota",
+          "pos": "QB",
+          "points": 26.74
+        },
+        "started_on_bye": null
+      },
+      "history": {
+        "weekly": [
+          {
+            "week": 1,
+            "points": 232.86,
+            "opponent_roster_id": "8",
+            "result": "W",
+            "margin": 90.57,
+            "cum_record": {
+              "w": 1,
+              "l": 0,
+              "t": 0
+            },
+            "power_rank": null,
+            "all_play": null,
+            "luck": null
+          },
+          {
+            "week": 2,
+            "points": 187.5,
+            "opponent_roster_id": "12",
+            "result": "L",
+            "margin": -6.02,
+            "cum_record": {
+              "w": 1,
+              "l": 1,
+              "t": 0
+            },
+            "power_rank": 3,
+            "all_play": {
+              "w": 16,
+              "l": 6,
+              "t": 0,
+              "pct": 0.727
+            },
+            "luck": -0.5
+          },
+          {
+            "week": 3,
+            "points": 206.83,
+            "opponent_roster_id": "10",
+            "result": "W",
+            "margin": 76.74,
+            "cum_record": {
+              "w": 2,
+              "l": 1,
+              "t": 0
+            },
+            "power_rank": 1,
+            "all_play": {
+              "w": 26,
+              "l": 7,
+              "t": 0,
+              "pct": 0.788
+            },
+            "luck": -0.4
+          },
+          {
+            "week": 4,
+            "points": 213.5,
+            "opponent_roster_id": "7",
+            "result": "W",
+            "margin": 75.82,
+            "cum_record": {
+              "w": 3,
+              "l": 1,
+              "t": 0
+            },
+            "power_rank": 2,
+            "all_play": {
+              "w": 36,
+              "l": 8,
+              "t": 0,
+              "pct": 0.818
+            },
+            "luck": -0.3
+          },
+          {
+            "week": 5,
+            "points": 178.99,
+            "opponent_roster_id": "2",
+            "result": "L",
+            "margin": -43.89,
+            "cum_record": {
+              "w": 3,
+              "l": 2,
+              "t": 0
+            },
+            "power_rank": 3,
+            "all_play": {
+              "w": 41,
+              "l": 14,
+              "t": 0,
+              "pct": 0.745
+            },
+            "luck": -0.7
+          },
+          {
+            "week": 6,
+            "points": 231.14,
+            "opponent_roster_id": "3",
+            "result": "W",
+            "margin": 61.54,
+            "cum_record": {
+              "w": 4,
+              "l": 2,
+              "t": 0
+            },
+            "power_rank": 3,
+            "all_play": {
+              "w": 51,
+              "l": 15,
+              "t": 0,
+              "pct": 0.773
+            },
+            "luck": -0.6
+          },
+          {
+            "week": 7,
+            "points": 209.42,
+            "opponent_roster_id": "4",
+            "result": "W",
+            "margin": 41.04,
+            "cum_record": {
+              "w": 5,
+              "l": 2,
+              "t": 0
+            },
+            "power_rank": 3,
+            "all_play": {
+              "w": 61,
+              "l": 16,
+              "t": 0,
+              "pct": 0.792
+            },
+            "luck": -0.5
+          },
+          {
+            "week": 8,
+            "points": 204.93,
+            "opponent_roster_id": "6",
+            "result": "L",
+            "margin": -31.91,
+            "cum_record": {
+              "w": 5,
+              "l": 3,
+              "t": 0
+            },
+            "power_rank": 2,
+            "all_play": {
+              "w": 69,
+              "l": 19,
+              "t": 0,
+              "pct": 0.784
+            },
+            "luck": -1.3
+          },
+          {
+            "week": 9,
+            "points": 205.72,
+            "opponent_roster_id": "9",
+            "result": "W",
+            "margin": 15.53,
+            "cum_record": {
+              "w": 6,
+              "l": 3,
+              "t": 0
+            },
+            "power_rank": 2,
+            "all_play": {
+              "w": 79,
+              "l": 20,
+              "t": 0,
+              "pct": 0.798
+            },
+            "luck": -1.2
+          },
+          {
+            "week": 10,
+            "points": 229.96,
+            "opponent_roster_id": "5",
+            "result": "W",
+            "margin": 138.19,
+            "cum_record": {
+              "w": 7,
+              "l": 3,
+              "t": 0
+            },
+            "power_rank": 2,
+            "all_play": {
+              "w": 88,
+              "l": 22,
+              "t": 0,
+              "pct": 0.8
+            },
+            "luck": -1.0
+          }
+        ]
+      },
+      "next_week": {
+        "opponent_roster_id": "11",
+        "power_rank_self": 2,
+        "power_rank_opp": 11,
+        "stakes": [
+          "bye_seed",
+          "wildcard_race",
+          "division_race"
+        ],
+        "starters_on_bye": [
+          {
+            "player_id": "12518",
+            "name": "Tyler Warren",
+            "pos": "TE",
+            "nfl_team": "IND",
+            "points": 0.0
+          }
+        ]
+      }
+    },
+    {
+      "roster_id": "2",
+      "manager": "Pull-Guard Pumas",
+      "team_name": "Two Minute Drill",
+      "division_id": 2,
+      "co_owners": [],
+      "season": {
+        "record": {
+          "w": 9,
+          "l": 1,
+          "t": 0
+        },
+        "rank": 1,
+        "division_rank": 1,
+        "points_for": 2028.72,
+        "points_against": 1727.66,
+        "avg_for": 202.87,
+        "high_week": {
+          "week": 10,
+          "points": 242.03
+        },
+        "low_week": {
+          "week": 8,
+          "points": 135.0
+        },
+        "streak": {
+          "type": "W",
+          "count": 2
+        },
+        "all_play": {
+          "w": 87,
+          "l": 22,
+          "t": 1,
+          "pct": 0.798
+        },
+        "expected_wins": 8.0,
+        "luck": 5.0,
+        "power": {
+          "model_score": 0.853,
+          "model_rank": 1,
+          "published_rank": null,
+          "nudge": null,
+          "prev_model_rank": 3,
+          "week_delta": 2
+        },
+        "coaching_efficiency": {
+          "actual": 2028.72,
+          "optimal": 2327.68,
+          "pct": 0.872
+        }
+      },
+      "this_week": {
+        "opponent_roster_id": "10",
+        "points": 242.03,
+        "opponent_points": 112.37,
+        "result": "W",
+        "margin": 129.66,
+        "coaching_efficiency": {
+          "actual": 242.03,
+          "optimal": 243.98,
+          "pct": 0.992
+        },
+        "points_left_on_bench": 1.95,
+        "starters": [
+          {
+            "player_id": "11560",
+            "name": "Caleb Williams",
+            "pos": "QB",
+            "nfl_team": "CHI",
+            "slot": "QB",
+            "points": 31.61
+          },
+          {
+            "player_id": "421",
+            "name": "Matthew Stafford",
+            "pos": "QB",
+            "nfl_team": "LAR",
+            "slot": "QB",
+            "points": 38.65
+          },
+          {
+            "player_id": "9221",
+            "name": "Jahmyr Gibbs",
+            "pos": "RB",
+            "nfl_team": "DET",
+            "slot": "RB",
+            "points": 49.32
+          },
+          {
+            "player_id": "12527",
+            "name": "Ashton Jeanty",
+            "pos": "RB",
+            "nfl_team": "LV",
+            "slot": "RB",
+            "points": 16.92
+          },
+          {
+            "player_id": "9493",
+            "name": "Puka Nacua",
+            "pos": "WR",
+            "nfl_team": "LAR",
+            "slot": "WR",
+            "points": 18.85
+          },
+          {
+            "player_id": "8148",
+            "name": "Jameson Williams",
+            "pos": "WR",
+            "nfl_team": "DET",
+            "slot": "WR",
+            "points": 30.81
+          },
+          {
+            "player_id": "7553",
+            "name": "Kyle Pitts",
+            "pos": "TE",
+            "nfl_team": "ATL",
+            "slot": "TE",
+            "points": 7.35
+          },
+          {
+            "player_id": "12506",
+            "name": "Harold Fannin",
+            "pos": "TE",
+            "nfl_team": "CLE",
+            "slot": "FLEX",
+            "points": 9.27
+          },
+          {
+            "player_id": "4035",
+            "name": "Alvin Kamara",
+            "pos": "RB",
+            "nfl_team": "NO",
+            "slot": "FLEX",
+            "points": 18.89
+          },
+          {
+            "player_id": "11603",
+            "name": "AJ Barner",
+            "pos": "TE",
+            "nfl_team": "SEA",
+            "slot": "FLEX",
+            "points": 0.55
+          },
+          {
+            "player_id": "8132",
+            "name": "Tyler Allgeier",
+            "pos": "RB",
+            "nfl_team": "ARI",
+            "slot": "FLEX",
+            "points": 19.81
+          }
+        ],
+        "top_performers": [
+          {
+            "player_id": "9221",
+            "name": "Jahmyr Gibbs",
+            "pos": "RB",
+            "points": 49.32
+          },
+          {
+            "player_id": "421",
+            "name": "Matthew Stafford",
+            "pos": "QB",
+            "points": 38.65
+          },
+          {
+            "player_id": "11560",
+            "name": "Caleb Williams",
+            "pos": "QB",
+            "points": 31.61
+          }
+        ],
+        "duds": [
+          {
+            "player_id": "11603",
+            "name": "AJ Barner",
+            "pos": "TE",
+            "points": 0.55
+          }
+        ],
+        "bench_regret": {
+          "player_id": "5870",
+          "name": "Daniel Jones",
+          "pos": "QB",
+          "points": 18.39
+        },
+        "started_on_bye": null
+      },
+      "history": {
+        "weekly": [
+          {
+            "week": 1,
+            "points": 183.39,
+            "opponent_roster_id": "7",
+            "result": "W",
+            "margin": 4.25,
+            "cum_record": {
+              "w": 1,
+              "l": 0,
+              "t": 0
+            },
+            "power_rank": null,
+            "all_play": null,
+            "luck": null
+          },
+          {
+            "week": 2,
+            "points": 208.38,
+            "opponent_roster_id": "9",
+            "result": "W",
+            "margin": 10.79,
+            "cum_record": {
+              "w": 2,
+              "l": 0,
+              "t": 0
+            },
+            "power_rank": 1,
+            "all_play": {
+              "w": 18,
+              "l": 3,
+              "t": 1,
+              "pct": 0.857
+            },
+            "luck": 0.3
+          },
+          {
+            "week": 3,
+            "points": 183.8,
+            "opponent_roster_id": "6",
+            "result": "W",
+            "margin": 7.75,
+            "cum_record": {
+              "w": 3,
+              "l": 0,
+              "t": 0
+            },
+            "power_rank": 2,
+            "all_play": {
+              "w": 26,
+              "l": 6,
+              "t": 1,
+              "pct": 0.812
+            },
+            "luck": 0.6
+          },
+          {
+            "week": 4,
+            "points": 220.99,
+            "opponent_roster_id": "8",
+            "result": "W",
+            "margin": 19.07,
+            "cum_record": {
+              "w": 4,
+              "l": 0,
+              "t": 0
+            },
+            "power_rank": 1,
+            "all_play": {
+              "w": 37,
+              "l": 6,
+              "t": 1,
+              "pct": 0.86
+            },
+            "luck": 0.6
+          },
+          {
+            "week": 5,
+            "points": 222.88,
+            "opponent_roster_id": "1",
+            "result": "W",
+            "margin": 43.89,
+            "cum_record": {
+              "w": 5,
+              "l": 0,
+              "t": 0
+            },
+            "power_rank": 1,
+            "all_play": {
+              "w": 46,
+              "l": 8,
+              "t": 1,
+              "pct": 0.852
+            },
+            "luck": 0.8
+          },
+          {
+            "week": 6,
+            "points": 203.35,
+            "opponent_roster_id": "11",
+            "result": "W",
+            "margin": 73.04,
+            "cum_record": {
+              "w": 6,
+              "l": 0,
+              "t": 0
+            },
+            "power_rank": 1,
+            "all_play": {
+              "w": 55,
+              "l": 10,
+              "t": 1,
+              "pct": 0.846
+            },
+            "luck": 1.0
+          },
+          {
+            "week": 7,
+            "points": 205.14,
+            "opponent_roster_id": "5",
+            "result": "W",
+            "margin": 29.63,
+            "cum_record": {
+              "w": 7,
+              "l": 0,
+              "t": 0
+            },
+            "power_rank": 1,
+            "all_play": {
+              "w": 64,
+              "l": 12,
+              "t": 1,
+              "pct": 0.842
+            },
+            "luck": 1.1
+          },
+          {
+            "week": 8,
+            "points": 135.0,
+            "opponent_roster_id": "4",
+            "result": "L",
+            "margin": -76.93,
+            "cum_record": {
+              "w": 7,
+              "l": 1,
+              "t": 0
+            },
+            "power_rank": 3,
+            "all_play": {
+              "w": 66,
+              "l": 21,
+              "t": 1,
+              "pct": 0.759
+            },
+            "luck": 1.0
+          },
+          {
+            "week": 9,
+            "points": 223.76,
+            "opponent_roster_id": "3",
+            "result": "W",
+            "margin": 59.91,
+            "cum_record": {
+              "w": 8,
+              "l": 1,
+              "t": 0
+            },
+            "power_rank": 3,
+            "all_play": {
+              "w": 77,
+              "l": 21,
+              "t": 1,
+              "pct": 0.786
+            },
+            "luck": 1.0
+          },
+          {
+            "week": 10,
+            "points": 242.03,
+            "opponent_roster_id": "10",
+            "result": "W",
+            "margin": 129.66,
+            "cum_record": {
+              "w": 9,
+              "l": 1,
+              "t": 0
+            },
+            "power_rank": 1,
+            "all_play": {
+              "w": 87,
+              "l": 22,
+              "t": 1,
+              "pct": 0.798
+            },
+            "luck": 1.0
+          }
+        ]
+      },
+      "next_week": {
+        "opponent_roster_id": "12",
+        "power_rank_self": 1,
+        "power_rank_opp": 10,
+        "stakes": [
+          "bye_seed",
+          "wildcard_race",
+          "division_race"
+        ],
+        "starters_on_bye": [
+          {
+            "player_id": "4035",
+            "name": "Alvin Kamara",
+            "pos": "RB",
+            "nfl_team": "NO",
+            "points": 0.0
+          }
+        ]
+      }
+    },
+    {
+      "roster_id": "3",
+      "manager": "Coverage Capybaras",
+      "team_name": "Backpedal Buffalo",
+      "division_id": 1,
+      "co_owners": [],
+      "season": {
+        "record": {
+          "w": 7,
+          "l": 3,
+          "t": 0
+        },
+        "rank": 3,
+        "division_rank": 1,
+        "points_for": 1816.51,
+        "points_against": 1561.37,
+        "avg_for": 181.65,
+        "high_week": {
+          "week": 10,
+          "points": 247.2
+        },
+        "low_week": {
+          "week": 8,
+          "points": 149.82
+        },
+        "streak": {
+          "type": "W",
+          "count": 1
+        },
+        "all_play": {
+          "w": 61,
+          "l": 49,
+          "t": 0,
+          "pct": 0.555
+        },
+        "expected_wins": 5.5,
+        "luck": 3.5,
+        "power": {
+          "model_score": 0.597,
+          "model_rank": 4,
+          "published_rank": null,
+          "nudge": null,
+          "prev_model_rank": 4,
+          "week_delta": 0
+        },
+        "coaching_efficiency": {
+          "actual": 1816.51,
+          "optimal": 2179.07,
+          "pct": 0.834
+        }
+      },
+      "this_week": {
+        "opponent_roster_id": "6",
+        "points": 247.2,
+        "opponent_points": 114.69,
+        "result": "W",
+        "margin": 132.51,
+        "coaching_efficiency": {
+          "actual": 247.2,
+          "optimal": 280.24,
+          "pct": 0.882
+        },
+        "points_left_on_bench": 33.04,
+        "starters": [
+          {
+            "player_id": "12508",
+            "name": "Jaxson Dart",
+            "pos": "QB",
+            "nfl_team": "NYG",
+            "slot": "QB",
+            "points": 30.36
+          },
+          {
+            "player_id": "4881",
+            "name": "Lamar Jackson",
+            "pos": "QB",
+            "nfl_team": "BAL",
+            "slot": "QB",
+            "points": 20.94
+          },
+          {
+            "player_id": "6813",
+            "name": "Jonathan Taylor",
+            "pos": "RB",
+            "nfl_team": "IND",
+            "slot": "RB",
+            "points": 71.37
+          },
+          {
+            "player_id": "6790",
+            "name": "D'Andre Swift",
+            "pos": "RB",
+            "nfl_team": "CHI",
+            "slot": "RB",
+            "points": 15.98
+          },
+          {
+            "player_id": "5872",
+            "name": "Deebo Samuel",
+            "pos": "WR",
+            "nfl_team": "SF",
+            "slot": "WR",
+            "points": 12.46
+          },
+          {
+            "player_id": "5045",
+            "name": "Courtland Sutton",
+            "pos": "WR",
+            "nfl_team": "DEN",
+            "slot": "WR",
+            "points": 4.69
+          },
+          {
+            "player_id": "4217",
+            "name": "George Kittle",
+            "pos": "TE",
+            "nfl_team": "SF",
+            "slot": "TE",
+            "points": 23.92
+          },
+          {
+            "player_id": "9481",
+            "name": "Luke Musgrave",
+            "pos": "TE",
+            "nfl_team": "GB",
+            "slot": "FLEX",
+            "points": 5.04
+          },
+          {
+            "player_id": "11637",
+            "name": "Keon Coleman",
+            "pos": "WR",
+            "nfl_team": "BUF",
+            "slot": "FLEX",
+            "points": 15.33
+          },
+          {
+            "player_id": "6149",
+            "name": "Darius Slayton",
+            "pos": "WR",
+            "nfl_team": "NYG",
+            "slot": "FLEX",
+            "points": 17.19
+          },
+          {
+            "player_id": "7569",
+            "name": "Nico Collins",
+            "pos": "WR",
+            "nfl_team": "HOU",
+            "slot": "FLEX",
+            "points": 29.92
+          }
+        ],
+        "top_performers": [
+          {
+            "player_id": "6813",
+            "name": "Jonathan Taylor",
+            "pos": "RB",
+            "points": 71.37
+          },
+          {
+            "player_id": "12508",
+            "name": "Jaxson Dart",
+            "pos": "QB",
+            "points": 30.36
+          },
+          {
+            "player_id": "7569",
+            "name": "Nico Collins",
+            "pos": "WR",
+            "points": 29.92
+          }
+        ],
+        "duds": [
+          {
+            "player_id": "5045",
+            "name": "Courtland Sutton",
+            "pos": "WR",
+            "points": 4.69
+          },
+          {
+            "player_id": "9481",
+            "name": "Luke Musgrave",
+            "pos": "TE",
+            "points": 5.04
+          }
+        ],
+        "bench_regret": {
+          "player_id": "4177",
+          "name": "Mack Hollins",
+          "pos": "WR",
+          "points": 22.31
+        },
+        "started_on_bye": null
+      },
+      "history": {
+        "weekly": [
+          {
+            "week": 1,
+            "points": 171.71,
+            "opponent_roster_id": "4",
+            "result": "W",
+            "margin": 48.36,
+            "cum_record": {
+              "w": 1,
+              "l": 0,
+              "t": 0
+            },
+            "power_rank": null,
+            "all_play": null,
+            "luck": null
+          },
+          {
+            "week": 2,
+            "points": 162.46,
+            "opponent_roster_id": "5",
+            "result": "L",
+            "margin": -6.0,
+            "cum_record": {
+              "w": 1,
+              "l": 1,
+              "t": 0
+            },
+            "power_rank": 8,
+            "all_play": {
+              "w": 9,
+              "l": 13,
+              "t": 0,
+              "pct": 0.409
+            },
+            "luck": 0.2
+          },
+          {
+            "week": 3,
+            "points": 229.56,
+            "opponent_roster_id": "11",
+            "result": "W",
+            "margin": 79.68,
+            "cum_record": {
+              "w": 2,
+              "l": 1,
+              "t": 0
+            },
+            "power_rank": 4,
+            "all_play": {
+              "w": 20,
+              "l": 13,
+              "t": 0,
+              "pct": 0.606
+            },
+            "luck": 0.2
+          },
+          {
+            "week": 4,
+            "points": 158.97,
+            "opponent_roster_id": "12",
+            "result": "W",
+            "margin": 44.71,
+            "cum_record": {
+              "w": 3,
+              "l": 1,
+              "t": 0
+            },
+            "power_rank": 4,
+            "all_play": {
+              "w": 23,
+              "l": 21,
+              "t": 0,
+              "pct": 0.523
+            },
+            "luck": 0.9
+          },
+          {
+            "week": 5,
+            "points": 208.4,
+            "opponent_roster_id": "10",
+            "result": "W",
+            "margin": 41.75,
+            "cum_record": {
+              "w": 4,
+              "l": 1,
+              "t": 0
+            },
+            "power_rank": 4,
+            "all_play": {
+              "w": 31,
+              "l": 24,
+              "t": 0,
+              "pct": 0.564
+            },
+            "luck": 1.2
+          },
+          {
+            "week": 6,
+            "points": 169.6,
+            "opponent_roster_id": "1",
+            "result": "L",
+            "margin": -61.54,
+            "cum_record": {
+              "w": 4,
+              "l": 2,
+              "t": 0
+            },
+            "power_rank": 4,
+            "all_play": {
+              "w": 38,
+              "l": 28,
+              "t": 0,
+              "pct": 0.576
+            },
+            "luck": 0.5
+          },
+          {
+            "week": 7,
+            "points": 154.94,
+            "opponent_roster_id": "8",
+            "result": "W",
+            "margin": 18.15,
+            "cum_record": {
+              "w": 5,
+              "l": 2,
+              "t": 0
+            },
+            "power_rank": 4,
+            "all_play": {
+              "w": 41,
+              "l": 36,
+              "t": 0,
+              "pct": 0.532
+            },
+            "luck": 1.3
+          },
+          {
+            "week": 8,
+            "points": 149.82,
+            "opponent_roster_id": "7",
+            "result": "W",
+            "margin": 17.43,
+            "cum_record": {
+              "w": 6,
+              "l": 2,
+              "t": 0
+            },
+            "power_rank": 4,
+            "all_play": {
+              "w": 47,
+              "l": 41,
+              "t": 0,
+              "pct": 0.534
+            },
+            "luck": 1.7
+          },
+          {
+            "week": 9,
+            "points": 163.85,
+            "opponent_roster_id": "2",
+            "result": "L",
+            "margin": -59.91,
+            "cum_record": {
+              "w": 6,
+              "l": 3,
+              "t": 0
+            },
+            "power_rank": 4,
+            "all_play": {
+              "w": 50,
+              "l": 49,
+              "t": 0,
+              "pct": 0.505
+            },
+            "luck": 1.5
+          },
+          {
+            "week": 10,
+            "points": 247.2,
+            "opponent_roster_id": "6",
+            "result": "W",
+            "margin": 132.51,
+            "cum_record": {
+              "w": 7,
+              "l": 3,
+              "t": 0
+            },
+            "power_rank": 4,
+            "all_play": {
+              "w": 61,
+              "l": 49,
+              "t": 0,
+              "pct": 0.555
+            },
+            "luck": 1.5
+          }
+        ]
+      },
+      "next_week": {
+        "opponent_roster_id": "9",
+        "power_rank_self": 4,
+        "power_rank_opp": 3,
+        "stakes": [
+          "bye_seed",
+          "wildcard_race",
+          "division_race"
+        ],
+        "starters_on_bye": [
+          {
+            "player_id": "6813",
+            "name": "Jonathan Taylor",
+            "pos": "RB",
+            "nfl_team": "IND",
+            "points": 0.0
+          }
+        ]
+      }
+    },
+    {
+      "roster_id": "4",
+      "manager": "End-Around Egrets",
+      "team_name": "Chip-Block Chinchillas",
+      "division_id": 1,
+      "co_owners": [],
+      "season": {
+        "record": {
+          "w": 4,
+          "l": 6,
+          "t": 0
+        },
+        "rank": 9,
+        "division_rank": 3,
+        "points_for": 1681.22,
+        "points_against": 1618.53,
+        "avg_for": 168.12,
+        "high_week": {
+          "week": 8,
+          "points": 211.93
+        },
+        "low_week": {
+          "week": 1,
+          "points": 123.35
+        },
+        "streak": {
+          "type": "W",
+          "count": 3
+        },
+        "all_play": {
+          "w": 52,
+          "l": 58,
+          "t": 0,
+          "pct": 0.473
+        },
+        "expected_wins": 4.7,
+        "luck": 2.3,
+        "power": {
+          "model_score": 0.433,
+          "model_rank": 7,
+          "published_rank": null,
+          "nudge": null,
+          "prev_model_rank": 9,
+          "week_delta": 2
+        },
+        "coaching_efficiency": {
+          "actual": 1681.22,
+          "optimal": 1983.36,
+          "pct": 0.848
+        }
+      },
+      "this_week": {
+        "opponent_roster_id": "9",
+        "points": 172.23,
+        "opponent_points": 117.13,
+        "result": "W",
+        "margin": 55.1,
+        "coaching_efficiency": {
+          "actual": 172.23,
+          "optimal": 178.37,
+          "pct": 0.966
+        },
+        "points_left_on_bench": 6.14,
+        "starters": [
+          {
+            "player_id": "6804",
+            "name": "Jordan Love",
+            "pos": "QB",
+            "nfl_team": "GB",
+            "slot": "QB",
+            "points": 9.49
+          },
+          {
+            "player_id": "12486",
+            "name": "Dillon Gabriel",
+            "pos": "QB",
+            "nfl_team": "CLE",
+            "slot": "QB",
+            "points": 24.4
+          },
+          {
+            "player_id": "6806",
+            "name": "J.K. Dobbins",
+            "pos": "RB",
+            "nfl_team": "DEN",
+            "slot": "RB",
+            "points": 12.44
+          },
+          {
+            "player_id": "5850",
+            "name": "Josh Jacobs",
+            "pos": "RB",
+            "nfl_team": "GB",
+            "slot": "RB",
+            "points": 22.38
+          },
+          {
+            "player_id": "7547",
+            "name": "Amon-Ra St. Brown",
+            "pos": "WR",
+            "nfl_team": "DET",
+            "slot": "WR",
+            "points": 17.42
+          },
+          {
+            "player_id": "11610",
+            "name": "Malik Washington",
+            "pos": "WR",
+            "nfl_team": "MIA",
+            "slot": "WR",
+            "points": 10.92
+          },
+          {
+            "player_id": "11597",
+            "name": "Theo Johnson",
+            "pos": "TE",
+            "nfl_team": "NYG",
+            "slot": "TE",
+            "points": 16.04
+          },
+          {
+            "player_id": "7049",
+            "name": "Jauan Jennings",
+            "pos": "WR",
+            "nfl_team": "MIN",
+            "slot": "FLEX",
+            "points": 18.42
+          },
+          {
+            "player_id": "8126",
+            "name": "Wan'Dale Robinson",
+            "pos": "WR",
+            "nfl_team": "TEN",
+            "slot": "FLEX",
+            "points": 12.54
+          },
+          {
+            "player_id": "9501",
+            "name": "DeMario Douglas",
+            "pos": "WR",
+            "nfl_team": "NE",
+            "slot": "FLEX",
+            "points": 6.83
+          },
+          {
+            "player_id": "2133",
+            "name": "Davante Adams",
+            "pos": "WR",
+            "nfl_team": "LAR",
+            "slot": "FLEX",
+            "points": 21.35
+          }
+        ],
+        "top_performers": [
+          {
+            "player_id": "12486",
+            "name": "Dillon Gabriel",
+            "pos": "QB",
+            "points": 24.4
+          },
+          {
+            "player_id": "5850",
+            "name": "Josh Jacobs",
+            "pos": "RB",
+            "points": 22.38
+          },
+          {
+            "player_id": "2133",
+            "name": "Davante Adams",
+            "pos": "WR",
+            "points": 21.35
+          }
+        ],
+        "duds": [],
+        "bench_regret": {
+          "player_id": "6768",
+          "name": "Tua Tagovailoa",
+          "pos": "QB",
+          "points": 15.63
+        },
+        "started_on_bye": null
+      },
+      "history": {
+        "weekly": [
+          {
+            "week": 1,
+            "points": 123.35,
+            "opponent_roster_id": "3",
+            "result": "L",
+            "margin": -48.36,
+            "cum_record": {
+              "w": 0,
+              "l": 1,
+              "t": 0
+            },
+            "power_rank": null,
+            "all_play": null,
+            "luck": null
+          },
+          {
+            "week": 2,
+            "points": 207.66,
+            "opponent_roster_id": "11",
+            "result": "L",
+            "margin": -0.72,
+            "cum_record": {
+              "w": 0,
+              "l": 2,
+              "t": 0
+            },
+            "power_rank": 9,
+            "all_play": {
+              "w": 11,
+              "l": 11,
+              "t": 0,
+              "pct": 0.5
+            },
+            "luck": -1.0
+          },
+          {
+            "week": 3,
+            "points": 132.47,
+            "opponent_roster_id": "5",
+            "result": "L",
+            "margin": -26.79,
+            "cum_record": {
+              "w": 0,
+              "l": 3,
+              "t": 0
+            },
+            "power_rank": 10,
+            "all_play": {
+              "w": 13,
+              "l": 20,
+              "t": 0,
+              "pct": 0.394
+            },
+            "luck": -1.2
+          },
+          {
+            "week": 4,
+            "points": 211.56,
+            "opponent_roster_id": "10",
+            "result": "W",
+            "margin": 16.35,
+            "cum_record": {
+              "w": 1,
+              "l": 3,
+              "t": 0
+            },
+            "power_rank": 7,
+            "all_play": {
+              "w": 22,
+              "l": 22,
+              "t": 0,
+              "pct": 0.5
+            },
+            "luck": -1.0
+          },
+          {
+            "week": 5,
+            "points": 129.47,
+            "opponent_roster_id": "12",
+            "result": "L",
+            "margin": -11.73,
+            "cum_record": {
+              "w": 1,
+              "l": 4,
+              "t": 0
+            },
+            "power_rank": 10,
+            "all_play": {
+              "w": 22,
+              "l": 33,
+              "t": 0,
+              "pct": 0.4
+            },
+            "luck": -1.0
+          },
+          {
+            "week": 6,
+            "points": 155.48,
+            "opponent_roster_id": "8",
+            "result": "L",
+            "margin": -11.13,
+            "cum_record": {
+              "w": 1,
+              "l": 5,
+              "t": 0
+            },
+            "power_rank": 10,
+            "all_play": {
+              "w": 25,
+              "l": 41,
+              "t": 0,
+              "pct": 0.379
+            },
+            "luck": -1.3
+          },
+          {
+            "week": 7,
+            "points": 168.38,
+            "opponent_roster_id": "1",
+            "result": "L",
+            "margin": -41.04,
+            "cum_record": {
+              "w": 1,
+              "l": 6,
+              "t": 0
+            },
+            "power_rank": 9,
+            "all_play": {
+              "w": 30,
+              "l": 47,
+              "t": 0,
+              "pct": 0.39
+            },
+            "luck": -1.7
+          },
+          {
+            "week": 8,
+            "points": 211.93,
+            "opponent_roster_id": "2",
+            "result": "W",
+            "margin": 76.93,
+            "cum_record": {
+              "w": 2,
+              "l": 6,
+              "t": 0
+            },
+            "power_rank": 9,
+            "all_play": {
+              "w": 39,
+              "l": 49,
+              "t": 0,
+              "pct": 0.443
+            },
+            "luck": -1.5
+          },
+          {
+            "week": 9,
+            "points": 168.69,
+            "opponent_roster_id": "7",
+            "result": "W",
+            "margin": 54.08,
+            "cum_record": {
+              "w": 3,
+              "l": 6,
+              "t": 0
+            },
+            "power_rank": 9,
+            "all_play": {
+              "w": 45,
+              "l": 54,
+              "t": 0,
+              "pct": 0.455
+            },
+            "luck": -1.1
+          },
+          {
+            "week": 10,
+            "points": 172.23,
+            "opponent_roster_id": "9",
+            "result": "W",
+            "margin": 55.1,
+            "cum_record": {
+              "w": 4,
+              "l": 6,
+              "t": 0
+            },
+            "power_rank": 7,
+            "all_play": {
+              "w": 52,
+              "l": 58,
+              "t": 0,
+              "pct": 0.473
+            },
+            "luck": -0.7
+          }
+        ]
+      },
+      "next_week": {
+        "opponent_roster_id": "6",
+        "power_rank_self": 7,
+        "power_rank_opp": 6,
+        "stakes": [
+          "bye_seed",
+          "wildcard_race",
+          "division_race"
+        ],
+        "starters_on_bye": []
+      }
+    },
+    {
+      "roster_id": "5",
+      "manager": "Iron-Range Ibex",
+      "team_name": "Nickel Newts",
+      "division_id": 1,
+      "co_owners": [],
+      "season": {
+        "record": {
+          "w": 6,
+          "l": 4,
+          "t": 0
+        },
+        "rank": 5,
+        "division_rank": 2,
+        "points_for": 1558.93,
+        "points_against": 1740.42,
+        "avg_for": 155.89,
+        "high_week": {
+          "week": 5,
+          "points": 179.9
+        },
+        "low_week": {
+          "week": 10,
+          "points": 91.77
+        },
+        "streak": {
+          "type": "L",
+          "count": 1
+        },
+        "all_play": {
+          "w": 42,
+          "l": 68,
+          "t": 0,
+          "pct": 0.382
+        },
+        "expected_wins": 3.8,
+        "luck": 5.2,
+        "power": {
+          "model_score": 0.371,
+          "model_rank": 8,
+          "published_rank": null,
+          "nudge": null,
+          "prev_model_rank": 6,
+          "week_delta": -2
+        },
+        "coaching_efficiency": {
+          "actual": 1558.93,
+          "optimal": 1807.67,
+          "pct": 0.862
+        }
+      },
+      "this_week": {
+        "opponent_roster_id": "1",
+        "points": 91.77,
+        "opponent_points": 229.96,
+        "result": "L",
+        "margin": -138.19,
+        "coaching_efficiency": {
+          "actual": 91.77,
+          "optimal": 135.49,
+          "pct": 0.677
+        },
+        "points_left_on_bench": 43.72,
+        "starters": [
+          {
+            "player_id": "3294",
+            "name": "Dak Prescott",
+            "pos": "QB",
+            "nfl_team": "DAL",
+            "slot": "QB",
+            "points": 0.0
+          },
+          {
+            "player_id": "1373",
+            "name": "Geno Smith",
+            "pos": "QB",
+            "nfl_team": "NYJ",
+            "slot": "QB",
+            "points": 2.87
+          },
+          {
+            "player_id": "8150",
+            "name": "Kyren Williams",
+            "pos": "RB",
+            "nfl_team": "LAR",
+            "slot": "RB",
+            "points": 24.68
+          },
+          {
+            "player_id": "8228",
+            "name": "Jaylen Warren",
+            "pos": "RB",
+            "nfl_team": "PIT",
+            "slot": "RB",
+            "points": 13.87
+          },
+          {
+            "player_id": "12526",
+            "name": "Tetairoa McMillan",
+            "pos": "WR",
+            "nfl_team": "CAR",
+            "slot": "WR",
+            "points": 12.23
+          },
+          {
+            "player_id": "6786",
+            "name": "CeeDee Lamb",
+            "pos": "WR",
+            "nfl_team": "DAL",
+            "slot": "WR",
+            "points": 0.0
+          },
+          {
+            "player_id": "9484",
+            "name": "Tucker Kraft",
+            "pos": "TE",
+            "nfl_team": "GB",
+            "slot": "TE",
+            "points": 0.0
+          },
+          {
+            "player_id": "9508",
+            "name": "Tyjae Spears",
+            "pos": "RB",
+            "nfl_team": "TEN",
+            "slot": "FLEX",
+            "points": 0.0
+          },
+          {
+            "player_id": "4199",
+            "name": "Aaron Jones",
+            "pos": "RB",
+            "nfl_team": "MIN",
+            "slot": "FLEX",
+            "points": 17.31
+          },
+          {
+            "player_id": "5844",
+            "name": "T.J. Hockenson",
+            "pos": "TE",
+            "nfl_team": "MIN",
+            "slot": "FLEX",
+            "points": 2.23
+          },
+          {
+            "player_id": "12474",
+            "name": "Woody Marks",
+            "pos": "RB",
+            "nfl_team": "HOU",
+            "slot": "FLEX",
+            "points": 18.58
+          }
+        ],
+        "top_performers": [
+          {
+            "player_id": "8150",
+            "name": "Kyren Williams",
+            "pos": "RB",
+            "points": 24.68
+          },
+          {
+            "player_id": "12474",
+            "name": "Woody Marks",
+            "pos": "RB",
+            "points": 18.58
+          },
+          {
+            "player_id": "4199",
+            "name": "Aaron Jones",
+            "pos": "RB",
+            "points": 17.31
+          }
+        ],
+        "duds": [
+          {
+            "player_id": "3294",
+            "name": "Dak Prescott",
+            "pos": "QB",
+            "points": 0.0
+          },
+          {
+            "player_id": "6786",
+            "name": "CeeDee Lamb",
+            "pos": "WR",
+            "points": 0.0
+          },
+          {
+            "player_id": "9484",
+            "name": "Tucker Kraft",
+            "pos": "TE",
+            "points": 0.0
+          }
+        ],
+        "bench_regret": {
+          "player_id": "11199",
+          "name": "Emari Demercado",
+          "pos": "RB",
+          "points": 18.33
+        },
+        "started_on_bye": null
+      },
+      "history": {
+        "weekly": [
+          {
+            "week": 1,
+            "points": 164.11,
+            "opponent_roster_id": "11",
+            "result": "W",
+            "margin": 44.46,
+            "cum_record": {
+              "w": 1,
+              "l": 0,
+              "t": 0
+            },
+            "power_rank": null,
+            "all_play": null,
+            "luck": null
+          },
+          {
+            "week": 2,
+            "points": 168.46,
+            "opponent_roster_id": "3",
+            "result": "W",
+            "margin": 6.0,
+            "cum_record": {
+              "w": 2,
+              "l": 0,
+              "t": 0
+            },
+            "power_rank": 5,
+            "all_play": {
+              "w": 9,
+              "l": 13,
+              "t": 0,
+              "pct": 0.409
+            },
+            "luck": 1.2
+          },
+          {
+            "week": 3,
+            "points": 159.26,
+            "opponent_roster_id": "4",
+            "result": "W",
+            "margin": 26.79,
+            "cum_record": {
+              "w": 3,
+              "l": 0,
+              "t": 0
+            },
+            "power_rank": 6,
+            "all_play": {
+              "w": 14,
+              "l": 19,
+              "t": 0,
+              "pct": 0.424
+            },
+            "luck": 1.7
+          },
+          {
+            "week": 4,
+            "points": 145.75,
+            "opponent_roster_id": "6",
+            "result": "L",
+            "margin": -60.71,
+            "cum_record": {
+              "w": 3,
+              "l": 1,
+              "t": 0
+            },
+            "power_rank": 8,
+            "all_play": {
+              "w": 16,
+              "l": 28,
+              "t": 0,
+              "pct": 0.364
+            },
+            "luck": 1.5
+          },
+          {
+            "week": 5,
+            "points": 179.9,
+            "opponent_roster_id": "9",
+            "result": "L",
+            "margin": -84.09,
+            "cum_record": {
+              "w": 3,
+              "l": 2,
+              "t": 0
+            },
+            "power_rank": 8,
+            "all_play": {
+              "w": 22,
+              "l": 33,
+              "t": 0,
+              "pct": 0.4
+            },
+            "luck": 1.0
+          },
+          {
+            "week": 6,
+            "points": 162.48,
+            "opponent_roster_id": "7",
+            "result": "W",
+            "margin": 34.87,
+            "cum_record": {
+              "w": 4,
+              "l": 2,
+              "t": 0
+            },
+            "power_rank": 7,
+            "all_play": {
+              "w": 26,
+              "l": 40,
+              "t": 0,
+              "pct": 0.394
+            },
+            "luck": 1.6
+          },
+          {
+            "week": 7,
+            "points": 175.51,
+            "opponent_roster_id": "2",
+            "result": "L",
+            "margin": -29.63,
+            "cum_record": {
+              "w": 4,
+              "l": 3,
+              "t": 0
+            },
+            "power_rank": 6,
+            "all_play": {
+              "w": 33,
+              "l": 44,
+              "t": 0,
+              "pct": 0.429
+            },
+            "luck": 1.0
+          },
+          {
+            "week": 8,
+            "points": 145.07,
+            "opponent_roster_id": "12",
+            "result": "W",
+            "margin": 1.43,
+            "cum_record": {
+              "w": 5,
+              "l": 3,
+              "t": 0
+            },
+            "power_rank": 7,
+            "all_play": {
+              "w": 38,
+              "l": 50,
+              "t": 0,
+              "pct": 0.432
+            },
+            "luck": 1.5
+          },
+          {
+            "week": 9,
+            "points": 166.62,
+            "opponent_roster_id": "10",
+            "result": "W",
+            "margin": 17.58,
+            "cum_record": {
+              "w": 6,
+              "l": 3,
+              "t": 0
+            },
+            "power_rank": 6,
+            "all_play": {
+              "w": 42,
+              "l": 57,
+              "t": 0,
+              "pct": 0.424
+            },
+            "luck": 2.2
+          },
+          {
+            "week": 10,
+            "points": 91.77,
+            "opponent_roster_id": "1",
+            "result": "L",
+            "margin": -138.19,
+            "cum_record": {
+              "w": 6,
+              "l": 4,
+              "t": 0
+            },
+            "power_rank": 8,
+            "all_play": {
+              "w": 42,
+              "l": 68,
+              "t": 0,
+              "pct": 0.382
+            },
+            "luck": 2.2
+          }
+        ]
+      },
+      "next_week": {
+        "opponent_roster_id": "8",
+        "power_rank_self": 8,
+        "power_rank_opp": 5,
+        "stakes": [
+          "bye_seed",
+          "wildcard_race",
+          "division_race"
+        ],
+        "starters_on_bye": []
+      }
+    },
+    {
+      "roster_id": "6",
+      "manager": "Field-Goal Foxes",
+      "team_name": "Overtime Otters",
+      "division_id": 2,
+      "co_owners": [],
+      "season": {
+        "record": {
+          "w": 5,
+          "l": 5,
+          "t": 0
+        },
+        "rank": 6,
+        "division_rank": 3,
+        "points_for": 1665.19,
+        "points_against": 1835.06,
+        "avg_for": 166.52,
+        "high_week": {
+          "week": 8,
+          "points": 236.84
+        },
+        "low_week": {
+          "week": 6,
+          "points": 93.14
+        },
+        "streak": {
+          "type": "L",
+          "count": 1
+        },
+        "all_play": {
+          "w": 54,
+          "l": 56,
+          "t": 0,
+          "pct": 0.491
+        },
+        "expected_wins": 4.9,
+        "luck": 0.1,
+        "power": {
+          "model_score": 0.453,
+          "model_rank": 6,
+          "published_rank": null,
+          "nudge": null,
+          "prev_model_rank": 5,
+          "week_delta": -1
+        },
+        "coaching_efficiency": {
+          "actual": 1665.19,
+          "optimal": 1860.57,
+          "pct": 0.895
+        }
+      },
+      "this_week": {
+        "opponent_roster_id": "3",
+        "points": 114.69,
+        "opponent_points": 247.2,
+        "result": "L",
+        "margin": -132.51,
+        "coaching_efficiency": {
+          "actual": 114.69,
+          "optimal": 126.9,
+          "pct": 0.904
+        },
+        "points_left_on_bench": 12.21,
+        "starters": [
+          {
+            "player_id": "7591",
+            "name": "Justin Fields",
+            "pos": "QB",
+            "nfl_team": "KC",
+            "slot": "QB",
+            "points": 11.29
+          },
+          {
+            "player_id": "11563",
+            "name": "Bo Nix",
+            "pos": "QB",
+            "nfl_team": "DEN",
+            "slot": "QB",
+            "points": 8.66
+          },
+          {
+            "player_id": "8155",
+            "name": "Breece Hall",
+            "pos": "RB",
+            "nfl_team": "NYJ",
+            "slot": "RB",
+            "points": 27.83
+          },
+          {
+            "player_id": "4988",
+            "name": "Nick Chubb",
+            "pos": "RB",
+            "nfl_team": null,
+            "slot": "RB",
+            "points": 7.3
+          },
+          {
+            "player_id": "4983",
+            "name": "DJ Moore",
+            "pos": "WR",
+            "nfl_team": "BUF",
+            "slot": "WR",
+            "points": 0.0
+          },
+          {
+            "player_id": "8144",
+            "name": "Chris Olave",
+            "pos": "WR",
+            "nfl_team": "NO",
+            "slot": "WR",
+            "points": 32.5
+          },
+          {
+            "player_id": "11604",
+            "name": "Brock Bowers",
+            "pos": "TE",
+            "nfl_team": "LV",
+            "slot": "TE",
+            "points": 5.65
+          },
+          {
+            "player_id": "12497",
+            "name": "Tory Horton",
+            "pos": "WR",
+            "nfl_team": "SEA",
+            "slot": "FLEX",
+            "points": 0.0
+          },
+          {
+            "player_id": "11628",
+            "name": "Marvin Harrison",
+            "pos": "WR",
+            "nfl_team": "ARI",
+            "slot": "FLEX",
+            "points": 14.58
+          },
+          {
+            "player_id": "6819",
+            "name": "Michael Pittman",
+            "pos": "WR",
+            "nfl_team": "PIT",
+            "slot": "FLEX",
+            "points": 3.92
+          },
+          {
+            "player_id": "8121",
+            "name": "Romeo Doubs",
+            "pos": "WR",
+            "nfl_team": "NE",
+            "slot": "FLEX",
+            "points": 2.96
+          }
+        ],
+        "top_performers": [
+          {
+            "player_id": "8144",
+            "name": "Chris Olave",
+            "pos": "WR",
+            "points": 32.5
+          },
+          {
+            "player_id": "8155",
+            "name": "Breece Hall",
+            "pos": "RB",
+            "points": 27.83
+          },
+          {
+            "player_id": "11628",
+            "name": "Marvin Harrison",
+            "pos": "WR",
+            "points": 14.58
+          }
+        ],
+        "duds": [
+          {
+            "player_id": "12497",
+            "name": "Tory Horton",
+            "pos": "WR",
+            "points": 0.0
+          },
+          {
+            "player_id": "4983",
+            "name": "DJ Moore",
+            "pos": "WR",
+            "points": 0.0
+          },
+          {
+            "player_id": "8121",
+            "name": "Romeo Doubs",
+            "pos": "WR",
+            "points": 2.96
+          }
+        ],
+        "bench_regret": {
+          "player_id": "9482",
+          "name": "Michael Mayer",
+          "pos": "TE",
+          "points": 5.88
+        },
+        "started_on_bye": null
+      },
+      "history": {
+        "weekly": [
+          {
+            "week": 1,
+            "points": 141.35,
+            "opponent_roster_id": "9",
+            "result": "L",
+            "margin": -63.44,
+            "cum_record": {
+              "w": 0,
+              "l": 1,
+              "t": 0
+            },
+            "power_rank": null,
+            "all_play": null,
+            "luck": null
+          },
+          {
+            "week": 2,
+            "points": 132.91,
+            "opponent_roster_id": "7",
+            "result": "L",
+            "margin": -24.42,
+            "cum_record": {
+              "w": 0,
+              "l": 2,
+              "t": 0
+            },
+            "power_rank": 12,
+            "all_play": {
+              "w": 3,
+              "l": 19,
+              "t": 0,
+              "pct": 0.136
+            },
+            "luck": -0.3
+          },
+          {
+            "week": 3,
+            "points": 176.05,
+            "opponent_roster_id": "2",
+            "result": "L",
+            "margin": -7.75,
+            "cum_record": {
+              "w": 0,
+              "l": 3,
+              "t": 0
+            },
+            "power_rank": 11,
+            "all_play": {
+              "w": 10,
+              "l": 23,
+              "t": 0,
+              "pct": 0.303
+            },
+            "luck": -0.9
+          },
+          {
+            "week": 4,
+            "points": 206.46,
+            "opponent_roster_id": "5",
+            "result": "W",
+            "margin": 60.71,
+            "cum_record": {
+              "w": 1,
+              "l": 3,
+              "t": 0
+            },
+            "power_rank": 9,
+            "all_play": {
+              "w": 18,
+              "l": 26,
+              "t": 0,
+              "pct": 0.409
+            },
+            "luck": -0.6
+          },
+          {
+            "week": 5,
+            "points": 192.74,
+            "opponent_roster_id": "11",
+            "result": "W",
+            "margin": 28.47,
+            "cum_record": {
+              "w": 2,
+              "l": 3,
+              "t": 0
+            },
+            "power_rank": 7,
+            "all_play": {
+              "w": 25,
+              "l": 30,
+              "t": 0,
+              "pct": 0.455
+            },
+            "luck": -0.3
+          },
+          {
+            "week": 6,
+            "points": 93.14,
+            "opponent_roster_id": "12",
+            "result": "L",
+            "margin": -75.54,
+            "cum_record": {
+              "w": 2,
+              "l": 4,
+              "t": 0
+            },
+            "power_rank": 9,
+            "all_play": {
+              "w": 25,
+              "l": 41,
+              "t": 0,
+              "pct": 0.379
+            },
+            "luck": -0.3
+          },
+          {
+            "week": 7,
+            "points": 182.3,
+            "opponent_roster_id": "10",
+            "result": "W",
+            "margin": 8.88,
+            "cum_record": {
+              "w": 3,
+              "l": 4,
+              "t": 0
+            },
+            "power_rank": 8,
+            "all_play": {
+              "w": 33,
+              "l": 44,
+              "t": 0,
+              "pct": 0.429
+            },
+            "luck": 0.0
+          },
+          {
+            "week": 8,
+            "points": 236.84,
+            "opponent_roster_id": "1",
+            "result": "W",
+            "margin": 31.91,
+            "cum_record": {
+              "w": 4,
+              "l": 4,
+              "t": 0
+            },
+            "power_rank": 5,
+            "all_play": {
+              "w": 44,
+              "l": 44,
+              "t": 0,
+              "pct": 0.5
+            },
+            "luck": 0.0
+          },
+          {
+            "week": 9,
+            "points": 188.71,
+            "opponent_roster_id": "8",
+            "result": "W",
+            "margin": 3.82,
+            "cum_record": {
+              "w": 5,
+              "l": 4,
+              "t": 0
+            },
+            "power_rank": 5,
+            "all_play": {
+              "w": 52,
+              "l": 47,
+              "t": 0,
+              "pct": 0.525
+            },
+            "luck": 0.3
+          },
+          {
+            "week": 10,
+            "points": 114.69,
+            "opponent_roster_id": "3",
+            "result": "L",
+            "margin": -132.51,
+            "cum_record": {
+              "w": 5,
+              "l": 5,
+              "t": 0
+            },
+            "power_rank": 6,
+            "all_play": {
+              "w": 54,
+              "l": 56,
+              "t": 0,
+              "pct": 0.491
+            },
+            "luck": 0.1
+          }
+        ]
+      },
+      "next_week": {
+        "opponent_roster_id": "4",
+        "power_rank_self": 6,
+        "power_rank_opp": 7,
+        "stakes": [
+          "bye_seed",
+          "wildcard_race",
+          "division_race"
+        ],
+        "starters_on_bye": [
+          {
+            "player_id": "8144",
+            "name": "Chris Olave",
+            "pos": "WR",
+            "nfl_team": "NO",
+            "points": 0.0
+          }
+        ]
+      }
+    },
+    {
+      "roster_id": "7",
+      "manager": "Blitz Alpacas",
+      "team_name": "Kneel-Down Koalas",
+      "division_id": 2,
+      "co_owners": [],
+      "season": {
+        "record": {
+          "w": 2,
+          "l": 8,
+          "t": 0
+        },
+        "rank": 12,
+        "division_rank": 4,
+        "points_for": 1436.99,
+        "points_against": 1695.09,
+        "avg_for": 143.7,
+        "high_week": {
+          "week": 1,
+          "points": 179.14
+        },
+        "low_week": {
+          "week": 9,
+          "points": 114.61
+        },
+        "streak": {
+          "type": "L",
+          "count": 3
+        },
+        "all_play": {
+          "w": 26,
+          "l": 84,
+          "t": 0,
+          "pct": 0.236
+        },
+        "expected_wins": 2.4,
+        "luck": 2.6,
+        "power": {
+          "model_score": 0.164,
+          "model_rank": 12,
+          "published_rank": null,
+          "nudge": null,
+          "prev_model_rank": 12,
+          "week_delta": 0
+        },
+        "coaching_efficiency": {
+          "actual": 1436.99,
+          "optimal": 1947.08,
+          "pct": 0.738
+        }
+      },
+      "this_week": {
+        "opponent_roster_id": "12",
+        "points": 119.97,
+        "opponent_points": 126.03,
+        "result": "L",
+        "margin": -6.06,
+        "coaching_efficiency": {
+          "actual": 119.97,
+          "optimal": 228.83,
+          "pct": 0.524
+        },
+        "points_left_on_bench": 108.86,
+        "starters": [
+          {
+            "player_id": "4984",
+            "name": "Josh Allen",
+            "pos": "QB",
+            "nfl_team": "BUF",
+            "slot": "QB",
+            "points": 28.45
+          },
+          {
+            "player_id": "5849",
+            "name": "Kyler Murray",
+            "pos": "QB",
+            "nfl_team": "MIN",
+            "slot": "QB",
+            "points": 0.0
+          },
+          {
+            "player_id": "12489",
+            "name": "RJ Harvey",
+            "pos": "RB",
+            "nfl_team": "DEN",
+            "slot": "RB",
+            "points": 5.24
+          },
+          {
+            "player_id": "7611",
+            "name": "Rhamondre Stevenson",
+            "pos": "RB",
+            "nfl_team": "NE",
+            "slot": "RB",
+            "points": 0.0
+          },
+          {
+            "player_id": "11620",
+            "name": "Rome Odunze",
+            "pos": "WR",
+            "nfl_team": "CHI",
+            "slot": "WR",
+            "points": 22.73
+          },
+          {
+            "player_id": "5947",
+            "name": "Jakobi Meyers",
+            "pos": "WR",
+            "nfl_team": "JAX",
+            "slot": "WR",
+            "points": 8.31
+          },
+          {
+            "player_id": "12493",
+            "name": "Oronde Gadsden",
+            "pos": "TE",
+            "nfl_team": "LAC",
+            "slot": "TE",
+            "points": 3.5
+          },
+          {
+            "player_id": "8130",
+            "name": "Trey McBride",
+            "pos": "TE",
+            "nfl_team": "ARI",
+            "slot": "FLEX",
+            "points": 33.04
+          },
+          {
+            "player_id": "7090",
+            "name": "Darnell Mooney",
+            "pos": "WR",
+            "nfl_team": "NYG",
+            "slot": "FLEX",
+            "points": 3.12
+          },
+          {
+            "player_id": "2449",
+            "name": "Stefon Diggs",
+            "pos": "WR",
+            "nfl_team": "WAS",
+            "slot": "FLEX",
+            "points": 15.58
+          },
+          {
+            "player_id": "11624",
+            "name": "Xavier Worthy",
+            "pos": "WR",
+            "nfl_team": "KC",
+            "slot": "FLEX",
+            "points": 0.0
+          }
+        ],
+        "top_performers": [
+          {
+            "player_id": "8130",
+            "name": "Trey McBride",
+            "pos": "TE",
+            "points": 33.04
+          },
+          {
+            "player_id": "4984",
+            "name": "Josh Allen",
+            "pos": "QB",
+            "points": 28.45
+          },
+          {
+            "player_id": "11620",
+            "name": "Rome Odunze",
+            "pos": "WR",
+            "points": 22.73
+          }
+        ],
+        "duds": [
+          {
+            "player_id": "11624",
+            "name": "Xavier Worthy",
+            "pos": "WR",
+            "points": 0.0
+          },
+          {
+            "player_id": "5849",
+            "name": "Kyler Murray",
+            "pos": "QB",
+            "points": 0.0
+          },
+          {
+            "player_id": "7611",
+            "name": "Rhamondre Stevenson",
+            "pos": "RB",
+            "points": 0.0
+          }
+        ],
+        "bench_regret": {
+          "player_id": "12529",
+          "name": "TreVeyon Henderson",
+          "pos": "RB",
+          "points": 51.66
+        },
+        "started_on_bye": null
+      },
+      "history": {
+        "weekly": [
+          {
+            "week": 1,
+            "points": 179.14,
+            "opponent_roster_id": "2",
+            "result": "L",
+            "margin": -4.25,
+            "cum_record": {
+              "w": 0,
+              "l": 1,
+              "t": 0
+            },
+            "power_rank": null,
+            "all_play": null,
+            "luck": null
+          },
+          {
+            "week": 2,
+            "points": 157.33,
+            "opponent_roster_id": "6",
+            "result": "W",
+            "margin": 24.42,
+            "cum_record": {
+              "w": 1,
+              "l": 1,
+              "t": 0
+            },
+            "power_rank": 7,
+            "all_play": {
+              "w": 9,
+              "l": 13,
+              "t": 0,
+              "pct": 0.409
+            },
+            "luck": 0.2
+          },
+          {
+            "week": 3,
+            "points": 155.68,
+            "opponent_roster_id": "9",
+            "result": "L",
+            "margin": -33.36,
+            "cum_record": {
+              "w": 1,
+              "l": 2,
+              "t": 0
+            },
+            "power_rank": 7,
+            "all_play": {
+              "w": 13,
+              "l": 20,
+              "t": 0,
+              "pct": 0.394
+            },
+            "luck": -0.2
+          },
+          {
+            "week": 4,
+            "points": 137.68,
+            "opponent_roster_id": "1",
+            "result": "L",
+            "margin": -75.82,
+            "cum_record": {
+              "w": 1,
+              "l": 3,
+              "t": 0
+            },
+            "power_rank": 11,
+            "all_play": {
+              "w": 14,
+              "l": 30,
+              "t": 0,
+              "pct": 0.318
+            },
+            "luck": -0.3
+          },
+          {
+            "week": 5,
+            "points": 151.02,
+            "opponent_roster_id": "8",
+            "result": "L",
+            "margin": -73.65,
+            "cum_record": {
+              "w": 1,
+              "l": 4,
+              "t": 0
+            },
+            "power_rank": 11,
+            "all_play": {
+              "w": 16,
+              "l": 39,
+              "t": 0,
+              "pct": 0.291
+            },
+            "luck": -0.5
+          },
+          {
+            "week": 6,
+            "points": 127.61,
+            "opponent_roster_id": "5",
+            "result": "L",
+            "margin": -34.87,
+            "cum_record": {
+              "w": 1,
+              "l": 5,
+              "t": 0
+            },
+            "power_rank": 11,
+            "all_play": {
+              "w": 17,
+              "l": 49,
+              "t": 0,
+              "pct": 0.258
+            },
+            "luck": -0.5
+          },
+          {
+            "week": 7,
+            "points": 161.56,
+            "opponent_roster_id": "11",
+            "result": "W",
+            "margin": 17.0,
+            "cum_record": {
+              "w": 2,
+              "l": 5,
+              "t": 0
+            },
+            "power_rank": 11,
+            "all_play": {
+              "w": 21,
+              "l": 56,
+              "t": 0,
+              "pct": 0.273
+            },
+            "luck": 0.1
+          },
+          {
+            "week": 8,
+            "points": 132.39,
+            "opponent_roster_id": "3",
+            "result": "L",
+            "margin": -17.43,
+            "cum_record": {
+              "w": 2,
+              "l": 6,
+              "t": 0
+            },
+            "power_rank": 11,
+            "all_play": {
+              "w": 22,
+              "l": 66,
+              "t": 0,
+              "pct": 0.25
+            },
+            "luck": 0.0
+          },
+          {
+            "week": 9,
+            "points": 114.61,
+            "opponent_roster_id": "4",
+            "result": "L",
+            "margin": -54.08,
+            "cum_record": {
+              "w": 2,
+              "l": 7,
+              "t": 0
+            },
+            "power_rank": 12,
+            "all_play": {
+              "w": 22,
+              "l": 77,
+              "t": 0,
+              "pct": 0.222
+            },
+            "luck": 0.0
+          },
+          {
+            "week": 10,
+            "points": 119.97,
+            "opponent_roster_id": "12",
+            "result": "L",
+            "margin": -6.06,
+            "cum_record": {
+              "w": 2,
+              "l": 8,
+              "t": 0
+            },
+            "power_rank": 12,
+            "all_play": {
+              "w": 26,
+              "l": 84,
+              "t": 0,
+              "pct": 0.236
+            },
+            "luck": -0.4
+          }
+        ]
+      },
+      "next_week": {
+        "opponent_roster_id": "10",
+        "power_rank_self": 12,
+        "power_rank_opp": 9,
+        "stakes": [
+          "bye_seed",
+          "wildcard_race",
+          "division_race"
+        ],
+        "starters_on_bye": []
+      }
+    },
+    {
+      "roster_id": "8",
+      "manager": "Gridiron Gophers",
+      "team_name": "Screen Pass Syndicate",
+      "division_id": 3,
+      "co_owners": [],
+      "season": {
+        "record": {
+          "w": 4,
+          "l": 6,
+          "t": 0
+        },
+        "rank": 8,
+        "division_rank": 3,
+        "points_for": 1723.63,
+        "points_against": 1789.08,
+        "avg_for": 172.36,
+        "high_week": {
+          "week": 5,
+          "points": 224.67
+        },
+        "low_week": {
+          "week": 7,
+          "points": 136.79
+        },
+        "streak": {
+          "type": "W",
+          "count": 1
+        },
+        "all_play": {
+          "w": 55,
+          "l": 55,
+          "t": 0,
+          "pct": 0.5
+        },
+        "expected_wins": 5.0,
+        "luck": 0.0,
+        "power": {
+          "model_score": 0.466,
+          "model_rank": 5,
+          "published_rank": null,
+          "nudge": null,
+          "prev_model_rank": 7,
+          "week_delta": 2
+        },
+        "coaching_efficiency": {
+          "actual": 1723.63,
+          "optimal": 1987.7,
+          "pct": 0.867
+        }
+      },
+      "this_week": {
+        "opponent_roster_id": "11",
+        "points": 183.14,
+        "opponent_points": 154.38,
+        "result": "W",
+        "margin": 28.76,
+        "coaching_efficiency": {
+          "actual": 183.14,
+          "optimal": 209.73,
+          "pct": 0.873
+        },
+        "points_left_on_bench": 26.59,
+        "starters": [
+          {
+            "player_id": "11564",
+            "name": "Drake Maye",
+            "pos": "QB",
+            "nfl_team": "NE",
+            "slot": "QB",
+            "points": 31.33
+          },
+          {
+            "player_id": "11559",
+            "name": "Michael Penix",
+            "pos": "QB",
+            "nfl_team": "ATL",
+            "slot": "QB",
+            "points": 11.93
+          },
+          {
+            "player_id": "11647",
+            "name": "Kimani Vidal",
+            "pos": "RB",
+            "nfl_team": "LAC",
+            "slot": "RB",
+            "points": 22.18
+          },
+          {
+            "player_id": "12512",
+            "name": "Quinshon Judkins",
+            "pos": "RB",
+            "nfl_team": "CLE",
+            "slot": "RB",
+            "points": 13.56
+          },
+          {
+            "player_id": "7526",
+            "name": "Jaylen Waddle",
+            "pos": "WR",
+            "nfl_team": "DEN",
+            "slot": "WR",
+            "points": 22.67
+          },
+          {
+            "player_id": "12514",
+            "name": "Emeka Egbuka",
+            "pos": "WR",
+            "nfl_team": "TB",
+            "slot": "WR",
+            "points": 30.94
+          },
+          {
+            "player_id": "10859",
+            "name": "Sam LaPorta",
+            "pos": "TE",
+            "nfl_team": "DET",
+            "slot": "TE",
+            "points": 10.65
+          },
+          {
+            "player_id": "12534",
+            "name": "Kyle Monangai",
+            "pos": "RB",
+            "nfl_team": "CHI",
+            "slot": "FLEX",
+            "points": 9.99
+          },
+          {
+            "player_id": "8134",
+            "name": "Khalil Shakir",
+            "pos": "WR",
+            "nfl_team": "BUF",
+            "slot": "FLEX",
+            "points": 13.46
+          },
+          {
+            "player_id": "8151",
+            "name": "Kenneth Walker",
+            "pos": "RB",
+            "nfl_team": "KC",
+            "slot": "FLEX",
+            "points": 10.24
+          },
+          {
+            "player_id": "8676",
+            "name": "Rashid Shaheed",
+            "pos": "WR",
+            "nfl_team": "SEA",
+            "slot": "FLEX",
+            "points": 6.19
+          }
+        ],
+        "top_performers": [
+          {
+            "player_id": "11564",
+            "name": "Drake Maye",
+            "pos": "QB",
+            "points": 31.33
+          },
+          {
+            "player_id": "12514",
+            "name": "Emeka Egbuka",
+            "pos": "WR",
+            "points": 30.94
+          },
+          {
+            "player_id": "7526",
+            "name": "Jaylen Waddle",
+            "pos": "WR",
+            "points": 22.67
+          }
+        ],
+        "duds": [],
+        "bench_regret": {
+          "player_id": "12545",
+          "name": "Tyler Shough",
+          "pos": "QB",
+          "points": 33.25
+        },
+        "started_on_bye": null
+      },
+      "history": {
+        "weekly": [
+          {
+            "week": 1,
+            "points": 142.29,
+            "opponent_roster_id": "1",
+            "result": "L",
+            "margin": -90.57,
+            "cum_record": {
+              "w": 0,
+              "l": 1,
+              "t": 0
+            },
+            "power_rank": null,
+            "all_play": null,
+            "luck": null
+          },
+          {
+            "week": 2,
+            "points": 150.22,
+            "opponent_roster_id": "10",
+            "result": "L",
+            "margin": -44.24,
+            "cum_record": {
+              "w": 0,
+              "l": 2,
+              "t": 0
+            },
+            "power_rank": 11,
+            "all_play": {
+              "w": 5,
+              "l": 17,
+              "t": 0,
+              "pct": 0.227
+            },
+            "luck": -0.5
+          },
+          {
+            "week": 3,
+            "points": 159.93,
+            "opponent_roster_id": "12",
+            "result": "W",
+            "margin": 44.64,
+            "cum_record": {
+              "w": 1,
+              "l": 2,
+              "t": 0
+            },
+            "power_rank": 9,
+            "all_play": {
+              "w": 11,
+              "l": 22,
+              "t": 0,
+              "pct": 0.333
+            },
+            "luck": 0.0
+          },
+          {
+            "week": 4,
+            "points": 201.92,
+            "opponent_roster_id": "2",
+            "result": "L",
+            "margin": -19.07,
+            "cum_record": {
+              "w": 1,
+              "l": 3,
+              "t": 0
+            },
+            "power_rank": 10,
+            "all_play": {
+              "w": 18,
+              "l": 26,
+              "t": 0,
+              "pct": 0.409
+            },
+            "luck": -0.6
+          },
+          {
+            "week": 5,
+            "points": 224.67,
+            "opponent_roster_id": "7",
+            "result": "W",
+            "margin": 73.65,
+            "cum_record": {
+              "w": 2,
+              "l": 3,
+              "t": 0
+            },
+            "power_rank": 5,
+            "all_play": {
+              "w": 28,
+              "l": 27,
+              "t": 0,
+              "pct": 0.509
+            },
+            "luck": -0.5
+          },
+          {
+            "week": 6,
+            "points": 166.61,
+            "opponent_roster_id": "4",
+            "result": "W",
+            "margin": 11.13,
+            "cum_record": {
+              "w": 3,
+              "l": 3,
+              "t": 0
+            },
+            "power_rank": 5,
+            "all_play": {
+              "w": 33,
+              "l": 33,
+              "t": 0,
+              "pct": 0.5
+            },
+            "luck": 0.0
+          },
+          {
+            "week": 7,
+            "points": 136.79,
+            "opponent_roster_id": "3",
+            "result": "L",
+            "margin": -18.15,
+            "cum_record": {
+              "w": 3,
+              "l": 4,
+              "t": 0
+            },
+            "power_rank": 7,
+            "all_play": {
+              "w": 33,
+              "l": 44,
+              "t": 0,
+              "pct": 0.429
+            },
+            "luck": 0.0
+          },
+          {
+            "week": 8,
+            "points": 173.17,
+            "opponent_roster_id": "9",
+            "result": "L",
+            "margin": -47.78,
+            "cum_record": {
+              "w": 3,
+              "l": 5,
+              "t": 0
+            },
+            "power_rank": 8,
+            "all_play": {
+              "w": 40,
+              "l": 48,
+              "t": 0,
+              "pct": 0.455
+            },
+            "luck": -0.6
+          },
+          {
+            "week": 9,
+            "points": 184.89,
+            "opponent_roster_id": "6",
+            "result": "L",
+            "margin": -3.82,
+            "cum_record": {
+              "w": 3,
+              "l": 6,
+              "t": 0
+            },
+            "power_rank": 7,
+            "all_play": {
+              "w": 47,
+              "l": 52,
+              "t": 0,
+              "pct": 0.475
+            },
+            "luck": -1.3
+          },
+          {
+            "week": 10,
+            "points": 183.14,
+            "opponent_roster_id": "11",
+            "result": "W",
+            "margin": 28.76,
+            "cum_record": {
+              "w": 4,
+              "l": 6,
+              "t": 0
+            },
+            "power_rank": 5,
+            "all_play": {
+              "w": 55,
+              "l": 55,
+              "t": 0,
+              "pct": 0.5
+            },
+            "luck": -1.0
+          }
+        ]
+      },
+      "next_week": {
+        "opponent_roster_id": "5",
+        "power_rank_self": 5,
+        "power_rank_opp": 8,
+        "stakes": [
+          "bye_seed",
+          "wildcard_race",
+          "division_race"
+        ],
+        "starters_on_bye": []
+      }
+    },
+    {
+      "roster_id": "9",
+      "manager": "Long-Snap Lynx",
+      "team_name": "No-Huddle Narwhals",
+      "division_id": 2,
+      "co_owners": [],
+      "season": {
+        "record": {
+          "w": 6,
+          "l": 4,
+          "t": 0
+        },
+        "rank": 4,
+        "division_rank": 2,
+        "points_for": 2037.57,
+        "points_against": 1746.36,
+        "avg_for": 203.76,
+        "high_week": {
+          "week": 5,
+          "points": 263.99
+        },
+        "low_week": {
+          "week": 10,
+          "points": 117.13
+        },
+        "streak": {
+          "type": "L",
+          "count": 2
+        },
+        "all_play": {
+          "w": 86,
+          "l": 24,
+          "t": 0,
+          "pct": 0.782
+        },
+        "expected_wins": 7.8,
+        "luck": -0.8,
+        "power": {
+          "model_score": 0.79,
+          "model_rank": 3,
+          "published_rank": null,
+          "nudge": null,
+          "prev_model_rank": 1,
+          "week_delta": -2
+        },
+        "coaching_efficiency": {
+          "actual": 2037.57,
+          "optimal": 2312.84,
+          "pct": 0.881
+        }
+      },
+      "this_week": {
+        "opponent_roster_id": "4",
+        "points": 117.13,
+        "opponent_points": 172.23,
+        "result": "L",
+        "margin": -55.1,
+        "coaching_efficiency": {
+          "actual": 117.13,
+          "optimal": 173.67,
+          "pct": 0.674
+        },
+        "points_left_on_bench": 56.54,
+        "starters": [
+          {
+            "player_id": "4046",
+            "name": "Patrick Mahomes",
+            "pos": "QB",
+            "nfl_team": "KC",
+            "slot": "QB",
+            "points": 0.0
+          },
+          {
+            "player_id": "6797",
+            "name": "Justin Herbert",
+            "pos": "QB",
+            "nfl_team": "LAC",
+            "slot": "QB",
+            "points": 18.94
+          },
+          {
+            "player_id": "4034",
+            "name": "Christian McCaffrey",
+            "pos": "RB",
+            "nfl_team": "SF",
+            "slot": "RB",
+            "points": 18.88
+          },
+          {
+            "player_id": "7588",
+            "name": "Javonte Williams",
+            "pos": "RB",
+            "nfl_team": "DAL",
+            "slot": "RB",
+            "points": 0.0
+          },
+          {
+            "player_id": "11635",
+            "name": "Ladd McConkey",
+            "pos": "WR",
+            "nfl_team": "LAC",
+            "slot": "WR",
+            "points": 27.46
+          },
+          {
+            "player_id": "5846",
+            "name": "DK Metcalf",
+            "pos": "WR",
+            "nfl_team": "PIT",
+            "slot": "WR",
+            "points": 6.88
+          },
+          {
+            "player_id": "3214",
+            "name": "Hunter Henry",
+            "pos": "TE",
+            "nfl_team": "NE",
+            "slot": "TE",
+            "points": 1.88
+          },
+          {
+            "player_id": "11655",
+            "name": "Tyrone Tracy",
+            "pos": "RB",
+            "nfl_team": "NYG",
+            "slot": "FLEX",
+            "points": 10.25
+          },
+          {
+            "player_id": "7021",
+            "name": "Rico Dowdle",
+            "pos": "RB",
+            "nfl_team": "PIT",
+            "slot": "FLEX",
+            "points": 17.07
+          },
+          {
+            "player_id": "5892",
+            "name": "David Montgomery",
+            "pos": "RB",
+            "nfl_team": "HOU",
+            "slot": "FLEX",
+            "points": 12.35
+          },
+          {
+            "player_id": "9500",
+            "name": "Josh Downs",
+            "pos": "WR",
+            "nfl_team": "IND",
+            "slot": "FLEX",
+            "points": 3.42
+          }
+        ],
+        "top_performers": [
+          {
+            "player_id": "11635",
+            "name": "Ladd McConkey",
+            "pos": "WR",
+            "points": 27.46
+          },
+          {
+            "player_id": "6797",
+            "name": "Justin Herbert",
+            "pos": "QB",
+            "points": 18.94
+          },
+          {
+            "player_id": "4034",
+            "name": "Christian McCaffrey",
+            "pos": "RB",
+            "points": 18.88
+          }
+        ],
+        "duds": [
+          {
+            "player_id": "4046",
+            "name": "Patrick Mahomes",
+            "pos": "QB",
+            "points": 0.0
+          },
+          {
+            "player_id": "7588",
+            "name": "Javonte Williams",
+            "pos": "RB",
+            "points": 0.0
+          },
+          {
+            "player_id": "3214",
+            "name": "Hunter Henry",
+            "pos": "TE",
+            "points": 1.88
+          }
+        ],
+        "bench_regret": {
+          "player_id": "12547",
+          "name": "Kyle Williams",
+          "pos": "WR",
+          "points": 23.58
+        },
+        "started_on_bye": null
+      },
+      "history": {
+        "weekly": [
+          {
+            "week": 1,
+            "points": 204.79,
+            "opponent_roster_id": "6",
+            "result": "W",
+            "margin": 63.44,
+            "cum_record": {
+              "w": 1,
+              "l": 0,
+              "t": 0
+            },
+            "power_rank": null,
+            "all_play": null,
+            "luck": null
+          },
+          {
+            "week": 2,
+            "points": 197.59,
+            "opponent_roster_id": "2",
+            "result": "L",
+            "margin": -10.79,
+            "cum_record": {
+              "w": 1,
+              "l": 1,
+              "t": 0
+            },
+            "power_rank": 4,
+            "all_play": {
+              "w": 18,
+              "l": 4,
+              "t": 0,
+              "pct": 0.818
+            },
+            "luck": -0.6
+          },
+          {
+            "week": 3,
+            "points": 189.04,
+            "opponent_roster_id": "7",
+            "result": "W",
+            "margin": 33.36,
+            "cum_record": {
+              "w": 2,
+              "l": 1,
+              "t": 0
+            },
+            "power_rank": 3,
+            "all_play": {
+              "w": 27,
+              "l": 6,
+              "t": 0,
+              "pct": 0.818
+            },
+            "luck": -0.5
+          },
+          {
+            "week": 4,
+            "points": 191.14,
+            "opponent_roster_id": "11",
+            "result": "L",
+            "margin": -3.09,
+            "cum_record": {
+              "w": 2,
+              "l": 2,
+              "t": 0
+            },
+            "power_rank": 3,
+            "all_play": {
+              "w": 31,
+              "l": 13,
+              "t": 0,
+              "pct": 0.705
+            },
+            "luck": -0.8
+          },
+          {
+            "week": 5,
+            "points": 263.99,
+            "opponent_roster_id": "5",
+            "result": "W",
+            "margin": 84.09,
+            "cum_record": {
+              "w": 3,
+              "l": 2,
+              "t": 0
+            },
+            "power_rank": 2,
+            "all_play": {
+              "w": 42,
+              "l": 13,
+              "t": 0,
+              "pct": 0.764
+            },
+            "luck": -0.8
+          },
+          {
+            "week": 6,
+            "points": 243.18,
+            "opponent_roster_id": "10",
+            "result": "W",
+            "margin": 67.12,
+            "cum_record": {
+              "w": 4,
+              "l": 2,
+              "t": 0
+            },
+            "power_rank": 2,
+            "all_play": {
+              "w": 53,
+              "l": 13,
+              "t": 0,
+              "pct": 0.803
+            },
+            "luck": -0.8
+          },
+          {
+            "week": 7,
+            "points": 219.57,
+            "opponent_roster_id": "12",
+            "result": "W",
+            "margin": 79.93,
+            "cum_record": {
+              "w": 5,
+              "l": 2,
+              "t": 0
+            },
+            "power_rank": 2,
+            "all_play": {
+              "w": 64,
+              "l": 13,
+              "t": 0,
+              "pct": 0.831
+            },
+            "luck": -0.8
+          },
+          {
+            "week": 8,
+            "points": 220.95,
+            "opponent_roster_id": "8",
+            "result": "W",
+            "margin": 47.78,
+            "cum_record": {
+              "w": 6,
+              "l": 2,
+              "t": 0
+            },
+            "power_rank": 1,
+            "all_play": {
+              "w": 74,
+              "l": 14,
+              "t": 0,
+              "pct": 0.841
+            },
+            "luck": -0.7
+          },
+          {
+            "week": 9,
+            "points": 190.19,
+            "opponent_roster_id": "1",
+            "result": "L",
+            "margin": -15.53,
+            "cum_record": {
+              "w": 6,
+              "l": 3,
+              "t": 0
+            },
+            "power_rank": 1,
+            "all_play": {
+              "w": 83,
+              "l": 16,
+              "t": 0,
+              "pct": 0.838
+            },
+            "luck": -1.5
+          },
+          {
+            "week": 10,
+            "points": 117.13,
+            "opponent_roster_id": "4",
+            "result": "L",
+            "margin": -55.1,
+            "cum_record": {
+              "w": 6,
+              "l": 4,
+              "t": 0
+            },
+            "power_rank": 3,
+            "all_play": {
+              "w": 86,
+              "l": 24,
+              "t": 0,
+              "pct": 0.782
+            },
+            "luck": -1.8
+          }
+        ]
+      },
+      "next_week": {
+        "opponent_roster_id": "3",
+        "power_rank_self": 3,
+        "power_rank_opp": 4,
+        "stakes": [
+          "bye_seed",
+          "wildcard_race",
+          "division_race"
+        ],
+        "starters_on_bye": [
+          {
+            "player_id": "9500",
+            "name": "Josh Downs",
+            "pos": "WR",
+            "nfl_team": "IND",
+            "points": 0.0
+          }
+        ]
+      }
+    },
+    {
+      "roster_id": "10",
+      "manager": "Man-Coverage Meerkats",
+      "team_name": "Stiff-Arm Stags",
+      "division_id": 3,
+      "co_owners": [],
+      "season": {
+        "record": {
+          "w": 3,
+          "l": 7,
+          "t": 0
+        },
+        "rank": 10,
+        "division_rank": 4,
+        "points_for": 1632.78,
+        "points_against": 1771.63,
+        "avg_for": 163.28,
+        "high_week": {
+          "week": 1,
+          "points": 196.58
+        },
+        "low_week": {
+          "week": 10,
+          "points": 112.37
+        },
+        "streak": {
+          "type": "L",
+          "count": 2
+        },
+        "all_play": {
+          "w": 47,
+          "l": 63,
+          "t": 0,
+          "pct": 0.427
+        },
+        "expected_wins": 4.3,
+        "luck": -0.3,
+        "power": {
+          "model_score": 0.368,
+          "model_rank": 9,
+          "published_rank": null,
+          "nudge": null,
+          "prev_model_rank": 8,
+          "week_delta": -1
+        },
+        "coaching_efficiency": {
+          "actual": 1632.78,
+          "optimal": 1901.17,
+          "pct": 0.859
+        }
+      },
+      "this_week": {
+        "opponent_roster_id": "2",
+        "points": 112.37,
+        "opponent_points": 242.03,
+        "result": "L",
+        "margin": -129.66,
+        "coaching_efficiency": {
+          "actual": 112.37,
+          "optimal": 116.13,
+          "pct": 0.968
+        },
+        "points_left_on_bench": 3.76,
+        "starters": [
+          {
+            "player_id": "19",
+            "name": "Joe Flacco",
+            "pos": "QB",
+            "nfl_team": "CIN",
+            "slot": "QB",
+            "points": 0.0
+          },
+          {
+            "player_id": "4892",
+            "name": "Baker Mayfield",
+            "pos": "QB",
+            "nfl_team": "TB",
+            "slot": "QB",
+            "points": 31.95
+          },
+          {
+            "player_id": "9509",
+            "name": "Bijan Robinson",
+            "pos": "RB",
+            "nfl_team": "ATL",
+            "slot": "RB",
+            "points": 13.2
+          },
+          {
+            "player_id": "7594",
+            "name": "Chuba Hubbard",
+            "pos": "RB",
+            "nfl_team": "CAR",
+            "slot": "RB",
+            "points": 5.72
+          },
+          {
+            "player_id": "6794",
+            "name": "Justin Jefferson",
+            "pos": "WR",
+            "nfl_team": "MIN",
+            "slot": "WR",
+            "points": 7.69
+          },
+          {
+            "player_id": "11626",
+            "name": "Xavier Legette",
+            "pos": "WR",
+            "nfl_team": "CAR",
+            "slot": "WR",
+            "points": 0.0
+          },
+          {
+            "player_id": "7600",
+            "name": "Pat Freiermuth",
+            "pos": "TE",
+            "nfl_team": "PIT",
+            "slot": "TE",
+            "points": 6.58
+          },
+          {
+            "player_id": "3198",
+            "name": "Derrick Henry",
+            "pos": "RB",
+            "nfl_team": "BAL",
+            "slot": "FLEX",
+            "points": 13.71
+          },
+          {
+            "player_id": "4144",
+            "name": "Jonnu Smith",
+            "pos": "TE",
+            "nfl_team": null,
+            "slot": "FLEX",
+            "points": 1.12
+          },
+          {
+            "player_id": "8142",
+            "name": "Alec Pierce",
+            "pos": "WR",
+            "nfl_team": "IND",
+            "slot": "FLEX",
+            "points": 22.17
+          },
+          {
+            "player_id": "4033",
+            "name": "David Njoku",
+            "pos": "TE",
+            "nfl_team": "LAC",
+            "slot": "FLEX",
+            "points": 10.23
+          }
+        ],
+        "top_performers": [
+          {
+            "player_id": "4892",
+            "name": "Baker Mayfield",
+            "pos": "QB",
+            "points": 31.95
+          },
+          {
+            "player_id": "8142",
+            "name": "Alec Pierce",
+            "pos": "WR",
+            "points": 22.17
+          },
+          {
+            "player_id": "3198",
+            "name": "Derrick Henry",
+            "pos": "RB",
+            "points": 13.71
+          }
+        ],
+        "duds": [
+          {
+            "player_id": "11626",
+            "name": "Xavier Legette",
+            "pos": "WR",
+            "points": 0.0
+          },
+          {
+            "player_id": "19",
+            "name": "Joe Flacco",
+            "pos": "QB",
+            "points": 0.0
+          },
+          {
+            "player_id": "4144",
+            "name": "Jonnu Smith",
+            "pos": "TE",
+            "points": 1.12
+          }
+        ],
+        "bench_regret": {
+          "player_id": "1234",
+          "name": "Russell Wilson",
+          "pos": "QB",
+          "points": 3.76
+        },
+        "started_on_bye": null
+      },
+      "history": {
+        "weekly": [
+          {
+            "week": 1,
+            "points": 196.58,
+            "opponent_roster_id": "12",
+            "result": "W",
+            "margin": 104.48,
+            "cum_record": {
+              "w": 1,
+              "l": 0,
+              "t": 0
+            },
+            "power_rank": null,
+            "all_play": null,
+            "luck": null
+          },
+          {
+            "week": 2,
+            "points": 194.46,
+            "opponent_roster_id": "8",
+            "result": "W",
+            "margin": 44.24,
+            "cum_record": {
+              "w": 2,
+              "l": 0,
+              "t": 0
+            },
+            "power_rank": 2,
+            "all_play": {
+              "w": 16,
+              "l": 6,
+              "t": 0,
+              "pct": 0.727
+            },
+            "luck": 0.5
+          },
+          {
+            "week": 3,
+            "points": 130.09,
+            "opponent_roster_id": "1",
+            "result": "L",
+            "margin": -76.74,
+            "cum_record": {
+              "w": 2,
+              "l": 1,
+              "t": 0
+            },
+            "power_rank": 5,
+            "all_play": {
+              "w": 17,
+              "l": 16,
+              "t": 0,
+              "pct": 0.515
+            },
+            "luck": 0.5
+          },
+          {
+            "week": 4,
+            "points": 195.21,
+            "opponent_roster_id": "4",
+            "result": "L",
+            "margin": -16.35,
+            "cum_record": {
+              "w": 2,
+              "l": 2,
+              "t": 0
+            },
+            "power_rank": 5,
+            "all_play": {
+              "w": 23,
+              "l": 21,
+              "t": 0,
+              "pct": 0.523
+            },
+            "luck": -0.1
+          },
+          {
+            "week": 5,
+            "points": 166.65,
+            "opponent_roster_id": "3",
+            "result": "L",
+            "margin": -41.75,
+            "cum_record": {
+              "w": 2,
+              "l": 3,
+              "t": 0
+            },
+            "power_rank": 6,
+            "all_play": {
+              "w": 27,
+              "l": 28,
+              "t": 0,
+              "pct": 0.491
+            },
+            "luck": -0.5
+          },
+          {
+            "week": 6,
+            "points": 176.06,
+            "opponent_roster_id": "9",
+            "result": "L",
+            "margin": -67.12,
+            "cum_record": {
+              "w": 2,
+              "l": 4,
+              "t": 0
+            },
+            "power_rank": 6,
+            "all_play": {
+              "w": 35,
+              "l": 31,
+              "t": 0,
+              "pct": 0.53
+            },
+            "luck": -1.2
+          },
+          {
+            "week": 7,
+            "points": 173.42,
+            "opponent_roster_id": "6",
+            "result": "L",
+            "margin": -8.88,
+            "cum_record": {
+              "w": 2,
+              "l": 5,
+              "t": 0
+            },
+            "power_rank": 5,
+            "all_play": {
+              "w": 41,
+              "l": 36,
+              "t": 0,
+              "pct": 0.532
+            },
+            "luck": -1.7
+          },
+          {
+            "week": 8,
+            "points": 138.9,
+            "opponent_roster_id": "11",
+            "result": "W",
+            "margin": 70.51,
+            "cum_record": {
+              "w": 3,
+              "l": 5,
+              "t": 0
+            },
+            "power_rank": 6,
+            "all_play": {
+              "w": 44,
+              "l": 44,
+              "t": 0,
+              "pct": 0.5
+            },
+            "luck": -1.0
+          },
+          {
+            "week": 9,
+            "points": 149.04,
+            "opponent_roster_id": "5",
+            "result": "L",
+            "margin": -17.58,
+            "cum_record": {
+              "w": 3,
+              "l": 6,
+              "t": 0
+            },
+            "power_rank": 8,
+            "all_play": {
+              "w": 46,
+              "l": 53,
+              "t": 0,
+              "pct": 0.465
+            },
+            "luck": -1.2
+          },
+          {
+            "week": 10,
+            "points": 112.37,
+            "opponent_roster_id": "2",
+            "result": "L",
+            "margin": -129.66,
+            "cum_record": {
+              "w": 3,
+              "l": 7,
+              "t": 0
+            },
+            "power_rank": 9,
+            "all_play": {
+              "w": 47,
+              "l": 63,
+              "t": 0,
+              "pct": 0.427
+            },
+            "luck": -1.3
+          }
+        ]
+      },
+      "next_week": {
+        "opponent_roster_id": "7",
+        "power_rank_self": 9,
+        "power_rank_opp": 12,
+        "stakes": [
+          "bye_seed",
+          "wildcard_race",
+          "division_race"
+        ],
+        "starters_on_bye": [
+          {
+            "player_id": "8142",
+            "name": "Alec Pierce",
+            "pos": "WR",
+            "nfl_team": "IND",
+            "points": 0.0
+          }
+        ]
+      }
+    },
+    {
+      "roster_id": "11",
+      "manager": "Fair-Catch Ferrets",
+      "team_name": "Bubble-Screen Bobcats",
+      "division_id": 1,
+      "co_owners": [],
+      "season": {
+        "record": {
+          "w": 2,
+          "l": 8,
+          "t": 0
+        },
+        "rank": 11,
+        "division_rank": 4,
+        "points_for": 1475.64,
+        "points_against": 1839.21,
+        "avg_for": 147.56,
+        "high_week": {
+          "week": 2,
+          "points": 208.38
+        },
+        "low_week": {
+          "week": 8,
+          "points": 68.39
+        },
+        "streak": {
+          "type": "L",
+          "count": 6
+        },
+        "all_play": {
+          "w": 33,
+          "l": 76,
+          "t": 1,
+          "pct": 0.303
+        },
+        "expected_wins": 3.0,
+        "luck": 1.0,
+        "power": {
+          "model_score": 0.213,
+          "model_rank": 11,
+          "published_rank": null,
+          "nudge": null,
+          "prev_model_rank": 11,
+          "week_delta": 0
+        },
+        "coaching_efficiency": {
+          "actual": 1475.64,
+          "optimal": 1694.32,
+          "pct": 0.871
+        }
+      },
+      "this_week": {
+        "opponent_roster_id": "8",
+        "points": 154.38,
+        "opponent_points": 183.14,
+        "result": "L",
+        "margin": -28.76,
+        "coaching_efficiency": {
+          "actual": 154.38,
+          "optimal": 168.6,
+          "pct": 0.916
+        },
+        "points_left_on_bench": 14.22,
+        "starters": [
+          {
+            "player_id": "9228",
+            "name": "Bryce Young",
+            "pos": "QB",
+            "nfl_team": "CAR",
+            "slot": "QB",
+            "points": 2.01
+          },
+          {
+            "player_id": "7527",
+            "name": "Mac Jones",
+            "pos": "QB",
+            "nfl_team": "SF",
+            "slot": "QB",
+            "points": 36.1
+          },
+          {
+            "player_id": "7567",
+            "name": "Kenny Gainwell",
+            "pos": "RB",
+            "nfl_team": "TB",
+            "slot": "RB",
+            "points": 4.06
+          },
+          {
+            "player_id": "7543",
+            "name": "Travis Etienne",
+            "pos": "RB",
+            "nfl_team": "NO",
+            "slot": "RB",
+            "points": 18.35
+          },
+          {
+            "player_id": "9487",
+            "name": "Parker Washington",
+            "pos": "WR",
+            "nfl_team": "JAX",
+            "slot": "WR",
+            "points": 25.23
+          },
+          {
+            "player_id": "7525",
+            "name": "DeVonta Smith",
+            "pos": "WR",
+            "nfl_team": "PHI",
+            "slot": "WR",
+            "points": 19.37
+          },
+          {
+            "player_id": "10236",
+            "name": "Dalton Kincaid",
+            "pos": "TE",
+            "nfl_team": "BUF",
+            "slot": "TE",
+            "points": 7.19
+          },
+          {
+            "player_id": "11834",
+            "name": "Devaughn Vele",
+            "pos": "WR",
+            "nfl_team": "NO",
+            "slot": "FLEX",
+            "points": 2.81
+          },
+          {
+            "player_id": "8111",
+            "name": "Cade Otton",
+            "pos": "TE",
+            "nfl_team": "TB",
+            "slot": "FLEX",
+            "points": 17.12
+          },
+          {
+            "player_id": "11586",
+            "name": "Blake Corum",
+            "pos": "RB",
+            "nfl_team": "LAR",
+            "slot": "FLEX",
+            "points": 12.29
+          },
+          {
+            "player_id": "12519",
+            "name": "Luther Burden",
+            "pos": "WR",
+            "nfl_team": "CHI",
+            "slot": "FLEX",
+            "points": 9.85
+          }
+        ],
+        "top_performers": [
+          {
+            "player_id": "7527",
+            "name": "Mac Jones",
+            "pos": "QB",
+            "points": 36.1
+          },
+          {
+            "player_id": "9487",
+            "name": "Parker Washington",
+            "pos": "WR",
+            "points": 25.23
+          },
+          {
+            "player_id": "7525",
+            "name": "DeVonta Smith",
+            "pos": "WR",
+            "points": 19.37
+          }
+        ],
+        "duds": [
+          {
+            "player_id": "9228",
+            "name": "Bryce Young",
+            "pos": "QB",
+            "points": 2.01
+          },
+          {
+            "player_id": "11834",
+            "name": "Devaughn Vele",
+            "pos": "WR",
+            "points": 2.81
+          },
+          {
+            "player_id": "7567",
+            "name": "Kenny Gainwell",
+            "pos": "RB",
+            "points": 4.06
+          }
+        ],
+        "bench_regret": {
+          "player_id": "8154",
+          "name": "Brian Robinson",
+          "pos": "RB",
+          "points": 12.74
+        },
+        "started_on_bye": null
+      },
+      "history": {
+        "weekly": [
+          {
+            "week": 1,
+            "points": 119.65,
+            "opponent_roster_id": "5",
+            "result": "L",
+            "margin": -44.46,
+            "cum_record": {
+              "w": 0,
+              "l": 1,
+              "t": 0
+            },
+            "power_rank": null,
+            "all_play": null,
+            "luck": null
+          },
+          {
+            "week": 2,
+            "points": 208.38,
+            "opponent_roster_id": "4",
+            "result": "W",
+            "margin": 0.72,
+            "cum_record": {
+              "w": 1,
+              "l": 1,
+              "t": 0
+            },
+            "power_rank": 6,
+            "all_play": {
+              "w": 11,
+              "l": 10,
+              "t": 1,
+              "pct": 0.524
+            },
+            "luck": 0.0
+          },
+          {
+            "week": 3,
+            "points": 149.88,
+            "opponent_roster_id": "3",
+            "result": "L",
+            "margin": -79.68,
+            "cum_record": {
+              "w": 1,
+              "l": 2,
+              "t": 0
+            },
+            "power_rank": 8,
+            "all_play": {
+              "w": 14,
+              "l": 18,
+              "t": 1,
+              "pct": 0.438
+            },
+            "luck": -0.3
+          },
+          {
+            "week": 4,
+            "points": 194.23,
+            "opponent_roster_id": "9",
+            "result": "W",
+            "margin": 3.09,
+            "cum_record": {
+              "w": 2,
+              "l": 2,
+              "t": 0
+            },
+            "power_rank": 6,
+            "all_play": {
+              "w": 19,
+              "l": 24,
+              "t": 1,
+              "pct": 0.442
+            },
+            "luck": 0.2
+          },
+          {
+            "week": 5,
+            "points": 164.27,
+            "opponent_roster_id": "6",
+            "result": "L",
+            "margin": -28.47,
+            "cum_record": {
+              "w": 2,
+              "l": 3,
+              "t": 0
+            },
+            "power_rank": 9,
+            "all_play": {
+              "w": 22,
+              "l": 32,
+              "t": 1,
+              "pct": 0.407
+            },
+            "luck": 0.0
+          },
+          {
+            "week": 6,
+            "points": 130.31,
+            "opponent_roster_id": "2",
+            "result": "L",
+            "margin": -73.04,
+            "cum_record": {
+              "w": 2,
+              "l": 4,
+              "t": 0
+            },
+            "power_rank": 8,
+            "all_play": {
+              "w": 24,
+              "l": 41,
+              "t": 1,
+              "pct": 0.369
+            },
+            "luck": -0.2
+          },
+          {
+            "week": 7,
+            "points": 144.56,
+            "opponent_roster_id": "7",
+            "result": "L",
+            "margin": -17.0,
+            "cum_record": {
+              "w": 2,
+              "l": 5,
+              "t": 0
+            },
+            "power_rank": 10,
+            "all_play": {
+              "w": 26,
+              "l": 50,
+              "t": 1,
+              "pct": 0.342
+            },
+            "luck": -0.4
+          },
+          {
+            "week": 8,
+            "points": 68.39,
+            "opponent_roster_id": "10",
+            "result": "L",
+            "margin": -70.51,
+            "cum_record": {
+              "w": 2,
+              "l": 6,
+              "t": 0
+            },
+            "power_rank": 10,
+            "all_play": {
+              "w": 26,
+              "l": 61,
+              "t": 1,
+              "pct": 0.299
+            },
+            "luck": -0.4
+          },
+          {
+            "week": 9,
+            "points": 141.59,
+            "opponent_roster_id": "12",
+            "result": "L",
+            "margin": -25.46,
+            "cum_record": {
+              "w": 2,
+              "l": 7,
+              "t": 0
+            },
+            "power_rank": 11,
+            "all_play": {
+              "w": 27,
+              "l": 71,
+              "t": 1,
+              "pct": 0.276
+            },
+            "luck": -0.5
+          },
+          {
+            "week": 10,
+            "points": 154.38,
+            "opponent_roster_id": "8",
+            "result": "L",
+            "margin": -28.76,
+            "cum_record": {
+              "w": 2,
+              "l": 8,
+              "t": 0
+            },
+            "power_rank": 11,
+            "all_play": {
+              "w": 33,
+              "l": 76,
+              "t": 1,
+              "pct": 0.303
+            },
+            "luck": -1.0
+          }
+        ]
+      },
+      "next_week": {
+        "opponent_roster_id": "1",
+        "power_rank_self": 11,
+        "power_rank_opp": 2,
+        "stakes": [
+          "bye_seed",
+          "wildcard_race",
+          "division_race"
+        ],
+        "starters_on_bye": [
+          {
+            "player_id": "11834",
+            "name": "Devaughn Vele",
+            "pos": "WR",
+            "nfl_team": "NO",
+            "points": 0.0
+          },
+          {
+            "player_id": "7543",
+            "name": "Travis Etienne",
+            "pos": "RB",
+            "nfl_team": "NO",
+            "points": 0.0
+          }
+        ]
+      }
+    },
+    {
+      "roster_id": "12",
+      "manager": "Play-Action Pandas",
+      "team_name": "Yardage Yaks",
+      "division_id": 3,
+      "co_owners": [],
+      "season": {
+        "record": {
+          "w": 5,
+          "l": 5,
+          "t": 0
+        },
+        "rank": 7,
+        "division_rank": 2,
+        "points_for": 1401.41,
+        "points_against": 1551.79,
+        "avg_for": 140.14,
+        "high_week": {
+          "week": 2,
+          "points": 193.52
+        },
+        "low_week": {
+          "week": 1,
+          "points": 92.1
+        },
+        "streak": {
+          "type": "W",
+          "count": 2
+        },
+        "all_play": {
+          "w": 28,
+          "l": 82,
+          "t": 0,
+          "pct": 0.255
+        },
+        "expected_wins": 2.5,
+        "luck": 3.5,
+        "power": {
+          "model_score": 0.215,
+          "model_rank": 10,
+          "published_rank": null,
+          "nudge": null,
+          "prev_model_rank": 10,
+          "week_delta": 0
+        },
+        "coaching_efficiency": {
+          "actual": 1401.41,
+          "optimal": 1610.91,
+          "pct": 0.87
+        }
+      },
+      "this_week": {
+        "opponent_roster_id": "7",
+        "points": 126.03,
+        "opponent_points": 119.97,
+        "result": "W",
+        "margin": 6.06,
+        "coaching_efficiency": {
+          "actual": 126.03,
+          "optimal": 136.46,
+          "pct": 0.924
+        },
+        "points_left_on_bench": 10.43,
+        "starters": [
+          {
+            "player_id": "7523",
+            "name": "Trevor Lawrence",
+            "pos": "QB",
+            "nfl_team": "JAX",
+            "slot": "QB",
+            "points": 11.32
+          },
+          {
+            "player_id": "3163",
+            "name": "Jared Goff",
+            "pos": "QB",
+            "nfl_team": "DET",
+            "slot": "QB",
+            "points": 38.7
+          },
+          {
+            "player_id": "6130",
+            "name": "Devin Singletary",
+            "pos": "RB",
+            "nfl_team": "NYG",
+            "slot": "RB",
+            "points": 13.81
+          },
+          {
+            "player_id": "11651",
+            "name": "Isaac Guerendo",
+            "pos": "RB",
+            "nfl_team": "SF",
+            "slot": "RB",
+            "points": 0.0
+          },
+          {
+            "player_id": "11627",
+            "name": "Troy Franklin",
+            "pos": "WR",
+            "nfl_team": "DEN",
+            "slot": "WR",
+            "points": 14.65
+          },
+          {
+            "player_id": "7571",
+            "name": "Rashod Bateman",
+            "pos": "WR",
+            "nfl_team": "BAL",
+            "slot": "WR",
+            "points": 4.04
+          },
+          {
+            "player_id": "7002",
+            "name": "Juwan Johnson",
+            "pos": "TE",
+            "nfl_team": "NO",
+            "slot": "TE",
+            "points": 23.9
+          },
+          {
+            "player_id": "1479",
+            "name": "Keenan Allen",
+            "pos": "WR",
+            "nfl_team": "IND",
+            "slot": "FLEX",
+            "points": 3.92
+          },
+          {
+            "player_id": "8125",
+            "name": "Calvin Austin",
+            "pos": "WR",
+            "nfl_team": "NYG",
+            "slot": "FLEX",
+            "points": 3.15
+          },
+          {
+            "player_id": "5022",
+            "name": "Dallas Goedert",
+            "pos": "TE",
+            "nfl_team": "PHI",
+            "slot": "FLEX",
+            "points": 9.12
+          },
+          {
+            "player_id": "4454",
+            "name": "Kendrick Bourne",
+            "pos": "WR",
+            "nfl_team": "ARI",
+            "slot": "FLEX",
+            "points": 3.42
+          }
+        ],
+        "top_performers": [
+          {
+            "player_id": "3163",
+            "name": "Jared Goff",
+            "pos": "QB",
+            "points": 38.7
+          },
+          {
+            "player_id": "7002",
+            "name": "Juwan Johnson",
+            "pos": "TE",
+            "points": 23.9
+          },
+          {
+            "player_id": "11627",
+            "name": "Troy Franklin",
+            "pos": "WR",
+            "points": 14.65
+          }
+        ],
+        "duds": [
+          {
+            "player_id": "11651",
+            "name": "Isaac Guerendo",
+            "pos": "RB",
+            "points": 0.0
+          },
+          {
+            "player_id": "8125",
+            "name": "Calvin Austin",
+            "pos": "WR",
+            "points": 3.15
+          },
+          {
+            "player_id": "4454",
+            "name": "Kendrick Bourne",
+            "pos": "WR",
+            "points": 3.42
+          }
+        ],
+        "bench_regret": {
+          "player_id": "4039",
+          "name": "Cooper Kupp",
+          "pos": "WR",
+          "points": 13.38
+        },
+        "started_on_bye": null
+      },
+      "history": {
+        "weekly": [
+          {
+            "week": 1,
+            "points": 92.1,
+            "opponent_roster_id": "10",
+            "result": "L",
+            "margin": -104.48,
+            "cum_record": {
+              "w": 0,
+              "l": 1,
+              "t": 0
+            },
+            "power_rank": null,
+            "all_play": null,
+            "luck": null
+          },
+          {
+            "week": 2,
+            "points": 193.52,
+            "opponent_roster_id": "1",
+            "result": "W",
+            "margin": 6.02,
+            "cum_record": {
+              "w": 1,
+              "l": 1,
+              "t": 0
+            },
+            "power_rank": 10,
+            "all_play": {
+              "w": 6,
+              "l": 16,
+              "t": 0,
+              "pct": 0.273
+            },
+            "luck": 0.5
+          },
+          {
+            "week": 3,
+            "points": 115.29,
+            "opponent_roster_id": "8",
+            "result": "L",
+            "margin": -44.64,
+            "cum_record": {
+              "w": 1,
+              "l": 2,
+              "t": 0
+            },
+            "power_rank": 12,
+            "all_play": {
+              "w": 6,
+              "l": 27,
+              "t": 0,
+              "pct": 0.182
+            },
+            "luck": 0.5
+          },
+          {
+            "week": 4,
+            "points": 114.26,
+            "opponent_roster_id": "3",
+            "result": "L",
+            "margin": -44.71,
+            "cum_record": {
+              "w": 1,
+              "l": 3,
+              "t": 0
+            },
+            "power_rank": 12,
+            "all_play": {
+              "w": 6,
+              "l": 38,
+              "t": 0,
+              "pct": 0.136
+            },
+            "luck": 0.5
+          },
+          {
+            "week": 5,
+            "points": 141.2,
+            "opponent_roster_id": "4",
+            "result": "W",
+            "margin": 11.73,
+            "cum_record": {
+              "w": 2,
+              "l": 3,
+              "t": 0
+            },
+            "power_rank": 12,
+            "all_play": {
+              "w": 7,
+              "l": 48,
+              "t": 0,
+              "pct": 0.127
+            },
+            "luck": 1.4
+          },
+          {
+            "week": 6,
+            "points": 168.68,
+            "opponent_roster_id": "6",
+            "result": "W",
+            "margin": 75.54,
+            "cum_record": {
+              "w": 3,
+              "l": 3,
+              "t": 0
+            },
+            "power_rank": 12,
+            "all_play": {
+              "w": 13,
+              "l": 53,
+              "t": 0,
+              "pct": 0.197
+            },
+            "luck": 1.8
+          },
+          {
+            "week": 7,
+            "points": 139.64,
+            "opponent_roster_id": "9",
+            "result": "L",
+            "margin": -79.93,
+            "cum_record": {
+              "w": 3,
+              "l": 4,
+              "t": 0
+            },
+            "power_rank": 12,
+            "all_play": {
+              "w": 14,
+              "l": 63,
+              "t": 0,
+              "pct": 0.182
+            },
+            "luck": 1.7
+          },
+          {
+            "week": 8,
+            "points": 143.64,
+            "opponent_roster_id": "5",
+            "result": "L",
+            "margin": -1.43,
+            "cum_record": {
+              "w": 3,
+              "l": 5,
+              "t": 0
+            },
+            "power_rank": 12,
+            "all_play": {
+              "w": 18,
+              "l": 70,
+              "t": 0,
+              "pct": 0.205
+            },
+            "luck": 1.4
+          },
+          {
+            "week": 9,
+            "points": 167.05,
+            "opponent_roster_id": "11",
+            "result": "W",
+            "margin": 25.46,
+            "cum_record": {
+              "w": 4,
+              "l": 5,
+              "t": 0
+            },
+            "power_rank": 10,
+            "all_play": {
+              "w": 23,
+              "l": 76,
+              "t": 0,
+              "pct": 0.232
+            },
+            "luck": 1.9
+          },
+          {
+            "week": 10,
+            "points": 126.03,
+            "opponent_roster_id": "7",
+            "result": "W",
+            "margin": 6.06,
+            "cum_record": {
+              "w": 5,
+              "l": 5,
+              "t": 0
+            },
+            "power_rank": 10,
+            "all_play": {
+              "w": 28,
+              "l": 82,
+              "t": 0,
+              "pct": 0.255
+            },
+            "luck": 2.5
+          }
+        ]
+      },
+      "next_week": {
+        "opponent_roster_id": "2",
+        "power_rank_self": 10,
+        "power_rank_opp": 1,
+        "stakes": [
+          "bye_seed",
+          "wildcard_race",
+          "division_race"
+        ],
+        "starters_on_bye": [
+          {
+            "player_id": "1479",
+            "name": "Keenan Allen",
+            "pos": "WR",
+            "nfl_team": "IND",
+            "points": 0.0
+          },
+          {
+            "player_id": "7002",
+            "name": "Juwan Johnson",
+            "pos": "TE",
+            "nfl_team": "NO",
+            "points": 0.0
+          }
+        ]
+      }
+    }
+  ],
+  "matchups": {
+    "this_week": [
+      {
+        "matchup_id": 1,
+        "home_roster_id": "8",
+        "away_roster_id": "11",
+        "home_points": 183.14,
+        "away_points": 154.38,
+        "winner_roster_id": "8",
+        "margin": 28.76,
+        "is_blowout": false,
+        "headline_players": [
+          {
+            "roster_id": "8",
+            "player_id": "11564",
+            "name": "Drake Maye",
+            "pos": "QB",
+            "points": 31.33
+          },
+          {
+            "roster_id": "11",
+            "player_id": "7527",
+            "name": "Mac Jones",
+            "pos": "QB",
+            "points": 36.1
+          }
+        ]
+      },
+      {
+        "matchup_id": 2,
+        "home_roster_id": "1",
+        "away_roster_id": "5",
+        "home_points": 229.96,
+        "away_points": 91.77,
+        "winner_roster_id": "1",
+        "margin": 138.19,
+        "is_blowout": true,
+        "headline_players": [
+          {
+            "roster_id": "1",
+            "player_id": "9226",
+            "name": "De'Von Achane",
+            "pos": "RB",
+            "points": 56.52
+          },
+          {
+            "roster_id": "5",
+            "player_id": "8150",
+            "name": "Kyren Williams",
+            "pos": "RB",
+            "points": 24.68
+          }
+        ]
+      },
+      {
+        "matchup_id": 3,
+        "home_roster_id": "4",
+        "away_roster_id": "9",
+        "home_points": 172.23,
+        "away_points": 117.13,
+        "winner_roster_id": "4",
+        "margin": 55.1,
+        "is_blowout": false,
+        "headline_players": [
+          {
+            "roster_id": "4",
+            "player_id": "12486",
+            "name": "Dillon Gabriel",
+            "pos": "QB",
+            "points": 24.4
+          },
+          {
+            "roster_id": "9",
+            "player_id": "11635",
+            "name": "Ladd McConkey",
+            "pos": "WR",
+            "points": 27.46
+          }
+        ]
+      },
+      {
+        "matchup_id": 4,
+        "home_roster_id": "3",
+        "away_roster_id": "6",
+        "home_points": 247.2,
+        "away_points": 114.69,
+        "winner_roster_id": "3",
+        "margin": 132.51,
+        "is_blowout": true,
+        "headline_players": [
+          {
+            "roster_id": "3",
+            "player_id": "6813",
+            "name": "Jonathan Taylor",
+            "pos": "RB",
+            "points": 71.37
+          },
+          {
+            "roster_id": "6",
+            "player_id": "8144",
+            "name": "Chris Olave",
+            "pos": "WR",
+            "points": 32.5
+          }
+        ]
+      },
+      {
+        "matchup_id": 5,
+        "home_roster_id": "2",
+        "away_roster_id": "10",
+        "home_points": 242.03,
+        "away_points": 112.37,
+        "winner_roster_id": "2",
+        "margin": 129.66,
+        "is_blowout": true,
+        "headline_players": [
+          {
+            "roster_id": "2",
+            "player_id": "9221",
+            "name": "Jahmyr Gibbs",
+            "pos": "RB",
+            "points": 49.32
+          },
+          {
+            "roster_id": "10",
+            "player_id": "4892",
+            "name": "Baker Mayfield",
+            "pos": "QB",
+            "points": 31.95
+          }
+        ]
+      },
+      {
+        "matchup_id": 6,
+        "home_roster_id": "7",
+        "away_roster_id": "12",
+        "home_points": 119.97,
+        "away_points": 126.03,
+        "winner_roster_id": "12",
+        "margin": 6.06,
+        "is_blowout": false,
+        "headline_players": [
+          {
+            "roster_id": "7",
+            "player_id": "8130",
+            "name": "Trey McBride",
+            "pos": "TE",
+            "points": 33.04
+          },
+          {
+            "roster_id": "12",
+            "player_id": "3163",
+            "name": "Jared Goff",
+            "pos": "QB",
+            "points": 38.7
+          }
+        ]
+      }
+    ],
+    "next_week": [
+      {
+        "matchup_id": 1,
+        "a_roster_id": "1",
+        "b_roster_id": "11",
+        "a_power_rank": 2,
+        "b_power_rank": 11,
+        "a_record": "7-3-0",
+        "b_record": "2-8-0",
+        "a_clinched_playoff": false,
+        "a_clinched_bye": false,
+        "a_eliminated": false,
+        "a_clinched_division": false,
+        "b_clinched_playoff": false,
+        "b_clinched_bye": false,
+        "b_eliminated": false,
+        "b_clinched_division": false,
+        "stakes": [
+          "bye_seed",
+          "wildcard_race",
+          "division_race"
+        ],
+        "bye_impact": [
+          {
+            "roster_id": "1",
+            "player_id": "12518",
+            "name": "Tyler Warren",
+            "pos": "TE",
+            "nfl_team": "IND"
+          },
+          {
+            "roster_id": "11",
+            "player_id": "11834",
+            "name": "Devaughn Vele",
+            "pos": "WR",
+            "nfl_team": "NO"
+          },
+          {
+            "roster_id": "11",
+            "player_id": "7543",
+            "name": "Travis Etienne",
+            "pos": "RB",
+            "nfl_team": "NO"
+          }
+        ],
+        "game_of_week": false
+      },
+      {
+        "matchup_id": 2,
+        "a_roster_id": "5",
+        "b_roster_id": "8",
+        "a_power_rank": 8,
+        "b_power_rank": 5,
+        "a_record": "6-4-0",
+        "b_record": "4-6-0",
+        "a_clinched_playoff": false,
+        "a_clinched_bye": false,
+        "a_eliminated": false,
+        "a_clinched_division": false,
+        "b_clinched_playoff": false,
+        "b_clinched_bye": false,
+        "b_eliminated": false,
+        "b_clinched_division": false,
+        "stakes": [
+          "bye_seed",
+          "wildcard_race",
+          "division_race"
+        ],
+        "bye_impact": [],
+        "game_of_week": false
+      },
+      {
+        "matchup_id": 3,
+        "a_roster_id": "4",
+        "b_roster_id": "6",
+        "a_power_rank": 7,
+        "b_power_rank": 6,
+        "a_record": "4-6-0",
+        "b_record": "5-5-0",
+        "a_clinched_playoff": false,
+        "a_clinched_bye": false,
+        "a_eliminated": false,
+        "a_clinched_division": false,
+        "b_clinched_playoff": false,
+        "b_clinched_bye": false,
+        "b_eliminated": false,
+        "b_clinched_division": false,
+        "stakes": [
+          "bye_seed",
+          "wildcard_race",
+          "division_race"
+        ],
+        "bye_impact": [
+          {
+            "roster_id": "6",
+            "player_id": "8144",
+            "name": "Chris Olave",
+            "pos": "WR",
+            "nfl_team": "NO"
+          }
+        ],
+        "game_of_week": false
+      },
+      {
+        "matchup_id": 4,
+        "a_roster_id": "3",
+        "b_roster_id": "9",
+        "a_power_rank": 4,
+        "b_power_rank": 3,
+        "a_record": "7-3-0",
+        "b_record": "6-4-0",
+        "a_clinched_playoff": false,
+        "a_clinched_bye": false,
+        "a_eliminated": false,
+        "a_clinched_division": false,
+        "b_clinched_playoff": false,
+        "b_clinched_bye": false,
+        "b_eliminated": false,
+        "b_clinched_division": false,
+        "stakes": [
+          "bye_seed",
+          "wildcard_race",
+          "division_race"
+        ],
+        "bye_impact": [
+          {
+            "roster_id": "3",
+            "player_id": "6813",
+            "name": "Jonathan Taylor",
+            "pos": "RB",
+            "nfl_team": "IND"
+          },
+          {
+            "roster_id": "9",
+            "player_id": "9500",
+            "name": "Josh Downs",
+            "pos": "WR",
+            "nfl_team": "IND"
+          }
+        ],
+        "game_of_week": true
+      },
+      {
+        "matchup_id": 5,
+        "a_roster_id": "2",
+        "b_roster_id": "12",
+        "a_power_rank": 1,
+        "b_power_rank": 10,
+        "a_record": "9-1-0",
+        "b_record": "5-5-0",
+        "a_clinched_playoff": false,
+        "a_clinched_bye": false,
+        "a_eliminated": false,
+        "a_clinched_division": false,
+        "b_clinched_playoff": false,
+        "b_clinched_bye": false,
+        "b_eliminated": false,
+        "b_clinched_division": false,
+        "stakes": [
+          "bye_seed",
+          "wildcard_race",
+          "division_race"
+        ],
+        "bye_impact": [
+          {
+            "roster_id": "2",
+            "player_id": "4035",
+            "name": "Alvin Kamara",
+            "pos": "RB",
+            "nfl_team": "NO"
+          },
+          {
+            "roster_id": "12",
+            "player_id": "1479",
+            "name": "Keenan Allen",
+            "pos": "WR",
+            "nfl_team": "IND"
+          },
+          {
+            "roster_id": "12",
+            "player_id": "7002",
+            "name": "Juwan Johnson",
+            "pos": "TE",
+            "nfl_team": "NO"
+          }
+        ],
+        "game_of_week": false
+      },
+      {
+        "matchup_id": 6,
+        "a_roster_id": "7",
+        "b_roster_id": "10",
+        "a_power_rank": 12,
+        "b_power_rank": 9,
+        "a_record": "2-8-0",
+        "b_record": "3-7-0",
+        "a_clinched_playoff": false,
+        "a_clinched_bye": false,
+        "a_eliminated": false,
+        "a_clinched_division": false,
+        "b_clinched_playoff": false,
+        "b_clinched_bye": false,
+        "b_eliminated": false,
+        "b_clinched_division": false,
+        "stakes": [
+          "bye_seed",
+          "wildcard_race",
+          "division_race"
+        ],
+        "bye_impact": [
+          {
+            "roster_id": "10",
+            "player_id": "8142",
+            "name": "Alec Pierce",
+            "pos": "WR",
+            "nfl_team": "IND"
+          }
+        ],
+        "game_of_week": false
+      }
+    ]
+  },
+  "standings": {
+    "overall": [
+      "2",
+      "1",
+      "3",
+      "9",
+      "5",
+      "6",
+      "12",
+      "8",
+      "4",
+      "10",
+      "11",
+      "7"
+    ],
+    "divisions": {
+      "1": [
+        "3",
+        "5",
+        "4",
+        "11"
+      ],
+      "2": [
+        "2",
+        "9",
+        "6",
+        "7"
+      ],
+      "3": [
+        "1",
+        "12",
+        "8",
+        "10"
+      ]
+    },
+    "playoff_picture": {
+      "source": "derived",
+      "in_bracket": [
+        "2",
+        "1",
+        "3",
+        "9",
+        "5",
+        "6"
+      ],
+      "byes": [
+        "2",
+        "1"
+      ],
+      "first_out": "12",
+      "bubble": [
+        "5",
+        "6",
+        "12",
+        "8"
+      ],
+      "cut_line_after_rank": 6,
+      "consolation": [
+        "12",
+        "8",
+        "4",
+        "10",
+        "11",
+        "7"
+      ]
+    },
+    "through_week": 10,
+    "regular_season_complete": false
+  },
+  "transactions": {
+    "this_week": [
+      {
+        "transaction_id": "id_qtiw68uvsq",
+        "type": "waiver",
+        "roster_ids": [
+          "1"
+        ],
+        "adds": [
+          {
+            "player_id": "8180",
+            "name": "Jalen Nailor",
+            "pos": "WR",
+            "roster_id": "1"
+          }
+        ],
+        "drops": [
+          {
+            "player_id": "827",
+            "name": "Tyrod Taylor",
+            "pos": "QB",
+            "roster_id": "1"
+          }
+        ],
+        "faab": 25
+      }
+    ],
+    "recent_trades": [
+      {
+        "week": 9,
+        "transaction_id": "id_v51mvor6g7",
+        "sides": [
+          {
+            "roster_id": "2",
+            "players": [
+              {
+                "player_id": "8132",
+                "name": "Tyler Allgeier",
+                "pos": "RB",
+                "roster_id": "2"
+              }
+            ],
+            "picks": [
+              {
+                "season": "2026",
+                "round": 4,
+                "from_roster_id": "4"
+              }
+            ],
+            "faab": 0
+          },
+          {
+            "roster_id": "4",
+            "players": [
+              {
+                "player_id": "8408",
+                "name": "Jordan Mason",
+                "pos": "RB",
+                "roster_id": "4"
+              }
+            ],
+            "picks": [],
+            "faab": 0
+          }
+        ]
+      }
+    ],
+    "market_note": {
+      "last_trade_week": 9,
+      "weeks_since_last_trade": 1,
+      "complete": true
+    }
+  },
+  "leaders": {
+    "week_high_player": {
+      "roster_id": "3",
+      "player_id": "6813",
+      "name": "Jonathan Taylor",
+      "pos": "RB",
+      "points": 71.37,
+      "is_season_high": true
+    },
+    "top_players": [
+      {
+        "roster_id": "3",
+        "player_id": "6813",
+        "name": "Jonathan Taylor",
+        "pos": "RB",
+        "points": 71.37
+      },
+      {
+        "roster_id": "1",
+        "player_id": "9226",
+        "name": "De'Von Achane",
+        "pos": "RB",
+        "points": 56.52
+      },
+      {
+        "roster_id": "2",
+        "player_id": "9221",
+        "name": "Jahmyr Gibbs",
+        "pos": "RB",
+        "points": 49.32
+      },
+      {
+        "roster_id": "12",
+        "player_id": "3163",
+        "name": "Jared Goff",
+        "pos": "QB",
+        "points": 38.7
+      },
+      {
+        "roster_id": "2",
+        "player_id": "421",
+        "name": "Matthew Stafford",
+        "pos": "QB",
+        "points": 38.65
+      }
+    ],
+    "worst_starters": [
+      {
+        "roster_id": "5",
+        "player_id": "3294",
+        "name": "Dak Prescott",
+        "pos": "QB",
+        "points": 0.0
+      },
+      {
+        "roster_id": "5",
+        "player_id": "6786",
+        "name": "CeeDee Lamb",
+        "pos": "WR",
+        "points": 0.0
+      },
+      {
+        "roster_id": "5",
+        "player_id": "9484",
+        "name": "Tucker Kraft",
+        "pos": "TE",
+        "points": 0.0
+      },
+      {
+        "roster_id": "5",
+        "player_id": "9508",
+        "name": "Tyjae Spears",
+        "pos": "RB",
+        "points": 0.0
+      },
+      {
+        "roster_id": "6",
+        "player_id": "12497",
+        "name": "Tory Horton",
+        "pos": "WR",
+        "points": 0.0
+      }
+    ],
+    "best_coaching": {
+      "roster_id": "2",
+      "pct": 0.992
+    },
+    "worst_coaching": {
+      "roster_id": "7",
+      "pct": 0.524
+    }
+  },
+  "lead_candidates": [],
+  "storyline_candidates": [],
+  "narration": {
+    "league": {
+      "name": "Trench Warfare",
+      "season": "2025",
+      "week": 10,
+      "team_count": 12,
+      "divisions": []
+    },
+    "week_shape": "regular",
+    "games": [
+      {
+        "matchup_id": 1,
+        "winner": "Screen Pass Syndicate",
+        "winner_pts": 183.14,
+        "loser": "Bubble-Screen Bobcats",
+        "loser_pts": 154.38,
+        "margin": 28.76,
+        "top": "Mac Jones"
+      },
+      {
+        "matchup_id": 2,
+        "winner": "Flea Flicker Union",
+        "winner_pts": 229.96,
+        "loser": "Nickel Newts",
+        "loser_pts": 91.77,
+        "margin": 138.19,
+        "top": "De'Von Achane"
+      },
+      {
+        "matchup_id": 3,
+        "winner": "Chip-Block Chinchillas",
+        "winner_pts": 172.23,
+        "loser": "No-Huddle Narwhals",
+        "loser_pts": 117.13,
+        "margin": 55.1,
+        "top": "Ladd McConkey"
+      },
+      {
+        "matchup_id": 4,
+        "winner": "Backpedal Buffalo",
+        "winner_pts": 247.2,
+        "loser": "Overtime Otters",
+        "loser_pts": 114.69,
+        "margin": 132.51,
+        "top": "Jonathan Taylor"
+      },
+      {
+        "matchup_id": 5,
+        "winner": "Two Minute Drill",
+        "winner_pts": 242.03,
+        "loser": "Stiff-Arm Stags",
+        "loser_pts": 112.37,
+        "margin": 129.66,
+        "top": "Jahmyr Gibbs"
+      },
+      {
+        "matchup_id": 6,
+        "winner": "Yardage Yaks",
+        "winner_pts": 126.03,
+        "loser": "Kneel-Down Koalas",
+        "loser_pts": 119.97,
+        "margin": 6.06,
+        "top": "Jared Goff"
+      }
+    ],
+    "standings": [
+      {
+        "rank": 1,
+        "team": "Two Minute Drill",
+        "roster_id": "2",
+        "rec": "9-1-0",
+        "pf": 2028.72,
+        "model_rank": 1
+      },
+      {
+        "rank": 2,
+        "team": "Flea Flicker Union",
+        "roster_id": "1",
+        "rec": "7-3-0",
+        "pf": 2100.85,
+        "model_rank": 2
+      },
+      {
+        "rank": 3,
+        "team": "Backpedal Buffalo",
+        "roster_id": "3",
+        "rec": "7-3-0",
+        "pf": 1816.51,
+        "model_rank": 4
+      },
+      {
+        "rank": 4,
+        "team": "No-Huddle Narwhals",
+        "roster_id": "9",
+        "rec": "6-4-0",
+        "pf": 2037.57,
+        "model_rank": 3
+      },
+      {
+        "rank": 5,
+        "team": "Nickel Newts",
+        "roster_id": "5",
+        "rec": "6-4-0",
+        "pf": 1558.93,
+        "model_rank": 8
+      },
+      {
+        "rank": 6,
+        "team": "Overtime Otters",
+        "roster_id": "6",
+        "rec": "5-5-0",
+        "pf": 1665.19,
+        "model_rank": 6
+      },
+      {
+        "rank": 7,
+        "team": "Yardage Yaks",
+        "roster_id": "12",
+        "rec": "5-5-0",
+        "pf": 1401.41,
+        "model_rank": 10
+      },
+      {
+        "rank": 8,
+        "team": "Screen Pass Syndicate",
+        "roster_id": "8",
+        "rec": "4-6-0",
+        "pf": 1723.63,
+        "model_rank": 5
+      },
+      {
+        "rank": 9,
+        "team": "Chip-Block Chinchillas",
+        "roster_id": "4",
+        "rec": "4-6-0",
+        "pf": 1681.22,
+        "model_rank": 7
+      },
+      {
+        "rank": 10,
+        "team": "Stiff-Arm Stags",
+        "roster_id": "10",
+        "rec": "3-7-0",
+        "pf": 1632.78,
+        "model_rank": 9
+      },
+      {
+        "rank": 11,
+        "team": "Bubble-Screen Bobcats",
+        "roster_id": "11",
+        "rec": "2-8-0",
+        "pf": 1475.64,
+        "model_rank": 11
+      },
+      {
+        "rank": 12,
+        "team": "Kneel-Down Koalas",
+        "roster_id": "7",
+        "rec": "2-8-0",
+        "pf": 1436.99,
+        "model_rank": 12
+      }
+    ],
+    "playoff_picture": {
+      "format": "6 teams",
+      "in_bracket": [
+        "Two Minute Drill",
+        "Flea Flicker Union",
+        "Backpedal Buffalo",
+        "No-Huddle Narwhals",
+        "Nickel Newts",
+        "Overtime Otters"
+      ],
+      "byes": [
+        "Two Minute Drill",
+        "Flea Flicker Union"
+      ],
+      "first_out": "Yardage Yaks",
+      "bubble": [
+        "Nickel Newts",
+        "Overtime Otters",
+        "Yardage Yaks",
+        "Screen Pass Syndicate"
+      ]
+    },
+    "power": [
+      {
+        "model_rank": 2,
+        "team": "Flea Flicker Union",
+        "roster_id": "1",
+        "rec": "7-3-0",
+        "avg_pf": 210.08,
+        "all_play": "88-22-0",
+        "luck": 2.0,
+        "week_delta": 0
+      },
+      {
+        "model_rank": 1,
+        "team": "Two Minute Drill",
+        "roster_id": "2",
+        "rec": "9-1-0",
+        "avg_pf": 202.87,
+        "all_play": "87-22-1",
+        "luck": 5.0,
+        "week_delta": 2
+      },
+      {
+        "model_rank": 4,
+        "team": "Backpedal Buffalo",
+        "roster_id": "3",
+        "rec": "7-3-0",
+        "avg_pf": 181.65,
+        "all_play": "61-49-0",
+        "luck": 3.5,
+        "week_delta": 0
+      },
+      {
+        "model_rank": 7,
+        "team": "Chip-Block Chinchillas",
+        "roster_id": "4",
+        "rec": "4-6-0",
+        "avg_pf": 168.12,
+        "all_play": "52-58-0",
+        "luck": 2.3,
+        "week_delta": 2
+      },
+      {
+        "model_rank": 8,
+        "team": "Nickel Newts",
+        "roster_id": "5",
+        "rec": "6-4-0",
+        "avg_pf": 155.89,
+        "all_play": "42-68-0",
+        "luck": 5.2,
+        "week_delta": -2
+      },
+      {
+        "model_rank": 6,
+        "team": "Overtime Otters",
+        "roster_id": "6",
+        "rec": "5-5-0",
+        "avg_pf": 166.52,
+        "all_play": "54-56-0",
+        "luck": 0.1,
+        "week_delta": -1
+      },
+      {
+        "model_rank": 12,
+        "team": "Kneel-Down Koalas",
+        "roster_id": "7",
+        "rec": "2-8-0",
+        "avg_pf": 143.7,
+        "all_play": "26-84-0",
+        "luck": 2.6,
+        "week_delta": 0
+      },
+      {
+        "model_rank": 5,
+        "team": "Screen Pass Syndicate",
+        "roster_id": "8",
+        "rec": "4-6-0",
+        "avg_pf": 172.36,
+        "all_play": "55-55-0",
+        "luck": 0.0,
+        "week_delta": 2
+      },
+      {
+        "model_rank": 3,
+        "team": "No-Huddle Narwhals",
+        "roster_id": "9",
+        "rec": "6-4-0",
+        "avg_pf": 203.76,
+        "all_play": "86-24-0",
+        "luck": -0.8,
+        "week_delta": -2
+      },
+      {
+        "model_rank": 9,
+        "team": "Stiff-Arm Stags",
+        "roster_id": "10",
+        "rec": "3-7-0",
+        "avg_pf": 163.28,
+        "all_play": "47-63-0",
+        "luck": -0.3,
+        "week_delta": -1
+      },
+      {
+        "model_rank": 11,
+        "team": "Bubble-Screen Bobcats",
+        "roster_id": "11",
+        "rec": "2-8-0",
+        "avg_pf": 147.56,
+        "all_play": "33-76-1",
+        "luck": 1.0,
+        "week_delta": 0
+      },
+      {
+        "model_rank": 10,
+        "team": "Yardage Yaks",
+        "roster_id": "12",
+        "rec": "5-5-0",
+        "avg_pf": 140.14,
+        "all_play": "28-82-0",
+        "luck": 3.5,
+        "week_delta": 0
+      }
+    ],
+    "luck": [
+      {
+        "team": "Flea Flicker Union",
+        "roster_id": "1",
+        "rec": "7-3-0",
+        "all_play": "88-22-0",
+        "earned_wins": 8.0,
+        "luck": 2.0
+      },
+      {
+        "team": "Two Minute Drill",
+        "roster_id": "2",
+        "rec": "9-1-0",
+        "all_play": "87-22-1",
+        "earned_wins": 8.0,
+        "luck": 5.0
+      },
+      {
+        "team": "Backpedal Buffalo",
+        "roster_id": "3",
+        "rec": "7-3-0",
+        "all_play": "61-49-0",
+        "earned_wins": 5.5,
+        "luck": 3.5
+      },
+      {
+        "team": "Chip-Block Chinchillas",
+        "roster_id": "4",
+        "rec": "4-6-0",
+        "all_play": "52-58-0",
+        "earned_wins": 4.7,
+        "luck": 2.3
+      },
+      {
+        "team": "Nickel Newts",
+        "roster_id": "5",
+        "rec": "6-4-0",
+        "all_play": "42-68-0",
+        "earned_wins": 3.8,
+        "luck": 5.2
+      },
+      {
+        "team": "Overtime Otters",
+        "roster_id": "6",
+        "rec": "5-5-0",
+        "all_play": "54-56-0",
+        "earned_wins": 4.9,
+        "luck": 0.1
+      },
+      {
+        "team": "Kneel-Down Koalas",
+        "roster_id": "7",
+        "rec": "2-8-0",
+        "all_play": "26-84-0",
+        "earned_wins": 2.4,
+        "luck": 2.6
+      },
+      {
+        "team": "Screen Pass Syndicate",
+        "roster_id": "8",
+        "rec": "4-6-0",
+        "all_play": "55-55-0",
+        "earned_wins": 5.0,
+        "luck": 0.0
+      },
+      {
+        "team": "No-Huddle Narwhals",
+        "roster_id": "9",
+        "rec": "6-4-0",
+        "all_play": "86-24-0",
+        "earned_wins": 7.8,
+        "luck": -0.8
+      },
+      {
+        "team": "Stiff-Arm Stags",
+        "roster_id": "10",
+        "rec": "3-7-0",
+        "all_play": "47-63-0",
+        "earned_wins": 4.3,
+        "luck": -0.3
+      },
+      {
+        "team": "Bubble-Screen Bobcats",
+        "roster_id": "11",
+        "rec": "2-8-0",
+        "all_play": "33-76-1",
+        "earned_wins": 3.0,
+        "luck": 1.0
+      },
+      {
+        "team": "Yardage Yaks",
+        "roster_id": "12",
+        "rec": "5-5-0",
+        "all_play": "28-82-0",
+        "earned_wins": 2.5,
+        "luck": 3.5
+      }
+    ],
+    "next_week": [
+      {
+        "matchup_id": 1,
+        "a": "Flea Flicker Union",
+        "a_roster_id": "1",
+        "a_rec": "7-3-0",
+        "a_model_rank": 2,
+        "b": "Bubble-Screen Bobcats",
+        "b_roster_id": "11",
+        "b_rec": "2-8-0",
+        "b_model_rank": 11,
+        "stakes": [
+          "bye_seed",
+          "wildcard_race",
+          "division_race"
+        ],
+        "game_of_week": false
+      },
+      {
+        "matchup_id": 2,
+        "a": "Nickel Newts",
+        "a_roster_id": "5",
+        "a_rec": "6-4-0",
+        "a_model_rank": 8,
+        "b": "Screen Pass Syndicate",
+        "b_roster_id": "8",
+        "b_rec": "4-6-0",
+        "b_model_rank": 5,
+        "stakes": [
+          "bye_seed",
+          "wildcard_race",
+          "division_race"
+        ],
+        "game_of_week": false
+      },
+      {
+        "matchup_id": 3,
+        "a": "Chip-Block Chinchillas",
+        "a_roster_id": "4",
+        "a_rec": "4-6-0",
+        "a_model_rank": 7,
+        "b": "Overtime Otters",
+        "b_roster_id": "6",
+        "b_rec": "5-5-0",
+        "b_model_rank": 6,
+        "stakes": [
+          "bye_seed",
+          "wildcard_race",
+          "division_race"
+        ],
+        "game_of_week": false
+      },
+      {
+        "matchup_id": 4,
+        "a": "Backpedal Buffalo",
+        "a_roster_id": "3",
+        "a_rec": "7-3-0",
+        "a_model_rank": 4,
+        "b": "No-Huddle Narwhals",
+        "b_roster_id": "9",
+        "b_rec": "6-4-0",
+        "b_model_rank": 3,
+        "stakes": [
+          "bye_seed",
+          "wildcard_race",
+          "division_race"
+        ],
+        "game_of_week": true
+      },
+      {
+        "matchup_id": 5,
+        "a": "Two Minute Drill",
+        "a_roster_id": "2",
+        "a_rec": "9-1-0",
+        "a_model_rank": 1,
+        "b": "Yardage Yaks",
+        "b_roster_id": "12",
+        "b_rec": "5-5-0",
+        "b_model_rank": 10,
+        "stakes": [
+          "bye_seed",
+          "wildcard_race",
+          "division_race"
+        ],
+        "game_of_week": false
+      },
+      {
+        "matchup_id": 6,
+        "a": "Kneel-Down Koalas",
+        "a_roster_id": "7",
+        "a_rec": "2-8-0",
+        "a_model_rank": 12,
+        "b": "Stiff-Arm Stags",
+        "b_roster_id": "10",
+        "b_rec": "3-7-0",
+        "b_model_rank": 9,
+        "stakes": [
+          "bye_seed",
+          "wildcard_race",
+          "division_race"
+        ],
+        "game_of_week": false
+      }
+    ],
+    "next_week_nfl_byes": [
+      "IND",
+      "NO"
+    ],
+    "transactions": {
+      "last_trade_week": 9,
+      "weeks_since_last_trade": 1,
+      "complete": true,
+      "this_week_count": 1,
+      "recent_trade_count": 1
+    },
+    "lead_candidates": [],
+    "storyline_candidates": []
+  }
+}

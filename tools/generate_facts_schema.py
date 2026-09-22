@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
-"""Generate the published JSON Schema for the Facts contract.
+"""Generate the published JSON Schema for the Facts contracts.
 
 Not part of the installed ``commishdesk`` package — it ships in ``tools/`` (no
 ``__init__.py``) so the build backend never packages it, and it depends only on
 the standard library plus ``pydantic`` v2 (via ``commishdesk.facts.schema``,
 itself stdlib + pydantic only) — no new dependency, mirroring ``tools/anonymize.py``.
 
-It writes ``DraftRecapFacts.model_json_schema()`` to ``docs/facts-schema.json``
-alongside ``docs/EXTENDING.md``. ``tests/test_facts.py`` fails if the committed
-file drifts from what this script would produce.
+Since Story 5.8 it renders **one** schema for **both** documents — the
+``draft_recap`` root and the standalone ``weekly`` root — as a union
+(``TypeAdapter(DraftRecapFacts | WeeklyFacts)``), so a consumer can validate
+either. It writes that to ``docs/facts-schema.json`` alongside
+``docs/EXTENDING.md``. ``tests/test_facts.py`` fails if the committed file drifts
+from what this script would produce.
 
 Usage::
 
@@ -23,21 +26,25 @@ import json
 import sys
 from pathlib import Path
 
-from commishdesk.facts.schema import DraftRecapFacts
+from pydantic import TypeAdapter
+
+from commishdesk.facts.schema import DraftRecapFacts, WeeklyFacts
 
 OUTPUT_PATH = Path(__file__).resolve().parent.parent / "docs" / "facts-schema.json"
+
+_FACTS = TypeAdapter(DraftRecapFacts | WeeklyFacts)
 
 
 def render() -> str:
     """The canonical serialization of the generated schema (trailing newline)."""
-    schema = DraftRecapFacts.model_json_schema()
+    schema = _FACTS.json_schema()
     return json.dumps(schema, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="generate_facts_schema.py",
-        description="Write (or --check) docs/facts-schema.json from DraftRecapFacts.",
+        description="Write (or --check) docs/facts-schema.json from DraftRecapFacts | WeeklyFacts.",
     )
     parser.add_argument(
         "--check",

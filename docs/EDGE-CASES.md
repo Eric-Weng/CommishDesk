@@ -209,3 +209,42 @@ nothing rather than guessing.
 the adapter fetched no pairings; pairings supplied by hand get `stakes == []`, which is the
 right answer for the last regular-season week. A league with no `playoff_week_start` gets
 every flag `False` as well.
+
+## The weekly document is a standalone root, and the player-name join is a second read of the same blob (Story 5.8)
+
+**What happens.** `WeeklyFacts` is its own root — it has no `draft`, `picks` or
+`consensus_source`, so it could not be a field of the draft-recap document.
+`DraftRecapFacts.weekly` is kept, retyped to `None`, purely so a `0.4.0`-shaped
+draft-recap document still loads and renders unchanged; nothing ever writes a value there.
+The player-name join comes from `ingest/build.py::build_player_names`, a second pass over
+the same bundle `"players"` blob `build_player_snapshot` reads.
+
+**Why this is accepted, not fixed.** Removing `DraftRecapFacts.weekly` would be a
+breaking (major-bump) change to a published `0.x` contract, so it stays as a reserved
+null. `PlayerSnapshot` carries no name and is *persisted* (a past week's snapshot must not
+change), so widening it to carry a name would freeze today's name into a historical
+record — instead the name join is deliberately a separate, non-persisted read that falls
+back to the snapshot's `nfl_team`, then the raw id, when a player has no name in the blob
+(a DST, or an anonymized record).
+
+**Where this shows up.** A player id with no name in the bundle renders as its NFL team
+abbreviation (or, failing that, the raw id) everywhere the weekly document names a player.
+The weekly document's `history.weekly[].power_rank` / `all_play` / `luck` are `None` for
+week 1 and for any week past the regular-season cutoff — the model rank has no
+cold-start, and the all-play fold freezes at `playoff_week_start - 1`.
+
+## Per-week luck is derived, the season figure is authoritative (Story 5.8)
+
+**What happens.** `WeeklyFacts` carries `luck` both for the season
+(`teams[].season.luck`, from `stats/weekly.py`) and per history row
+(`teams[].history.weekly[].luck`). The per-week value is derived in `facts/weekly.py` as
+`round(win-equivalents_k - expected_wins_k, 1)`, because `stats/` only exposes the
+expected-wins accumulator rounded to 1 decimal. The two can therefore differ by up to
+0.1 for the same roster.
+
+**Why this is accepted, not fixed.** Deriving the per-week luck here avoids a second
+all-play fold inside `stats/`, and the season figure — which the narration and standings
+lead on — is never derived this way. The 0.1 band is below any reading a recap can make.
+
+**Where this shows up.** A roster's history row for week `k` may read `luck` 0.1 off the
+season figure. Only the per-week rows can differ; `teams[].season.luck` is untouched.

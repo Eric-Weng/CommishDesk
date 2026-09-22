@@ -16,6 +16,10 @@ match the built document field-by-field against it — board / structural fields
 documented consensus / grade / prose / name exclusions aside — are all
 ``@requires_golden`` skip-gated and only run in a workspace that has the sibling
 ``../brief/`` directory.
+
+Story 5.8 retyped ``DraftRecapFacts.weekly`` to ``None`` and bumped
+``SCHEMA_VERSION`` to ``0.5.0``; the weekly document is its own root
+(``WeeklyFacts``) with its own test module.
 """
 
 from __future__ import annotations
@@ -272,7 +276,7 @@ def _rookie_facts() -> DraftRecapFacts:
 def test_happy_path_shape() -> None:
     doc = _build_minimal()
     dump = doc.model_dump()
-    assert dump["schema_version"] == "0.4.0" == SCHEMA_VERSION
+    assert dump["schema_version"] == "0.5.0" == SCHEMA_VERSION
     assert dump["issue_type"] == "draft_recap"
     assert dump["week"] is None and dump["weekly"] is None
     assert [p["pick_no"] for p in dump["picks"]] == [1, 2]
@@ -357,7 +361,7 @@ def test_unknown_key_on_read_is_dropped() -> None:
     payload["narration"]["future_key"] = {"nested": True}
     doc = DraftRecapFacts.model_validate(payload)
     assert not hasattr(doc, "future_key")
-    assert doc.schema_version == "0.4.0"
+    assert doc.schema_version == "0.5.0"
 
 
 def test_schema_violation_raises_typed_chained_error() -> None:
@@ -712,6 +716,7 @@ def test_facts_import_pulls_in_no_network_module() -> None:
             "-c",
             "import commishdesk.facts, sys; "
             "commishdesk.facts.build_draft_recap_facts; "
+            "commishdesk.facts.build_weekly_facts; "
             "commishdesk.facts.FactsJSON; "
             "assert 'httpx' not in sys.modules; print('ok')",
         ],
@@ -1074,22 +1079,24 @@ def test_lead_kind_priority_covers_every_kind_a_detector_can_emit() -> None:
 # --------------------------------------------------------------------------- #
 
 
-def test_schema_version_bumped_additively_to_0_4_0() -> None:
-    assert SCHEMA_VERSION == "0.4.0"
+def test_schema_version_bumped_additively_to_0_5_0() -> None:
+    assert SCHEMA_VERSION == "0.5.0"
     doc = _build_minimal()
-    assert doc.schema_version == "0.4.0"
+    assert doc.schema_version == "0.5.0"
     assert doc.week is None
     assert doc.weekly is None
 
 
 def test_draft_recap_rejects_a_week_or_weekly_block() -> None:
-    from commishdesk.facts.schema import DraftRecapFacts, WeeklyFacts
+    from commishdesk.facts.schema import DraftRecapFacts
 
     payload = _build_minimal().model_dump()
     with pytest.raises(ValidationError):
         DraftRecapFacts.model_validate({**payload, "week": 4})
     with pytest.raises(ValidationError):
-        DraftRecapFacts.model_validate({**payload, "weekly": WeeklyFacts().model_dump()})
+        # ``weekly`` is reserved and always null (Story 5.8) — any non-null value
+        # is rejected by the type itself.
+        DraftRecapFacts.model_validate({**payload, "weekly": {"anything": True}})
 
 
 def test_weekly_issue_requires_a_week() -> None:
@@ -1122,16 +1129,53 @@ def test_generated_json_schema_is_fresh() -> None:
     assert generate_facts_schema.main(["--check"]) == 0
 
 
-def test_0_1_0_shaped_document_still_loads_under_0_2_0() -> None:
-    """The 0.1.0 -> 0.2.0 bump is additive: an existing draft-recap document with
-    no ``week`` / ``weekly`` keys loads, and the consistency validator is happy."""
+def test_generated_json_schema_names_both_documents() -> None:
+    """The rendered schema is the union of both roots (Story 5.8)."""
+    import sys
+
+    sys.path.insert(0, str(REPO_ROOT / "tools"))
+    try:
+        import generate_facts_schema  # noqa: PLC0415
+    finally:
+        sys.path.pop(0)
+
+    schema = json.loads(generate_facts_schema.render())
+    defs = schema.get("$defs", {})
+    assert "DraftRecapFacts" in defs
+    assert "WeeklyFacts" in defs
+
+
+def test_a_0_4_0_draft_recap_document_still_loads() -> None:
+    """Story 5.8 retyped ``DraftRecapFacts.weekly`` to ``None`` — a ``0.4.0``
+    shaped document (no ``week`` or ``weekly`` key at all, the original
+    ``0.1.0`` shape this test line covered before the retype) still loads and
+    validates on both fields' defaults."""
     payload = _build_minimal().model_dump()
+    payload["schema_version"] = "0.4.0"
     del payload["week"]
     del payload["weekly"]
     doc = DraftRecapFacts.model_validate(payload)
+    assert doc.schema_version == "0.4.0"
     assert doc.week is None
     assert doc.weekly is None
     assert doc.issue_type == "draft_recap"
+
+
+# --------------------------------------------------------------------------- #
+# Retro item 33 — the draft-recap narration ladder's terminal guarantee
+# --------------------------------------------------------------------------- #
+
+
+def test_draft_recap_ladder_raises_when_it_cannot_reduce(monkeypatch) -> None:
+    """A cap the ladder cannot reach (even with only ``lead_candidates``,
+    ``standings``-equivalent teams and grades left) raises rather than shipping."""
+    from commishdesk.facts import build as build_mod
+
+    monkeypatch.setattr(build_mod, "NARRATION_TOKEN_CAP", 50)
+    league, board, consensus, grades = _minimal()
+    with pytest.raises(SchemaValidationError) as excinfo:
+        build_draft_recap_facts(league, board, consensus, grades, generated_at=GENERATED_AT)
+    assert "NARRATION_TOKEN_CAP" in str(excinfo.value)
 
 
 # --------------------------------------------------------------------------- #

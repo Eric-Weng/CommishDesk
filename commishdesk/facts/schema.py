@@ -1,10 +1,11 @@
-"""Stage 3 schema — the versioned, self-validated ``draft_recap`` Facts JSON (AD-2).
+"""Stage 3 schema — the versioned, self-validated Facts JSON contracts (AD-2).
 
 Pydantic v2 models for the ``draft_recap`` shape as it appears in
-``brief/phase-0/draft-recap-facts.json``. Every model derives from :class:`_Doc`:
-``frozen=True`` (a built document is immutable) and ``extra="ignore"`` (the
-schema-tolerance invariant / facts-schema design rule 3) — a consumer written to
-:data:`SCHEMA_VERSION` loads a later ``0.1.x`` payload that adds a key without
+``brief/phase-0/draft-recap-facts.json`` and (Story 5.8) the standalone
+``weekly`` shape. Every model derives from :class:`_Doc`: ``frozen=True`` (a
+built document is immutable) and ``extra="ignore"`` (the schema-tolerance
+invariant / facts-schema design rule 3) — a consumer written to
+:data:`SCHEMA_VERSION` loads a later ``0.x.y`` payload that adds a key without
 error, the unknown key silently dropped on read.
 
 :data:`SCHEMA_VERSION` is semver: an additive key bumps the minor, a shape change
@@ -17,11 +18,17 @@ storyline lifecycle in ``facts/storylines.py``. Both serialize as ``[]`` when
 empty, never omitted.
 
 Story 3.1 also widened the contract additively (``0.1.0`` -> ``0.2.0``): a
-schema-only ``week`` / :class:`WeeklyFacts` placeholder for the Epic-5 weekly
-issue (no builder emits it yet), :data:`NARRATION_TOKEN_CAP` bounding the
+schema-only ``week`` placeholder, :data:`NARRATION_TOKEN_CAP` bounding the
 narrator projection, and :class:`Storyline` — the persisted narrative-memory
 record — relocated here from ``store.py`` so ``facts/`` owns its shape
 (``store.py`` imports it back for its read/write port).
+
+Story 5.8 (``0.4.0`` -> ``0.5.0``) turns the empty :class:`WeeklyFacts`
+placeholder into the real weekly document — a standalone root laid out like the
+private ``week10-facts.json`` golden, plus :class:`WeeklyNarration`. The
+``DraftRecapFacts.weekly`` field is retyped to ``None`` (resent, always null) so
+a ``0.4.0`` draft-recap document still loads and renders — removing it is a
+major-bump concern.
 
 This module imports stdlib + pydantic only — no engine package.
 """
@@ -39,6 +46,7 @@ __all__ = [
     "BoardPick",
     "BoldestSwing",
     "ConsensusSource",
+    "DivisionRef",
     "DraftRecapFacts",
     "DraftRef",
     "DraftSummary",
@@ -66,19 +74,69 @@ __all__ = [
     "Superlatives",
     "SuperlativePick",
     "TERunSummary",
+    "TeamPointsRef",
     "TeamRow",
+    "WeekMarginRef",
+    "WeekSummaryRef",
+    "WeeklyAllPlay",
+    "WeeklyBenchRegret",
+    "WeeklyByeImpact",
+    "WeeklyByeStarter",
+    "WeeklyCoachingEfficiency",
     "WeeklyFacts",
+    "WeeklyFormatRef",
+    "WeeklyHeadlinePlayer",
+    "WeeklyHistory",
+    "WeeklyHistoryRow",  # noqa: E501
+    "WeeklyLeaderPlayer",
+    "WeeklyLeaderRef",
+    "WeeklyLeaders",
+    "WeeklyLeagueRef",
+    "WeeklyMarketNote",
+    "WeeklyMatchup",
+    "WeeklyMatchups",
+    "WeeklyMove",
+    "WeeklyMovePlayer",
+    "WeeklyNarration",
+    "WeeklyNarrationGame",
+    "WeeklyNarrationLeague",
+    "WeeklyNarrationLuck",
+    "WeeklyNarrationNextWeek",
+    "WeeklyNarrationPlayoff",
+    "WeeklyNarrationPower",
+    "WeeklyNarrationStanding",
+    "WeeklyNarrationTransactions",
+    "WeeklyNextWeekCard",
+    "WeeklyPerformer",
+    "WeeklyPeriod",
+    "WeeklyPickRef",
+    "WeeklyPlayoffPicture",
+    "WeeklyPlayoffRef",
+    "WeeklyPower",
+    "WeeklyRecord",
+    "WeeklySeason",
+    "WeeklyStandings",
+    "WeeklyStarter",
+    "WeeklyStreak",
+    "WeeklyTeam",
+    "WeeklyTeamGame",
+    "WeeklyTeamNextWeek",
+    "WeeklyTrade",
+    "WeeklyTradeSide",
+    "WeeklyTransactions",
+    "WeeklyWeekHighPlayer",
+    "WeeklyWeekPoints",
 ]
 
-SCHEMA_VERSION = "0.4.0"
+SCHEMA_VERSION = "0.5.0"
 """Semver contract version. Additive key -> minor bump; shape change -> major.
-``0.1.0`` -> ``0.2.0`` (Story 3.1): additive ``week`` / ``weekly`` placeholders,
-no shape change to any existing field."""
+``0.4.0`` -> ``0.5.0`` (Story 5.8): the empty ``WeeklyFacts`` placeholder becomes
+the real weekly document and its ``WeeklyNarration``; ``DraftRecapFacts.weekly``
+is retyped ``None`` (reserved, always null)."""
 
 _ISSUE_TYPE: Literal["draft_recap"] = "draft_recap"
 _IssueType = Literal["draft_recap", "weekly"]
-"""``"weekly"`` is a schema-only placeholder — no builder emits a weekly issue
-until Epic 5."""
+_WEEKLY_ISSUE_TYPE: Literal["weekly"] = "weekly"
 
 NARRATION_TOKEN_CAP: Final[int] = 40_000
 #: Raised from 20,000 at ``0.3.0``, when the ``players`` block joined the
@@ -91,10 +149,10 @@ NARRATION_TOKEN_CAP: Final[int] = 40_000
 generous enough that no real or fixture league is ever truncated — the demo
 fixture's narration serializes to well under half this — while still bounding a
 synthetic oversized league. Enforced by the fixed reduction ladder in
-``facts/build.py::_apply_narration_cap``: drop board / history detail -> drop
-per-team grade rationale (the grade letter always survives) -> keep only the lead
-``storyline_candidates`` entry. ``lead_candidates`` and every team's grade are
-never dropped."""
+``facts/build.py::_apply_narration_cap`` (and, from Story 5.8,
+``facts/weekly.py``'s own ladder). If a document is still over the cap after the
+final tier, the builder raises ``SchemaValidationError`` rather than shipping an
+unbounded payload."""
 
 
 class _Doc(BaseModel):
@@ -572,28 +630,598 @@ class Narration(_Doc):
 
 
 # --------------------------------------------------------------------------- #
-# weekly issue — schema-only placeholder (Epic 5 fills it in)
+# weekly issue — the standalone weekly Facts document (Story 5.8)
 # --------------------------------------------------------------------------- #
 
 
-class WeeklyFacts(_Doc):
-    """Schema-only placeholder for the Epic-5 weekly issue's stats (power rank,
-    blowout, luck index, coaching efficiency). Intentionally empty at
-    :data:`SCHEMA_VERSION` ``0.2.0`` — no builder emits it, and ``weekly`` is
-    ``None`` on every ``draft_recap`` document. Present so downstream consumers
-    can already name the type."""
+class DivisionRef(_Doc):
+    """One declared league division, as data."""
+
+    id: int
+    name: str | None = None
+
+
+class WeeklyPlayoffRef(_Doc):
+    """The league's playoff shape on the weekly document: how many teams make
+    the bracket, how many first-round byes that implies, and the week the
+    bracket starts."""
+
+    bracket_teams: int
+    byes: int
+    start_week: int
+
+
+class WeeklyFormatRef(_Doc):
+    """``FormatRef`` plus the weekly-only shape: the declared divisions, the
+    playoff window, and the regular-season week count. All as data — no
+    downstream stage branches on a hardcoded league shape."""
+
+    team_count: int
+    roster_slots: list[str]
+    flex_eligibility: dict[str, list[str]]
+    scoring_label: str
+    is_superflex_or_2qb: bool
+    te_premium: bool
+    divisions: list[DivisionRef] = []
+    playoff: WeeklyPlayoffRef | None = None
+    regular_season_weeks: int | None = None
+
+
+class WeeklyLeagueRef(_Doc):
+    """League identity on the weekly document (``LeagueRef`` with the richer
+    weekly ``format``)."""
+
+    id: str
+    name: str
+    season: str
+    platform: str
+    format: WeeklyFormatRef
+
+
+class TeamPointsRef(_Doc):
+    """One roster's points for the week — the shape of
+    :attr:`WeekSummaryRef.high` / :attr:`WeekSummaryRef.low`."""
+
+    roster_id: str
+    points: float
+
+
+class WeekMarginRef(_Doc):
+    """One game's margin, identified by its two participants directly (the
+    weekly Facts contract carries ``roster_ids``, never a matchup index)."""
+
+    roster_ids: list[str]
+    margin: float
+
+
+class WeekSummaryRef(_Doc):
+    """League-wide shape of the target week, mirrored from
+    ``stats/weekly.py::WeekSummary``."""
+
+    games: int
+    total_points: float
+    avg_team_score: float
+    high: TeamPointsRef | None = None
+    low: TeamPointsRef | None = None
+    closest: WeekMarginRef | None = None
+    biggest_blowout: WeekMarginRef | None = None
+    blowout_count: int
+    blowout_threshold: float
+
+
+class WeeklyPeriod(_Doc):
+    """The week this document covers: its type, whether it has prior-week
+    history, the NFL teams on bye this week and next (``None`` when the caller
+    supplied no bye data), and the league-wide :class:`WeekSummaryRef`."""
+
+    week: int
+    type: str
+    has_prior_week: bool
+    nfl_byes: list[str] | None = None
+    nfl_byes_next_week: list[str] | None = None
+    summary: WeekSummaryRef
+
+
+class WeeklyRecord(_Doc):
+    """A win-loss-tie triple."""
+
+    w: int
+    l: int  # noqa: E741 -- matches the golden's record{w,l,t} key verbatim
+    t: int
+
+
+class WeeklyWeekPoints(_Doc):
+    """One roster's points in one week."""
+
+    week: int
+    points: float
+
+
+class WeeklyStreak(_Doc):
+    """One roster's current run of identical results."""
+
+    type: str
+    count: int
+
+
+class WeeklyAllPlay(_Doc):
+    """One roster's cumulative all-play round-robin record."""
+
+    w: int
+    l: int  # noqa: E741 -- matches the golden's all_play{w,l,t} key verbatim
+    t: int
+    pct: float
+
+
+class WeeklyCoachingEfficiency(_Doc):
+    """``actual / optimal`` for one roster, either for a single week or summed
+    over the season. ``pct`` is ``None`` when ``optimal <= 0``."""
+
+    actual: float
+    optimal: float
+    pct: float | None = None
+
+
+class WeeklyPower(_Doc):
+    """One roster's model-power row. ``published_rank`` / ``nudge`` are Story
+    5.9's (AD-13) and are always ``None`` here; ``prev_model_rank`` /
+    ``week_delta`` are the rank's movement since the prior week (both ``None``
+    when there is no prior week, or either side is unranked)."""
+
+    model_score: float | None = None
+    model_rank: int | None = None
+    published_rank: int | None = None
+    nudge: int | None = None
+    prev_model_rank: int | None = None
+    week_delta: int | None = None
+
+
+class WeeklySeason(_Doc):
+    """One roster's whole-season block: the head-to-head fold, the all-play
+    fold, the model power rank, and the season-long coaching efficiency."""
+
+    record: WeeklyRecord
+    rank: int
+    division_rank: int | None = None
+    points_for: float
+    points_against: float
+    avg_for: float
+    high_week: WeeklyWeekPoints | None = None
+    low_week: WeeklyWeekPoints | None = None
+    streak: WeeklyStreak | None = None
+    all_play: WeeklyAllPlay | None = None
+    expected_wins: float | None = None
+    luck: float | None = None
+    power: WeeklyPower
+    coaching_efficiency: WeeklyCoachingEfficiency
+
+
+class WeeklyStarter(_Doc):
+    """One slot of a roster's week lineup. ``player_id`` / ``name`` / ``pos`` /
+    ``nfl_team`` are ``None`` for an unfilled slot."""
+
+    player_id: str | None = None
+    name: str | None = None
+    pos: str | None = None
+    nfl_team: str | None = None
+    slot: str
+    points: float
+
+
+class WeeklyPerformer(_Doc):
+    """One named player with a week point total, ids alongside names."""
+
+    player_id: str
+    name: str
+    pos: str | None = None
+    points: float
+
+
+class WeeklyBenchRegret(_Doc):
+    """The manager's single worst benching decision."""
+
+    player_id: str
+    name: str
+    pos: str | None = None
+    points: float
+
+
+class WeeklyByeStarter(_Doc):
+    """One starter whose NFL team is on bye. ``points`` is only populated on the
+    week-n ``started_on_bye`` shape; it defaults to ``0.0`` on the next-week
+    ``starters_on_bye`` shape."""
+
+    player_id: str
+    name: str
+    pos: str | None = None
+    nfl_team: str | None = None
+    points: float = 0.0
+
+
+class WeeklyTeamGame(_Doc):
+    """One roster's target-week block. ``None`` for a roster with no game;
+    ``started_on_bye`` is ``None`` when the caller supplied no bye data."""
+
+    opponent_roster_id: str | None = None
+    points: float
+    opponent_points: float | None = None
+    result: str | None = None
+    margin: float | None = None
+    coaching_efficiency: WeeklyCoachingEfficiency | None = None
+    points_left_on_bench: float | None = None
+    starters: list[WeeklyStarter] = []
+    top_performers: list[WeeklyPerformer] = []
+    duds: list[WeeklyPerformer] = []
+    bench_regret: WeeklyBenchRegret | None = None
+    started_on_bye: list[WeeklyByeStarter] | None = None
+
+
+class WeeklyHistoryRow(_Doc):
+    """One week of a roster's season, with the cumulative picture as of that
+    week. ``power_rank`` / ``all_play`` / ``luck`` are ``None`` before
+    ``MEANINGFUL_FROM_WEEK`` and past the regular season."""
+
+    week: int
+    points: float
+    opponent_roster_id: str | None = None
+    result: str | None = None
+    margin: float | None = None
+    cum_record: WeeklyRecord
+    power_rank: int | None = None
+    all_play: WeeklyAllPlay | None = None
+    luck: float | None = None
+
+
+class WeeklyHistory(_Doc):
+    """One roster's weekly history, one row per week it played."""
+
+    weekly: list[WeeklyHistoryRow] = []
+
+
+class WeeklyTeamNextWeek(_Doc):
+    """One roster's next-week preview. ``None`` when there is no card for it.
+    ``starters_on_bye`` is empty when the caller supplied no bye data."""
+
+    opponent_roster_id: str
+    power_rank_self: int | None = None
+    power_rank_opp: int | None = None
+    stakes: list[str] = []
+    starters_on_bye: list[WeeklyByeStarter] = []
+
+
+class WeeklyTeam(_Doc):
+    """One roster's whole weekly row: identity, season block, this week, history
+    and next week — in numeric roster order."""
+
+    roster_id: str
+    manager: str | None = None
+    team_name: str | None = None
+    division_id: int | None = None
+    co_owners: list[str] = []
+    season: WeeklySeason
+    this_week: WeeklyTeamGame | None = None
+    history: WeeklyHistory
+    next_week: WeeklyTeamNextWeek | None = None
+
+
+class WeeklyHeadlinePlayer(_Doc):
+    """One side's top started scorer in a resolved pairing."""
+
+    roster_id: str
+    player_id: str
+    name: str
+    pos: str | None = None
+    points: float
+
+
+class WeeklyMatchup(_Doc):
+    """One resolved target-week pairing. ``home_roster_id`` is the lower numeric
+    roster id; ``winner_roster_id`` is ``None`` on a tie. ``headline_players``
+    is each side's top started scorer."""
+
+    matchup_id: int | None = None
+    home_roster_id: str
+    away_roster_id: str
+    home_points: float
+    away_points: float
+    winner_roster_id: str | None = None
+    margin: float
+    is_blowout: bool = False
+    headline_players: list[WeeklyHeadlinePlayer] = []
+
+
+class WeeklyByeImpact(_Doc):
+    """One week-n starter whose NFL team is on bye next week."""
+
+    roster_id: str
+    player_id: str
+    name: str
+    pos: str | None = None
+    nfl_team: str | None = None
+
+
+class WeeklyNextWeekCard(_Doc):
+    """One week-``n+1`` pairing, flattened: each side's roster id, power rank,
+    record and clinch/elimination flags, the card's stakes union, the flagged
+    bye starters, and whether this is the game of the week."""
+
+    matchup_id: int | None = None
+    a_roster_id: str
+    b_roster_id: str
+    a_power_rank: int | None = None
+    b_power_rank: int | None = None
+    a_record: str
+    b_record: str
+    a_clinched_playoff: bool = False
+    a_clinched_bye: bool = False
+    a_eliminated: bool = False
+    a_clinched_division: bool = False
+    b_clinched_playoff: bool = False
+    b_clinched_bye: bool = False
+    b_eliminated: bool = False
+    b_clinched_division: bool = False
+    stakes: list[str] = []
+    #: ``None`` -- never ``[]`` -- when the caller supplied no bye data.
+    bye_impact: list[WeeklyByeImpact] | None = None
+    game_of_week: bool = False
+
+
+class WeeklyMatchups(_Doc):
+    """The target week's resolved pairings, and the next week's cards."""
+
+    this_week: list[WeeklyMatchup] = []
+    next_week: list[WeeklyNextWeekCard] = []
+
+
+class WeeklyPlayoffPicture(_Doc):
+    """The derived playoff picture, mirrored from
+    ``stats/standings.py::PlayoffPicture``."""
+
+    source: str
+    in_bracket: list[str] = []
+    byes: list[str] = []
+    first_out: str | None = None
+    bubble: list[str] = []
+    cut_line_after_rank: int
+    consolation: list[str] = []
+
+
+class WeeklyStandings(_Doc):
+    """The standings block: the overall order, the per-division order, the
+    derived playoff picture, and how far the fold reached."""
+
+    overall: list[str] = []
+    divisions: dict[int, list[str]] = {}
+    playoff_picture: WeeklyPlayoffPicture | None = None
+    through_week: int
+    regular_season_complete: bool = False
+
+
+class WeeklyMovePlayer(_Doc):
+    """One player moved in a transaction, with the side it moved for."""
+
+    player_id: str
+    name: str
+    pos: str | None = None
+    roster_id: str
+
+
+class WeeklyMove(_Doc):
+    """One settled transaction from the target week, with names."""
+
+    transaction_id: str
+    type: str
+    roster_ids: list[str] = []
+    adds: list[WeeklyMovePlayer] = []
+    drops: list[WeeklyMovePlayer] = []
+    faab: int | None = None
+
+
+class WeeklyPickRef(_Doc):
+    """One draft pick that moved in a trade."""
+
+    season: str
+    round: int
+    from_roster_id: str
+
+
+class WeeklyTradeSide(_Doc):
+    """One participating roster's receipts from a trade, with names."""
+
+    roster_id: str
+    players: list[WeeklyMovePlayer] = []
+    picks: list[WeeklyPickRef] = []
+    faab: int = 0
+
+
+class WeeklyTrade(_Doc):
+    """One settled trade with its sides."""
+
+    week: int
+    transaction_id: str
+    sides: list[WeeklyTradeSide] = []
+
+
+class WeeklyMarketNote(_Doc):
+    """When the league last traded. ``complete`` ``False`` (with both week
+    fields ``None``) means a partial history could not tell."""
+
+    last_trade_week: int | None = None
+    weeks_since_last_trade: int | None = None
+    complete: bool = False
+
+
+class WeeklyTransactions(_Doc):
+    """The transactions desk, with names."""
+
+    this_week: list[WeeklyMove] = []
+    recent_trades: list[WeeklyTrade] = []
+    market_note: WeeklyMarketNote
+
+
+class WeeklyLeaderPlayer(_Doc):
+    """One named player in a league-wide leaders list."""
+
+    roster_id: str
+    player_id: str
+    name: str
+    pos: str | None = None
+    points: float
+
+
+class WeeklyWeekHighPlayer(WeeklyLeaderPlayer):
+    """``week_high_player`` only: whether this week's high score is also a new
+    season high (``points >= every prior week's best``, ties count)."""
+
+    is_season_high: bool
+
+
+class WeeklyLeaderRef(_Doc):
+    """A ``{roster_id, pct}`` coaching-efficiency leader."""
+
+    roster_id: str
+    pct: float | None = None
+
+
+class WeeklyLeaders(_Doc):
+    """The week's league-wide leaders: the high player, the top players, the
+    worst starters, and the best / worst coaching weeks."""
+
+    week_high_player: WeeklyWeekHighPlayer | None = None
+    top_players: list[WeeklyLeaderPlayer] = []
+    worst_starters: list[WeeklyLeaderPlayer] = []
+    best_coaching: WeeklyLeaderRef | None = None
+    worst_coaching: WeeklyLeaderRef | None = None
+
+
+class WeeklyNarrationLeague(_Doc):
+    """Just enough league identity for a weekly headline."""
+
+    name: str
+    season: str
+    week: int
+    team_count: int
+    divisions: list[str] = []
+
+
+class WeeklyNarrationGame(_Doc):
+    """One narrated game: the winner / loser labels, their points, the margin,
+    and the game's top scorer label."""
+
+    matchup_id: int | None = None
+    winner: str | None = None
+    winner_pts: float
+    loser: str | None = None
+    loser_pts: float
+    margin: float
+    top: str | None = None
+
+
+class WeeklyNarrationStanding(_Doc):
+    """One narrated standings row."""
+
+    rank: int
+    team: str
+    roster_id: str
+    rec: str
+    pf: float
+    model_rank: int | None = None
+
+
+class WeeklyNarrationPlayoff(_Doc):
+    """The narrated playoff picture, teams resolved to labels."""
+
+    format: str
+    in_bracket: list[str] = []
+    byes: list[str] = []
+    first_out: str | None = None
+    bubble: list[str] = []
+
+
+class WeeklyNarrationPower(_Doc):
+    """One narrated power-rank row. ``all_play`` is the first field the
+    narration reduction ladder drops."""
+
+    model_rank: int | None = None
+    team: str
+    roster_id: str
+    rec: str
+    avg_pf: float
+    all_play: str | None = None
+    luck: float | None = None
+    week_delta: int | None = None
+
+
+class WeeklyNarrationLuck(_Doc):
+    """One narrated luck row."""
+
+    team: str
+    roster_id: str
+    rec: str
+    all_play: str | None = None
+    earned_wins: float | None = None
+    luck: float | None = None
+
+
+class WeeklyNarrationNextWeek(_Doc):
+    """One narrated next-week card, both sides resolved to labels."""
+
+    matchup_id: int | None = None
+    a: str
+    a_roster_id: str
+    a_rec: str
+    a_model_rank: int | None = None
+    b: str
+    b_roster_id: str
+    b_rec: str
+    b_model_rank: int | None = None
+    stakes: list[str] = []
+    game_of_week: bool = False
+
+
+class WeeklyNarrationTransactions(_Doc):
+    """The narrated transactions glance."""
+
+    last_trade_week: int | None = None
+    weeks_since_last_trade: int | None = None
+    complete: bool = False
+    this_week_count: int = 0
+    recent_trade_count: int = 0
+
+
+class WeeklyNarration(_Doc):
+    """The sanitized weekly projection the narrator sees — ids resolved to a
+    ``team`` label (``team_name or manager or "Roster <id>"``), with the
+    ``roster_id`` always alongside. No free prose. Held under
+    :data:`NARRATION_TOKEN_CAP` by ``facts/weekly.py``'s reduction ladder."""
+
+    league: WeeklyNarrationLeague
+    week_shape: str
+    games: list[WeeklyNarrationGame] = []
+    standings: list[WeeklyNarrationStanding] = []
+    playoff_picture: WeeklyNarrationPlayoff | None = None
+    power: list[WeeklyNarrationPower] = []
+    luck: list[WeeklyNarrationLuck] = []
+    next_week: list[WeeklyNarrationNextWeek] = []
+    next_week_nfl_byes: list[str] | None = None
+    transactions: WeeklyNarrationTransactions
+    lead_candidates: list[LeadCandidate] = []
+    storyline_candidates: list[StorylineCandidate] = []
 
 
 # --------------------------------------------------------------------------- #
-# root
+# roots
 # --------------------------------------------------------------------------- #
 
 
 class DraftRecapFacts(_Doc):
-    """The whole Facts JSON — the one published contract every narrator and
-    renderer downstream of ``facts/`` reads (AD-2). Top-level key order matches
-    ``brief/phase-0/draft-recap-facts.json``; ``week`` / ``weekly`` are the Story
-    3.1 additive placeholders for the not-yet-built weekly issue."""
+    """The whole draft-recap Facts JSON — the contract every narrator and
+    renderer downstream of ``facts/`` reads for a ``draft_recap`` Issue (AD-2).
+    Top-level key order matches ``brief/phase-0/draft-recap-facts.json``.
+
+    ``weekly`` is reserved and always ``None`` (Story 5.8): the weekly document
+    is its own standalone root (:class:`WeeklyFacts`), and this field is kept —
+    never removed — so a ``0.4.0`` draft-recap document still loads and renders."""
 
     schema_version: str = SCHEMA_VERSION
     generated_at: str
@@ -614,8 +1242,8 @@ class DraftRecapFacts(_Doc):
     lead_candidates: list[LeadCandidate] = []
     storyline_candidates: list[StorylineCandidate] = []
     narration: Narration
-    #: Schema-only until Epic 5 — always ``None`` on a ``draft_recap`` document.
-    weekly: WeeklyFacts | None = None
+    #: Reserved, always ``None`` — the weekly document is ``WeeklyFacts``.
+    weekly: None = None
 
     @model_validator(mode="after")
     def _issue_type_consistency(self) -> DraftRecapFacts:
@@ -627,3 +1255,28 @@ class DraftRecapFacts(_Doc):
         elif self.issue_type == "weekly" and self.week is None:
             raise ValueError("weekly document must have a week (1..18)")
         return self
+
+
+class WeeklyFacts(_Doc):
+    """The whole weekly Facts JSON — a standalone root laid out like the private
+    ``week10-facts.json`` golden, built by ``facts/weekly.py::build_weekly_facts``
+    (Story 5.8). Every computed number comes from ``commishdesk.stats``; names
+    are joined from the bundle's ``players`` blob."""
+
+    schema_version: str = SCHEMA_VERSION
+    generated_at: str
+    provisional: bool = True
+    issue_type: Literal["weekly"] = _WEEKLY_ISSUE_TYPE
+    week: int = Field(ge=1, le=18)
+    source: Source
+    league: WeeklyLeagueRef
+    period: WeeklyPeriod
+    teams: list[WeeklyTeam] = []
+    matchups: WeeklyMatchups
+    standings: WeeklyStandings
+    transactions: WeeklyTransactions
+    leaders: WeeklyLeaders
+    #: Both always ``[]`` here — Story 5.9 fills them.
+    lead_candidates: list[LeadCandidate] = []
+    storyline_candidates: list[StorylineCandidate] = []
+    narration: WeeklyNarration
