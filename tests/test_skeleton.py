@@ -111,10 +111,25 @@ def test_version_flag_prints_version_and_exits() -> None:
     assert result.output.strip() == f"commishdesk {commishdesk.__version__}"
 
 
-def test_weekly_recap_reports_not_yet_implemented() -> None:
+def test_weekly_recap_is_wired_not_a_notice(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Story 5.11a wired ``--week`` for real; the old "not yet implemented"
+    notice is gone. A stub ``fetch_week`` that raises immediately is enough to
+    prove the weekly path is actually invoked, with no network needed."""
+    from commishdesk.errors import AdapterError
+
+    class _StubAdapter:
+        def __init__(self, *a: object, **k: object) -> None: ...
+
+        def fetch_week(self, league_id: str, week: int) -> dict:
+            raise AdapterError("stub fetch_week called")
+
+        def close(self) -> None: ...
+
+    monkeypatch.setattr("commishdesk.adapters.sleeper.SleeperAdapter", _StubAdapter)
+
     result = runner.invoke(app, ["--league", "123", "--week", "5"])
-    assert result.exit_code == 0
-    assert "not yet implemented" in result.output
+    assert result.exit_code == 1
+    assert "not yet implemented" not in result.output
     assert "Traceback" not in result.output
 
 
@@ -200,11 +215,17 @@ def test_verbose_run_emits_context_stamped_debug_json_to_stderr(tmp_path: Path) 
 
 
 def test_verbose_weekly_run_stamps_week_on_stderr_json() -> None:
-    result = _run_cli("--league", "123", "--week", "5", "--verbose")
-    assert result.returncode == 0
+    """A bogus Sleeper id (matches
+    ``test_real_league_id_with_no_network_is_exit_1_no_traceback`` in
+    ``test_cli_draft_recap.py``) cannot be fetched, so the run exits 1 — but
+    the log-context debug line fires before that fetch is even attempted, so
+    the league_id/week stamp is still on stderr regardless."""
+    result = _run_cli("--league", "0", "--week", "5", "--verbose")
+    assert result.returncode == 1
+    assert "Traceback" not in result.stderr
     records = _stderr_json(result)
     assert records, result.stderr
-    assert any(r.get("league_id") == "123" and r.get("week") == 5 for r in records)
+    assert any(r.get("league_id") == "0" and r.get("week") == 5 for r in records)
 
 
 def test_plain_run_emits_no_log_lines_to_stderr(tmp_path: Path) -> None:

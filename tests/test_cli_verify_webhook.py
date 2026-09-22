@@ -161,10 +161,29 @@ def test_callback_still_resolves_for_a_bare_league_invocation(monkeypatch, tmp_p
     assert (tmp_path / "commishdesk-demo-draft-recap.txt").is_file()
 
 
-def test_weekly_notice_still_fires_with_the_subcommand_registered() -> None:
+def test_weekly_dispatch_still_fires_with_the_subcommand_registered(monkeypatch) -> None:
+    """Story 5.11a wired ``--week`` for real; this regression guard now checks
+    the same thing the "not yet implemented" notice used to: that adding the
+    ``verify-webhook`` subcommand doesn't stop the bare callback from routing
+    ``--week`` to the weekly path. A stub ``fetch_week`` that raises
+    immediately is enough to prove the route fires, with no network and no
+    real weekly fixture needed."""
+    from commishdesk.errors import AdapterError
+
+    class _StubAdapter:
+        def __init__(self, *a: object, **k: object) -> None: ...
+
+        def fetch_week(self, league_id: str, week: int) -> dict:
+            raise AdapterError("stub fetch_week called")
+
+        def close(self) -> None: ...
+
+    monkeypatch.setattr("commishdesk.adapters.sleeper.SleeperAdapter", _StubAdapter)
+
     result = runner.invoke(app, ["--league", "123", "--week", "5"])
-    assert result.exit_code == 0
-    assert "not yet implemented" in result.output
+    assert result.exit_code == 1
+    assert "Traceback" not in result.output
+    assert "stub fetch_week called" in result.output
 
 
 def test_help_lists_the_verify_webhook_command() -> None:

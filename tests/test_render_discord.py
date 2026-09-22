@@ -19,7 +19,9 @@ import pytest
 
 from commishdesk.facts.schema import DraftRecapFacts
 from commishdesk.narrate import Recap, Section, render_draft_recap
+from commishdesk.narrate.weekly_template import WeeklyIssue, WeeklySection
 from commishdesk.render import render_discord_summary
+from commishdesk.render.discord import _escape_discord_markdown, render_weekly_discord_summary
 from tests.conftest import REPO_ROOT
 
 EXPECTED_FACTS_PATH = (
@@ -241,3 +243,79 @@ def test_discord_render_import_pulls_in_no_sdk_and_no_httpx() -> None:
     )
     assert out.returncode == 0, out.stderr
     assert out.stdout.strip() == "ok"
+
+
+# --------------------------------------------------------------------------- #
+# Story 5.11a — render_weekly_discord_summary / _escape_discord_markdown
+# --------------------------------------------------------------------------- #
+
+
+def test_escape_discord_markdown_escapes_the_backslash_before_the_rest() -> None:
+    assert _escape_discord_markdown("plain text") == "plain text"
+    assert _escape_discord_markdown("a\\b") == "a\\\\b"
+    assert _escape_discord_markdown("*bold* _it_ ~x~ `c` |t| >q #head") == (
+        "\\*bold\\* \\_it\\_ \\~x\\~ \\`c\\` \\|t\\| \\>q \\#head"
+    )
+
+
+def test_render_weekly_discord_summary_shape() -> None:
+    issue = WeeklyIssue(
+        title="Trench Warfare — Week 10 Recap",
+        dateline="ignored",
+        sections=[
+            WeeklySection(heading="The Lead", blocks=["Week 10: six games played."]),
+            WeeklySection(heading="Around the League", blocks=["x"]),
+        ],
+    )
+    out = render_weekly_discord_summary(issue, week=10)
+    lines = out.split("\n")
+    assert lines[0] == "Trench Warfare — Week 10 Recap"
+    assert lines[1] == ""
+    assert lines[2] == "Week 10: six games played."
+    assert len(out) < 2000
+    assert "\r" not in out
+
+
+def test_render_weekly_discord_summary_clips_a_long_lead() -> None:
+    long_lead = " ".join(["word"] * 400)
+    issue = WeeklyIssue(
+        title="L — Week 10 Recap",
+        dateline="ignored",
+        sections=[WeeklySection(heading="The Lead", blocks=[long_lead])],
+    )
+    out = render_weekly_discord_summary(issue, week=10)
+    assert len(out) < 2000
+    assert out.endswith("…")
+
+
+def test_render_weekly_discord_summary_escapes_markdown() -> None:
+    issue = WeeklyIssue(
+        title="Trench *Warfare* — Week 10 Recap",
+        dateline="ignored",
+        sections=[WeeklySection(heading="The Lead", blocks=["plain."])],
+    )
+    out = render_weekly_discord_summary(issue, week=10)
+    assert "\\*Warfare\\*" in out
+    assert "*Warfare*" not in out
+
+
+def test_render_weekly_discord_summary_falls_back_to_a_week_title() -> None:
+    out = render_weekly_discord_summary(WeeklyIssue(title="", dateline="x"), week=3)
+    assert out == "Week 3 Recap"
+
+
+def test_render_weekly_discord_summary_escapes_before_clipping_stays_under_2000() -> None:
+    """The reviewed-and-fixed ordering bug (edge-case-hunter, step-04 review):
+    escaping grows the string (one backslash per control char), so escaping
+    *after* the 2000-char clip could push an already-under-the-limit summary
+    back over it. A lead saturated with control characters, long enough to
+    clip, proves the escaped output still respects the limit."""
+    hostile_lead = " ".join(["*bold*"] * 300)  # far past 2000 chars once escaped
+    issue = WeeklyIssue(
+        title="L — Week 10 Recap",
+        dateline="ignored",
+        sections=[WeeklySection(heading="The Lead", blocks=[hostile_lead])],
+    )
+    out = render_weekly_discord_summary(issue, week=10)
+    assert len(out) < 2000
+    assert "*" not in out.replace("\\*", "")  # every real "*" was escaped, none bare
