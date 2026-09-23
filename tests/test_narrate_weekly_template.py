@@ -557,7 +557,7 @@ def test_module_imports_only_the_facts_schema_and_the_standard_library() -> None
         elif isinstance(node, ast.ImportFrom) and node.module is not None and node.level == 0:
             dotted.add(node.module)
     roots = {name.split(".")[0] for name in dotted}
-    assert roots <= {"__future__", "pydantic", "commishdesk"}, roots
+    assert roots <= {"__future__", "pydantic", "commishdesk", "re"}, roots
     assert {name for name in dotted if name.startswith("commishdesk")} == {"commishdesk.facts.schema"}
 
 
