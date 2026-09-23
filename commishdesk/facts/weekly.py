@@ -12,6 +12,12 @@ Story 5.9 wires the weekly lead angles
 branch of the storyline lifecycle (``facts/storylines.py``) into both the
 document and its narration projection, replacing the two ``[]`` placeholders.
 
+Story 5.12 adds ``previous_published_ranks`` — the per-week ``{roster_id:
+published_rank}`` maps a weekly caller already read back from the Store — and
+populates :class:`~commishdesk.facts.schema.WeeklyPower`'s published-rank pair
+from it. The Store read itself stays in ``cli.py``: this module is on the
+``stats/``-side of the AD-1 fence and never imports ``store``.
+
 Pure, deterministic, offline: no network, no clock, no filesystem.
 ``generated_at`` is a caller argument, so two builds of one input produce an
 equal ``model_dump()`` modulo nothing.
@@ -217,6 +223,31 @@ def _nfl_team(players: Mapping[str, PlayerSnapshot], player_id: str) -> str | No
     return snapshot.nfl_team if snapshot is not None else None
 
 
+def _published_lookback(
+    roster_id: str, week: int, previous_published_ranks: Mapping[int, Mapping[str, int]] | None
+) -> tuple[int | None, int | None]:
+    """``(prev_published_rank, immediate_published_rank)`` for one roster.
+
+    ``prev_published_rank`` is the latest prior week (walking backward from
+    ``week - 1``) that persisted a rank for this roster — a held or skipped week
+    is skipped over, never interpolated. ``immediate_published_rank`` is the
+    rank persisted for ``week - 1`` itself, and nothing else; it is what
+    separates "our last published opinion" from "our last published opinion
+    *last* week", which is the distinction ``published_week_delta`` encodes.
+    """
+    if not previous_published_ranks:
+        return None, None
+    previous: int | None = None
+    for prior in sorted(previous_published_ranks, reverse=True):
+        if prior >= week:
+            continue
+        value = previous_published_ranks[prior].get(roster_id)
+        if value is not None:
+            previous = value
+            break
+    return previous, previous_published_ranks.get(week - 1, {}).get(roster_id)
+
+
 def build_weekly_facts(
     week: WeekModel,
     league: LeagueModel,
@@ -229,13 +260,20 @@ def build_weekly_facts(
     fetched_at: str | None = None,
     provisional: bool = True,
     previous_storylines: Sequence[Storyline] = (),
+    previous_published_ranks: Mapping[int, Mapping[str, int]] | None = None,
 ) -> WeeklyFacts:
     """Merge the weekly stats modules into a validated :class:`WeeklyFacts`.
 
     Pure / deterministic / offline. ``generated_at`` follows the
     ``build_draft_recap_facts`` rule. ``previous_storylines`` is the league's
     persisted narrative memory (Story 5.9), advanced by the ``kind="weekly"``
-    branch of :func:`~commishdesk.facts.storylines.advance_storylines`. Raises
+    branch of :func:`~commishdesk.facts.storylines.advance_storylines`.
+    ``previous_published_ranks`` (Story 5.12) is every prior week's persisted
+    ``{roster_id: published_rank}`` map, keyed by week — the caller read them
+    from the ``Store``, and this builder only *reads* the mapping, so the AD-1
+    fence holds.
+
+    Raises
     :class:`~commishdesk.errors.SchemaValidationError` (chained from the
     underlying error, message naming ``weekly``) when the merged document does
     not satisfy the schema; returns no partial document. A malformed
@@ -254,6 +292,7 @@ def build_weekly_facts(
             fetched_at=fetched_at,
             provisional=provisional,
             previous_storylines=previous_storylines,
+            previous_published_ranks=previous_published_ranks,
         )
     except (ValidationError, KeyError, AttributeError, TypeError, ValueError) as exc:
         raise SchemaValidationError(_violation_message(exc, document="weekly")) from exc
@@ -271,6 +310,7 @@ def _build(
     fetched_at: str | None,
     provisional: bool,
     previous_storylines: Sequence[Storyline],
+    previous_published_ranks: Mapping[int, Mapping[str, int]] | None,
 ) -> WeeklyFacts:
     weekly = compute_weekly_stats(week)
     lineups = compute_weekly_lineups(week, league, players, nfl_byes)
@@ -335,6 +375,8 @@ def _build(
         lrow = lineups_by_roster.get(rid)
         record = records.get(rid)
 
+        prev_published, immediate_published = _published_lookback(rid, week.week, previous_published_ranks)
+
         season = _season_block(
             rid,
             standing,
@@ -344,6 +386,8 @@ def _build(
             prev_ranks,
             seasonal_actual.get(rid, 0.0),
             seasonal_optimal.get(rid, 0.0),
+            prev_published,
+            immediate_published,
         )
 
         this_week: WeeklyTeamGame | None = None
@@ -542,6 +586,8 @@ def _season_block(
     prev_ranks: Mapping[str, int | None],
     seasonal_actual: float,
     seasonal_optimal: float,
+    prev_published_rank: int | None,
+    immediate_published_rank: int | None,
 ) -> WeeklySeason:
     wins = standing.wins if standing is not None else 0  # type: ignore[attr-defined]
     losses = standing.losses if standing is not None else 0  # type: ignore[attr-defined]
@@ -574,6 +620,17 @@ def _season_block(
         expected_wins = wrow.expected_wins  # type: ignore[attr-defined]
         luck = wrow.luck  # type: ignore[attr-defined]
 
+    # Story 5.12: how far the *last* published opinion sits from this week's
+    # model rank. Null unless the immediately preceding week persisted a rank —
+    # a held or skipped week is a gap, and a longer fallback (which
+    # ``prev_published_rank`` still resolves) must not be laundered into a
+    # one-week delta.
+    published_week_delta = (
+        immediate_published_rank - model_rank
+        if immediate_published_rank is not None and model_rank is not None
+        else None
+    )
+
     return WeeklySeason(
         record=WeeklyRecord(w=wins, l=losses, t=ties),
         rank=standing.rank if standing is not None else 0,  # type: ignore[attr-defined]
@@ -592,6 +649,8 @@ def _season_block(
             model_rank=model_rank,
             prev_model_rank=prev_rank,
             week_delta=week_delta,
+            prev_published_rank=prev_published_rank,
+            published_week_delta=published_week_delta,
         ),
         coaching_efficiency=_coaching(seasonal_actual, seasonal_optimal),
     )
