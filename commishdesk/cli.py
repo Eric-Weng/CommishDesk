@@ -23,7 +23,12 @@ from typing import TYPE_CHECKING
 import typer
 
 from commishdesk import __version__
-from commishdesk.errors import CommishDeskError, CostCeilingExceededError, DeliveryError
+from commishdesk.errors import (
+    CommishDeskError,
+    CostCeilingExceededError,
+    DeliveryError,
+    StoreError,
+)
 from commishdesk.logconfig import configure_logging, log_context
 
 if TYPE_CHECKING:
@@ -32,7 +37,7 @@ if TYPE_CHECKING:
     from commishdesk.narrate import Recap, SafetyReport, TieredResponse
     from commishdesk.narrate.llm import CallUsage
     from commishdesk.narrate.weekly_template import WeeklyIssue
-    from commishdesk.store import FileStore, IssueKind
+    from commishdesk.store import FileStore, IssueKind, Store
     from commishdesk.voices import Voice
 
 
@@ -98,6 +103,15 @@ def run(
             "not re-sent."
         ),
     ),
+    reason: str | None = typer.Option(
+        None,
+        "--reason",
+        help=(
+            "Reissue a weekly recap as a correction, recording this text as the "
+            "reason in the Send Ledger. Requires --week and --post, and a weekly "
+            "post already confirmed for that league-week."
+        ),
+    ),
     llm: bool | None = typer.Option(
         None,
         "--llm/--no-llm",
@@ -141,7 +155,11 @@ def run(
     ``commishdesk --league …`` invocation still lands here unchanged.
 
     Exactly one of ``--draft-recap`` / ``--week`` selects the mode; ``--post`` is
-    legal with either. Neither flag keeps the unchanged informational path.
+    legal with either. ``--reason`` is the weekly path's reissue escape hatch
+    (Story 5.11c): it only means anything alongside ``--week --post``, so it is
+    rejected on the draft-recap path, without ``--week``, without ``--post``, and
+    as blank text — all before any fetch. Neither flag keeps the unchanged
+    informational path.
     """
     if ctx.invoked_subcommand is not None:
         return
@@ -151,6 +169,24 @@ def run(
             raise typer.BadParameter("--draft-recap builds the draft recap and cannot be combined with --week")
         if post and not (draft_recap or week is not None):
             raise typer.BadParameter("--post requires --draft-recap or --week")
+        if reason is not None:
+            if draft_recap:
+                # Kept short on purpose: this Click version prints a
+                # ``BadParameter`` in a boxed panel that word-wraps to the
+                # console width, and a longer message wraps the
+                # "--draft-recap" tail onto its own line.
+                raise typer.BadParameter("--reason cannot be combined with --draft-recap")
+            if week is None:
+                raise typer.BadParameter("--reason requires --week")
+            if not post:
+                raise typer.BadParameter("--reason requires --post")
+            if not reason.strip():
+                raise typer.BadParameter("--reason must be a non-blank string")
+            # Normalized once, here, so the text the Send Ledger persists
+            # (review-loop 1) is byte-identical to the text the Correction
+            # section displays -- both read this same stripped value from now
+            # on, never the raw option string.
+            reason = reason.strip()
         if draft_recap:
             if not league:
                 raise typer.BadParameter("--draft-recap requires --league")
@@ -183,7 +219,7 @@ def run(
                 )
             logger.debug("cli invoked: mode=week %s recap", week)
             try:
-                exit_code = _run_weekly(league, week, out_dir, logger, post=post)
+                exit_code = _run_weekly(league, week, out_dir, logger, post=post, reason=reason)
             except (CommishDeskError, OSError) as exc:
                 typer.echo(_one_line(exc), err=True)
                 raise typer.Exit(code=1) from exc
@@ -444,19 +480,26 @@ def _run_weekly(
     logger: logging.Logger,
     *,
     post: bool,
+    reason: str | None = None,
 ) -> int:
     """Derive the run list (the one Generation Set constructor) and build a weekly
     Issue for each activated league. Returns the process exit code: ``0`` when
     every league in the set produced an Issue, ``1`` when one or more faulted
     (each fault — a not-yet-final week, a cross-check hold, an
-    :class:`~commishdesk.errors.OptimalLineupError`, anything else — is isolated
-    and printed as a one-line message, AD-9). Raises
-    :class:`~commishdesk.errors.CommishDeskError` before any league runs when the
-    league is not activated for a run.
+    :class:`~commishdesk.errors.OptimalLineupError`, a reissue with nothing to
+    correct, anything else — is isolated and printed as a one-line message, AD-9).
+    Raises :class:`~commishdesk.errors.CommishDeskError` before any league runs
+    when the league is not activated for a run.
+
+    ``reason`` (Story 5.11c) is the operator's explicit reissue: it turns this run
+    into a correction of an already-confirmed weekly send. It is threaded
+    unchanged down to :func:`_recap_one_league_weekly`, which owns both the
+    "something to correct" guard and the corrected Issue's label.
 
     No LLM config is loaded and no paid call is made anywhere on this path: the
     weekly narrator is the deterministic template only (Story 5.12 adds the
-    voiced weekly narrator), so there is no cost-ceiling machinery here either."""
+    voiced weekly narrator), so there is no cost-ceiling machinery here either —
+    including on a reissue, which rebuilds the same free template Issue."""
     from commishdesk.generation import build_generation_set
 
     run_list = build_generation_set([league]).league_ids
@@ -466,7 +509,7 @@ def _run_weekly(
     exit_code = 0
     for resolved in run_list:
         try:
-            _recap_one_league_weekly(resolved, week, out_dir, logger, post=post)
+            _recap_one_league_weekly(resolved, week, out_dir, logger, post=post, reason=reason)
         except (CommishDeskError, OSError) as exc:
             logger.debug("league %s faulted: %s", resolved, _one_line(exc))
             typer.echo(_one_line(exc), err=True)
@@ -498,6 +541,141 @@ def _week_not_final_reason(nfl_state: object, week: int) -> str | None:
     ):
         return f"week {week} is not final yet — Sleeper's NFL state is only through week {current}"
     return None
+
+
+# --------------------------------------------------------------------------- #
+# Story 5.11c — the weekly Facts JSON snapshot and its numeric diff
+#
+# The reissue needs to say *what changed*, which means it needs the previous
+# confirmed run's Facts JSON to diff against. Persisted through the generic
+# ``Store`` blob cache (no new port method, AD-5 shape), exactly as
+# ``consensus.py`` wraps the same read/write pair for its own payloads.
+# --------------------------------------------------------------------------- #
+
+#: The blob-cache namespace a league-week's Facts JSON snapshot lives under.
+_WEEKLY_FACTS_NAMESPACE = "weekly-facts-snapshot"
+
+#: How many changed numeric leaves a reissue's diff summary names before it stops
+#: listing them and just counts the rest.
+_MAX_DIFF_ENTRIES = 8
+
+
+def _weekly_facts_snapshot_key(league_id: str, week: int) -> str:
+    """The blob-cache key one league-week's Facts JSON snapshot is stored under.
+
+    A ``-`` joins the league id and the week rather than the ``:`` the design note
+    names: ``FileStore`` maps a cache key straight onto a file name
+    (``cache/<namespace>/<key>.json``), and ``:`` is not a legal file name
+    character on Windows -- there ``mkstemp`` / ``os.replace`` raise ``OSError``,
+    which ``write_cache`` reports as a ``StoreError`` (swallowed, since this cache
+    is deliberately best-effort) and ``read_cache`` never finds the entry, so the
+    snapshot could never round-trip and a reissue could never say what changed.
+    Sleeper league ids are digits, so the two separators cannot collide."""
+    return f"{league_id}-{week}"
+
+
+def _read_weekly_facts_snapshot(
+    store: Store, league_id: str, week: int
+) -> dict[str, object] | None:
+    """The Facts JSON snapshot an earlier confirmed post persisted for this
+    league-week, or ``None`` when there is none. Best-effort, like
+    ``consensus.py``'s own cache readers: a ``StoreError`` (a corrupt or
+    unreadable entry) reads as "no snapshot" rather than failing the reissue."""
+    try:
+        return store.read_cache(
+            _WEEKLY_FACTS_NAMESPACE, _weekly_facts_snapshot_key(league_id, week)
+        )
+    except StoreError:
+        return None
+
+
+def _write_weekly_facts_snapshot(
+    store: Store, league_id: str, week: int, facts: Mapping[str, object]
+) -> None:
+    """Persist one league-week's Facts JSON snapshot for a later reissue to diff
+    against. Best-effort, mirroring ``consensus.py``: a ``StoreError`` here must
+    not discard an Issue that has already been rendered and posted."""
+    try:
+        store.write_cache(
+            _WEEKLY_FACTS_NAMESPACE, _weekly_facts_snapshot_key(league_id, week), facts
+        )
+    except StoreError:
+        pass
+
+
+def _numeric_leaves(node: object, path: str, out: dict[str, int | float]) -> None:
+    """Collect every numeric leaf of a decoded Facts JSON document into ``out``,
+    keyed by its dotted / indexed path (``period.summary.high_score``,
+    ``teams[0].pf``).
+
+    Booleans are skipped on purpose — ``True`` is an ``int`` in Python, and a flag
+    flipping is not a number that moved."""
+    if isinstance(node, Mapping):
+        for key, value in node.items():
+            _numeric_leaves(value, f"{path}.{key}" if path else str(key), out)
+    elif isinstance(node, (list, tuple)):
+        for index, value in enumerate(node):
+            _numeric_leaves(value, f"{path}[{index}]", out)
+    elif isinstance(node, bool):
+        return
+    elif isinstance(node, (int, float)):
+        out[path] = node
+
+
+def _fmt_number(value: int | float) -> str:
+    """A number as a compact display string (``12.0`` -> ``"12"``, ``1234.5`` ->
+    ``"1234.5"``, ``12345678`` -> ``"12345678"``)."""
+    if isinstance(value, float) and not value.is_integer():
+        return f"{value:g}"
+    return str(int(value))
+
+
+def _diff_facts_numbers(
+    previous: Mapping[str, object], current: Mapping[str, object]
+) -> list[str]:
+    """The numeric leaves that moved between two Facts JSON documents, one
+    ``"<path>: <old> -> <new>"`` line each (a leaf present on only one side is
+    tagged ``(new)`` / ``(removed)``).
+
+    Text only, ASCII only: ``->`` rather than an arrow, because the summary is
+    echoed to stdout and written into the Issue's text/HTML files, and a character
+    outside the platform's ANSI code page would crash a redirected run on Windows.
+    Non-numeric leaves are deliberately ignored: ``generated_at`` moves on every
+    run and is not a correction, and a re-worded headline is not a number."""
+    before: dict[str, int | float] = {}
+    after: dict[str, int | float] = {}
+    _numeric_leaves(previous, "", before)
+    _numeric_leaves(current, "", after)
+    changes: list[str] = []
+    for path in sorted(set(before) | set(after)):
+        if path in before and path in after:
+            old, new = before[path], after[path]
+            if old != new:
+                changes.append(f"{path}: {_fmt_number(old)} -> {_fmt_number(new)}")
+        elif path in after:
+            changes.append(f"{path}: (new) {_fmt_number(after[path])}")
+        else:
+            changes.append(f"{path}: {_fmt_number(before[path])} (removed)")
+    return changes
+
+
+def _weekly_facts_diff_summary(
+    store: Store, league_id: str, week: int, current: Mapping[str, object]
+) -> str:
+    """One line saying what changed (if anything) between the league-week's
+    previous confirmed Facts JSON snapshot and *current* — the sentence a reissue
+    carries as its "what changed"."""
+    previous = _read_weekly_facts_snapshot(store, league_id, week)
+    if previous is None:
+        return "no previous snapshot is stored for this league-week"
+    changes = _diff_facts_numbers(previous, current)
+    if not changes:
+        return "no numeric differences found"
+    listed = changes[:_MAX_DIFF_ENTRIES]
+    summary = "changed numbers: " + "; ".join(listed)
+    if len(changes) > _MAX_DIFF_ENTRIES:
+        summary += f"; and {len(changes) - _MAX_DIFF_ENTRIES} more"
+    return summary
 
 
 def _recap_one_league(
@@ -792,17 +970,29 @@ def _recap_one_league_weekly(
     logger: logging.Logger,
     *,
     post: bool,
+    reason: str | None = None,
 ) -> None:
     """Story 5.11a: chain ingest → stats → facts → template narrator → render for
     one league-week, writing the local text Issue plus the Story 2.7 generic HTML
     dump and (with ``--post``) delivering an idempotent Discord summary.
 
+    Story 5.11c adds the reissue seam: a non-``None`` ``reason`` is the operator's
+    explicit "post this again, it was wrong". That inverts the ledger gate at the
+    top — instead of short-circuiting on an already-confirmed send, a reissue
+    *requires* one (there must be something to correct) — and, once the Issue is
+    rebuilt exactly as a plain ``--week --post`` run would rebuild it, prepends a
+    "Correction" section carrying the reason and a numeric diff against the
+    previous confirmed run's persisted Facts JSON. The reason rides through
+    :func:`_deliver_issue` into Story 4.4's own re-send-and-append mechanism.
+
     No paid call is made on this path — the weekly narrator is the deterministic
     template only, so there is no LLM selection and no cost-ceiling check here.
+    "Priced before any spend" is a documented no-op today (Story 5.12).
 
     Ordering (epic-3-retro-item-35, applied to the weekly kind from the start):
 
-    1. the ``--post`` webhook fail-fast + already-confirmed ledger short-circuit,
+    1. the ``--post`` webhook fail-fast + already-confirmed ledger short-circuit
+       (or, on a reissue, the store must already hold that confirmed entry),
        before any fetch at all;
     2. the fetch and Sleeper's own week-finality refusal;
     3. the standings cross-check — a ``CrossCheckError`` is a **hold** under
@@ -810,7 +1000,14 @@ def _recap_one_league_weekly(
        dateline otherwise (the mismatch is printed and the local Issue still
        ships);
     4. the durable writes (the persisted-or-built player snapshot, then the
-       advanced storylines once the Issue exists and any hold has resolved).
+       advanced storylines once the Issue exists and any hold has resolved);
+    5. (Story 5.11c, reissue only) the Correction section is prepended to the
+       rebuilt Issue only after step 4's writes, so its diff reads the same
+       Facts JSON the storylines above were advanced from;
+    6. (Story 5.11c) the Facts JSON snapshot this run persists for a future
+       reissue to diff against is written only once ``--post`` has actually
+       confirmed the send — never on a failed delivery, and never on a run
+       that only writes the local Issue.
     """
     from commishdesk.deliver.discord import webhook_id
     from commishdesk.errors import CrossCheckError
@@ -830,9 +1027,10 @@ def _recap_one_league_weekly(
     store = FileStore(_cache_dir())
 
     # --post fails fast on a missing/blank/malformed webhook before any fetch or
-    # any work (mirrors _recap_one_league's draft fast-path), and an
-    # already-confirmed (league, week, kind="weekly") Send Ledger entry
-    # short-circuits the whole run before any fetch at all.
+    # any work (mirrors _recap_one_league's draft fast-path). The Send Ledger then
+    # gates the run: a plain run short-circuits on an already-confirmed (league,
+    # week, kind="weekly") entry, while a reissue (Story 5.11c) requires one —
+    # there is nothing to correct otherwise.
     webhook_url: str | None = None
     recipient_id: str | None = None
     if post:
@@ -847,9 +1045,15 @@ def _recap_one_league_weekly(
             for entry in store.read_ledger(resolved, week)
             if entry.channel == "discord" and entry.kind == weekly_kind
         }
-        if recipient_id in already_confirmed:
-            typer.echo(f"Discord post already confirmed for webhook {recipient_id} — skipped")
-            return
+        if reason is None:
+            if recipient_id in already_confirmed:
+                typer.echo(f"Discord post already confirmed for webhook {recipient_id} — skipped")
+                return
+        elif recipient_id not in already_confirmed:
+            raise CommishDeskError(
+                f"nothing to correct for league {resolved!r} week {week} — "
+                "no confirmed send for this league-week"
+            )
 
     from commishdesk.adapters.sleeper import SleeperAdapter
 
@@ -859,10 +1063,10 @@ def _recap_one_league_weekly(
         week_bundle = adapter.fetch_week(resolved, week)
         # Refuse before any stats work when Sleeper's own state says this week's
         # games are not final yet (or the season has not started).
-        reason = _week_not_final_reason(week_bundle.get("nfl_state"), week)
-        if reason is not None:
+        reason_not_final = _week_not_final_reason(week_bundle.get("nfl_state"), week)
+        if reason_not_final is not None:
             raise CommishDeskError(
-                f"league {resolved!r}: cannot build a Week {week} recap — {reason}"
+                f"league {resolved!r}: cannot build a Week {week} recap — {reason_not_final}"
             )
         league_bundle = adapter.fetch(resolved)
     finally:
@@ -912,9 +1116,13 @@ def _recap_one_league_weekly(
         nfl_byes_next_week=nfl_byes_next_week,
         previous_storylines=previous_storylines,
     )
+    # The decoded Facts JSON, in two places below: the reissue's diff (against the
+    # previous confirmed run's snapshot) and the snapshot this run persists. Read
+    # ``generated_at`` here is a string, so the diff helper never sees it move.
+    facts_json = doc.model_dump(mode="json")
 
     logger.debug("narrating the weekly Issue (template narrator)")
-    from commishdesk.narrate.weekly_template import render_weekly_issue
+    from commishdesk.narrate.weekly_template import WeeklySection, render_weekly_issue
 
     issue = render_weekly_issue(doc.narration)
     if not cross_check_passed:
@@ -922,6 +1130,43 @@ def _recap_one_league_weekly(
         # file, the HTML dump) — the same technique _render_and_write_issue uses
         # to stamp the generation timestamp onto the draft-recap dateline.
         issue = issue.model_copy(update={"dateline": f"UNVERIFIED — {issue.dateline}"})
+
+    # Story 5.11c: label the corrected Issue as a correction. The section is
+    # prepended, so its first block is what ``render_weekly_discord_summary`` reads
+    # as the Discord lead — the reason *and* the changed-numbers summary therefore
+    # reach stdout, the text/HTML files and the posted message alike, with no
+    # change to ``render/discord.py``.
+    #
+    # Gated on ``post`` too (review-loop 1, edge-case-hunter): ``run()`` already
+    # requires ``--post`` alongside ``--reason``, so a CLI-driven call never
+    # reaches this function with ``reason`` set and ``post`` false — but nothing
+    # here re-derives that invariant, and this function has no other caller to
+    # rely on it either. Without the guard, such a call would still label the
+    # local-only Issue a "Correction" and read/diff the Facts snapshot despite
+    # never checking the ledger for something to correct, and never posting or
+    # ledgering anything. ``reason`` is already the stripped text (validated and
+    # normalized in ``run()``).
+    if post and reason is not None:
+        correction = reason
+        summary = _weekly_facts_diff_summary(store, resolved, week, facts_json)
+        logger.info(
+            "league %s week %s reissue (%s): %s",
+            resolved,
+            week,
+            correction,
+            summary,
+        )
+        issue = issue.model_copy(
+            update={
+                "sections": [
+                    WeeklySection(
+                        heading="Correction",
+                        blocks=[f"Correction — {correction} — {summary}"],
+                    ),
+                    *issue.sections,
+                ]
+            }
+        )
 
     # epic-3-retro-item-35: narrative memory is durably updated only once the
     # narratable Issue exists and any cross-check hold has resolved. Extended
@@ -966,7 +1211,12 @@ def _recap_one_league_weekly(
             kind=weekly_kind,
             webhook_url=webhook_url,
             recipient_id=recipient_id,
+            reason=reason,
         )
+        # Story 5.11c: record this league-week's Facts JSON so a later reissue can
+        # say what changed. Written only after the post is confirmed, so a failed
+        # delivery never leaves a snapshot claiming the Issue went out.
+        _write_weekly_facts_snapshot(store, resolved, week, facts_json)
 
 
 def _issue_filename_stem(week: int, kind: IssueKind) -> str:
@@ -1089,6 +1339,7 @@ def _deliver_issue(
     kind: IssueKind,
     webhook_url: str,
     recipient_id: str,
+    reason: str | None = None,
 ) -> None:
     """Story 4.6: deliver one pre-composed Issue summary to Discord through
     Story 4.4's idempotent Send Ledger and Story 4.3's webhook post.
@@ -1098,6 +1349,12 @@ def _deliver_issue(
     :func:`~commishdesk.render.render_weekly_discord_summary` — so this function
     owns only the send/ledger logic, shared unchanged. ``week`` / ``kind`` key
     the ledger entry, so a future weekly path uses the same delivery machinery.
+
+    ``reason`` (Story 5.11c) is forwarded verbatim to ``send_issue``'s own
+    ``reason=``: a non-``None`` value is a deliberate re-issue, so every recipient
+    is re-sent regardless of the ledger and the new entry carries that reason. The
+    draft-recap caller never passes one.
+
     Lazy imports (mirrors the verify-webhook comment above) keep httpx off the
     default --post-less import path."""
     from commishdesk.deliver import send_issue
@@ -1131,6 +1388,7 @@ def _deliver_issue(
         kind=kind,
         recipients={recipient_id: summary},
         sender=_post_to_the_expected_recipient,
+        reason=reason,
     )
     if report.failed:
         _, message = report.failed[0]  # a single recipient — no partial-success case

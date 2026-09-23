@@ -11,6 +11,9 @@ Direct unit coverage of ``render/discord.py``'s weekly additions
 :func:`~commishdesk.render.discord._escape_discord_markdown`) lives in
 ``tests/test_render_discord.py`` beside the draft-recap summary's own tests,
 not here — this file is CLI-level (the pipeline chained end to end).
+
+Story 5.11c (the ``--reason`` reissue) is covered here too: it is CLI wiring on
+this same path, not a new module.
 """
 
 from __future__ import annotations
@@ -423,3 +426,261 @@ def test_weekly_markdown_in_a_league_supplied_name_is_escaped_in_the_post(
     for char in "*_`~|>#":
         assert f"\\{char}" in content, char
     assert hostile not in content  # nothing raw survived
+
+
+# --------------------------------------------------------------------------- #
+# Reissue (Story 5.11c)
+# --------------------------------------------------------------------------- #
+
+
+def _first_weekly_post(
+    tmp_path, monkeypatch: pytest.MonkeyPatch, league_id: str
+) -> tuple[list[tuple[str, str]], FileStore]:
+    """A plain, successful ``--week 17 --post`` run — one Discord post recorded
+    and one ``kind="weekly"`` Send Ledger entry confirmed. Returns the recorded
+    posts and the store the run wrote to, so a reissue test can assert against
+    both."""
+    _stub_adapter(monkeypatch)
+    posted = _stub_post_discord_text(monkeypatch)
+    monkeypatch.setenv("COMMISHDESK_DISCORD_WEBHOOK_URL", _FAKE_WEBHOOK_URL)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+
+    first = runner.invoke(
+        app, ["--league", league_id, "--week", "17", "--post", "--out-dir", str(tmp_path)]
+    )
+    assert first.exit_code == 0, first.output
+    assert len(posted) == 1
+    store = FileStore(tmp_path / "cache" / "commishdesk")
+    assert [entry.kind for entry in store.read_ledger(league_id, 17)] == ["weekly"]
+    return posted, store
+
+
+def test_weekly_reissue_posts_a_corrected_issue_and_records_the_reason(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The matrix's "normal reissue" row / AC1: with a weekly send already
+    confirmed, ``--week 17 --post --reason …`` rebuilds the Issue, posts the
+    correction, and appends a second ledger entry carrying the operator's
+    reason — and the Correction label reaches stdout, the text Issue, the HTML
+    dump and the posted message alike."""
+    posted, store = _first_weekly_post(tmp_path, monkeypatch, "81")
+    assert "Correction" not in posted[0][1]
+
+    reissued = runner.invoke(
+        app,
+        [
+            "--league", "81", "--week", "17", "--post",
+            "--reason", "fixed the QB stat line",
+            "--out-dir", str(tmp_path),
+        ],
+    )
+    assert reissued.exit_code == 0, reissued.output
+    assert len(posted) == 2
+    assert "posted to Discord" in reissued.stdout
+
+    _, content = posted[1]
+    assert "Correction" in content
+    assert "fixed the QB stat line" in content
+
+    # Every local surface carries the correction too.
+    assert "Correction" in reissued.stdout
+    assert "Correction" in (tmp_path / "commishdesk-81-weekly-week17.txt").read_text(encoding="utf-8")
+    assert "Correction" in (tmp_path / "commishdesk-81-weekly-week17.html").read_text(encoding="utf-8")
+
+    assert [
+        (entry.kind, entry.channel, entry.recipient, entry.reason)
+        for entry in store.read_ledger("81", 17)
+    ] == [
+        ("weekly", "discord", _WEBHOOK_ID, None),
+        ("weekly", "discord", _WEBHOOK_ID, "fixed the QB stat line"),
+    ]
+
+
+def test_weekly_reissue_with_unchanged_numbers_says_nothing_moved(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The matrix's "nothing actually changed" row: the reissue still posts (the
+    operator's explicit call) and the correction's diff summary states exactly
+    that no numeric value moved.
+
+    Narrative memory is the one input the first run durably advanced, so it is
+    reset here to reproduce the row's own premise — "new Facts JSON identical to
+    prior snapshot" — before the second run rebuilds it."""
+    posted, store = _first_weekly_post(tmp_path, monkeypatch, "82")
+    store.write_storylines("82", [])
+
+    reissued = runner.invoke(
+        app,
+        [
+            "--league", "82", "--week", "17", "--post",
+            "--reason", "repost after a bad publish",
+            "--out-dir", str(tmp_path),
+        ],
+    )
+    assert reissued.exit_code == 0, reissued.output
+    assert len(posted) == 2
+    assert "no numeric differences found" in reissued.stdout
+    assert "no numeric differences found" in posted[1][1]
+
+
+def test_weekly_reissue_without_a_confirmed_send_fails_fast(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The matrix's "nothing confirmed yet" row: ``--reason`` on a league-week
+    with no confirmed weekly send has nothing to correct — one-line message, no
+    fetch, no post, nothing written."""
+    calls = _stub_adapter(monkeypatch)
+    posted = _stub_post_discord_text(monkeypatch)
+    monkeypatch.setenv("COMMISHDESK_DISCORD_WEBHOOK_URL", _FAKE_WEBHOOK_URL)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+
+    result = runner.invoke(
+        app,
+        [
+            "--league", "83", "--week", "17", "--post",
+            "--reason", "wrong number",
+            "--out-dir", str(tmp_path),
+        ],
+    )
+    assert result.exit_code == 1
+    assert "Traceback" not in result.output
+    assert "nothing to correct" in result.output
+    assert "no confirmed send for this league-week" in result.output
+    assert calls["fetch_week"] == []
+    assert not posted
+    assert not list(tmp_path.glob("commishdesk-*"))
+
+
+def test_weekly_second_plain_run_still_skips_without_a_reason(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """AC2 / the matrix's "accidental second plain run" row: with no ``--reason``
+    the idempotency short-circuit is untouched — the second run posts nothing and
+    appends no ledger entry."""
+    posted, store = _first_weekly_post(tmp_path, monkeypatch, "84")
+
+    again = runner.invoke(
+        app, ["--league", "84", "--week", "17", "--post", "--out-dir", str(tmp_path)]
+    )
+    assert again.exit_code == 0, again.output
+    assert "already confirmed" in again.stdout
+    assert len(posted) == 1
+    assert len(store.read_ledger("84", 17)) == 1
+
+
+def test_weekly_reason_without_post_is_rejected_before_any_fetch(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The matrix's "``--reason`` without ``--post``" row: rejected up front,
+    before any fetch."""
+    calls = _stub_adapter(monkeypatch)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+
+    result = runner.invoke(
+        app,
+        ["--league", "85", "--week", "17", "--reason", "x", "--out-dir", str(tmp_path)],
+    )
+    assert result.exit_code == 2
+    assert "--reason requires --post" in result.output
+    assert calls["fetch_week"] == []
+
+
+def test_weekly_reason_without_week_is_rejected(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``--reason`` on its own (no ``--week``) names nothing to correct — it is
+    rejected as a usage error rather than falling through to the informational
+    path."""
+    calls = _stub_adapter(monkeypatch)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+
+    result = runner.invoke(
+        app, ["--league", "86", "--reason", "x", "--out-dir", str(tmp_path)]
+    )
+    assert result.exit_code == 2
+    assert "--reason requires --week" in result.output
+    assert calls["fetch"] == [] and calls["fetch_week"] == []
+
+
+def test_weekly_reason_is_rejected_on_the_draft_recap_path(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The matrix's "``--reason`` with ``--draft-recap``" row: a reissue is a
+    weekly-only concern, so the draft path refuses the flag before any fetch."""
+    calls = _stub_adapter(monkeypatch)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+
+    result = runner.invoke(
+        app,
+        ["--league", "87", "--draft-recap", "--reason", "x", "--out-dir", str(tmp_path)],
+    )
+    assert result.exit_code == 2
+    assert "cannot be combined with --draft-recap" in result.output
+    assert calls["fetch"] == [] and calls["fetch_week"] == []
+
+
+def test_weekly_blank_reason_is_rejected_before_any_fetch(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The matrix's "blank reason" row: whitespace is not a reason."""
+    calls = _stub_adapter(monkeypatch)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+
+    result = runner.invoke(
+        app,
+        ["--league", "88", "--week", "17", "--post", "--reason", "   ", "--out-dir", str(tmp_path)],
+    )
+    assert result.exit_code == 2
+    assert "non-blank" in result.output
+    assert calls["fetch_week"] == []
+
+
+def test_weekly_reissue_reports_a_real_changed_number(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Review-loop 1 (verification-gap / blind-hunter): every other reissue test
+    reuses identical upstream data between the first post and the reissue, so
+    the diff always lands in the empty-changes branch and the "changed
+    numbers: <path>: <old> -> <new>" line this story exists to produce was
+    never exercised. Here the reissue's underlying week bundle genuinely
+    differs — one roster's ``points`` is bumped, mirroring a real stat
+    correction — and the posted correction must show the actual old and new
+    values, not just the word "Correction"."""
+    posted, store = _first_weekly_post(tmp_path, monkeypatch, "89")
+
+    corrected_week = _load_fixture(_WEEK17)
+    corrected_week["matchups"]["17"][0]["points"] = 254.52  # was 204.52
+    _stub_adapter(monkeypatch, week_bundle=corrected_week)
+
+    reissued = runner.invoke(
+        app,
+        [
+            "--league", "89", "--week", "17", "--post",
+            "--reason", "fixed a scoring error",
+            "--out-dir", str(tmp_path),
+        ],
+    )
+    assert reissued.exit_code == 0, reissued.output
+    assert len(posted) == 2
+
+    _, content = posted[1]
+    assert "changed numbers:" in content
+    assert "204.52" in content and "254.52" in content
+    assert store.read_cache("weekly-facts-snapshot", "89-17") is not None
+
+
+def test_weekly_facts_snapshot_key_is_pinned_and_round_trips(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Blind-hunter: the blob-cache key format (``<league_id>-<week>``, not the
+    spec's own ``:``-separated example — ``:`` is not a legal Windows file
+    name, and ``FileStore`` maps a cache key straight onto one) is a durable
+    on-disk contract, not an implementation detail free to drift. Pins it
+    directly, independent of any CLI run."""
+    from commishdesk.cli import _weekly_facts_snapshot_key
+
+    assert _weekly_facts_snapshot_key("12345", 7) == "12345-7"
+
+    store = FileStore(tmp_path / "cache")
+    store.write_cache("weekly-facts-snapshot", _weekly_facts_snapshot_key("12345", 7), {"pf": 1.0})
+    assert store.read_cache("weekly-facts-snapshot", "12345-7") == {"pf": 1.0}
