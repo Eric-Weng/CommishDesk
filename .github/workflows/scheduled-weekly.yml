@@ -1,0 +1,158 @@
+name: scheduled-weekly
+
+# Story 5.11b: an unattended weekly cron for the author's own league. A
+# week-resolution gate (one unauthenticated Sleeper API call) decides which week
+# just finished before `commishdesk` is ever invoked, so a preseason, postseason
+# or not-yet-advanced firing is a clean skip rather than an error -- the same
+# "skip is normal operation" shape as scheduled-draft-recap.yml's draft-status
+# gate, and the same reason the decision lives here and not behind a new CLI flag.
+#
+# The Send Ledger's on-disk state (`~/.cache/commishdesk`) is restored/saved via
+# `actions/cache`, sharing scheduled-draft-recap.yml's `commishdesk-ledger-` cache
+# namespace: both workflows write the same FileStore root, and the ledger's own
+# `kind` ("draft_recap" vs "weekly") keeps their entries apart. The ratchet is
+# what makes a repeated firing idempotent across stateless runner instances.
+#
+# GitHub disables a repository's scheduled workflows after 60 days with no
+# repository activity, and a disabled schedule is silent -- no run, no failure,
+# nothing in the repo that says the clock stopped. A healthchecks.io
+# dead-man's-switch is therefore pinged on every outcome (success, clean skip,
+# failure or cancellation): when the pings stop, the schedule itself has stopped,
+# whatever the reason. See docs/scheduled-runs.md.
+
+on:
+  # DISARMED at merge, exactly as scheduled-draft-recap.yml shipped (Epic 4 retro:
+  # "ship in a known state"). To arm it: create the `commishdesk-weekly-schedule`
+  # Environment with a "deployment branches: main only" policy, add its two
+  # Environment secrets (COMMISHDESK_DISCORD_WEBHOOK_URL and
+  # COMMISHDESK_WEEKLY_HEALTHCHECKS_PING_URL), set the repository variable
+  # vars.COMMISHDESK_LEAGUE_ID, then un-comment the schedule block below.
+  # `workflow_dispatch` is the live trigger until then, so an operator can run a
+  # real week by hand.
+  #
+  # schedule:
+  #   # Wednesday 12:00 UTC = 8:00am ET (EDT, UTC-4, Mar-Nov) / 7:00am ET (EST,
+  #   # UTC-5, the rest of the year -- the November DST shift moves the local time
+  #   # by an hour, the UTC expression itself never changes). Deliberately not
+  #   # 23:00 UTC, the hour scheduled-draft-recap.yml uses: both workflows share
+  #   # the `commishdesk-ledger-` cache namespace, and simultaneous runs would
+  #   # race the same restore/save pair.
+  #   - cron: '0 12 * * 3'
+  workflow_dispatch: {}
+
+# Least privilege: this workflow only reads the checked-out tree and talks to
+# Sleeper / Discord / healthchecks.io over HTTP. It never writes to the repo.
+permissions:
+  contents: read
+
+concurrency:
+  group: scheduled-weekly
+  # A real in-flight Discord post must never be cancelled by an overlapping
+  # scheduled trigger (e.g. a manual workflow_dispatch during the daily cron).
+  cancel-in-progress: false
+
+jobs:
+  scheduled-weekly:
+    runs-on: ubuntu-24.04
+    # A hung step is reported as `cancelled`, not `failed` -- the final ping step
+    # below checks both so the dead-man's-switch still fires.
+    timeout-minutes: 15
+    # Every secret this workflow reads is an Environment secret under this name,
+    # not a repository-wide secret. The Environment carries a "deployment
+    # branches: main only" policy -- a stricter posture than
+    # scheduled-draft-recap.yml's plain repository secrets.
+    environment: commishdesk-weekly-schedule
+    env:
+      # Job-level: the delivery step needs it. League ids are not sensitive, so it
+      # stays a plain repository variable (vars.*), unchanged from 4.7's pattern.
+      # The Discord webhook and the weekly healthchecks.io ping URL are scoped to
+      # only the steps that need them, below.
+      COMMISHDESK_LEAGUE_ID: ${{ vars.COMMISHDESK_LEAGUE_ID }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4  # v10.1.0
+        with:
+          version: "0.12.6"
+          enable-cache: true
+          python-version: "3.12"
+
+      # Week-resolution gate: which week just finished, per Sleeper's own
+      # /state/nfl projection? Nothing downstream runs unless the regular season
+      # is under way AND Sleeper's own counter has advanced past week 1. One
+      # request, no second call, no error on a no-work day.
+      - name: Resolve target week from Sleeper state
+        id: week
+        run: |
+          set -o pipefail
+          state=$(curl -fsS -m 10 --retry 3 "https://api.sleeper.app/v1/state/nfl")
+          season_type=$(printf '%s' "$state" | jq -r .season_type)
+          week=$(printf '%s' "$state" | jq -r .week)
+          echo "Sleeper state: season_type=$season_type week=$week"
+          if [ "$season_type" != "regular" ]; then
+            echo "season_type is $season_type, not 'regular' -- nothing to do"
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          target_week=$((week - 1))
+          if [ "$target_week" -lt 1 ]; then
+            echo "Sleeper's counter is only through week $week -- nothing finished yet"
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "target week: $target_week"
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+          echo "target_week=$target_week" >> "$GITHUB_OUTPUT"
+
+      # Cache ratchet (see Design Notes in the spec): the restore key is always
+      # unique (suffixed with the run id) so it always misses on purpose;
+      # `restore-keys` resolves to the most recently *saved* entry, giving
+      # append-then-read-latest semantics on top of immutable cache entries.
+      - name: Restore Send Ledger cache
+        id: ledger-cache-restore
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ~/.cache/commishdesk
+          key: commishdesk-ledger-${{ github.run_id }}
+          restore-keys: commishdesk-ledger-
+
+      - name: Run weekly recap
+        if: steps.week.outputs.ready == 'true'
+        run: uv run --frozen commishdesk --league "$COMMISHDESK_LEAGUE_ID" --week "$TARGET_WEEK" --post
+        env:
+          TARGET_WEEK: ${{ steps.week.outputs.target_week }}
+          COMMISHDESK_DISCORD_WEBHOOK_URL: ${{ secrets.COMMISHDESK_DISCORD_WEBHOOK_URL }}
+          # No LLM provider key is threaded through: the weekly narrator is the
+          # deterministic template until Story 5.12, so the run makes zero paid
+          # calls. Passing an LLM selection flag here would only trip cli.py's
+          # existing "no effect on a weekly run" warning.
+
+      # Always saved (even on failure) under the same key the restore step
+      # computed, so it is always a brand-new entry the next run's
+      # `restore-keys` prefix match will find.
+      - name: Save Send Ledger cache
+        if: always()
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ~/.cache/commishdesk
+          key: commishdesk-ledger-${{ github.run_id }}
+
+      # A clean skip (preseason / postseason / counter not advanced) is normal
+      # operation, same as a real post -- both ping success, so the operator is
+      # not trained to ignore a false alarm.
+      - name: Ping healthchecks.io on success
+        if: success()
+        run: curl -fsS -m 10 --retry 5 "$COMMISHDESK_WEEKLY_HEALTHCHECKS_PING_URL"
+        env:
+          COMMISHDESK_WEEKLY_HEALTHCHECKS_PING_URL: ${{ secrets.COMMISHDESK_WEEKLY_HEALTHCHECKS_PING_URL }}
+
+      # `cancelled()` is required alongside `failure()`: GitHub Actions marks a
+      # `timeout-minutes` timeout as cancelled, not failed, and that "it hung"
+      # scenario is exactly what this dead-man's-switch exists to catch.
+      - name: Ping healthchecks.io on failure or cancellation
+        if: failure() || cancelled()
+        run: curl -fsS -m 10 --retry 5 "$COMMISHDESK_WEEKLY_HEALTHCHECKS_PING_URL/fail"
+        env:
+          COMMISHDESK_WEEKLY_HEALTHCHECKS_PING_URL: ${{ secrets.COMMISHDESK_WEEKLY_HEALTHCHECKS_PING_URL }}
