@@ -28,8 +28,7 @@ Guarantees every ``Store`` implementation makes:
 ``FileStore`` keeps everything as plain files under a root directory:
 ``leagues/<id>.toml``, ``ledger/<id>.jsonl``, ``storylines/<id>.json``,
 ``claims/<id>.json``, ``cache/<namespace>/<key>.json``,
-``player_snapshots/<id>/<week>.json``, ``published_rank/<id>/<week>.json``.
-Whole-file writes go
+``player_snapshots/<id>/<week>.json``. Whole-file writes go
 through a temp file plus
 ``os.replace``; ledger appends write one line and flush. No locking — there is a
 single writer per league (AD-6).
@@ -39,14 +38,6 @@ single writer per league (AD-6).
   map the first time it is generated; ``read_player_snapshot`` returns it on every
   later call for the same league-week (``None`` if never written), so a regeneration
   after a trade never silently changes a past week's recorded player team/position.
-
-* **A published power rank is written once a weekly Issue is confirmed (Story
-  5.12).** ``write_published_rank`` persists one league-week's
-  ``{roster_id: published_rank}`` map, and ``read_published_rank`` returns it (or
-  ``None``). The write is success-gated exactly like ``write_storylines``: a week
-  the engine never confirmed has no file, which is what makes
-  ``read_ledger``-emptiness the single "was this week published" signal a
-  backward-looking read has to consult.
 """
 
 from __future__ import annotations
@@ -175,8 +166,6 @@ _LEDGER_LINE = TypeAdapter(LedgerEntry)
 _STORYLINE_LIST: TypeAdapter[list[Storyline]] = TypeAdapter(list[Storyline])
 _CLAIM_LIST: TypeAdapter[list[Claim]] = TypeAdapter(list[Claim])
 _PLAYER_SNAPSHOT_MAP: TypeAdapter[dict[str, PlayerSnapshot]] = TypeAdapter(dict[str, PlayerSnapshot])
-#: One league-week's published power ranks: ``roster_id -> published rank``.
-_PUBLISHED_RANK_MAP: TypeAdapter[dict[str, int]] = TypeAdapter(dict[str, int])
 
 
 # --- the port --------------------------------------------------------------
@@ -246,26 +235,6 @@ class Store(ABC):
         Intended to be written **once**, on a league-week's first generation
         (see ``ingest/build.py::get_player_snapshot``) -- a later call
         overwrites, but the engine's own call pattern never issues one."""
-
-    @abstractmethod
-    def read_published_rank(self, league_id: str, week: int) -> dict[str, int] | None:
-        """Return the ``{roster_id: published_rank}`` map persisted for one
-        league-week by an earlier ``write_published_rank`` call, or ``None``
-        when this league-week has never been written (Story 5.12) -- the
-        caller then knows there is no prior published opinion to fall back to
-        rather than treating an empty map as "this week published nothing"."""
-
-    @abstractmethod
-    def write_published_rank(self, league_id: str, week: int, ranks: Mapping[str, int]) -> None:
-        """Persist one league-week's ``{roster_id: published_rank}`` map,
-        replacing any prior value for the same league-week. Visible to an
-        immediately-following ``read_published_rank`` for the same pair.
-
-        Deliberately success-gated at the call site, exactly like
-        ``write_storylines``: the engine writes this only once a weekly Issue
-        has been confirmed published, so the existence of a file -- not a
-        ``complete`` flag on its contents -- is what "this week was published"
-        means to a later week's backward-looking read (Story 5.12)."""
 
 
 # --- the one local implementation ------------------------------------------
@@ -446,27 +415,4 @@ class FileStore(Store):
     def write_player_snapshot(self, league_id: str, week: int, snapshot: Mapping[str, PlayerSnapshot]) -> None:
         path = self._player_snapshot_file(league_id, week)
         payload = _PLAYER_SNAPSHOT_MAP.dump_json(dict(snapshot), indent=2).decode("utf-8")
-        self._atomic_write(path, payload + "\n")
-
-    def _published_rank_file(self, league_id: str, week: int) -> Path:
-        return self._root / "published_rank" / _safe_league_id(league_id) / f"{week}.json"
-
-    def read_published_rank(self, league_id: str, week: int) -> dict[str, int] | None:
-        path = self._published_rank_file(league_id, week)
-        try:
-            raw = path.read_text(encoding="utf-8")
-        except FileNotFoundError:
-            return None
-        except OSError as exc:
-            raise StoreError(f"cannot read published rank for {league_id!r} week {week}") from exc
-        if not raw.strip():  # empty / whitespace-only reads like "never written"
-            return None
-        try:
-            return _PUBLISHED_RANK_MAP.validate_json(raw)
-        except ValueError as exc:
-            raise StoreError(f"malformed published rank JSON for {league_id!r} week {week}") from exc
-
-    def write_published_rank(self, league_id: str, week: int, ranks: Mapping[str, int]) -> None:
-        path = self._published_rank_file(league_id, week)
-        payload = _PUBLISHED_RANK_MAP.dump_json(dict(ranks), indent=2).decode("utf-8")
         self._atomic_write(path, payload + "\n")

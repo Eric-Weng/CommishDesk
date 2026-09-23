@@ -179,7 +179,7 @@ def _synthetic(
 def test_week10_build_validates_and_has_twelve_teams() -> None:
     doc = _week10_facts()
     assert isinstance(doc, WeeklyFacts)
-    assert doc.schema_version == "0.7.0" == SCHEMA_VERSION
+    assert doc.schema_version == "0.6.0" == SCHEMA_VERSION
     assert doc.issue_type == "weekly"
     assert doc.week == 10
     assert len(doc.teams) == 12
@@ -877,88 +877,3 @@ def test_generated_at_rule_is_shared_with_the_draft_recap_builder() -> None:
     assert _generated_at("2026-09-07T00:00:00Z") == "2026-09-07T00:00:00Z"
     with pytest.raises(SchemaValidationError):
         _generated_at("")
-
-
-# --------------------------------------------------------------------------- #
-# Published-rank resolution (Story 5.12) — AC4 / the matrix's "first published
-# week" and "held/skipped prior week" rows. ``_published_lookback`` is pure and
-# unit-tested directly; the end-to-end wiring through ``build_weekly_facts`` is
-# covered once below so a future refactor of the call site cannot silently stop
-# threading ``previous_published_ranks`` through to ``WeeklyPower``.
-# --------------------------------------------------------------------------- #
-
-
-def test_published_lookback_with_no_history_is_all_none() -> None:
-    from commishdesk.facts.weekly import _published_lookback
-
-    assert _published_lookback("1", 10, None) == (None, None)
-    assert _published_lookback("1", 10, {}) == (None, None)
-
-
-def test_published_lookback_resolves_the_immediately_prior_week() -> None:
-    from commishdesk.facts.weekly import _published_lookback
-
-    history = {9: {"1": 3}}
-    assert _published_lookback("1", 10, history) == (3, 3)
-
-
-def test_published_lookback_falls_back_across_a_gap_but_delta_stays_null() -> None:
-    """Week 9 (the immediately prior week) never published; week 7 did. The
-    fallback still finds week 7's rank for ``prev_published_rank``, but
-    ``published_week_delta`` is only ever computed from the *immediate* prior
-    week, so the caller sees ``None`` for the second element here (the matrix's
-    "held/skipped prior week" row)."""
-    from commishdesk.facts.weekly import _published_lookback
-
-    history = {7: {"1": 5}, 9: {"2": 1}}  # week 9 exists but never ranked roster "1"
-    assert _published_lookback("1", 10, history) == (5, None)
-
-
-def test_published_lookback_ignores_weeks_at_or_after_the_target() -> None:
-    from commishdesk.facts.weekly import _published_lookback
-
-    history = {10: {"1": 1}, 11: {"1": 2}}
-    assert _published_lookback("1", 10, history) == (None, None)
-
-
-def test_published_lookback_skips_a_roster_the_found_week_never_ranked() -> None:
-    from commishdesk.facts.weekly import _published_lookback
-
-    history = {9: {"2": 4}}  # roster "1" absent from the one week that exists
-    assert _published_lookback("1", 10, history) == (None, None)
-
-
-def test_week10_build_resolves_published_rank_from_the_immediately_prior_week() -> None:
-    """End-to-end through ``build_weekly_facts``: a caller-supplied
-    ``previous_published_ranks`` reaches ``WeeklyPower.prev_published_rank`` /
-    ``published_week_delta`` for the roster it names, and leaves every other
-    roster's pair ``None`` (matches the committed oracle's all-``None`` baseline
-    when no history is supplied at all)."""
-    doc = _week10_facts()
-    by_roster = {t.roster_id: t for t in doc.teams}
-    model_rank_1 = by_roster["1"].season.power.model_rank
-    assert model_rank_1 is not None
-
-    bundle = _bundle(WEEK10)
-    week = build_week_model(bundle)
-    league = build_league_model(bundle)
-    players = build_player_snapshot(bundle)
-    names = build_player_names(bundle)
-    published = build_weekly_facts(
-        week,
-        league,
-        players,
-        names,
-        generated_at=GENERATED_AT,
-        nfl_byes_next_week=BYES_NEXT_WEEK,
-        previous_published_ranks={9: {"1": model_rank_1 + 1}},
-    )
-    by_roster_published = {t.roster_id: t for t in published.teams}
-    power_1 = by_roster_published["1"].season.power
-    assert power_1.prev_published_rank == model_rank_1 + 1
-    assert power_1.published_week_delta == 1
-    # A roster the supplied history never mentions stays null, same as the
-    # no-history baseline.
-    power_2 = by_roster_published["2"].season.power
-    assert power_2.prev_published_rank is None
-    assert power_2.published_week_delta is None

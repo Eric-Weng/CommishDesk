@@ -4,10 +4,9 @@ A draft recap for ``--league demo`` runs offline against the committed fixture; 
 real Sleeper id fetches the board from Sleeper and the consensus rank from
 FantasyCalc (``/values/current``), with the Sleeper players file as the offline
 fallback. A weekly recap (``--week``) chains the weekly ingest → stats → facts →
-narrator (template, or the voiced LLM narrator once a key and a budget are
-available — Story 5.12) → deliver path to a local text Issue plus the Story 2.7
-generic HTML dump, and optionally posts an idempotent Discord summary. ``cli.py``
-is the only module that imports across every pipeline stage (AD-1).
+template narrator → deliver path to a local text Issue plus the Story 2.7 generic
+HTML dump, and optionally posts an idempotent Discord summary. ``cli.py`` is the
+only module that imports across every pipeline stage (AD-1).
 """
 
 from __future__ import annotations
@@ -33,7 +32,7 @@ from commishdesk.errors import (
 from commishdesk.logconfig import configure_logging, log_context
 
 if TYPE_CHECKING:
-    from commishdesk.facts.schema import DraftRecapFacts, WeeklyFacts, WeeklyNarration
+    from commishdesk.facts.schema import DraftRecapFacts
     from commishdesk.llmconfig import LLMConfig
     from commishdesk.narrate import Recap, SafetyReport, TieredResponse
     from commishdesk.narrate.llm import CallUsage
@@ -210,13 +209,12 @@ def run(
             if not league:
                 raise typer.BadParameter("--week requires --league")
             if llm is not None:
-                # Story 5.11a/5.12: the weekly narrator is chosen from the
-                # environment (a provider key + a budget), never from this flag,
-                # so an explicit --llm/--no-llm here would otherwise be silently
-                # ignored.
+                # Story 5.11a: the weekly narrator is always the deterministic
+                # template until Story 5.12 adds the LLM voice -- an explicit
+                # --llm/--no-llm here would otherwise be silently ignored.
                 logger.warning(
                     "--%sllm has no effect on a weekly run: the weekly narrator "
-                    "is chosen from the environment (Story 5.12)",
+                    "is always the deterministic template (Story 5.12 adds the LLM voice)",
                     "" if llm else "no-",
                 )
             logger.debug("cli invoked: mode=week %s recap", week)
@@ -348,18 +346,11 @@ _LLM_KEY_VARS = ("ANTHROPIC_API_KEY", "LLM_API_KEY", "GEMINI_API_KEY", "GOOGLE_A
 
 
 def _llm_enabled(cli_flag: bool | None) -> bool:
-    """Resolve the draft-recap narrator selection (FR-17): an explicit ``--llm``
-    / ``--no-llm`` wins; otherwise the LLM narrator is on when a provider API key
-    is present, and the template narrator otherwise. ``--league demo`` is always
-    the template narrator regardless of this result (forced in
-    :func:`_recap_one_league`).
-
-    The weekly path (Story 5.12) does **not** consult an explicit flag: it calls
-    this with ``cli_flag=None``, so its narrator is chosen purely from the
-    environment, and a ``--llm``/``--no-llm`` on a weekly run is ignored with a
-    warning. That is deliberate — the weekly run is scheduled (Story 5.11b) and
-    has no interactive operator to pass a flag, so "a key is present" is the only
-    signal that can decide it.
+    """Resolve the narrator selection (FR-17): an explicit ``--llm`` / ``--no-llm``
+    wins; otherwise the LLM narrator is on when a provider API key is present, and
+    the template narrator otherwise. ``--league demo`` is always the template
+    narrator regardless of this result (forced in :func:`_recap_one_league`), and
+    the weekly path never consults this at all.
 
     This is *selection*, not a budget gate: whatever it returns, every league in
     the run still yields a complete Issue — a stubbed-failing or unusable LLM
@@ -505,14 +496,10 @@ def _run_weekly(
     unchanged down to :func:`_recap_one_league_weekly`, which owns both the
     "something to correct" guard and the corrected Issue's label.
 
-    Story 5.12 gives this path an optional voiced narrator, but it stays a
-    *degrading* one: the narrator is chosen from the environment (a provider key
-    present **and** a pre-call cost estimate inside ``cost_ceiling_usd``), and no
-    condition on this path ever raises
-    :class:`~commishdesk.errors.CostCeilingExceededError` — an over-budget
-    scheduled run silently falls back to the deterministic template. The cost
-    machinery itself lives in :func:`_weekly_estimate_within_ceiling`.
-    """
+    No LLM config is loaded and no paid call is made anywhere on this path: the
+    weekly narrator is the deterministic template only (Story 5.12 adds the
+    voiced weekly narrator), so there is no cost-ceiling machinery here either —
+    including on a reissue, which rebuilds the same free template Issue."""
     from commishdesk.generation import build_generation_set
 
     run_list = build_generation_set([league]).league_ids
@@ -614,52 +601,6 @@ def _write_weekly_facts_snapshot(
         )
     except StoreError:
         pass
-
-
-def _read_previous_published_ranks(
-    store: Store, league_id: str, week: int
-) -> dict[int, dict[str, int]]:
-    """Every published-rank snapshot a *prior* week persisted for this league,
-    keyed by week (Story 5.12).
-
-    Walked backward from ``week - 1``: only a week the engine actually confirmed
-    has a file (``write_published_rank`` is success-gated at its call site), so
-    probing the strictly-prior weeks and keeping whatever answers **is** the
-    backward-fallback search — a held or skipped week simply has nothing to
-    return and the caller's lookback walks straight past it.
-
-    Best-effort, like the snapshot readers above: a ``StoreError`` on one week
-    reads as "that week has no snapshot" rather than failing the whole build.
-    """
-    found: dict[int, dict[str, int]] = {}
-    for prior in range(1, week):
-        try:
-            ranks = store.read_published_rank(league_id, prior)
-        except StoreError:
-            continue
-        if ranks:
-            found[prior] = dict(ranks)
-    return found
-
-
-def _write_published_ranks(
-    store: Store,
-    league_id: str,
-    week: int,
-    ranks: Mapping[str, int],
-    *,
-    logger: logging.Logger,
-) -> None:
-    """Persist one league-week's published ranks, after a confirmed post
-    (Story 5.12). Best-effort, like :func:`_write_weekly_facts_snapshot`: the
-    Issue has already been rendered and delivered, and losing a snapshot is not
-    worth failing a run that succeeded."""
-    try:
-        store.write_published_rank(league_id, week, ranks)
-    except StoreError:
-        logger.warning(
-            "league %s: could not persist the published rank for week %s", league_id, week
-        )
 
 
 def _numeric_leaves(node: object, path: str, out: dict[str, int | float]) -> None:
@@ -1022,211 +963,6 @@ def _recap_one_league(
         )
 
 
-# --------------------------------------------------------------------------- #
-# The weekly narrator gate (Story 5.12)
-# --------------------------------------------------------------------------- #
-
-
-def _weekly_llm_selection(resolved: str, logger: logging.Logger) -> tuple[Voice, LLMConfig] | None:
-    """The weekly path's narrator gate: the default Voice + LLM config, or
-    ``None`` when this run must use the deterministic template.
-
-    ``None`` when no provider key is present (``_llm_enabled(None)`` — the weekly
-    run has no interactive operator to pass ``--llm``), and ``None`` again when
-    the ``COMMISHDESK_LLM_*`` values are malformed: an unattended scheduled run
-    degrades, it never dies on a config typo.
-    """
-    if not _llm_enabled(None):
-        return None
-    from commishdesk.llmconfig import load_llm_config
-    from commishdesk.voices import load_default_voice
-
-    try:
-        config = load_llm_config()
-    except CommishDeskError as exc:
-        logger.warning(
-            "league %s: no LLM narrator for the weekly run (%s); using the template narrator",
-            resolved,
-            _one_line(exc),
-        )
-        return None
-    return load_default_voice(), config
-
-
-def _weekly_estimate_within_ceiling(
-    narration: WeeklyNarration,
-    voice: Voice,
-    config: LLMConfig,
-    *,
-    resolved: str,
-    logger: logging.Logger,
-) -> bool:
-    """Whether one weekly league-week may spend (Story 5.12).
-
-    Mirrors :func:`_recap_one_league`'s pre-call worst-case estimate — the same
-    payload the narrator will actually send (via ``build_weekly_payload``, plus
-    the voice's system prompt), both providers summed, times
-    :data:`_MAX_BILLABLE_NARRATION_ATTEMPTS` — but a failing check **degrades**
-    rather than raising: the scheduled weekly run falls back to the template
-    narrator, and :class:`~commishdesk.errors.CostCeilingExceededError` never
-    reaches it. An unpriced model fails the same way (``estimate_cost_usd`` raises
-    that error by name), for the same reason: not worth a paid guess.
-    """
-    from commishdesk.narrate.llm import MAX_OUTPUT_TOKENS, build_weekly_payload
-    from commishdesk.narrate.pricing import estimate_cost_usd
-
-    try:
-        payload = build_weekly_payload(narration) + voice.system_prompt
-        per_call_estimate = estimate_cost_usd(
-            payload, config.primary, max_output_tokens=MAX_OUTPUT_TOKENS
-        ) + estimate_cost_usd(payload, config.fallback, max_output_tokens=MAX_OUTPUT_TOKENS)
-    except CommishDeskError as exc:
-        logger.warning(
-            "league %s: no LLM narrator for the weekly run (%s); using the template narrator",
-            resolved,
-            _one_line(exc),
-        )
-        return False
-
-    estimate = per_call_estimate * _MAX_BILLABLE_NARRATION_ATTEMPTS
-    if estimate > config.cost_ceiling_usd:
-        logger.warning(
-            "league %s: estimated weekly LLM cost %s exceeds the ceiling %s — "
-            "using the template narrator",
-            resolved,
-            _fmt_usd(estimate),
-            _fmt_usd(config.cost_ceiling_usd),
-        )
-        return False
-    return True
-
-
-def _stamp_published_ranks(
-    narration: WeeklyNarration, ranks: Mapping[str, int]
-) -> WeeklyNarration:
-    """A copy of *narration* whose power rows carry the narrator's published
-    ranks (Story 5.12).
-
-    Stamping is what makes the Issue's own published ranks **in-world**: the
-    closed-world scan in :func:`commishdesk.narrate.safety.check_narration` reads
-    the Issue text against this payload, and the rank the narrator chose is a
-    number the Facts document could not have contained on its own. Everything
-    else about the payload is untouched, so a nudge that cites a *genuinely*
-    absent number is still refuted.
-    """
-    if not ranks:
-        return narration
-    power = [
-        row.model_copy(update={"published_rank": ranks[row.roster_id]})
-        if row.roster_id in ranks
-        else row
-        for row in narration.power
-    ]
-    return narration.model_copy(update={"power": power})
-
-
-def _produce_weekly_issue(
-    doc: WeeklyFacts, *, resolved: str, logger: logging.Logger
-) -> tuple[WeeklyIssue, dict[str, int]]:
-    """Select the weekly narrator and return ``(issue, published_ranks)``.
-
-    The template narrator returns ``(render_weekly_issue(narration), {})``.
-    The LLM narrator (Story 5.12) returns a parsed :class:`WeeklyIssue` plus the
-    published ranks it stated — at most two ``generate()`` attempts, the second
-    only when the first earned the ``regenerate`` tier. A hold, a
-    non-seven-section completion, or an unrepairable finding degrades to the
-    template Issue: the weekly path never withholds an Issue, and it never makes
-    a third paid call.
-    """
-    from commishdesk.narrate.response import classify
-    from commishdesk.narrate.safety import check_narration
-    from commishdesk.narrate.weekly_template import (
-        parse_published_ranks,
-        render_weekly_issue,
-        weekly_issue_from_text,
-        weekly_issue_to_text,
-    )
-
-    narration = doc.narration
-
-    def template() -> tuple[WeeklyIssue, dict[str, int]]:
-        return render_weekly_issue(narration), {}
-
-    selection = _weekly_llm_selection(resolved, logger)
-    if selection is None:
-        return template()
-    voice, config = selection
-    if not _weekly_estimate_within_ceiling(narration, voice, config, resolved=resolved, logger=logger):
-        return template()
-
-    # ``build_client`` is imported (not captured as a default argument) so a test
-    # can swap the factory on ``commishdesk.narrate.llm`` and have it take effect.
-    from commishdesk.narrate.llm import build_client, narrate_weekly_issue
-    from commishdesk.narrate.published_rank import published_rank_findings
-
-    def emit_alerts(alerts: tuple[str, ...]) -> None:
-        for line in alerts:
-            logger.error("league %s content-safety: %s", resolved, line)
-            typer.echo(f"content-safety alert for league {resolved}: {line}", err=True)
-
-    for attempt in (1, 2):
-        result = narrate_weekly_issue(
-            narration, voice, config, llm_enabled=True, client_factory=build_client
-        )
-        if result.narrator == "template":
-            # every provider attempt failed inside narrate_weekly_issue
-            return template()
-        issue = weekly_issue_from_text(result.text, narration)
-        if issue is None:
-            logger.warning(
-                "league %s: the weekly LLM narration is not the expected seven-section "
-                "shape; using the template narrator",
-                resolved,
-            )
-            return template()
-
-        ranks = parse_published_ranks(result.text, narration)
-        stamped = _stamp_published_ranks(narration, ranks)
-        report = check_narration(weekly_issue_to_text(issue), stamped, voice=voice)
-        deviation = published_rank_findings(stamped, ranks)
-        if deviation:
-            report = report.model_copy(update={"findings": report.findings + deviation})
-        decision = classify(report, narrator_is_template=False)
-
-        # A hold is never shipped as an *LLM* Issue: the deterministic template is
-        # the floor, exactly as it is for a failed generation. (This is a stronger
-        # response than the draft path's ``raise``, and deliberately so — the
-        # weekly run is scheduled and must always produce an Issue.)
-        if decision.hold:
-            emit_alerts(decision.alerts)
-            logger.warning(
-                "league %s: weekly LLM narration held on content safety; using the template narrator",
-                resolved,
-            )
-            return template()
-
-        if decision.regenerate and attempt == 1:
-            logger.warning(
-                "league %s: content-safety regeneration of the weekly narration "
-                "(one attempt permitted — AD-12 Layer 3)",
-                resolved,
-            )
-            continue
-
-        if decision.regenerate or decision.suppress:
-            emit_alerts(decision.alerts)
-            logger.warning(
-                "league %s: weekly LLM narration still unclean after %d attempt(s); "
-                "using the template narrator",
-                resolved,
-                attempt,
-            )
-            return template()
-
-        return issue, ranks
-    return template()
-
-
 def _recap_one_league_weekly(
     resolved: str,
     week: int,
@@ -1236,8 +972,8 @@ def _recap_one_league_weekly(
     post: bool,
     reason: str | None = None,
 ) -> None:
-    """Story 5.11a: chain ingest → stats → facts → narrator → render for one
-    league-week, writing the local text Issue plus the Story 2.7 generic HTML
+    """Story 5.11a: chain ingest → stats → facts → template narrator → render for
+    one league-week, writing the local text Issue plus the Story 2.7 generic HTML
     dump and (with ``--post``) delivering an idempotent Discord summary.
 
     Story 5.11c adds the reissue seam: a non-``None`` ``reason`` is the operator's
@@ -1249,12 +985,9 @@ def _recap_one_league_weekly(
     previous confirmed run's persisted Facts JSON. The reason rides through
     :func:`_deliver_issue` into Story 4.4's own re-send-and-append mechanism.
 
-    Story 5.12 makes the narrator a choice: the deterministic template (always
-    available, no key, no spend) or the voiced weekly LLM narrator, selected only
-    when a provider key is present **and** the pre-call cost estimate fits
-    ``cost_ceiling_usd``. Nothing on this path raises
-    :class:`~commishdesk.errors.CostCeilingExceededError` — an over-budget run
-    degrades to the template.
+    No paid call is made on this path — the weekly narrator is the deterministic
+    template only, so there is no LLM selection and no cost-ceiling check here.
+    "Priced before any spend" is a documented no-op today (Story 5.12).
 
     Ordering (epic-3-retro-item-35, applied to the weekly kind from the start):
 
@@ -1272,10 +1005,9 @@ def _recap_one_league_weekly(
        rebuilt Issue only after step 4's writes, so its diff reads the same
        Facts JSON the storylines above were advanced from;
     6. (Story 5.11c) the Facts JSON snapshot this run persists for a future
-       reissue to diff against — and (Story 5.12) the published ranks the
-       narrator stated — are written only once ``--post`` has actually confirmed
-       the send: never on a failed delivery, and never on a run that only writes
-       the local Issue.
+       reissue to diff against is written only once ``--post`` has actually
+       confirmed the send — never on a failed delivery, and never on a run
+       that only writes the local Issue.
     """
     from commishdesk.deliver.discord import webhook_id
     from commishdesk.errors import CrossCheckError
@@ -1288,7 +1020,6 @@ def _recap_one_league_weekly(
         bye_teams,
         get_player_snapshot,
     )
-    from commishdesk.narrate.weekly_template import WeeklySection
     from commishdesk.stats.standings import compute_standings, cross_check_standings
     from commishdesk.store import FileStore
 
@@ -1370,11 +1101,9 @@ def _recap_one_league_weekly(
 
     # Durable writes begin only now that the week is final and any cross-check
     # hold has resolved: the persisted-or-built player snapshot (FR-5), then the
-    # league's narrative memory, then (Story 5.12) the published ranks a prior
-    # confirmed week left behind — read here, never inside facts/ (AD-1).
+    # league's narrative memory.
     players = get_player_snapshot(store, resolved, week, week_bundle)
     previous_storylines = store.read_storylines(resolved)
-    previous_published_ranks = _read_previous_published_ranks(store, resolved, week)
 
     logger.debug("building the weekly Facts JSON")
     doc = build_weekly_facts(
@@ -1386,15 +1115,16 @@ def _recap_one_league_weekly(
         nfl_byes=nfl_byes,
         nfl_byes_next_week=nfl_byes_next_week,
         previous_storylines=previous_storylines,
-        previous_published_ranks=previous_published_ranks,
     )
     # The decoded Facts JSON, in two places below: the reissue's diff (against the
     # previous confirmed run's snapshot) and the snapshot this run persists. Read
     # ``generated_at`` here is a string, so the diff helper never sees it move.
     facts_json = doc.model_dump(mode="json")
 
-    logger.debug("narrating the weekly Issue")
-    issue, published_ranks = _produce_weekly_issue(doc, resolved=resolved, logger=logger)
+    logger.debug("narrating the weekly Issue (template narrator)")
+    from commishdesk.narrate.weekly_template import WeeklySection, render_weekly_issue
+
+    issue = render_weekly_issue(doc.narration)
     if not cross_check_passed:
         # Visible on every surface that reads the dateline (stdout, the text
         # file, the HTML dump) — the same technique _render_and_write_issue uses
@@ -1487,12 +1217,6 @@ def _recap_one_league_weekly(
         # say what changed. Written only after the post is confirmed, so a failed
         # delivery never leaves a snapshot claiming the Issue went out.
         _write_weekly_facts_snapshot(store, resolved, week, facts_json)
-        # Story 5.12: same ordering, same reason — the published rank is this
-        # week's "confirmed publish" evidence for the *next* week's lookback, so
-        # it is written only once the send is confirmed. A template run has no
-        # published ranks, so it leaves no file and the lookback walks past it.
-        if published_ranks:
-            _write_published_ranks(store, resolved, week, published_ranks, logger=logger)
 
 
 def _issue_filename_stem(week: int, kind: IssueKind) -> str:
@@ -1582,11 +1306,10 @@ def _render_and_write_weekly_issue(
     """Story 5.11a: print the weekly Issue's plain text and write the local text
     Issue plus the Story 2.7 generic HTML dump next to it.
 
-    Both weekly narrators funnel through here unchanged: the LLM narrator's prose
-    is parsed back into the same :class:`WeeklyIssue` shape
-    (:func:`~commishdesk.narrate.weekly_template.weekly_issue_from_text`), so the
-    cached-then-flattened text, the HTML dump and the Discord summary are
-    identical surfaces either way."""
+    There is no LLM prose and no email surface on this path — the weekly Issue is
+    the deterministic template narrator's output, so the HTML is the same generic
+    ``recap_to_html`` dump the draft path already had, and Discord delivery is a
+    separate step (see ``--post``)."""
     from commishdesk.narrate.weekly_template import weekly_issue_to_text
     from commishdesk.render import recap_to_html, write_html_file, write_text_file
 

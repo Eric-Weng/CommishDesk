@@ -31,19 +31,9 @@ is out of reach on this side of the fence.
 
 **No empty section.** Every section carries at least one block: where there is
 nothing to report it renders one deliberate stand-down line instead.
-
-Story 5.12 adds the two shape helpers the weekly **LLM** narrator's caller needs:
-:func:`weekly_issue_from_text` parses narrated Markdown back into the same
-:class:`WeeklyIssue` this module emits (so every downstream surface — the
-UNVERIFIED dateline stamp, the Correction prepend, the HTML/text writers and
-``render_weekly_discord_summary`` — is shared unchanged between the two
-narrators), and :func:`parse_published_ranks` reads the published power ranks
-back out of that text.
 """
 
 from __future__ import annotations
-
-import re
 
 from pydantic import BaseModel, ConfigDict
 
@@ -58,12 +48,9 @@ from commishdesk.facts.schema import (
 )
 
 __all__ = [
-    "SECTION_HEADINGS",
     "WeeklyIssue",
     "WeeklySection",
-    "parse_published_ranks",
     "render_weekly_issue",
-    "weekly_issue_from_text",
     "weekly_issue_to_text",
 ]
 
@@ -93,19 +80,6 @@ class WeeklyIssue(_Frozen):
     title: str
     dateline: str
     sections: list[WeeklySection] = []
-
-
-#: The seven reference sections, in order — this module's own section set, and
-#: the shape :func:`weekly_issue_from_text` requires of a narrated Issue.
-SECTION_HEADINGS: tuple[str, ...] = (
-    "The Lead",
-    "Around the League",
-    "Standings and the Playoff Picture",
-    "Power Rankings",
-    "The Luck Index",
-    "Next Week",
-    "The Transaction Desk",
-)
 
 
 # --------------------------------------------------------------------------- #
@@ -208,126 +182,6 @@ def weekly_issue_to_text(issue: WeeklyIssue) -> str:
             lines.append("")
             lines.append(block)
     return "\n".join(lines) + "\n"
-
-
-# --------------------------------------------------------------------------- #
-# Narrated Markdown -> WeeklyIssue (Story 5.12; the weekly LLM narrator's caller)
-# --------------------------------------------------------------------------- #
-
-#: A Markdown ATX heading line (``## Power Rankings``), capturing its text.
-_ATX_LINE = re.compile(r"^[ \t]*#{1,6}[ \t]+(\S.*?)[ \t]*$")
-
-#: One numbered list item inside the power-rankings section: a leading ordinal,
-#: its ``.`` / ``)``, then the line's remaining text.
-_RANK_LINE = re.compile(r"^[ \t]*\**[ \t]*(\d{1,2})[.)][ \t]+(\S.*)$")
-
-
-def _split_sections(text: str) -> list[WeeklySection] | None:
-    """Split narrated Markdown into :class:`WeeklySection`\\ s.
-
-    A run of consecutive non-blank lines becomes one block (a paragraph); blank
-    lines separate blocks. Everything before the first ``## `` heading is the
-    Issue's own title line and is dropped — the masthead is rebuilt from the
-    narration so a parsed Issue and the template's own Issue are indistinguishable
-    downstream.
-
-    ``None`` when the text carries no ``## `` heading at all: there is nothing to
-    parse, and guessing would be worse than falling back to the template.
-    """
-    sections: list[WeeklySection] = []
-    heading: str | None = None
-    blocks: list[str] = []
-    paragraph: list[str] = []
-    saw_heading = False
-
-    def flush() -> None:
-        if paragraph:
-            blocks.append(" ".join(paragraph).strip())
-            paragraph.clear()
-
-    for line in text.split("\n"):
-        match = _ATX_LINE.match(line)
-        if match is not None:
-            saw_heading = True
-            flush()
-            if heading is not None:
-                sections.append(WeeklySection(heading=heading, blocks=blocks))
-            heading = match.group(1).strip()
-            blocks = []
-            continue
-        if heading is None:
-            continue
-        if not line.strip():
-            flush()
-            continue
-        paragraph.append(line.strip())
-    flush()
-    if heading is not None:
-        sections.append(WeeklySection(heading=heading, blocks=blocks))
-    if not saw_heading:
-        return None
-    return sections
-
-
-def weekly_issue_from_text(text: str, narration: WeeklyNarration) -> WeeklyIssue | None:
-    """Parse a narrated weekly Issue's Markdown back into a :class:`WeeklyIssue`.
-
-    Requires all seven :data:`SECTION_HEADINGS`, each with at least one block
-    (the same "no empty section heading" rule the template narrator holds
-    itself to); the sections are then re-ordered into the canonical order and any
-    extra section the narrator added is dropped. The masthead is rebuilt from
-    *narration*, never taken from the text.
-
-    ``None`` when the text is not the expected shape — the caller then degrades
-    to the template narrator rather than shipping a malformed dump.
-    """
-    sections = _split_sections(text)
-    if sections is None:
-        return None
-    by_heading = {section.heading: section for section in sections}
-    if any(not by_heading.get(name, WeeklySection(heading=name, blocks=[])).blocks for name in SECTION_HEADINGS):
-        return None
-    ordered = [by_heading[name] for name in SECTION_HEADINGS]
-    title, dateline = _masthead(narration)
-    return WeeklyIssue(title=title, dateline=dateline, sections=ordered)
-
-
-def parse_published_ranks(text: str, narration: WeeklyNarration) -> dict[str, int]:
-    """The published power ranks narrated Markdown states, as ``roster_id -> rank``.
-
-    Read from the "Power Rankings" section only. A line is a published rank when
-    it is numbered and its text after the number begins with one of the
-    narration's own team labels (longest label first, so a label that is a prefix
-    of another cannot shadow it). Anything else — a stray numbered line, a
-    section that is missing, a roster the narrator never ranked — is simply
-    absent from the result; the caller decides what a missing rank means.
-    """
-    sections = _split_sections(text)
-    if sections is None:
-        return {}
-    section = next((s for s in sections if s.heading == "Power Rankings"), None)
-    if section is None:
-        return {}
-
-    labels = sorted(
-        ((row.team, row.roster_id) for row in narration.power if row.team),
-        key=lambda pair: len(pair[0]),
-        reverse=True,
-    )
-    ranks: dict[str, int] = {}
-    for block in section.blocks:
-        for line in block.split("\n"):
-            match = _RANK_LINE.match(line)
-            if match is None:
-                continue
-            rest = match.group(2).lstrip("*_ ")
-            for label, roster_id in labels:
-                if roster_id in ranks:
-                    continue
-                if rest.startswith(label):
-                    ranks[roster_id] = int(match.group(1))
-                    break
-    return ranks
 
 
 # --------------------------------------------------------------------------- #

@@ -243,7 +243,7 @@
           "type": "boolean"
         },
         "schema_version": {
-          "default": "0.7.0",
+          "default": "0.6.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -2100,7 +2100,7 @@
           "type": "boolean"
         },
         "schema_version": {
-          "default": "0.7.0",
+          "default": "0.6.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -3169,7 +3169,7 @@
       "type": "object"
     },
     "WeeklyNarrationPower": {
-      "description": "One narrated power-rank row. ``all_play`` is the first field the\nnarration reduction ladder drops.\n\nStory 5.12 adds the narrator's editorial pair. ``published_rank`` is the\nrank the Voice actually published for this roster (bounded to\n``stats.power.POWER_NUDGE_CAP`` of ``model_rank``), and\n``nudge_justification`` is the Cited support for any deviation. Both live on\nthe projection as well as in the prose because the Issue text repeats the\npublished rank as a digit: :func:`commishdesk.narrate.safety.check_narration`\nscans that text against *this* payload, so the number the narrator chose has\nto round-trip here or the engine's own closed-world gate would refute it.",
+      "description": "One narrated power-rank row. ``all_play`` is the first field the\nnarration reduction ladder drops.",
       "properties": {
         "all_play": {
           "anyOf": [
@@ -3210,30 +3210,6 @@
           ],
           "default": null,
           "title": "Model Rank"
-        },
-        "nudge_justification": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Nudge Justification"
-        },
-        "published_rank": {
-          "anyOf": [
-            {
-              "type": "integer"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Published Rank"
         },
         "rec": {
           "title": "Rec",
@@ -3700,7 +3676,7 @@
       "type": "object"
     },
     "WeeklyPower": {
-      "description": "One roster's model-power row. ``nudge`` is the narrator's (AD-13) and is\nalways ``None`` here; ``prev_model_rank`` / ``week_delta`` are the **model**\nrank's movement since the prior week (both ``None`` when there is no prior\nweek, or either side is unranked).\n\nStory 5.12 adds the published-rank pair, which is a different axis and never\noverwrites the model pair above:\n\n* ``prev_published_rank`` — the published rank the latest **prior confirmed\n  week** carried (Story 5.12), found by walking backward from ``week - 1``\n  through the per-week published ranks persisted via\n  ``Store.read_published_rank``. ``None`` when no prior week has one.\n* ``published_week_delta`` — ``prev_published_rank - model_rank``, i.e. how\n  far the last published opinion sits from this week's model rank. ``None``\n  unless the *immediately* preceding week has a persisted rank for this\n  roster: a held or skipped week is a gap, never interpolated.",
+      "description": "One roster's model-power row. ``published_rank`` / ``nudge`` are Story\n5.9's (AD-13) and are always ``None`` here; ``prev_model_rank`` /\n``week_delta`` are the rank's movement since the prior week (both ``None``\nwhen there is no prior week, or either side is unranked).",
       "properties": {
         "model_rank": {
           "anyOf": [
@@ -3750,18 +3726,6 @@
           "default": null,
           "title": "Prev Model Rank"
         },
-        "prev_published_rank": {
-          "anyOf": [
-            {
-              "type": "integer"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Prev Published Rank"
-        },
         "published_rank": {
           "anyOf": [
             {
@@ -3773,18 +3737,6 @@
           ],
           "default": null,
           "title": "Published Rank"
-        },
-        "published_week_delta": {
-          "anyOf": [
-            {
-              "type": "integer"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Published Week Delta"
         },
         "week_delta": {
           "anyOf": [

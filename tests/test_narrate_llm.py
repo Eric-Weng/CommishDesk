@@ -10,11 +10,6 @@ The two provider adapters are exercised end to end by injecting a **fake**
 ``anthropic`` / ``google.genai`` module into ``sys.modules`` — no CI job installs
 the real ``llm`` extra, so without the fakes only the "SDK not importable" branch
 would ever run.
-
-Story 5.12 adds the weekly entry point's own coverage
-(:func:`~commishdesk.narrate.llm.narrate_weekly_issue`) and the two adapters'
-``max_retries`` / ``retries`` pinning (epic-3-retro-item-34): the engine owns the
-retry policy, the SDKs' own loops are off.
 """
 
 from __future__ import annotations
@@ -43,9 +38,6 @@ from commishdesk.facts.schema import (
     RBRunSummary,
     Superlatives,
     TERunSummary,
-    WeeklyNarration,
-    WeeklyNarrationLeague,
-    WeeklyNarrationTransactions,
 )
 from commishdesk.ingest import build_league_model
 from commishdesk.llmconfig import LLMConfig, LLMModelConfig, load_llm_config
@@ -65,10 +57,7 @@ from commishdesk.narrate.llm import (
     _raise_if_transient_google,
     _TransientProviderError,
     build_client,
-    build_weekly_payload,
-    narrate_weekly_issue,
 )
-from commishdesk.narrate.weekly_template import render_weekly_issue, weekly_issue_to_text
 from commishdesk.stats import (
     compute_board_metrics,
     compute_consensus_metrics,
@@ -270,16 +259,6 @@ def synthetic_narration(n_teams: int) -> Narration:
             for i in range(n_teams)
         ],
         positional_runs=runs,
-    )
-
-
-def synthetic_weekly_narration() -> WeeklyNarration:
-    """A minimal weekly projection — every list empty, which is exactly the
-    degenerate narration the template narrator's own stand-down lines cover."""
-    return WeeklyNarration(
-        league=WeeklyNarrationLeague(name="Synthetic League", season="2025", week=5, team_count=4),
-        week_shape="regular",
-        transactions=WeeklyNarrationTransactions(),
     )
 
 
@@ -514,101 +493,6 @@ def test_unusable_completion_is_not_retried(narration: Narration) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# Story 5.12 — the weekly narrator, through the same one call site
-# --------------------------------------------------------------------------- #
-
-
-def test_weekly_happy_path_uses_primary_with_exactly_one_call() -> None:
-    narration = synthetic_weekly_narration()
-    primary = FakeClient("weekly prose")
-    factory = SeqFactory(primary)
-    result = narrate_weekly_issue(
-        narration, FakeVoice(), CONFIG, llm_enabled=True, client_factory=factory
-    )
-    assert result == NarrationResult(text="weekly prose", narrator="llm-primary")
-    assert len(primary.calls) == 1
-    assert factory.seen == [CONFIG.primary]
-    payload, system_prompt = primary.calls[0]
-    assert payload == build_weekly_payload(narration)
-    assert system_prompt == FakeVoice().system_prompt
-
-
-def test_weekly_payload_is_exactly_the_narration_projection() -> None:
-    narration = synthetic_weekly_narration()
-    payload = build_weekly_payload(narration)
-    decoded = json.loads(payload)
-    assert set(decoded) == set(WeeklyNarration.model_fields)
-    for leaked in ("box_score", "roster", "rosters", "draft_picks", "leaders"):
-        assert leaked not in decoded
-
-
-def test_weekly_disabled_constructs_no_client_and_returns_template_text() -> None:
-    narration = synthetic_weekly_narration()
-    result = narrate_weekly_issue(
-        narration,
-        FakeVoice(),
-        CONFIG,
-        llm_enabled=False,
-        client_factory=ExplodingFactory(),
-    )
-    assert result.narrator == "template"
-    assert result.text == weekly_issue_to_text(render_weekly_issue(narration))
-
-
-def test_weekly_both_providers_failing_returns_template_text() -> None:
-    narration = synthetic_weekly_narration()
-    result = narrate_weekly_issue(
-        narration,
-        FakeVoice(),
-        CONFIG,
-        llm_enabled=True,
-        client_factory=SeqFactory(BoomClient(), BoomClient()),
-    )
-    assert result.narrator == "template"
-    assert result.text == weekly_issue_to_text(render_weekly_issue(narration))
-
-
-def test_weekly_primary_failure_falls_through_to_fallback() -> None:
-    narration = synthetic_weekly_narration()
-    primary, fallback = BoomClient(), FakeClient("weekly fallback prose")
-    factory = SeqFactory(primary, fallback)
-    result = narrate_weekly_issue(
-        narration, FakeVoice(), CONFIG, llm_enabled=True, client_factory=factory
-    )
-    assert result == NarrationResult(text="weekly fallback prose", narrator="llm-fallback")
-    assert len(primary.calls) == 1
-    assert factory.seen == [CONFIG.primary, CONFIG.fallback]
-
-
-def test_weekly_transient_fault_retries_on_the_same_provider() -> None:
-    narration = synthetic_weekly_narration()
-    primary = TransientClient(fail_times=1, reply="weekly recovered")
-    result = narrate_weekly_issue(
-        narration,
-        FakeVoice(),
-        CONFIG,
-        llm_enabled=True,
-        client_factory=SeqFactory(primary),
-    )
-    assert result == NarrationResult(text="weekly recovered", narrator="llm-primary")
-    assert len(primary.calls) == 2  # one transient fault + one success
-
-
-def test_only_one_generate_call_site_across_the_package() -> None:
-    """I3's structural guard, extended to the weekly entry point: the whole
-    ``narrate`` package still bills through exactly one ``.generate(`` call."""
-    sources = sorted(LLM_PKG.parent.glob("*.py"))
-    sites = 0
-    for path in sources:
-        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
-                if node.func.attr == "generate":
-                    sites += 1
-    assert sites == 1, [p.name for p in sources]
-
-
-# --------------------------------------------------------------------------- #
 # COMMISHDESK_LLM_TIMEOUT -> forwarded to each provider SDK client (FR-40 / 3.6)
 # --------------------------------------------------------------------------- #
 
@@ -632,7 +516,7 @@ def test_timeout_is_converted_to_ms_for_the_google_sdk_client(
     GoogleClient("m", env={"GEMINI_API_KEY": "k"}, timeout=30.0).generate(
         "{}", FakeVoice()
     )
-    assert sink["client"][0]["http_options"] == {"retries": 0, "timeout": 30000}
+    assert sink["client"][0]["http_options"] == {"timeout": 30000}
 
 
 def test_google_sub_millisecond_timeout_floors_to_one_ms(
@@ -656,7 +540,6 @@ def test_google_endpoint_and_timeout_merge_into_one_http_options(
         "m", endpoint="https://gw/google", env={"GOOGLE_API_KEY": "k"}, timeout=30.0
     ).generate("{}", FakeVoice())
     assert sink["client"][0]["http_options"] == {
-        "retries": 0,
         "base_url": "https://gw/google",
         "timeout": 30000,
     }
@@ -673,28 +556,6 @@ def test_build_client_threads_timeout_from_config() -> None:
     cfg = load_llm_config({"COMMISHDESK_LLM_TIMEOUT": "45"})
     assert build_client(cfg.primary).timeout == 45.0  # type: ignore[union-attr]
     assert build_client(cfg.fallback).timeout == 45.0  # type: ignore[union-attr]
-
-
-# --------------------------------------------------------------------------- #
-# epic-3-retro-item-34 — the engine owns the retry policy, not the SDK
-# --------------------------------------------------------------------------- #
-
-
-def test_anthropic_client_disables_the_sdk_retry_loop(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Left at its default, the Anthropic SDK retries a 429 internally — one
-    throttled request would then be multiplied by ``(1 + SDK) * (1 + RETRY_CAP)``
-    billed calls. The engine's own cap must be the only one in play."""
-    sink: dict[str, list[dict[str, object]]] = {}
-    _install_fake_anthropic(monkeypatch, sink=sink)
-    AnthropicClient("m", env={"LLM_API_KEY": "k"}).generate("{}", FakeVoice())
-    assert sink["client"][0]["max_retries"] == 0
-
-
-def test_google_client_disables_the_sdk_retry_loop(monkeypatch: pytest.MonkeyPatch) -> None:
-    sink: dict[str, list[dict[str, object]]] = {}
-    _install_fake_genai(monkeypatch, sink=sink)
-    GoogleClient("m", env={"GEMINI_API_KEY": "k"}).generate("{}", FakeVoice())
-    assert sink["client"][0]["http_options"]["retries"] == 0
 
 
 # --------------------------------------------------------------------------- #
@@ -1023,8 +884,7 @@ def test_google_adapter_generates_with_each_accepted_key(
     out = GoogleClient("gemini-x", env={key_var: "g-secret"}).generate("PAYLOAD", FakeVoice("SYS"))
     assert out == "gemini recap"
     assert sink["client"][0]["api_key"] == "g-secret"
-    # the SDK's own retry loop is off; nothing else is set without an endpoint
-    assert sink["client"][0]["http_options"] == {"retries": 0}
+    assert "http_options" not in sink["client"][0]
     gen = sink["generate"][0]
     assert gen["model"] == "gemini-x"
     assert gen["contents"] == "PAYLOAD"
@@ -1053,7 +913,7 @@ def test_google_adapter_forwards_endpoint_as_http_options(
     GoogleClient("m", endpoint="https://gw/google", env={"GOOGLE_API_KEY": "k"}).generate(
         "{}", FakeVoice()
     )
-    assert sink["client"][0]["http_options"] == {"retries": 0, "base_url": "https://gw/google"}
+    assert sink["client"][0]["http_options"] == {"base_url": "https://gw/google"}
 
 
 @pytest.mark.parametrize("reply", ["", "  \n "])
@@ -1096,23 +956,6 @@ def test_fake_sdk_adapter_plugs_into_the_selector(
         narration, FakeVoice(), CONFIG, llm_enabled=True, client_factory=build_client
     )
     assert result == NarrationResult(text="voiced by the fake sdk", narrator="llm-primary")
-
-
-def test_fake_sdk_adapter_plugs_into_the_weekly_selector(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """End to end for the weekly path (Story 5.12): real ``build_client`` + fake
-    anthropic module -> ``llm-primary``, through the one ``generate`` call site."""
-    _install_fake_anthropic(monkeypatch, reply="weekly voiced by the fake sdk", sink={})
-    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-live")
-    result = narrate_weekly_issue(
-        synthetic_weekly_narration(),
-        FakeVoice(),
-        CONFIG,
-        llm_enabled=True,
-        client_factory=build_client,
-    )
-    assert result == NarrationResult(text="weekly voiced by the fake sdk", narrator="llm-primary")
 
 
 # --------------------------------------------------------------------------- #

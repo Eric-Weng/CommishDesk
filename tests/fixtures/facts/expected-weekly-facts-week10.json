@@ -1,6 +1,6 @@
 {
   "_derived_from": "Story 5.8 oracle. build_weekly_facts() over week10-blowout.json (the anonymized week-10 fixture); generated_at pinned to '2026-09-07T00:00:00Z'; nfl_byes_next_week={IND, NO}.",
-  "schema_version": "0.7.0",
+  "schema_version": "0.6.0",
   "generated_at": "2026-09-07T00:00:00Z",
   "provisional": true,
   "issue_type": "weekly",
@@ -146,9 +146,7 @@
           "published_rank": null,
           "nudge": null,
           "prev_model_rank": 2,
-          "week_delta": 0,
-          "prev_published_rank": null,
-          "published_week_delta": null
+          "week_delta": 0
         },
         "coaching_efficiency": {
           "actual": 2100.85,
@@ -549,9 +547,7 @@
           "published_rank": null,
           "nudge": null,
           "prev_model_rank": 3,
-          "week_delta": 2,
-          "prev_published_rank": null,
-          "published_week_delta": null
+          "week_delta": 2
         },
         "coaching_efficiency": {
           "actual": 2028.72,
@@ -959,9 +955,7 @@
           "published_rank": null,
           "nudge": null,
           "prev_model_rank": 4,
-          "week_delta": 0,
-          "prev_published_rank": null,
-          "published_week_delta": null
+          "week_delta": 0
         },
         "coaching_efficiency": {
           "actual": 1816.51,
@@ -1375,9 +1369,7 @@
           "published_rank": null,
           "nudge": null,
           "prev_model_rank": 9,
-          "week_delta": 2,
-          "prev_published_rank": null,
-          "published_week_delta": null
+          "week_delta": 2
         },
         "coaching_efficiency": {
           "actual": 1681.22,
@@ -1770,9 +1762,7 @@
           "published_rank": null,
           "nudge": null,
           "prev_model_rank": 6,
-          "week_delta": -2,
-          "prev_published_rank": null,
-          "published_week_delta": null
+          "week_delta": -2
         },
         "coaching_efficiency": {
           "actual": 1558.93,
@@ -2184,9 +2174,7 @@
           "published_rank": null,
           "nudge": null,
           "prev_model_rank": 5,
-          "week_delta": -1,
-          "prev_published_rank": null,
-          "published_week_delta": null
+          "week_delta": -1
         },
         "coaching_efficiency": {
           "actual": 1665.19,
@@ -2606,9 +2594,7 @@
           "published_rank": null,
           "nudge": null,
           "prev_model_rank": 12,
-          "week_delta": 0,
-          "prev_published_rank": null,
-          "published_week_delta": null
+          "week_delta": 0
         },
         "coaching_efficiency": {
           "actual": 1436.99,
@@ -3020,9 +3006,7 @@
           "published_rank": null,
           "nudge": null,
           "prev_model_rank": 7,
-          "week_delta": 2,
-          "prev_published_rank": null,
-          "published_week_delta": null
+          "week_delta": 2
         },
         "coaching_efficiency": {
           "actual": 1723.63,
@@ -3415,9 +3399,7 @@
           "published_rank": null,
           "nudge": null,
           "prev_model_rank": 1,
-          "week_delta": -2,
-          "prev_published_rank": null,
-          "published_week_delta": null
+          "week_delta": -2
         },
         "coaching_efficiency": {
           "actual": 2037.57,
@@ -3837,9 +3819,7 @@
           "published_rank": null,
           "nudge": null,
           "prev_model_rank": 8,
-          "week_delta": -1,
-          "prev_published_rank": null,
-          "published_week_delta": null
+          "week_delta": -1
         },
         "coaching_efficiency": {
           "actual": 1632.78,
@@ -4259,9 +4239,7 @@
           "published_rank": null,
           "nudge": null,
           "prev_model_rank": 11,
-          "week_delta": 0,
-          "prev_published_rank": null,
-          "published_week_delta": null
+          "week_delta": 0
         },
         "coaching_efficiency": {
           "actual": 1475.64,
@@ -4688,9 +4666,7 @@
           "published_rank": null,
           "nudge": null,
           "prev_model_rank": 10,
-          "week_delta": 0,
-          "prev_published_rank": null,
-          "published_week_delta": null
+          "week_delta": 0
         },
         "coaching_efficiency": {
           "actual": 1401.41,
@@ -5940,9 +5916,7 @@
         "avg_pf": 210.08,
         "all_play": "88-22-0",
         "luck": 2.0,
-        "week_delta": 0,
-        "published_rank": null,
-        "nudge_justification": null
+        "week_delta": 0
       },
       {
         "model_rank": 1,
@@ -5952,9 +5926,7 @@
         "avg_pf": 202.87,
         "all_play": "87-22-1",
         "luck": 5.0,
-        "week_delta": 2,
-        "published_rank": null,
-        "nudge_justification": null
+        "week_delta": 2
       },
       {
         "model_rank": 4,
@@ -5964,9 +5936,7 @@
         "avg_pf": 181.65,
         "all_play": "61-49-0",
         "luck": 3.5,
-        "week_delta": 0,
-        "published_rank": null,
-        "nudge_justification": null
+        "week_delta": 0
       },
       {
         "model_rank": 7,
@@ -5976,9 +5946,7 @@
         "avg_pf": 168.12,
         "all_play": "52-58-0",
         "luck": 2.3,
-        "week_delta": 2,
-        "published_rank": null,
-        "nudge_justification": null
+        "week_delta": 2
       },
       {
         "model_rank": 8,
@@ -5988,9 +5956,7 @@
         "avg_pf": 155.89,
         "all_play": "42-68-0",
         "luck": 5.2,
-        "week_delta": -2,
-        "published_rank": null,
-        "nudge_justification": null
+        "week_delta": -2
       },
       {
         "model_rank": 6,
@@ -6000,9 +5966,7 @@
         "avg_pf": 166.52,
         "all_play": "54-56-0",
         "luck": 0.1,
-        "week_delta": -1,
-        "published_rank": null,
-        "nudge_justification": null
+        "week_delta": -1
       },
       {
         "model_rank": 12,
@@ -6012,9 +5976,7 @@
         "avg_pf": 143.7,
         "all_play": "26-84-0",
         "luck": 2.6,
-        "week_delta": 0,
-        "published_rank": null,
-        "nudge_justification": null
+        "week_delta": 0
       },
       {
         "model_rank": 5,
@@ -6024,9 +5986,7 @@
         "avg_pf": 172.36,
         "all_play": "55-55-0",
         "luck": 0.0,
-        "week_delta": 2,
-        "published_rank": null,
-        "nudge_justification": null
+        "week_delta": 2
       },
       {
         "model_rank": 3,
@@ -6036,9 +5996,7 @@
         "avg_pf": 203.76,
         "all_play": "86-24-0",
         "luck": -0.8,
-        "week_delta": -2,
-        "published_rank": null,
-        "nudge_justification": null
+        "week_delta": -2
       },
       {
         "model_rank": 9,
@@ -6048,9 +6006,7 @@
         "avg_pf": 163.28,
         "all_play": "47-63-0",
         "luck": -0.3,
-        "week_delta": -1,
-        "published_rank": null,
-        "nudge_justification": null
+        "week_delta": -1
       },
       {
         "model_rank": 11,
@@ -6060,9 +6016,7 @@
         "avg_pf": 147.56,
         "all_play": "33-76-1",
         "luck": 1.0,
-        "week_delta": 0,
-        "published_rank": null,
-        "nudge_justification": null
+        "week_delta": 0
       },
       {
         "model_rank": 10,
@@ -6072,9 +6026,7 @@
         "avg_pf": 140.14,
         "all_play": "28-82-0",
         "luck": 3.5,
-        "week_delta": 0,
-        "published_rank": null,
-        "nudge_justification": null
+        "week_delta": 0
       }
     ],
     "luck": [

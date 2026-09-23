@@ -469,84 +469,6 @@ def test_player_snapshot_rejects_unsafe_league_id(tmp_path: Path, bad: str) -> N
         _store(tmp_path).read_player_snapshot(bad, 8)
 
 
-# --- published rank (Story 5.12) --------------------------------------
-
-
-def _ranks() -> dict[str, int]:
-    return {"1": 3, "2": 1, "3": 2}
-
-
-def test_published_rank_round_trips(tmp_path: Path) -> None:
-    store = _store(tmp_path)
-    store.write_published_rank("1", 8, _ranks())
-    assert store.read_published_rank("1", 8) == _ranks()
-
-
-def test_published_rank_never_written_returns_none(tmp_path: Path) -> None:
-    assert _store(tmp_path).read_published_rank("1", 8) is None
-
-
-def test_published_rank_persists_on_disk_for_a_fresh_store(tmp_path: Path) -> None:
-    _store(tmp_path).write_published_rank("1", 8, _ranks())
-    on_disk = json.loads(
-        (tmp_path / "published_rank" / "1" / "8.json").read_text(encoding="utf-8")
-    )
-    assert on_disk == {"1": 3, "2": 1, "3": 2}
-    assert FileStore(tmp_path).read_published_rank("1", 8) == _ranks()
-
-
-def test_published_rank_overwrite_replaces_whole_map(tmp_path: Path) -> None:
-    store = _store(tmp_path)
-    store.write_published_rank("1", 8, _ranks())
-    store.write_published_rank("1", 8, {"9": 4})
-    assert store.read_published_rank("1", 8) == {"9": 4}
-
-
-def test_published_rank_different_weeks_are_independent(tmp_path: Path) -> None:
-    store = _store(tmp_path)
-    store.write_published_rank("1", 8, _ranks())
-    assert store.read_published_rank("1", 9) is None
-
-
-def test_published_rank_empty_file_reads_like_never_written(tmp_path: Path) -> None:
-    path = tmp_path / "published_rank" / "1"
-    path.mkdir(parents=True)
-    (path / "8.json").write_text("   \n", encoding="utf-8")
-    assert _store(tmp_path).read_published_rank("1", 8) is None
-
-
-def test_published_rank_malformed_json_raises_store_error(tmp_path: Path) -> None:
-    path = tmp_path / "published_rank" / "1"
-    path.mkdir(parents=True)
-    (path / "8.json").write_text("{ not json", encoding="utf-8")
-    with pytest.raises(StoreError):
-        _store(tmp_path).read_published_rank("1", 8)
-
-
-def test_published_rank_non_object_json_raises_store_error(tmp_path: Path) -> None:
-    path = tmp_path / "published_rank" / "1"
-    path.mkdir(parents=True)
-    (path / "8.json").write_text("[1, 2, 3]", encoding="utf-8")
-    with pytest.raises(StoreError):
-        _store(tmp_path).read_published_rank("1", 8)
-
-
-def test_published_rank_non_integer_value_raises_store_error(tmp_path: Path) -> None:
-    path = tmp_path / "published_rank" / "1"
-    path.mkdir(parents=True)
-    (path / "8.json").write_text('{"1": "first"}', encoding="utf-8")
-    with pytest.raises(StoreError):
-        _store(tmp_path).read_published_rank("1", 8)
-
-
-@pytest.mark.parametrize("bad", ["../evil", "a/b", "..", "", "a\\b"])
-def test_published_rank_rejects_unsafe_league_id(tmp_path: Path, bad: str) -> None:
-    with pytest.raises(StoreError):
-        _store(tmp_path).write_published_rank(bad, 8, _ranks())
-    with pytest.raises(StoreError):
-        _store(tmp_path).read_published_rank(bad, 8)
-
-
 # --- read-after-write + abstractness ---------------------------------
 
 
@@ -573,8 +495,6 @@ def test_store_is_abstract() -> None:
             "write_cache",
             "read_player_snapshot",
             "write_player_snapshot",
-            "read_published_rank",
-            "write_published_rank",
         }
     )
 
@@ -699,8 +619,6 @@ def test_store_api_names_are_cloud_neutral() -> None:
         "write_cache",
         "read_player_snapshot",
         "write_player_snapshot",
-        "read_published_rank",
-        "write_published_rank",
     }
     for name in public:
         member = getattr(Store, name)

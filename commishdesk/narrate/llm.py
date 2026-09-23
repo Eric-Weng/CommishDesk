@@ -10,11 +10,10 @@ This module is the *only* place the engine talks to a model provider. It:
   dependency — ``import commishdesk.narrate`` pulls in neither them nor
   ``httpx`` and the zero-credential core (I4) is untouched;
 * builds the model payload from the sanitized ``narration`` projection alone
-  (:func:`build_narration_payload` / :func:`build_weekly_payload` — AD-1); it
-  never sees a ``LeagueModel``, ``BoardMetrics``, a raw roster, or a box score;
+  (:func:`build_narration_payload` — AD-1); it never sees a ``LeagueModel``,
+  ``BoardMetrics``, a raw roster, or a box score;
 * runs the fixed selection order ``primary -> fallback -> template``
-  (:func:`narrate_draft_recap`, and Story 5.12's
-  :func:`narrate_weekly_issue`): each provider is tried, on a *transient* fault
+  (:func:`narrate_draft_recap`): each provider is tried, on a *transient* fault
   (request/connect timeout, transport error, HTTP 429 / 5xx) retried on the same
   provider up to :data:`RETRY_CAP` more times — immediately, no backoff — then
   the fallback, then the template. A non-transient fault (missing SDK, missing
@@ -27,10 +26,6 @@ This module is the *only* place the engine talks to a model provider. It:
   (the content-safety claim verifier, :func:`extract_with_llm`, bills through
   that same site);
   transient classification lives in the provider adapters.
-* disables each SDK's own retry loop (``max_retries=0`` / ``retries: 0``) so
-  this module's :data:`RETRY_CAP` is the *only* retry policy in play —
-  otherwise a 429 would be multiplied by the SDK's own default before the
-  engine's cap ever saw it (epic-3-retro-item-34).
 
 Model ids, endpoints, and the per-attempt request timeout
 (``COMMISHDESK_LLM_TIMEOUT``, default 60s) are **not** here — they live in
@@ -53,11 +48,10 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 from commishdesk.errors import NarratorError
 from commishdesk.llmconfig import LLMConfig, LLMModelConfig
 from commishdesk.narrate.template import recap_to_text, render_draft_recap
-from commishdesk.narrate.weekly_template import render_weekly_issue, weekly_issue_to_text
 from commishdesk.voices import Voice
 
 if TYPE_CHECKING:
-    from commishdesk.facts.schema import Narration, WeeklyNarration
+    from commishdesk.facts.schema import Narration
 
 __all__ = [
     "MAX_OUTPUT_TOKENS",
@@ -68,11 +62,8 @@ __all__ = [
     "NarrationResult",
     "build_client",
     "build_narration_payload",
-    "build_weekly_payload",
     "extract_with_llm",
     "narrate_draft_recap",
-    "narrate_weekly_issue",
-    "narrate_weekly_with_llm",
     "narrate_with_llm",
     "recording_usage",
 ]
@@ -96,13 +87,6 @@ MAX_OUTPUT_TOKENS = 8192
 #: sustained outage; this only absorbs a momentary blip. A retried *failed* call
 #: spends nothing and yields no extra *successful* generation, so I3 holds.
 RETRY_CAP = 2
-
-#: Both SDKs ship their own retry loop, which this engine deliberately turns
-#: off. Left on, one throttled request would fan out into the SDK's own
-#: ``max_retries`` attempts *per* engine attempt — up to ``(1 + SDK) * (1 +
-#: RETRY_CAP)`` billed calls where the engine's own budget thought it was
-#: spending ``1 + RETRY_CAP`` (epic-3-retro-item-34).
-_SDK_MAX_RETRIES = 0
 
 _LLMNarrator = Literal["llm-primary", "llm-fallback"]
 
@@ -128,8 +112,7 @@ class LLMClient(Protocol):
 
 
 class NarrationResult(BaseModel):
-    """What :func:`narrate_draft_recap` / :func:`narrate_weekly_issue` return —
-    narrated text plus its source."""
+    """What :func:`narrate_draft_recap` returns — narrated text plus its source."""
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
@@ -138,26 +121,15 @@ class NarrationResult(BaseModel):
 
 
 # --------------------------------------------------------------------------- #
-# Payload builders — the narration projection, nothing else (AD-1)
+# Payload builder — the narration projection, nothing else (AD-1)
 # --------------------------------------------------------------------------- #
 
 
 def build_narration_payload(narration: Narration) -> str:
-    """Serialize the draft-recap ``narration`` projection to JSON for the model.
+    """Serialize the ``narration`` projection to JSON for the model.
 
     ``Narration.model_dump_json()`` is deterministic (Pydantic v2 field order) and
     carries only the projection — no ``LeagueModel``, no raw board column.
-    """
-    return narration.model_dump_json()
-
-
-def build_weekly_payload(narration: WeeklyNarration) -> str:
-    """Serialize the weekly ``narration`` projection to JSON for the model.
-
-    Same contract as :func:`build_narration_payload`, for the standalone weekly
-    Issue (Story 5.12). ``cli.py`` calls this too, so the payload the pre-call
-    cost estimate is priced against is *byte-identical* to the one
-    :func:`narrate_weekly_issue` actually sends.
     """
     return narration.model_dump_json()
 
@@ -367,7 +339,7 @@ class AnthropicClient:
                 "no Anthropic API key (set ANTHROPIC_API_KEY or LLM_API_KEY)"
             )
 
-        kwargs: dict[str, object] = {"api_key": api_key, "max_retries": _SDK_MAX_RETRIES}
+        kwargs: dict[str, object] = {"api_key": api_key}
         if self.endpoint is not None:
             kwargs["base_url"] = self.endpoint
         if self.timeout is not None:
@@ -435,16 +407,16 @@ class GoogleClient:
                 "no Google API key (set GEMINI_API_KEY or GOOGLE_API_KEY)"
             )
 
-        # ``retries`` is always present: the engine owns the retry policy
-        # (RETRY_CAP) and the SDK's own loop is turned off underneath it.
-        http_options: dict[str, object] = {"retries": _SDK_MAX_RETRIES}
+        http_options: dict[str, object] = {}
         if self.endpoint is not None:
             http_options["base_url"] = self.endpoint
         if self.timeout is not None:
             # seconds -> ms, floored at 1: a sub-ms timeout must not become 0,
             # which google-genai reads as "no timeout".
             http_options["timeout"] = max(1, round(self.timeout * 1000))
-        kwargs: dict[str, object] = {"api_key": api_key, "http_options": http_options}
+        kwargs: dict[str, object] = {"api_key": api_key}
+        if http_options:
+            kwargs["http_options"] = http_options
         client = genai.Client(**kwargs)
 
         try:
@@ -565,40 +537,6 @@ def narrate_with_llm(
     )
 
 
-def narrate_weekly_with_llm(
-    narration: WeeklyNarration,
-    voice: Voice,
-    config: LLMConfig,
-    *,
-    client_factory: Callable[[LLMModelConfig], LLMClient] = build_client,
-) -> tuple[str, _LLMNarrator]:
-    """The weekly counterpart of :func:`narrate_with_llm` (Story 5.12).
-
-    Identical selection, retry and failure semantics — the only differences are
-    the payload (:func:`build_weekly_payload`) and the log role. It routes
-    through the *same* :func:`_generate_first_success` call site, so the package
-    still has exactly one ``.generate(`` site and I3's structural guard holds for
-    the weekly path too.
-    """
-    try:
-        payload = build_weekly_payload(narration)
-    except Exception as exc:  # a malformed projection is a narrator fault, not a crash
-        raise NarratorError("could not serialize the weekly narration payload") from exc
-
-    attempts: tuple[tuple[_LLMNarrator, LLMModelConfig], ...] = (
-        ("llm-primary", config.primary),
-        ("llm-fallback", config.fallback),
-    )
-    return _generate_first_success(
-        payload,
-        voice,
-        attempts,
-        client_factory=client_factory,
-        role="weekly narrator",
-        failure_message="both LLM providers failed to generate the weekly narration",
-    )
-
-
 def _generate_first_success[Tag: str](
     payload: str,
     voice: Voice,
@@ -611,11 +549,11 @@ def _generate_first_success[Tag: str](
     """Try each ``(tag, model)`` in order and return ``(text, tag)`` for the first
     usable completion — **the package's one and only ``generate`` call site**.
 
-    Every paid call routes through here: narration (primary -> fallback), the
-    weekly narration (Story 5.12), and, since content-safety P1, the claim
-    verifier (a single provider). I3's structural guard counts ``.generate(``
-    call sites across the whole package and allows exactly one, so a second
-    billing path cannot appear without tripping it.
+    Every paid call routes through here: narration (primary -> fallback) and,
+    since content-safety P1, the claim verifier (a single provider). I3's
+    structural guard counts ``.generate(`` call sites across the whole package
+    and allows exactly one, so a second billing path cannot appear without
+    tripping it.
 
     Each provider gets ``1 + RETRY_CAP`` attempts: a :class:`_TransientProviderError`
     retries the same provider immediately; any other exception, or a non-``str``
@@ -718,37 +656,4 @@ def narrate_draft_recap(
 
     return NarrationResult(
         text=recap_to_text(render_draft_recap(narration)), narrator="template"
-    )
-
-
-def narrate_weekly_issue(
-    narration: WeeklyNarration,
-    voice: Voice,
-    config: LLMConfig,
-    *,
-    llm_enabled: bool,
-    client_factory: Callable[[LLMModelConfig], LLMClient] = build_client,
-) -> NarrationResult:
-    """The weekly counterpart of :func:`narrate_draft_recap` (Story 5.12).
-
-    ``llm_enabled=False`` -> the deterministic weekly template Issue's text,
-    ``narrator="template"``, no client constructed and no SDK imported.
-    ``llm_enabled=True`` -> the ``primary -> fallback -> template`` selection,
-    through the same single :func:`_generate_first_success` call site: a provider
-    or generation fault is swallowed and logged, never propagated. The caller
-    (``cli.py``) owns *whether* the weekly path may spend at all — this function
-    only owns what happens once it may, exactly as ``narrate_draft_recap`` does.
-    """
-    if llm_enabled:
-        try:
-            text, tag = narrate_weekly_with_llm(
-                narration, voice, config, client_factory=client_factory
-            )
-        except (NarratorError, ValidationError) as exc:
-            _LOGGER.warning("weekly llm narrator unavailable; using template narrator: %s", exc)
-        else:
-            return NarrationResult(text=text, narrator=tag)
-
-    return NarrationResult(
-        text=weekly_issue_to_text(render_weekly_issue(narration)), narrator="template"
     )

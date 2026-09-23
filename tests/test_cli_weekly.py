@@ -4,8 +4,7 @@ No network, no secrets: a stub ``SleeperAdapter`` returns the committed
 ``week17-playoffs.json`` / ``week10-blowout.json`` bundles (plus a synthetic
 ``nfl_state`` making the target week final), and the Discord post is recorded by
 a fake ``post_discord_text``. The weekly narrator is the zero-credential
-template unless a provider key is set, so nothing here spends anything by
-default.
+template, so no LLM is involved anywhere on this path.
 
 Direct unit coverage of ``render/discord.py``'s weekly additions
 (:func:`~commishdesk.render.discord.render_weekly_discord_summary` /
@@ -14,9 +13,7 @@ Direct unit coverage of ``render/discord.py``'s weekly additions
 not here — this file is CLI-level (the pipeline chained end to end).
 
 Story 5.11c (the ``--reason`` reissue) is covered here too: it is CLI wiring on
-this same path, not a new module. Story 5.12's weekly narrator gate (key +
-budget, degrading to template; published ranks read from and written to the
-Store) is covered here as well, for the same reason.
+this same path, not a new module.
 """
 
 from __future__ import annotations
@@ -28,12 +25,7 @@ import pytest
 from typer.testing import CliRunner
 
 from commishdesk.cli import app
-from commishdesk.facts.schema import WeeklyNarration
 from commishdesk.ingest import build_week_model
-from commishdesk.narrate.weekly_template import (
-    render_weekly_issue,
-    weekly_issue_to_text,
-)
 from commishdesk.store import FileStore
 from tests.conftest import REPO_ROOT
 
@@ -66,11 +58,6 @@ _WEEK10 = "week10-blowout.json"
 #: week (the ``post`` season phase is neither "pre" nor "regular").
 _FINAL_POST = {"week": 18, "season_type": "post"}
 
-#: Every environment variable that turns the LLM narrator on. Cleared by the
-#: autouse fixture below so a developer's (or a CI image's) exported key can
-#: never make a "template narrator" assertion silently wrong.
-_LLM_KEY_VARS = ("ANTHROPIC_API_KEY", "LLM_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY")
-
 
 # --------------------------------------------------------------------------- #
 # Fixtures / stubs
@@ -78,13 +65,11 @@ _LLM_KEY_VARS = ("ANTHROPIC_API_KEY", "LLM_API_KEY", "GEMINI_API_KEY", "GOOGLE_A
 
 
 @pytest.fixture(autouse=True)
-def _no_ambient_provider_config(monkeypatch: pytest.MonkeyPatch) -> None:
+def _no_ambient_webhook(monkeypatch: pytest.MonkeyPatch) -> None:
     """Keep every test hermetic: an exported ``COMMISHDESK_DISCORD_WEBHOOK_URL``
-    or provider key must never leak in from the developer's shell or a CI image.
-    Tests that need a webhook or a key set it themselves."""
+    must never leak in from the developer's shell or a CI image. Tests that need
+    a webhook set it themselves."""
     monkeypatch.delenv("COMMISHDESK_DISCORD_WEBHOOK_URL", raising=False)
-    for name in _LLM_KEY_VARS:
-        monkeypatch.delenv(name, raising=False)
 
 
 def _load_fixture(name: str) -> dict[str, Any]:
@@ -154,69 +139,6 @@ def _league_bundle_with(monkeypatch: pytest.MonkeyPatch, **league_updates: Any) 
     return {**bundle, "league": {**bundle["league"], **league_updates}}
 
 
-class _WeeklyVoiceClient:
-    """A deterministic stand-in for the weekly Voice (Story 5.12).
-
-    It takes the payload the CLI actually builds (the ``WeeklyNarration`` JSON),
-    renders the template Issue for it, re-states each power line with a rank
-    *nudge* positions off the model rank, and returns that. ``nudge=0`` is a
-    Voice that agrees with the model; ``nudge=3`` is one that over-reaches
-    ``POWER_NUDGE_CAP``.
-    """
-
-    def __init__(self, nudge: int = 0, *, invent_fact: bool = False) -> None:
-        self.nudge = nudge
-        self.invent_fact = invent_fact
-        self.calls: list[str] = []
-
-    def generate(self, payload: str, voice: object) -> str:
-        self.calls.append(payload)
-        narration = WeeklyNarration.model_validate_json(payload)
-        issue = render_weekly_issue(narration)
-        rows = sorted(narration.power, key=lambda row: (row.model_rank is None, row.model_rank or 0))
-        lines = [
-            f"{(row.model_rank or 0) + self.nudge}. {row.team} — {row.rec}, {row.avg_pf} points a week."
-            for row in rows
-        ]
-        sections = [
-            section.model_copy(update={"blocks": lines})
-            if section.heading == "Power Rankings"
-            else section
-            for section in issue.sections
-        ]
-        if self.invent_fact:
-            # The matrix's "nudge cites an absent fact" row: a number that
-            # appears nowhere in the narration payload — the closed-world scan
-            # in check_narration must flag this exactly like a hallucinated
-            # draft-recap claim, with no code changes of its own (Story 5.12's
-            # Design Notes).
-            sections = [
-                s.model_copy(update={"blocks": [*s.blocks, "A league source confirms 84719 total yards."]})
-                if s.heading == "The Lead"
-                else s
-                for s in sections
-            ]
-        return weekly_issue_to_text(issue.model_copy(update={"sections": sections}))
-
-
-def _stub_weekly_voice(
-    monkeypatch: pytest.MonkeyPatch,
-    *,
-    nudge: int = 0,
-    invent_fact: bool = False,
-    ceiling: str = "100",
-) -> _WeeklyVoiceClient:
-    """Point the CLI at a fake weekly Voice, and set the key + ceiling that let it
-    run at all. Returns the client so a test can count its calls."""
-    from commishdesk.llmconfig import load_llm_config  # noqa: F401  (documents the gate)
-
-    client = _WeeklyVoiceClient(nudge=nudge, invent_fact=invent_fact)
-    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
-    monkeypatch.setenv("COMMISHDESK_COST_CEILING_USD", ceiling)
-    monkeypatch.setattr("commishdesk.narrate.llm.build_client", lambda cfg: client)
-    return client
-
-
 # --------------------------------------------------------------------------- #
 # Happy paths
 # --------------------------------------------------------------------------- #
@@ -258,9 +180,6 @@ def test_weekly_happy_path_prints_sections_and_writes_files(
     # test_weekly_cross_check_without_post_writes_an_unverified_issue's guard).
     store = FileStore(tmp_path / "cache" / "commishdesk")
     assert store.read_storylines("77") != []
-    # ...and the template narrator persisted no published rank at all (Story 5.12:
-    # only a confirmed voiced publish leaves one).
-    assert store.read_published_rank("77", 17) is None
 
 
 def test_weekly_post_confirms_a_weekly_ledger_entry_and_posts_once(
@@ -293,9 +212,9 @@ def test_weekly_post_without_a_webhook_url_fails_fast_no_fetch(
     tmp_path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """AC1's fail-fast guard (step-04 review, blind-hunter): ``--post`` with no
-    ``COMMISHDESK_DISCORD_WEBHOOK_URL`` set (the autouse
-    ``_no_ambient_provider_config`` fixture keeps this true here) raises before
-    any fetch — mirrors the draft-recap path's identical guard."""
+    ``COMMISHDESK_DISCORD_WEBHOOK_URL`` set (the autouse ``_no_ambient_webhook``
+    fixture keeps this true here) raises before any fetch — mirrors the
+    draft-recap path's identical guard."""
     calls = _stub_adapter(monkeypatch)
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
 
@@ -338,9 +257,10 @@ def test_weekly_post_second_identical_run_skips_before_any_fetch(
 def test_weekly_run_with_explicit_llm_flag_warns_it_is_ignored(
     tmp_path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Step-04 review (blind-hunter), kept for Story 5.12: the weekly narrator is
-    chosen from the environment (a provider key + a budget), never from this flag,
-    so an explicit ``--llm``/``--no-llm`` is still accepted and loudly ignored."""
+    """Step-04 review (blind-hunter): unlike ``--draft-recap``+``--week`` or
+    ``--post`` without either mode, an explicit ``--llm``/``--no-llm`` on a
+    weekly run was silently accepted with zero effect. Now it logs a warning
+    (default log level, no ``--verbose`` needed) instead of running quietly."""
     _stub_adapter(monkeypatch)
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
 
@@ -349,136 +269,6 @@ def test_weekly_run_with_explicit_llm_flag_warns_it_is_ignored(
     )
     assert result.exit_code == 0, result.output
     assert "has no effect on a weekly run" in result.output
-
-
-# --------------------------------------------------------------------------- #
-# Story 5.12 — the weekly narrator gate (key + budget)
-# --------------------------------------------------------------------------- #
-
-
-def test_weekly_without_a_provider_key_uses_the_template_narrator(
-    tmp_path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """The matrix's "no key configured" row: no key, no spend, and the power
-    section shows the Model Rank only."""
-    _stub_adapter(monkeypatch)
-    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
-
-    result = runner.invoke(app, ["--league", "90", "--week", "17", "--out-dir", str(tmp_path)])
-    assert result.exit_code == 0, result.output
-    assert "model rank" in result.stdout
-
-
-def test_weekly_with_a_key_and_a_budget_uses_the_voice_narrator(
-    tmp_path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """AC1: a key plus a passing estimate runs the Voice — exactly one
-    ``generate()`` call — and the published rank it states survives into the
-    Issue on every surface."""
-    _stub_adapter(monkeypatch)
-    voice = _stub_weekly_voice(monkeypatch, nudge=1)
-    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
-
-    result = runner.invoke(app, ["--league", "91", "--week", "17", "--out-dir", str(tmp_path)])
-    assert result.exit_code == 0, result.output
-    assert len(voice.calls) == 1  # I3: one paid generation per league-week
-    for heading in WEEKLY_SECTION_HEADINGS:
-        assert heading in result.stdout, heading
-    assert (tmp_path / "commishdesk-91-weekly-week17.txt").is_file()
-
-
-def test_weekly_with_an_exceeded_budget_silently_uses_the_template_narrator(
-    tmp_path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """The matrix's "key present, budget exceeded" row: the estimate is over the
-    ceiling, so the run degrades to the template — no ``CostCeilingExceededError``,
-    no exit code change, and no paid call at all."""
-    _stub_adapter(monkeypatch)
-    voice = _stub_weekly_voice(monkeypatch, nudge=1, ceiling="0.000001")
-    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
-
-    result = runner.invoke(app, ["--league", "92", "--week", "17", "--out-dir", str(tmp_path)])
-    assert result.exit_code == 0, result.output
-    assert "CostCeilingExceededError" not in result.output
-    assert voice.calls == []
-    assert "The Lead" in result.stdout
-
-
-def test_weekly_a_nudge_past_the_cap_regenerates_once_then_falls_back(
-    tmp_path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """The matrix's "nudge exceeds POWER_NUDGE_CAP" row: the first generation is
-    flagged at the regenerate tier, the one permitted re-narration repeats it, and
-    the run ships the deterministic template Issue — power section present — after
-    exactly two calls."""
-    _stub_adapter(monkeypatch)
-    voice = _stub_weekly_voice(monkeypatch, nudge=3)
-    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
-
-    result = runner.invoke(app, ["--league", "93", "--week", "17", "--out-dir", str(tmp_path)])
-    assert result.exit_code == 0, result.output
-    assert len(voice.calls) == 2  # initial attempt + one permitted regeneration
-    assert "Power Rankings" in result.stdout  # the template's own section
-    assert "content-safety alert" in result.output
-
-
-def test_weekly_a_nudge_citing_an_absent_fact_regenerates_once_then_falls_back(
-    tmp_path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """The matrix's "nudge cites an absent fact" row: a number invented outside
-    the narration payload trips the *same* closed-world/regenerate/fallback path
-    as a cap violation (no new safety.py code, per Story 5.12's Design Notes) —
-    one permitted re-narration, then the deterministic template Issue ships."""
-    _stub_adapter(monkeypatch)
-    voice = _stub_weekly_voice(monkeypatch, invent_fact=True)
-    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
-
-    result = runner.invoke(app, ["--league", "95", "--week", "17", "--out-dir", str(tmp_path)])
-    assert result.exit_code == 0, result.output
-    assert len(voice.calls) == 2  # initial attempt + one permitted regeneration
-    assert "Power Rankings" in result.stdout  # the template's own section
-    assert "content-safety alert" in result.output
-    assert "84719" not in result.stdout  # the invented fact never ships
-
-
-def test_weekly_a_confirmed_voiced_post_persists_the_published_rank(
-    tmp_path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """AC4's write half: a confirmed voiced publish persists exactly one
-    ``{roster_id: published_rank}`` map for the league-week, so the *next* week's
-    ``prev_published_rank`` has something to resolve."""
-    _stub_adapter(monkeypatch)
-    voice = _stub_weekly_voice(monkeypatch, nudge=1)
-    posted = _stub_post_discord_text(monkeypatch)
-    monkeypatch.setenv("COMMISHDESK_DISCORD_WEBHOOK_URL", _FAKE_WEBHOOK_URL)
-    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
-
-    result = runner.invoke(
-        app, ["--league", "94", "--week", "17", "--post", "--out-dir", str(tmp_path)]
-    )
-    assert result.exit_code == 0, result.output
-    assert len(posted) == 1
-    assert len(voice.calls) == 1
-
-    store = FileStore(tmp_path / "cache" / "commishdesk")
-    ranks = store.read_published_rank("94", 17)
-    assert ranks is not None
-    assert len(ranks) == len(build_week_model(_load_fixture(_WEEK17)).rosters)
-
-
-def test_weekly_a_voiced_run_without_post_persists_nothing(
-    tmp_path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """AC4's gate: the published rank is written only once ``--post`` confirms —
-    a local-only voiced run leaves no "this week was published" evidence."""
-    _stub_adapter(monkeypatch)
-    _stub_weekly_voice(monkeypatch, nudge=1)
-    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
-
-    result = runner.invoke(app, ["--league", "95", "--week", "17", "--out-dir", str(tmp_path)])
-    assert result.exit_code == 0, result.output
-    store = FileStore(tmp_path / "cache" / "commishdesk")
-    assert store.read_published_rank("95", 17) is None
 
 
 # --------------------------------------------------------------------------- #
