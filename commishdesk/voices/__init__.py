@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Protocol, runtime_checkable
+from typing import Literal, Protocol, runtime_checkable
 
 __all__ = ["Voice", "load_default_voice"]
 
@@ -19,12 +19,20 @@ class Voice(Protocol):
     voice_id: str
 
 
-def load_default_voice() -> Voice:
-    """The one default :class:`Voice` — the mild "beat writer" singleton.
+def load_default_voice(content: Literal["draft", "weekly"] = "draft") -> Voice:
+    """The one default :class:`Voice` — the mild "beat writer".
+
+    ``content`` selects which Issue the voice is instructed for: ``"draft"``
+    (the draft recap, the default) or ``"weekly"`` (Story 5.12). Same personality,
+    banned topics and ``voice_id`` either way; only the structure rules differ.
 
     Imported lazily so importing this zone package stays free of the reference
     implementation until a caller actually needs the prose voice.
     """
-    from commishdesk.voices.beat_writer import BEAT_WRITER
+    from commishdesk.voices.beat_writer import BEAT_WRITER, BEAT_WRITER_WEEKLY
 
-    return BEAT_WRITER
+    if content == "weekly":
+        return BEAT_WRITER_WEEKLY
+    if content == "draft":
+        return BEAT_WRITER
+    raise ValueError(f"unknown voice content type {content!r}; expected 'draft' or 'weekly'")

@@ -104,6 +104,19 @@ the engine yet. Voice eval prompts and expected-tone samples go in `tests/eval/v
 the length target the sample is scored against (`REFERENCE_TARGET_CHARS`) and the rubric
 live in that directory's `README.md`.
 
+**One Voice, two Issues.** The same `Voice` serves the draft recap and the weekly Issue
+(Story 5.12): `load_default_voice()` returns the draft-recap instruction set and
+`load_default_voice("weekly")` the weekly one — same personality, `banned_topics` and
+`voice_id`, different structure rules. Both narrators send `voice.system_prompt` verbatim, so
+a prompt for the weekly Issue must (a) name the seven `weekly_template.SECTION_HEADINGS`
+verbatim, (b) make "Around the League" discrete items, and (c) write "Power Rankings" as a
+numbered list, `N. <team label exactly as the Facts JSON gives it> — <sentence>`, where `N` is
+the Voice's *published* rank. The published rank may differ from the deterministic
+`model_rank` by at most `stats.power.POWER_NUDGE_CAP` (2); a deviation must cite a number from
+the Facts JSON for that team in the same sentence. A breach of the cap, or a citation of an
+absent number, earns one regeneration and then the template narrator. Text that misses a
+heading or repeats one also falls back to the template, after the paid call.
+
 The public repo ships **at most one** `Voice` file. That reference implementation —
 `commishdesk/voices/beat_writer.py`, the mild "beat writer" default returned by
 `commishdesk.voices.load_default_voice()` — landed in Story 3.3 (a test enforces the

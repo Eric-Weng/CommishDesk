@@ -238,6 +238,18 @@ self-hosters inherit them and CI enforces them.
   `PascalCase`.
 - Every commit is signed off: `git commit -s` (DCO — see `CONTRIBUTING.md`).
 
+**Agent tool habits.** Everything a tool returns stays in context and is re-read on every later
+turn, so a cheap-looking call is paid for many times over. Measured here: ~74% of session cost is
+re-read context, and the expensive sessions differ from the cheap ones mainly in exploration
+volume (77 shell `grep`s in one, 2 in another).
+
+- Search with the **Grep tool** (`head_limit`, `output_mode`) over iterative shell `grep | head`
+  chains; read a known file directly rather than narrowing to it by repeated search.
+- Edit with the **Edit tool**, not `python - <<EOF` / `sed` string surgery — fewer turns, and the
+  tool result is a diff instead of a file dump.
+- Send long check output to a file and read the summary line: `uv run pytest -q > /tmp/p.txt 2>&1;
+  tail -5 /tmp/p.txt`. Never page a full suite run into context.
+
 ---
 
 ## 6. ⏸ CHECKPOINT — do not skip Epic 4B
