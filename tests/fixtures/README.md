@@ -62,6 +62,14 @@ every NFL roster site); `birth_date` / `birth_city` / `high_school` and every
 third-party id are dropped. `rookie_year` is lifted out of the raw record's
 `metadata` sub-object.
 
+**`week10-blowout.json`'s `rosters` are point-in-time (Story 5.13a).** After
+`assemble_bundle.py | anonymize.py`, `tools/point_in_time_rosters.py` folds the
+fixture's own `matchups` for weeks 1..10 and rewrites each roster's
+`settings.wins/losses/ties`, `fpts*`, `fpts_against*` and `metadata.record/streak`,
+so luck (`wins - expected_wins`) reconciles with a real week-10 pull and the
+standings cross-check passes. `test_fixtures.py` applies the same step when it
+reproduces the fixture from raw. Every other fixture keeps the description below.
+
 **`rosters` is one season-final pull, not a weekly snapshot.** Every fixture's
 `rosters` section carries the *season-end* record, points-for and points-against
 — a mid-season slice has week-10 matchups next to week-14 totals. Story 5.6's

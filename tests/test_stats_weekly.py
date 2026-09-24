@@ -21,16 +21,14 @@ field-by-field against it and only run in a workspace that has the sibling
 reconciliation, not just the always-on CI oracle.
 
 ``luck`` and the season ``wins``/``losses``/``ties`` on
-:class:`~commishdesk.stats.weekly.TeamWeekStats` do **not** reconcile with the
-golden file's ``season.record``/``season.luck``, and this is expected, not a
-bug: this story's Boundaries require ``record`` to be sourced verbatim from
-:class:`~commishdesk.ingest.Roster` (Sleeper's own *current* count), but
-Sleeper's ``/rosters`` endpoint has no historical-per-week view -- every
-committed fixture's ``rosters`` section is one single point-in-time pull (the
-same season-final totals appear verbatim in ``week10-blowout.json`` and
-``week17-playoffs.json`` alike), not a true "as of week 10" snapshot. A live
-``fetch_week`` call made *during* week 10 would see the real week-10 standings
-and reconcile; this fixture, built after the season finished, cannot.
+:class:`~commishdesk.stats.weekly.TeamWeekStats` are sourced verbatim from
+:class:`~commishdesk.ingest.Roster` (Sleeper's *current* count), and Sleeper's
+``/rosters`` endpoint has no historical-per-week view. So a fixture built after
+the season finished carries season-final totals beside mid-season matchups --
+which is still true of ``week17-playoffs.json``. Story 5.13a rewrote
+``week10-blowout.json``'s roster totals as of week 10
+(``tools/point_in_time_rosters.py``), so its ``luck`` now reconciles with the
+golden's ``season.luck``.
 """
 
 from __future__ import annotations

@@ -1138,6 +1138,30 @@ def _stamp_published_ranks(
     return narration.model_copy(update={"power": power})
 
 
+def _stamp_nudge_justifications(
+    facts: Mapping[str, object], justifications: Mapping[str, str]
+) -> dict[str, object]:
+    """A copy of the decoded Facts JSON whose ``narration.power`` rows carry the
+    narrator's cited nudge reasons (Story 5.13a).
+
+    Called only **after** :func:`_produce_weekly_issue` has run ``check_narration``:
+    stamping a justification into the payload the closed-world scan reads would make
+    every number in it in-world by construction (Story 5.12, G2). Only the reason is
+    stamped — never ``published_rank`` — because the persisted ranks live in their
+    own store and a rank written here would show up as a moved number in a later
+    reissue's diff. The render reads a reason from this narration, never from the
+    Facts ``teams`` (Facts is unchanged); a roster with no reason keeps ``None``.
+    """
+    stamped = dict(facts)
+    narration = dict(stamped["narration"])  # type: ignore[call-overload]
+    narration["power"] = [
+        {**row, "nudge_justification": justifications.get(str(row["roster_id"]))}
+        for row in narration["power"]
+    ]
+    stamped["narration"] = narration
+    return stamped
+
+
 def _produce_weekly_issue(
     doc: WeeklyFacts, *, resolved: str, logger: logging.Logger, reissue: bool = False
 ) -> tuple[WeeklyIssue, dict[str, int]]:
@@ -1506,7 +1530,18 @@ def _recap_one_league_weekly(
         # Story 5.11c: record this league-week's Facts JSON so a later reissue can
         # say what changed. Written only after the post is confirmed, so a failed
         # delivery never leaves a snapshot claiming the Issue went out.
-        _write_weekly_facts_snapshot(store, resolved, week, facts_json)
+        snapshot = facts_json
+        if published_ranks:
+            from commishdesk.narrate.weekly_template import (
+                parse_nudge_justifications,
+                weekly_issue_to_text,
+            )
+
+            snapshot = _stamp_nudge_justifications(
+                facts_json,
+                parse_nudge_justifications(weekly_issue_to_text(issue), doc.narration),
+            )
+        _write_weekly_facts_snapshot(store, resolved, week, snapshot)
         # Story 5.12: same ordering, same reason — the published rank is this
         # week's "confirmed publish" evidence for the *next* week's lookback, so
         # it is written only once the send is confirmed. A template run has no
