@@ -349,10 +349,17 @@ def _document(
     sheet_bg: str = _SHEET_BG,
     width: int = _CONTAINER_W,
     style_block: str = _STYLE_BLOCK,
+    container_extra: str = "",
 ) -> str:
     """The email shell: colour-scheme meta, the hidden preheader, and the
     centred ``width``-px container. The keyword defaults are the draft recap's
-    (Story 4.2, unchanged); the weekly email (Story 5.14b) passes its own."""
+    (Story 4.2, unchanged — a byte-identical output); the weekly email
+    (Story 5.14c) passes its own style block and an extra container style such
+    as fixed table layout. ``style_block`` is emitted verbatim inside the
+    ``<style>`` head element — its contents are the caller's contract."""
+    container_style = f"width:{width}px;max-width:{width}px;background-color:{sheet_bg};"
+    if container_extra:
+        container_style += container_extra
     return (
         "<!DOCTYPE html>\n"
         '<html lang="en" xmlns="http://www.w3.org/1999/xhtml">\n'
@@ -373,8 +380,7 @@ def _document(
         f'style="background-color:{body_bg};">\n'
         '<tr><td align="center" style="padding:24px 12px 40px;">\n'
         f'<table role="presentation" class="container" width="{width}" '
-        f'cellpadding="0" cellspacing="0" style="width:{width}px;'
-        f'max-width:{width}px;background-color:{sheet_bg};">\n'
+        f'cellpadding="0" cellspacing="0" style="{container_style}">\n'
         f"{rows}\n"
         "</table>\n"
         "</td></tr>\n"
