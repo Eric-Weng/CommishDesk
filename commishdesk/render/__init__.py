@@ -15,7 +15,9 @@ designed inline-SVG render is :func:`~commishdesk.render.web.render_web` (Story
 4.1); the email-deliverable render — client-safe ``<table>`` HTML plus a
 ``text/plain`` alternative — is :func:`~commishdesk.render.email.render_email`
 (Story 4.2), returning an :class:`~commishdesk.render.email.EmailParts` pair. The
-CLI writes all three files. This module imports the narrator output type,
+CLI writes all three files. The weekly Issue's designed page is
+:func:`~commishdesk.render.weekly_web.render_weekly_web` (Story 5.14a); the weekly
+run writes it in place of the generic dump. This module imports the narrator output type,
 ``commishdesk.facts`` schema types (via ``render/web.py`` / ``render/email.py``),
 and the standard library only (AD-1).
 """
@@ -32,6 +34,7 @@ from commishdesk.render._body import _esc
 from commishdesk.render.discord import render_discord_summary, render_weekly_discord_summary
 from commishdesk.render.email import EmailParts, render_email
 from commishdesk.render.web import render_web
+from commishdesk.render.weekly_web import render_weekly_web
 
 __all__ = [
     "EmailParts",
@@ -41,6 +44,7 @@ __all__ = [
     "render_email",
     "render_web",
     "render_weekly_discord_summary",
+    "render_weekly_web",
     "write_draft_recap",
     "write_html_file",
     "write_text_file",

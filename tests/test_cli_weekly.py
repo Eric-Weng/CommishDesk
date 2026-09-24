@@ -22,6 +22,7 @@ Store) is covered here as well, for the same reason.
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
 
 import pytest
@@ -274,7 +275,10 @@ def test_weekly_happy_path_prints_sections_and_writes_files(
 
     body = html_path.read_text(encoding="utf-8")
     assert body.startswith("<!doctype html>")
-    assert "<h1>" in body and "<h2>" in body
+    # Story 5.14a: the designed weekly page, not the Story 2.7 generic dump.
+    assert 'class="paper weekly_issue"' in body
+    assert "<h1>" not in body and "<h2>" not in body  # the dump's bare, unstyled headings
+    assert body.count("<style>") == 1 and "<script" not in body
     assert "UNVERIFIED" not in body
     assert text_path.read_text(encoding="utf-8").strip()
 
@@ -1125,3 +1129,79 @@ def test_weekly_a_template_post_leaves_every_justification_null(
     )
     assert result.exit_code == 0, result.output
     assert all(r["nudge_justification"] is None for r in _snapshot_power_rows(tmp_path, "103"))
+
+
+# --------------------------------------------------------------------------- #
+# Story 5.14a — the designed weekly page
+# --------------------------------------------------------------------------- #
+
+
+def test_weekly_week10_run_writes_the_designed_page(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The weekly run writes the designed, self-contained page (every section of
+    a regular-season week) in place of the generic dump; the text Issue is kept."""
+    _stub_adapter(monkeypatch, week_bundle=_load_fixture(_WEEK10), nfl_state={"week": 13, "season_type": "regular"})
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+
+    result = runner.invoke(app, ["--league", "110", "--week", "10", "--out-dir", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    body = (tmp_path / "commishdesk-110-weekly-week10.html").read_text(encoding="utf-8")
+    assert 'class="paper weekly_issue"' in body
+    for label in ("The lead", "Around the league", "Standings", "Power rankings", "The luck index", "Next week"):
+        assert f'aria-label="{label}"' in body, label
+    assert "Nudged" not in body  # the template narrator publishes no rank
+    assert (tmp_path / "commishdesk-110-weekly-week10.txt").is_file()
+
+
+def test_weekly_a_voiced_run_renders_its_published_ranks_and_cited_reasons(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """With published ranks, the page renders from the narration stamped with
+    them and with each deviation's reason parsed from the Issue text."""
+    _stub_adapter(monkeypatch, week_bundle=_load_fixture(_WEEK10), nfl_state={"week": 13, "season_type": "regular"})
+    _stub_weekly_voice(monkeypatch, nudge=1)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+
+    result = runner.invoke(app, ["--league", "111", "--week", "10", "--out-dir", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    body = (tmp_path / "commishdesk-111-weekly-week10.html").read_text(encoding="utf-8")
+    power = body.split('aria-label="Power rankings"', 1)[1].split("</section>", 1)[0]
+    assert "Nudged down · model #1" in power
+    # the cited reason is the rest of the narrated rank line, never invented
+    assert '<span class="why">9-1-0, 202.87 points a week.</span>' in power
+
+
+def test_weekly_a_tight_list_gives_every_nudged_row_its_own_reason(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Reasons come from the raw completion: a tight list (no blank lines) is
+    joined into one paragraph in the parsed Issue, which must not leak into the
+    page (one reason swallowing the list) or into the snapshot."""
+    _stub_adapter(monkeypatch, week_bundle=_load_fixture(_WEEK10), nfl_state={"week": 13, "season_type": "regular"})
+    _stub_weekly_voice(monkeypatch, nudge=1, tight=True)
+    _stub_post_discord_text(monkeypatch)
+    monkeypatch.setenv("COMMISHDESK_DISCORD_WEBHOOK_URL", _FAKE_WEBHOOK_URL)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+
+    result = runner.invoke(app, ["--league", "112", "--week", "10", "--post", "--out-dir", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    body = (tmp_path / "commishdesk-112-weekly-week10.html").read_text(encoding="utf-8")
+    power = body.split('aria-label="Power rankings"', 1)[1].split("</section>", 1)[0]
+    reasons = re.findall(r'<span class="why">(.*?)</span>', power)
+    assert len(reasons) == power.count('<p class="nudge">') > 1
+    assert all(reason.count("points a week") == 1 for reason in reasons)
+    snapshot = FileStore(tmp_path / "cache" / "commishdesk").read_cache("weekly-facts-snapshot", "112-10")
+    assert snapshot is not None
+    stamped = [r["nudge_justification"] for r in snapshot["narration"]["power"] if r["nudge_justification"]]
+    assert len(stamped) == len(reasons)
+    assert all(reason.count("points a week") == 1 for reason in stamped)
+
+
+def test_the_draft_recap_page_is_not_the_weekly_design(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Story 5.14a leaves the draft-recap surfaces alone: its page is still Story
+    4.1's ``render_web`` output (no weekly marker, no embedded fonts)."""
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+    result = runner.invoke(app, ["--league", "demo", "--draft-recap", "--out-dir", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    body = (tmp_path / "commishdesk-demo-draft-recap.html").read_text(encoding="utf-8")
+    assert "weekly_issue" not in body and "@font-face" not in body
+    assert '<header class="masthead">' in body and "Draft Recap" in body

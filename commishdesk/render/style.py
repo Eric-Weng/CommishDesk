@@ -6,12 +6,20 @@ imports it for the self-contained web page; a future
 ``commishdesk.render.charts_static`` (Story 4.2) imports the same palette +
 formatters for the static-PNG helper — no import cycle, no shared mutable state.
 
+Story 5.14a adds the weekly Issue's separate Tuesday Morning token set and
+:func:`build_weekly_style`, which inlines the embedded WOFF2 faces shipped in
+``render/fonts/`` (read through :mod:`importlib.resources`).
+
 Standard library only, credential-free. Numerals only: ``render`` emits digits in
 data contexts, so this module carries **no** copy of
 ``commishdesk.facts.leads._spell`` (spec 4.1 boundary).
 """
 
 from __future__ import annotations
+
+import base64
+import functools
+from importlib import resources
 
 __all__ = [
     "FONT_MONO",
@@ -22,7 +30,14 @@ __all__ = [
     "POSITION_VAR",
     "REACH_HEX",
     "VALUE_HEX",
+    "WEEKLY_DARK_TOKENS",
+    "WEEKLY_FONT_BODY",
+    "WEEKLY_FONT_DISPLAY",
+    "WEEKLY_FONT_FILES",
+    "WEEKLY_LIGHT_TOKENS",
     "build_style",
+    "build_weekly_style",
+    "weekly_font_faces",
     "fmt_signed",
     "ordinal",
     "pct",
@@ -350,26 +365,640 @@ footer .stamp {{ margin: 0; color: var(--ink-2); }}
 """.strip()
 
 
+def _themed_tokens(light: dict[str, str], dark: dict[str, str]) -> str:
+    """The three-block light / dark token pattern every stylesheet here shares:
+    light on bare ``:root``, dark inside ``@media (prefers-color-scheme: dark)``
+    (unless ``[data-theme="light"]`` pins light), and dark again on
+    ``:root[data-theme="dark"]``."""
+    return "\n".join(
+        [
+            ":root {",
+            "  color-scheme: light dark;",
+            _emit_tokens(light),
+            "}",
+            "@media (prefers-color-scheme: dark) {",
+            '  :root:not([data-theme="light"]) {',
+            _emit_tokens(dark, indent="    "),
+            "  }",
+            "}",
+            ':root[data-theme="dark"] {',
+            _emit_tokens(dark),
+            "}",
+        ]
+    )
+
+
 def build_style() -> str:
     """The full inline stylesheet (CSS text, no ``<style>`` tags) shared by every
     render surface — light on bare ``:root``, an
     ``@media (prefers-color-scheme: dark)`` block, and a ``[data-theme="dark"]``
     block, with ``[data-theme="light"]`` winning back by never being overridden."""
-    dark = _emit_tokens(_DARK_TOKENS)
+    return "\n".join([_themed_tokens(_LIGHT_TOKENS, _DARK_TOKENS), _BASE_CSS])
+
+
+# --------------------------------------------------------------------------- #
+# Story 5.14a — the weekly Issue's "Tuesday Morning" theme (values only) and
+# its embedded type. A separate token set: the draft-recap tokens above are
+# untouched.
+# --------------------------------------------------------------------------- #
+
+#: Display / body stacks for the weekly page. The named family is the embedded
+#: WOFF2 face (:func:`weekly_font_faces`); system fallbacks follow.
+WEEKLY_FONT_DISPLAY = '"Bricolage Grotesque", "Helvetica Neue", Arial, system-ui, sans-serif'
+WEEKLY_FONT_BODY = '"DM Sans", "Helvetica Neue", Arial, system-ui, sans-serif'
+
+#: Tuesday Morning, light. Surface / emphasis / status roles from the approved
+#: design decisions; ``--good-text`` / ``--bad-text`` are the WCAG-AA text
+#: variants (the design's good ``#1E9E6A`` and bad ``#E5484D`` are 3.41 and 3.91
+#: on card, so they stay as fills and bars only). ``--good-fill`` is the
+#: status fill that carries text (a stat tile, a solid chip).
+WEEKLY_LIGHT_TOKENS: dict[str, str] = {
+    "--paper": "#FBF7EF",
+    "--paper-2": "#F4EEE0",
+    "--card": "#FFFFFF",
+    "--ink": "#1F2140",
+    "--ink-2": "#5A5D7A",
+    "--ink-3": "#9A9CB2",
+    "--line": "#ECE4D4",
+    "--rule": "#1F2140",
+    "--emph": "#4C5BD4",
+    "--on-emph": "#FFFFFF",
+    "--emph-wash": "#4c5bd41c",
+    "--good": "#1E9E6A",
+    "--good-text": "#157F55",
+    "--good-fill": "#157F55",
+    "--on-good": "#FFFFFF",
+    "--good-wash": "#1e9e6a16",  # lighter than the board's 1c so --good-text on it clears AA
+    "--bad": "#E5484D",
+    "--bad-text": "#C93338",
+    "--bad-wash": "#e5484d1c",
+    "--notable": "#F2B632",
+    "--on-notable": "#1F2140",
+    "--notable-wash": "#f2b63230",
+    "--bar": "#4C5BD4",
+    "--barlo": "#C9CBE0",
+    "--cut": "#5A5D7A",
+    "--hi": "#F0EADB",
+    "--d1": "#3F6FD8",
+    "--d2": "#8E52D0",
+    "--d3": "#A08558",
+    "--mono-bg": "#5a5d7a1c",
+    "--mono-fg": "#5A5D7A",
+    "--win-tint": "#F4EFFC",
+    "--shadow": "0 1px 0 #ffffff inset, 0 1px 2px #1f214014",
+}
+
+#: Tuesday Morning, dark (the ``prefers-color-scheme`` variant). Paper, card,
+#: ink, emphasis, good and bad are the decisions file's values; the rest are
+#: the Power / Transactions boards' dark tokens.
+WEEKLY_DARK_TOKENS: dict[str, str] = {
+    "--paper": "#141527",
+    "--paper-2": "#191A30",
+    "--card": "#1D1F38",
+    "--ink": "#F0EEF8",
+    "--ink-2": "#B2B4CE",
+    "--ink-3": "#7F819F",
+    "--line": "#2C2E4C",
+    "--rule": "#B2B4CE",
+    "--emph": "#8C98FF",
+    "--on-emph": "#141527",
+    "--emph-wash": "#8c98ff24",
+    "--good": "#4CC38D",
+    "--good-text": "#4CC38D",
+    "--good-fill": "#4CC38D",
+    "--on-good": "#141527",
+    "--good-wash": "#4cc38d24",
+    "--bad": "#FF7A7F",
+    "--bad-text": "#FF7A7F",
+    "--bad-wash": "#ff7a7f24",
+    "--notable": "#F5C65A",
+    "--on-notable": "#141527",
+    "--notable-wash": "#f5c65a24",
+    "--bar": "#8C98FF",
+    "--barlo": "#3D4066",
+    "--cut": "#B2B4CE",
+    "--hi": "#24264A",
+    "--d1": "#7C9BEA",
+    "--d2": "#B98CE8",
+    "--d3": "#C2A97A",
+    "--mono-bg": "#b2b4ce24",
+    "--mono-fg": "#B2B4CE",
+    "--win-tint": "#26284A",
+    "--shadow": "0 1px 0 #ffffff0a inset, 0 1px 2px #00000040",
+}
+
+#: The embedded faces: ``(family, weight, file under render/fonts/)``. Latin
+#: subsets of the OFL families (licences beside them in ``render/fonts/``).
+WEEKLY_FONT_FILES: tuple[tuple[str, int, str], ...] = (
+    ("Bricolage Grotesque", 700, "BricolageGrotesque-Bold.woff2"),
+    ("Bricolage Grotesque", 800, "BricolageGrotesque-ExtraBold.woff2"),
+    ("DM Sans", 400, "DMSans-Regular.woff2"),
+    ("DM Sans", 500, "DMSans-Medium.woff2"),
+    ("DM Sans", 700, "DMSans-Bold.woff2"),
+    ("IBM Plex Mono", 400, "IBMPlexMono-Regular.woff2"),
+    ("IBM Plex Mono", 500, "IBMPlexMono-Medium.woff2"),
+)
+
+
+def _font_bytes(filename: str) -> bytes:
+    """One embedded face's bytes, read from the installed package."""
+    return resources.files("commishdesk.render").joinpath("fonts", filename).read_bytes()
+
+
+@functools.cache
+def weekly_font_faces() -> str:
+    """``@font-face`` rules for every embedded face, each an inline base64
+    ``data:font/woff2`` URI — the only ``url(`` the weekly page carries."""
+    rules = []
+    for family, weight, filename in WEEKLY_FONT_FILES:
+        encoded = base64.b64encode(_font_bytes(filename)).decode("ascii")
+        rules.append(
+            "@font-face {"
+            f' font-family: "{family}"; font-style: normal; font-weight: {weight};'
+            " font-display: swap;"
+            f" src: url(data:font/woff2;base64,{encoded}) format(\"woff2\"); }}"
+        )
+    return "\n".join(rules)
+
+
+_WEEKLY_CSS = f"""
+*, *::before, *::after {{ box-sizing: border-box; }}
+html {{ -webkit-text-size-adjust: 100%; }}
+html, body {{ max-width: 100%; overflow-x: hidden; }}
+body {{
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: {WEEKLY_FONT_BODY};
+  font-size: 17px;
+  line-height: 1.55;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}}
+.paper {{
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: clamp(20px, 4vw, 48px) clamp(16px, 4vw, 48px) 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 44px;
+}}
+.mono {{ font-family: {FONT_MONO}; }}
+.num {{ font-variant-numeric: tabular-nums; }}
+
+/* masthead */
+.masthead {{
+  border-bottom: 3px solid var(--rule);
+  padding: 8px 0 28px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 24px 30px;
+}}
+.weekline {{
+  margin: 0;
+  font-family: {FONT_MONO};
+  font-size: 12px;
+  letter-spacing: .24em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}}
+.nameplate {{
+  margin: 14px 0 0;
+  font-family: {WEEKLY_FONT_DISPLAY};
+  font-weight: 700;
+  font-size: clamp(38px, 7vw, 64px);
+  line-height: .95;
+  letter-spacing: -.025em;
+  overflow-wrap: anywhere;
+}}
+.tiles {{ list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 10px; }}
+.tile {{ border-radius: 14px; padding: 10px 16px; min-width: 96px; }}
+.tile .k {{
+  display: block;
+  font-family: {FONT_MONO};
+  font-size: 10px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}}
+.tile .v {{
+  display: block;
+  font-family: {WEEKLY_FONT_DISPLAY};
+  font-weight: 700;
+  font-size: 26px;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}}
+.t-good {{ background: var(--good-fill); color: var(--on-good); }}
+.t-notable {{ background: var(--notable); color: var(--on-notable); }}
+.t-ink {{ background: var(--ink); color: var(--paper); }}
+.t-emph {{ background: var(--emph); color: var(--on-emph); }}
+
+/* notices: unverified dateline, correction */
+.notice {{
+  margin: 0;
+  padding: 16px 20px;
+  border-radius: 14px;
+  border: 2px solid var(--bad);
+  background: var(--bad-wash);
+}}
+.notice h2 {{
+  margin: 0 0 4px;
+  font-family: {FONT_MONO};
+  font-size: 12px;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--bad-text);
+}}
+.notice p {{ margin: 0; }}
+
+/* section heads */
+.eyebrow {{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-family: {FONT_MONO};
+  font-size: 11.5px;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}}
+.eyebrow::before {{
+  content: "";
+  flex: none;
+  width: 28px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--dash, var(--emph));
+}}
+.dash-good {{ --dash: var(--good); }}
+.dash-bad {{ --dash: var(--bad); }}
+.dash-notable {{ --dash: var(--notable); }}
+.dash-emph {{ --dash: var(--emph); }}
+.title {{
+  margin: 8px 0 18px;
+  font-family: {WEEKLY_FONT_DISPLAY};
+  font-weight: 700;
+  font-size: 26px;
+  line-height: 1.05;
+  letter-spacing: -.01em;
+  text-wrap: balance;
+}}
+.card {{ background: var(--card); border: 1px solid var(--line); border-radius: 20px; box-shadow: var(--shadow); }}
+.prose {{ margin-top: 18px; color: var(--ink-2); font-size: 15.5px; }}
+.prose p {{ margin: 0 0 10px; max-width: 70ch; overflow-wrap: break-word; break-inside: avoid; }}
+.prose.cols {{ columns: 2 24rem; column-gap: 32px; }}
+.chip {{
+  display: inline-block;
+  font-family: {FONT_MONO};
+  font-size: 10.5px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+  line-height: 1.4;
+}}
+.chip-emph {{ background: var(--emph); color: var(--on-emph); }}
+.chip-notable {{ background: var(--notable); color: var(--on-notable); }}
+.chip-ink {{ background: var(--ink); color: var(--paper); }}
+.chip-good {{ background: var(--good-fill); color: var(--on-good); }}
+.chip-up {{ background: var(--good-wash); color: var(--good-text); }}
+.chip-down {{ background: var(--bad-wash); color: var(--bad-text); }}
+.chip-plain {{ border: 1px solid var(--line); color: var(--ink-2); }}
+.mg {{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  background: var(--mono-bg);
+  color: var(--mono-fg);
+  font-family: {WEEKLY_FONT_DISPLAY};
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: .02em;
+}}
+.mg-l {{ width: 36px; height: 36px; border-radius: 12px; font-size: 15px; }}
+.mg-xl {{ width: 56px; height: 56px; border-radius: 18px; font-size: 23px; }}
+.mg-xxl {{ width: 64px; height: 64px; border-radius: 20px; font-size: 26px; }}
+svg.chart {{ display: block; max-width: 100%; height: auto; }}
+svg .lbl {{ font-family: {FONT_MONO}; font-size: 15px; fill: var(--ink); }}
+svg .lbl-2 {{ font-family: {FONT_MONO}; font-size: 14px; fill: var(--ink-2); }}
+svg .lbl-b {{ font-family: {FONT_MONO}; font-size: 18px; font-weight: 500; }}
+svg .lbl-big {{ font-family: {FONT_MONO}; font-size: 26px; font-weight: 500; fill: var(--ink); }}
+svg .name {{ font-family: {WEEKLY_FONT_BODY}; font-size: 14px; font-weight: 700; fill: var(--ink); }}
+
+/* lead */
+.lead {{ display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 28px; align-items: stretch; }}
+.lead-main {{ padding: 34px 38px; }}
+.lead-main .title {{ font-size: clamp(24px, 3vw, 30px); }}
+.lead-main .prose {{ margin: 0 0 18px; font-size: 18px; line-height: 1.5; }}
+.lead-side {{ display: flex; flex-direction: column; gap: 16px; }}
+.keynum {{
+  flex: 1;
+  border-radius: 20px;
+  padding: 24px 28px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}}
+.keynum .k {{ font-family: {FONT_MONO}; font-size: 11px; letter-spacing: .16em; text-transform: uppercase; }}
+.keynum .v {{
+  font-family: {WEEKLY_FONT_DISPLAY};
+  font-weight: 700;
+  font-size: clamp(44px, 6vw, 64px);
+  line-height: .95;
+  margin-top: 6px;
+  font-variant-numeric: tabular-nums;
+}}
+.keynum .s {{ font-size: 15px; margin-top: 6px; color: var(--ink-2); }}
+.kn-bad {{ background: var(--bad-wash); color: var(--bad-text); }}
+.kn-emph {{ background: var(--emph-wash); color: var(--emph); }}
+.kn-notable {{ background: var(--notable-wash); color: var(--ink); }}
+.teamcard {{ padding: 20px 28px; display: flex; align-items: center; gap: 16px; }}
+.teamcard .n {{ font-family: {WEEKLY_FONT_DISPLAY}; font-weight: 700; font-size: 22px; line-height: 1.1; }}
+.teamcard .m {{ font-size: 14px; color: var(--ink-2); }}
+.lead-type {{ display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px 28px; margin-bottom: 18px; }}
+.lead-type .hook {{
+  flex: 1 1 24rem;
+  margin: 8px 0 0;
+  font-family: {WEEKLY_FONT_DISPLAY};
+  font-weight: 800;
+  font-size: clamp(28px, 4vw, 40px);
+  line-height: 1.05;
+  letter-spacing: -.015em;
+}}
+.lead-type .key {{
+  margin: 0;
+  font-family: {WEEKLY_FONT_DISPLAY};
+  font-weight: 700;
+  font-size: clamp(44px, 6vw, 64px);
+  line-height: 1;
+  color: var(--emph);
+  font-variant-numeric: tabular-nums;
+}}
+.chart-note {{ margin: 6px 0 0; font-family: {FONT_MONO}; font-size: 11.5px; color: var(--ink-2); }}
+
+/* awards */
+.awards {{ display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-top: 16px; }}
+.award {{
+  border-radius: 20px;
+  padding: 22px 24px;
+  min-height: 176px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+}}
+.award .k {{ font-family: {FONT_MONO}; font-size: 11px; letter-spacing: .16em; text-transform: uppercase; }}
+.award .v {{
+  font-family: {WEEKLY_FONT_DISPLAY};
+  font-weight: 700;
+  font-size: clamp(40px, 4.4vw, 56px);
+  line-height: .95;
+  font-variant-numeric: tabular-nums;
+}}
+.award .n {{ font-weight: 700; font-size: 16px; margin-top: 6px; color: var(--ink); overflow-wrap: anywhere; }}
+.award .s {{ font-size: 13px; color: var(--ink-2); }}
+.aw-good {{ background: var(--good-wash); color: var(--good-text); }}
+.aw-emph {{ background: var(--emph-wash); color: var(--emph); }}
+.aw-bad {{ background: var(--bad-wash); color: var(--bad-text); }}
+.aw-notable {{ background: var(--notable-wash); color: var(--ink); }}
+
+/* game and next-week cards */
+.grid3 {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }}
+.game {{
+  min-height: 184px;
+  padding: 18px 22px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+}}
+.game-top {{ display: flex; justify-content: space-between; align-items: center; gap: 8px; min-height: 24px; }}
+.game-top .by {{
+  font-family: {FONT_MONO};
+  font-size: 11px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}}
+.side {{ display: flex; align-items: center; gap: 12px; padding: 0 10px; }}
+.side .tn {{ flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 15px; font-weight: 500; color: var(--ink-2); }}
+.side .sc {{
+  font-family: {WEEKLY_FONT_DISPLAY};
+  font-weight: 700;
+  font-size: 22px;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}}
+.side.win {{ background: var(--win-tint); border-radius: 12px; padding: 8px 10px; }}
+.side.win .tn {{ font-weight: 700; font-size: 16px; color: var(--ink); }}
+.side.win .sc {{ font-size: 28px; color: var(--ink); }}
+
+/* standings and power */
+.table-card {{ padding: 30px; }}
+.st-row {{
+  display: grid;
+  grid-template-columns: 26px 30px minmax(0, 190px) 46px minmax(48px, 1fr) 50px 64px;
+  align-items: center;
+  gap: 12px;
+  min-height: 42px;
+}}
+.st-row .rk {{ font-family: {WEEKLY_FONT_DISPLAY}; font-weight: 700; font-size: 20px; text-align: right; }}
+.st-row .tn {{ font-weight: 700; font-size: 15px; overflow-wrap: anywhere; }}
+.st-row .rec, .st-row .pf {{ font-family: {FONT_MONO}; font-size: 13px; color: var(--ink-2); }}
+.st-row .pf {{ text-align: right; font-size: 12.5px; }}
+.st-row .tag {{ text-align: right; }}
+.st-row.below .rk {{ color: var(--ink-2); }}
+.st-row.below .tn {{ font-weight: 500; color: var(--ink-2); }}
+.bar {{ display: block; height: 12px; background: var(--hi); border-radius: 6px; overflow: hidden; }}
+.bar > i {{ display: block; height: 100%; border-radius: 6px; background: var(--bar); }}
+.below .bar > i {{ background: var(--barlo); }}
+.bar.thin {{ height: 8px; border-radius: 4px; }}
+.cutline {{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 30px;
+  font-family: {FONT_MONO};
+  font-size: 11px;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}}
+.cutline::before, .cutline::after {{ content: ""; flex: 1; border-top: 2px dashed var(--cut); }}
+.dot {{
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 8px;
+  vertical-align: middle;
+}}
+.dot-d1 {{ background: var(--d1); }}
+.dot-d2 {{ background: var(--d2); }}
+.dot-d3 {{ background: var(--d3); }}
+.legend {{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin: 14px 0 0;
+  font-family: {FONT_MONO};
+  font-size: 11px;
+  letter-spacing: .06em;
+  color: var(--ink-2);
+}}
+.pw-head, .pw-row {{
+  display: grid;
+  grid-template-columns: 32px minmax(0, 200px) 46px 56px minmax(48px, 1fr) 34px;
+  align-items: center;
+  gap: 12px;
+}}
+.pw-head {{
+  margin-top: 4px;
+  font-family: {FONT_MONO};
+  font-size: 11px;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}}
+.pw-item {{ padding: 6px 0; border-top: 1px solid var(--line); }}
+.pw-row {{ min-height: 30px; }}
+.pw-row .rk {{ font-family: {WEEKLY_FONT_DISPLAY}; font-weight: 800; font-size: 18px; text-align: right; }}
+.pw-row .tn {{ font-family: {WEEKLY_FONT_DISPLAY}; font-weight: 700; font-size: 15px; overflow-wrap: anywhere; }}
+.pw-row .rec, .pw-row .avg, .pw-row .wk {{ font-family: {FONT_MONO}; font-size: 12.5px; color: var(--ink-2); }}
+.pw-row .avg, .pw-row .wk {{ text-align: right; }}
+.up {{ color: var(--good-text); }}
+.down {{ color: var(--bad-text); }}
+.nudge {{ margin: 4px 0 2px 44px; font-size: 13px; color: var(--ink-2); }}
+.nudge .why {{ margin-left: 6px; }}
+.r {{ text-align: right; }}
+
+/* luck */
+.luck-card {{ padding: 30px; }}
+
+/* next week */
+.stakes-shared {{
+  margin: 0 0 16px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  color: var(--ink-2);
+}}
+.byes-next {{ margin: -6px 0 16px; font-family: {FONT_MONO}; font-size: 12px; color: var(--ink-2); }}
+.nw {{ padding: 16px 22px 18px; display: flex; flex-direction: column; gap: 12px; }}
+.nw.gotw {{ border: 2px solid var(--emph); }}
+.nw-chips {{ display: flex; flex-wrap: wrap; gap: 6px; }}
+.nw-vs {{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+  flex: 1;
+}}
+.nw-side {{ text-align: center; }}
+.nw-side .tn {{ font-weight: 700; font-size: 15px; margin-top: 10px; line-height: 1.2; overflow-wrap: anywhere; }}
+.nw-side .meta {{ font-family: {FONT_MONO}; font-size: 12px; color: var(--ink-2); margin-top: 2px; }}
+.nw-vs .vs {{
+  align-self: start;
+  margin-top: 16px;
+  font-family: {WEEKLY_FONT_DISPLAY};
+  font-weight: 700;
+  font-size: 26px;
+  color: var(--ink-2);
+}}
+.byeline {{ margin: 0; font-size: 13px; color: var(--ink-2); }}
+.byeline b {{
+  font-family: {FONT_MONO};
+  font-size: 11px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ink);
+}}
+
+/* transactions */
+.tx {{ padding: 18px 20px; }}
+.tx-top {{ display: flex; justify-content: space-between; align-items: center; gap: 8px; }}
+.lab {{
+  font-family: {FONT_MONO};
+  font-size: 11px;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}}
+.tx .tn {{
+  font-family: {WEEKLY_FONT_DISPLAY};
+  font-weight: 700;
+  font-size: 17px;
+  margin-top: 8px;
+  overflow-wrap: anywhere;
+}}
+.tx ul {{ list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }}
+.tx li.mono {{ font-size: 12.5px; }}
+.tx .pos {{ font-family: {FONT_MONO}; font-size: 12px; color: var(--ink-2); }}
+.trade {{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 20px;
+  margin-top: 10px;
+  align-items: start;
+}}
+.trade .tn {{ font-size: 15px; margin-top: 0; }}
+.trade .swap {{ font-family: {FONT_MONO}; color: var(--ink-2); margin-top: 22px; }}
+.trade ul, .trade-multi ul {{ margin-top: 2px; }}
+.trade-multi {{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 16px;
+  margin-top: 10px;
+}}
+.trade-multi .tn {{ font-size: 15px; margin-top: 0; }}
+
+footer {{
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+  font-family: {FONT_MONO};
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--ink-2);
+}}
+footer p {{ margin: 0; }}
+
+@media (max-width: 900px) {{
+  .lead {{ grid-template-columns: minmax(0, 1fr); }}
+  .awards {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
+}}
+@media (max-width: 560px) {{
+  body {{ font-size: 16px; }}
+  .lead-main, .table-card, .luck-card {{ padding: 22px 18px; }}
+  .awards {{ grid-template-columns: minmax(0, 1fr); }}
+  .grid3 {{ grid-template-columns: minmax(0, 1fr); }}
+  .st-row {{ grid-template-columns: 22px minmax(0, 1fr) 36px 42px auto; gap: 8px; }}
+  .st-row .bar, .st-row .mg {{ display: none; }}
+  .pw-head, .pw-row {{ grid-template-columns: 26px minmax(0, 1fr) 40px 48px 30px; }}
+  .pw-head .ms, .pw-row .bar {{ display: none; }}
+  .nudge {{ margin-left: 0; }}
+}}
+""".strip()
+
+
+def build_weekly_style() -> str:
+    """The weekly Issue's inline stylesheet (CSS text, no ``<style>`` tags):
+    the embedded ``@font-face`` rules, the Tuesday Morning tokens in the same
+    three-block light / dark pattern as :func:`build_style`, then the page CSS.
+    Themes are values only — every rule reads a ``var(--…)`` token."""
     return "\n".join(
         [
-            ":root {",
-            "  color-scheme: light dark;",
-            _emit_tokens(_LIGHT_TOKENS),
-            "}",
-            "@media (prefers-color-scheme: dark) {",
-            '  :root:not([data-theme="light"]) {',
-            _emit_tokens(_DARK_TOKENS, indent="    "),
-            "  }",
-            "}",
-            ':root[data-theme="dark"] {',
-            dark,
-            "}",
-            _BASE_CSS,
+            weekly_font_faces(),
+            _themed_tokens(WEEKLY_LIGHT_TOKENS, WEEKLY_DARK_TOKENS),
+            _WEEKLY_CSS,
         ]
     )
