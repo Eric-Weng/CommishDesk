@@ -26,3 +26,28 @@ Both workflows ship disarmed: their `schedule:` trigger is commented out and onl
 `workflow_dispatch` is live until the operator sets the league id variable, the
 channel webhook, and — for the weekly run — the `commishdesk-weekly-schedule`
 GitHub Environment.
+
+## Confirm or override playoff seeding
+
+At or past the league's playoff start week, the engine derives a playoff bracket
+from the standings. The scheduled weekly run can confirm that derived bracket or
+replace the seeded order through a repository variable:
+
+* Unset or empty variable: no override; the Issue shows the seeding as
+  unconfirmed.
+* Value `confirm`: the derived order is confirmed; the unconfirmed note is not
+  shown.
+* Value `4,2,7,1,9,3` (or any comma-separated roster-id seed order): seeds 1
+  through the bracket size are replaced in that order; the remaining rosters
+  keep derived order after the cut.
+
+Set or clear the variable under **Settings → Secrets and variables → Actions →
+Variables → Repository variables**:
+
+* `COMMISHDESK_PLAYOFF_SEEDING=confirm`
+* `COMMISHDESK_PLAYOFF_SEEDING=4,2,7,1,9,3`
+
+Then re-run the weekly workflow by hand with `workflow_dispatch`. The variable
+applies to every scheduled run until it is cleared, so clear it once the
+playoffs are over: a stale value would keep reordering later weeks' standings.
+Do not commit real league ids or real seeding values anywhere in the repository.

@@ -24,6 +24,10 @@ come from :mod:`commishdesk.render._weekly_model`, shared with the web page and
 the email. Every league-supplied value outside the code block goes through
 :func:`_escape_discord_markdown`.
 
+Story 5.15 adds a one-line ``⚠️ Seeding unconfirmed — derived from the
+standings`` note when the Facts playoff picture carries
+``seeding_unconfirmed``.
+
 **Pipeline fence (AD-1).** Standard library + :mod:`commishdesk.facts` schema
 types + :class:`commishdesk.narrate.Recap` /
 :class:`~commishdesk.narrate.weekly_template.WeeklyIssue` + the shared
@@ -242,6 +246,10 @@ def _weekly_standings(facts: WeeklyFacts) -> list[_Block]:
         if cut is not None and index == cut and index < len(rows):
             blocks.append(_Block(_PLAYOFF_RULE, 1))
     blocks.append(_Block(_FENCE, 1))
+    if picture is not None and picture.seeding_unconfirmed:
+        blocks.append(
+            _Block("⚠️ Seeding unconfirmed — derived from the standings", 2)
+        )
     return blocks
 
 
@@ -362,7 +370,9 @@ def render_weekly_discord_post(facts: WeeklyFacts, issue: WeeklyIssue, *, issue_
 
     League-supplied values outside the code block are markdown-escaped; inside
     it, names are unescaped but backtick-free and capped at 22 characters.
-    Mention suppression stays at the delivery layer. Deterministic.
+    Mention suppression stays at the delivery layer. A ``⚠️ Seeding
+    unconfirmed`` note appears only when the Facts playoff picture carries
+    ``seeding_unconfirmed`` (Story 5.15). Deterministic.
     """
     league = facts.league
     blocks: list[_Block] = [_Block(f"## 🏈 {_md(league.name)} · Week {facts.week}", 0)]

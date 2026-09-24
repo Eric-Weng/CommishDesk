@@ -795,6 +795,16 @@ def test_scheduled_weekly_workflow_content() -> None:
     )
     assert "COMMISHDESK_LEAGUE_ID: ${{ vars.COMMISHDESK_LEAGUE_ID }}" in text
 
+    # Story 5.15: the playoff-seeding override comes only from an uncommitted
+    # repository variable (an unset one arrives as "" = no override), set once at
+    # job level beside the league id.
+    assert re.search(
+        r"^\s+COMMISHDESK_PLAYOFF_SEEDING: \$\{\{ vars\.COMMISHDESK_PLAYOFF_SEEDING \}\}\s*$",
+        text,
+        re.MULTILINE,
+    ), "COMMISHDESK_PLAYOFF_SEEDING is not set from its repository variable"
+    assert "secrets.COMMISHDESK_PLAYOFF_SEEDING" not in text
+
     # A hung step is reported as `cancelled`, not `failed` -- the timeout is what
     # makes the failure-ping branch below reachable at all.
     assert re.search(r"^\s*timeout-minutes:\s*15\s*$", text, re.MULTILINE), "timeout-minutes: 15 not pinned"

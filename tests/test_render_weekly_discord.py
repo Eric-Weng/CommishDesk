@@ -268,3 +268,17 @@ def test_trim_drops_lowest_priority_first_and_keeps_order() -> None:
 def test_no_link_line_leaves_no_trailing_blank_line() -> None:
     post = _post(_raw())
     assert not re.search(r"\n\s*$", post)
+
+
+def test_the_unconfirmed_seeding_note_follows_the_facts_flag_alone() -> None:
+    note = "⚠️ Seeding unconfirmed — derived from the standings"
+    raw = _raw()
+    assert raw["standings"]["playoff_picture"]["seeding_unconfirmed"] is False
+    base_issue = render_weekly_issue(WeeklyFacts.model_validate(raw).narration)
+    off = _post(raw, base_issue)
+    assert "Seeding unconfirmed" not in off
+
+    flagged = json.loads(json.dumps(raw))
+    flagged["standings"]["playoff_picture"]["seeding_unconfirmed"] = True
+    on = _post(flagged, base_issue)
+    assert note in on

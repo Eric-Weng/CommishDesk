@@ -42,6 +42,12 @@ prior confirmed week's published opinion, resolved from the Store) and
 (the narrator's own editorial ranks, which must round-trip the closed-world
 payload ``check_narration`` scans the Issue text against).
 
+Story 5.15 (``0.7.0`` -> ``0.8.0``) adds
+``WeeklyPlayoffPicture.seeding_unconfirmed`` and
+``WeeklyNarrationPlayoff.seeding_unconfirmed`` additively: a playoff-week Issue
+whose bracket was derived (not confirmed, not overridden) says so on every
+surface.
+
 This module imports stdlib + pydantic only — no engine package.
 """
 
@@ -140,7 +146,7 @@ __all__ = [
     "WeeklyWeekPoints",
 ]
 
-SCHEMA_VERSION = "0.7.0"
+SCHEMA_VERSION = "0.8.0"
 """Semver contract version. Additive key -> minor bump; shape change -> major.
 ``0.4.0`` -> ``0.5.0`` (Story 5.8): the empty ``WeeklyFacts`` placeholder becomes
 the real weekly document and its ``WeeklyNarration``; ``DraftRecapFacts.weekly``
@@ -148,7 +154,9 @@ is retyped ``None`` (reserved, always null). ``0.5.0`` -> ``0.6.0`` (Story 5.9)
 adds ``StorylineCandidate.weeks_running`` additively. ``0.6.0`` -> ``0.7.0``
 (Story 5.12) adds ``WeeklyPower.prev_published_rank`` /
 ``WeeklyPower.published_week_delta`` and ``WeeklyNarrationPower.published_rank``
-/ ``WeeklyNarrationPower.nudge_justification`` additively."""
+/ ``WeeklyNarrationPower.nudge_justification`` additively. ``0.7.0`` -> ``0.8.0``
+(Story 5.15) adds ``WeeklyPlayoffPicture.seeding_unconfirmed`` and
+``WeeklyNarrationPlayoff.seeding_unconfirmed`` additively."""
 
 _ISSUE_TYPE: Literal["draft_recap"] = "draft_recap"
 _IssueType = Literal["draft_recap", "weekly"]
@@ -1034,10 +1042,13 @@ class WeeklyMatchups(_Doc):
 
 
 class WeeklyPlayoffPicture(_Doc):
-    """The derived playoff picture, mirrored from
-    ``stats/standings.py::PlayoffPicture``."""
+    """The playoff picture, mirrored from
+    ``stats/standings.py::PlayoffPicture``. ``seeding_unconfirmed`` is true only
+    when ``source == "derived"`` and the target week is at or past the league's
+    ``playoff_week_start`` (Story 5.15)."""
 
     source: str
+    seeding_unconfirmed: bool = False
     in_bracket: list[str] = []
     byes: list[str] = []
     first_out: str | None = None
@@ -1192,6 +1203,7 @@ class WeeklyNarrationPlayoff(_Doc):
     """The narrated playoff picture, teams resolved to labels."""
 
     format: str
+    seeding_unconfirmed: bool = False
     in_bracket: list[str] = []
     byes: list[str] = []
     first_out: str | None = None

@@ -580,3 +580,25 @@ def test_module_reads_no_network_store_render_or_ingest_module() -> None:
     forbidden = {"adapters", "store", "render", "deliver", "statmods", "consensus", "ingest", "narrate"}
     offenders = [name for name in dotted if name.startswith("commishdesk.") and name.split(".")[1] in forbidden]
     assert not offenders, offenders
+
+
+def test_the_unconfirmed_seeding_note_follows_the_narration_flag_alone(
+    week10: WeeklyNarration,
+) -> None:
+    note = "Seeding unconfirmed — derived from the standings."
+    picture = week10.playoff_picture
+    assert picture is not None and picture.seeding_unconfirmed is False
+
+    heading = "Standings and the Playoff Picture"
+    off = " ".join(_section(render_weekly_issue(week10), heading).blocks)
+    assert note not in off
+
+    flagged = week10.model_copy(
+        update={"playoff_picture": picture.model_copy(update={"seeding_unconfirmed": True})}
+    )
+    on = " ".join(_section(render_weekly_issue(flagged), heading).blocks)
+    assert note in on
+    assert on.replace(" " + note, "") == off
+
+    stood_down = _section(render_weekly_issue(_narration()), heading).blocks
+    assert not any(note in block for block in stood_down)

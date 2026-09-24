@@ -457,3 +457,17 @@ def test_luck_bars_plot_season_luck_most_lucky_first() -> None:
     assert plotted == expected
     # the labels carry the same values, with a real minus
     assert "−1.8" in body and "+2.5" in body
+
+
+def test_the_unconfirmed_seeding_note_follows_the_facts_flag_alone() -> None:
+    raw = _raw()
+    assert raw["standings"]["playoff_picture"]["seeding_unconfirmed"] is False
+    base_issue = render_weekly_issue(WeeklyFacts.model_validate(raw).narration)
+    off = _page(raw, base_issue)
+    assert "Seeding unconfirmed" not in off and "seeding-note" not in off
+
+    flagged = json.loads(json.dumps(raw))
+    flagged["standings"]["playoff_picture"]["seeding_unconfirmed"] = True
+    on = _page(flagged, base_issue)
+    assert '<p class="seeding-note">Seeding unconfirmed — derived from the standings.</p>' in on
+    assert on.replace('<p class="seeding-note">Seeding unconfirmed — derived from the standings.</p>', "") == off

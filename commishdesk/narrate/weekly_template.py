@@ -39,6 +39,10 @@ UNVERIFIED dateline stamp, the Correction prepend, the HTML/text writers and
 ``render_weekly_discord_post`` — is shared unchanged between the two
 narrators), and :func:`parse_published_ranks` reads the published power ranks
 back out of that text.
+
+Story 5.15 adds one sentence to the playoff picture when
+``WeeklyNarrationPlayoff.seeding_unconfirmed`` is true, so a bracket that was
+only *derived* — never confirmed, never overridden — says so plainly.
 """
 
 from __future__ import annotations
@@ -465,6 +469,8 @@ def _playoff_block(picture: WeeklyNarrationPlayoff | None) -> str:
         parts.append(f"First team out: {picture.first_out}.")
     if picture.bubble:
         parts.append(f"On the bubble: {_join_names(picture.bubble)}.")
+    if picture.seeding_unconfirmed:
+        parts.append("Seeding unconfirmed — derived from the standings.")
     return " ".join(parts)
 
 

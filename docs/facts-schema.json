@@ -243,7 +243,7 @@
           "type": "boolean"
         },
         "schema_version": {
-          "default": "0.7.0",
+          "default": "0.8.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -2100,7 +2100,7 @@
           "type": "boolean"
         },
         "schema_version": {
-          "default": "0.7.0",
+          "default": "0.8.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -3160,6 +3160,11 @@
           },
           "title": "In Bracket",
           "type": "array"
+        },
+        "seeding_unconfirmed": {
+          "default": false,
+          "title": "Seeding Unconfirmed",
+          "type": "boolean"
         }
       },
       "required": [
@@ -3613,7 +3618,7 @@
       "type": "object"
     },
     "WeeklyPlayoffPicture": {
-      "description": "The derived playoff picture, mirrored from\n``stats/standings.py::PlayoffPicture``.",
+      "description": "The playoff picture, mirrored from\n``stats/standings.py::PlayoffPicture``. ``seeding_unconfirmed`` is true only\nwhen ``source == \"derived\"`` and the target week is at or past the league's\n``playoff_week_start`` (Story 5.15).",
       "properties": {
         "bubble": {
           "default": [],
@@ -3662,6 +3667,11 @@
           },
           "title": "In Bracket",
           "type": "array"
+        },
+        "seeding_unconfirmed": {
+          "default": false,
+          "title": "Seeding Unconfirmed",
+          "type": "boolean"
         },
         "source": {
           "title": "Source",

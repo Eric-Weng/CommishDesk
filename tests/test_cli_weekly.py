@@ -1255,3 +1255,200 @@ def test_the_draft_recap_page_is_not_the_weekly_design(tmp_path, monkeypatch: py
     body = (tmp_path / "commishdesk-demo-draft-recap.html").read_text(encoding="utf-8")
     assert "weekly_issue" not in body and "@font-face" not in body
     assert '<header class="masthead">' in body and "Draft Recap" in body
+
+
+# --------------------------------------------------------------------------- #
+# Playoff seeding (Story 5.15): --seeding / COMMISHDESK_PLAYOFF_SEEDING
+# --------------------------------------------------------------------------- #
+
+_SEEDING_NOTE = "Seeding unconfirmed"
+
+
+def _seeded_run(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    seeding: str | None = None,
+    env: str | None = None,
+    week: int = 17,
+    league: str = "151",
+    week_bundle: dict[str, Any] | None = None,
+    league_bundle: dict[str, Any] | None = None,
+):
+    """A ``--post`` weekly run with the seeding channel under test. Returns the
+    result, the store, the recorded posts and the adapter calls."""
+    kwargs: dict[str, Any] = {}
+    if week_bundle is not None:
+        kwargs["week_bundle"] = week_bundle
+        kwargs["nfl_state"] = {"week": 13, "season_type": "regular"}
+    if league_bundle is not None:
+        kwargs["league_bundle"] = league_bundle
+    calls = _stub_adapter(monkeypatch, **kwargs)
+    posted = _stub_post_discord_text(monkeypatch)
+    monkeypatch.setenv("COMMISHDESK_DISCORD_WEBHOOK_URL", _FAKE_WEBHOOK_URL)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+    if env is not None:
+        monkeypatch.setenv("COMMISHDESK_PLAYOFF_SEEDING", env)
+    else:
+        monkeypatch.delenv("COMMISHDESK_PLAYOFF_SEEDING", raising=False)
+    args = ["--league", league, "--week", str(week), "--post", "--out-dir", str(tmp_path)]
+    if seeding is not None:
+        args += ["--seeding", seeding]
+    result = runner.invoke(app, args)
+    store = FileStore(tmp_path / "cache" / "commishdesk")
+    return result, store, posted, calls
+
+
+def _snapshot_picture(store: FileStore, league: str, week: int) -> dict[str, Any]:
+    snapshot = store.read_cache("weekly-facts-snapshot", f"{league}-{week}")
+    assert snapshot is not None
+    picture = snapshot["standings"]["playoff_picture"]
+    assert picture is not None
+    return picture
+
+
+def _assert_refused_without_side_effects(
+    result: Any, store: FileStore, posted: list, tmp_path, league: str, week: int, *fragments: str
+) -> None:
+    assert result.exit_code == 1, result.output
+    for fragment in fragments:
+        assert fragment in result.output, result.output
+    assert "Traceback" not in result.output
+    assert posted == []
+    assert store.read_ledger(league, week) == []
+    assert store.read_storylines(league) == []
+    assert store.read_cache("weekly-facts-snapshot", f"{league}-{week}") is None
+    assert not list(tmp_path.glob("commishdesk-*"))
+
+
+def test_weekly_playoff_week_without_seeding_notes_it_is_unconfirmed(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    result, store, posted, _ = _seeded_run(tmp_path, monkeypatch)
+    assert result.exit_code == 0, result.output
+    picture = _snapshot_picture(store, "151", 17)
+    assert picture["source"] == "derived" and picture["seeding_unconfirmed"] is True
+    assert _SEEDING_NOTE in result.stdout
+    assert _SEEDING_NOTE in (tmp_path / "commishdesk-151-weekly-week17.html").read_text(encoding="utf-8")
+    assert _SEEDING_NOTE in posted[0][1]
+
+
+def test_weekly_regular_season_without_seeding_carries_no_note(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    result, store, posted, _ = _seeded_run(
+        tmp_path, monkeypatch, week=10, league="152", week_bundle=_load_fixture(_WEEK10)
+    )
+    assert result.exit_code == 0, result.output
+    picture = _snapshot_picture(store, "152", 10)
+    assert picture["source"] == "derived" and picture["seeding_unconfirmed"] is False
+    assert _SEEDING_NOTE not in result.stdout and _SEEDING_NOTE not in posted[0][1]
+
+
+def test_weekly_confirm_marks_the_picture_confirmed_and_drops_the_note(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    result, store, posted, _ = _seeded_run(tmp_path, monkeypatch, seeding="confirm")
+    assert result.exit_code == 0, result.output
+    picture = _snapshot_picture(store, "151", 17)
+    assert picture["source"] == "confirmed" and picture["seeding_unconfirmed"] is False
+    assert _SEEDING_NOTE not in result.stdout and _SEEDING_NOTE not in posted[0][1]
+
+
+def test_weekly_a_valid_list_becomes_the_seeds_and_survives_regeneration(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    seeds = "12, 7,3 ,1,9,5"
+    result, store, posted, _ = _seeded_run(tmp_path, monkeypatch, seeding=seeds)
+    assert result.exit_code == 0, result.output
+    picture = _snapshot_picture(store, "151", 17)
+    assert picture["source"] == "commissioner" and picture["seeding_unconfirmed"] is False
+    assert picture["in_bracket"] == ["12", "7", "3", "1", "9", "5"]
+    assert picture["byes"] == ["12", "7"]
+    assert _SEEDING_NOTE not in result.stdout
+
+    # The reissue reads the same option and keeps the override.
+    reissued = runner.invoke(
+        app,
+        [
+            "--league", "151", "--week", "17", "--post", "--seeding", seeds,
+            "--reason", "seeding fix", "--out-dir", str(tmp_path),
+        ],
+    )
+    assert reissued.exit_code == 0, reissued.output
+    assert len(posted) == 2
+    picture = _snapshot_picture(store, "151", 17)
+    assert picture["in_bracket"] == ["12", "7", "3", "1", "9", "5"]
+    assert picture["source"] == "commissioner"
+    assert _SEEDING_NOTE not in reissued.stdout and _SEEDING_NOTE not in posted[1][1]
+
+
+def test_weekly_the_seeding_env_var_is_the_same_channel(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    result, store, _, _ = _seeded_run(tmp_path, monkeypatch, env="12,7,3,1,9,5")
+    assert result.exit_code == 0, result.output
+    assert _snapshot_picture(store, "151", 17)["in_bracket"] == ["12", "7", "3", "1", "9", "5"]
+
+
+@pytest.mark.parametrize("channel", ["seeding", "env"])
+@pytest.mark.parametrize("value", ["", "   "])
+def test_weekly_an_empty_or_blank_value_is_no_override(
+    tmp_path, monkeypatch: pytest.MonkeyPatch, value: str, channel: str
+) -> None:
+    result, store, _, _ = _seeded_run(tmp_path, monkeypatch, league="153", **{channel: value})
+    assert result.exit_code == 0, result.output
+    picture = _snapshot_picture(store, "153", 17)
+    assert picture["source"] == "derived" and picture["seeding_unconfirmed"] is True
+    assert _SEEDING_NOTE in result.stdout
+
+
+@pytest.mark.parametrize("channel", ["seeding", "env"])
+@pytest.mark.parametrize(
+    ("value", "fragments"),
+    [
+        ("12,7,99,1,9,5", ("99", "not a roster")),
+        ("12,7,12,1,9,5", ("duplicate", "12")),
+        ("12,7,3,1,9", ("6", "5")),
+        ("12,7,3,1,9,5,2", ("6", "7")),
+        ("12,,3,1,9,5", ("empty entry",)),
+        ("confirm,4", ("confirm",)),
+    ],
+)
+def test_weekly_an_invalid_seeding_exits_1_naming_the_problem_with_no_side_effects(
+    tmp_path, monkeypatch: pytest.MonkeyPatch, value: str, fragments: tuple[str, ...], channel: str
+) -> None:
+    client = _stub_weekly_voice(monkeypatch)
+    result, store, posted, _ = _seeded_run(tmp_path, monkeypatch, league="154", **{channel: value})
+    _assert_refused_without_side_effects(result, store, posted, tmp_path, "154", 17, *fragments)
+    assert client.calls == []
+
+
+def test_weekly_a_malformed_seeding_is_refused_before_any_fetch(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    result, _, posted, calls = _seeded_run(tmp_path, monkeypatch, seeding="12,,3")
+    assert result.exit_code == 1, result.output
+    assert "empty entry" in result.output
+    assert calls["fetch"] == [] and calls["fetch_week"] == []
+    assert posted == []
+
+
+def test_weekly_a_league_with_no_playoff_format_rejects_a_supplied_seeding(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    base = _league_bundle_with(monkeypatch)
+    no_playoffs = {
+        **base,
+        "league": {**base["league"], "settings": {**base["league"]["settings"], "playoff_teams": 0}},
+    }
+    result, store, posted, _ = _seeded_run(
+        tmp_path, monkeypatch, seeding="confirm", league="155", league_bundle=no_playoffs
+    )
+    _assert_refused_without_side_effects(result, store, posted, tmp_path, "155", 17, "no playoff format")
+
+    # ...while none supplied is a no-op.
+    sub = tmp_path / "none"
+    sub.mkdir()
+    ok, _, _, _ = _seeded_run(sub, monkeypatch, league="156", league_bundle=no_playoffs)
+    assert ok.exit_code == 0, ok.output
