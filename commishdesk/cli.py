@@ -1164,12 +1164,13 @@ def _stamp_nudge_justifications(
 
 def _produce_weekly_issue(
     doc: WeeklyFacts, *, resolved: str, logger: logging.Logger, reissue: bool = False
-) -> tuple[WeeklyIssue, dict[str, int]]:
-    """Select the weekly narrator and return ``(issue, published_ranks)``.
+) -> tuple[WeeklyIssue, dict[str, int], dict[str, str]]:
+    """Select the weekly narrator and return ``(issue, published_ranks,
+    nudge_justifications)``.
 
-    The template narrator returns ``(render_weekly_issue(narration), {})``.
+    The template narrator returns ``(render_weekly_issue(narration), {}, {})``.
     The LLM narrator (Story 5.12) returns a parsed :class:`WeeklyIssue` plus the
-    published ranks it stated — at most two ``generate()`` attempts, the second
+    published ranks it stated and their cited reasons — at most two ``generate()`` attempts, the second
     only when the first earned the ``regenerate`` tier. A hold, a
     non-seven-section completion, or an unrepairable finding degrades to the
     template Issue: the weekly path never withholds an Issue, and it never makes
@@ -1179,6 +1180,7 @@ def _produce_weekly_issue(
     from commishdesk.narrate.response import classify
     from commishdesk.narrate.safety import check_narration
     from commishdesk.narrate.weekly_template import (
+        parse_nudge_justifications,
         parse_published_ranks,
         render_weekly_issue,
         weekly_issue_from_text,
@@ -1187,8 +1189,8 @@ def _produce_weekly_issue(
 
     narration = doc.narration
 
-    def template() -> tuple[WeeklyIssue, dict[str, int]]:
-        return render_weekly_issue(narration), {}
+    def template() -> tuple[WeeklyIssue, dict[str, int], dict[str, str]]:
+        return render_weekly_issue(narration), {}, {}
 
     selection = None if reissue else _weekly_llm_selection(resolved, logger)
     if selection is None:
@@ -1263,7 +1265,9 @@ def _produce_weekly_issue(
             )
             return template()
 
-        return issue, ranks
+        # Parsed from the raw completion, like the ranks: the parsed Issue joins a
+        # tight list's lines into one block, which would hide every item after the first.
+        return issue, ranks, parse_nudge_justifications(result.text, narration)
     return template()
 
 
@@ -1436,7 +1440,7 @@ def _recap_one_league_weekly(
     facts_json = doc.model_dump(mode="json")
 
     logger.debug("narrating the weekly Issue")
-    issue, published_ranks = _produce_weekly_issue(
+    issue, published_ranks, nudge_justifications = _produce_weekly_issue(
         doc, resolved=resolved, logger=logger, reissue=reason is not None
     )
     if not cross_check_passed:
@@ -1506,6 +1510,9 @@ def _recap_one_league_weekly(
 
     _render_and_write_weekly_issue(
         issue,
+        doc=doc,
+        published_ranks=published_ranks,
+        nudge_justifications=nudge_justifications,
         out_dir=out_dir,
         resolved=resolved,
         week=week,
@@ -1532,15 +1539,7 @@ def _recap_one_league_weekly(
         # delivery never leaves a snapshot claiming the Issue went out.
         snapshot = facts_json
         if published_ranks:
-            from commishdesk.narrate.weekly_template import (
-                parse_nudge_justifications,
-                weekly_issue_to_text,
-            )
-
-            snapshot = _stamp_nudge_justifications(
-                facts_json,
-                parse_nudge_justifications(weekly_issue_to_text(issue), doc.narration),
-            )
+            snapshot = _stamp_nudge_justifications(facts_json, nudge_justifications)
         _write_weekly_facts_snapshot(store, resolved, week, snapshot)
         # Story 5.12: same ordering, same reason — the published rank is this
         # week's "confirmed publish" evidence for the *next* week's lookback, so
@@ -1629,28 +1628,53 @@ def _render_and_write_issue(
 def _render_and_write_weekly_issue(
     issue: WeeklyIssue,
     *,
+    doc: WeeklyFacts,
+    published_ranks: Mapping[str, int],
+    nudge_justifications: Mapping[str, str],
     out_dir: Path,
     resolved: str,
     week: int,
     logger: logging.Logger,
 ) -> None:
     """Story 5.11a: print the weekly Issue's plain text and write the local text
-    Issue plus the Story 2.7 generic HTML dump next to it.
+    Issue plus (Story 5.14a) the designed, self-contained weekly page next to it.
 
     Both weekly narrators funnel through here unchanged: the LLM narrator's prose
     is parsed back into the same :class:`WeeklyIssue` shape
     (:func:`~commishdesk.narrate.weekly_template.weekly_issue_from_text`), so the
-    cached-then-flattened text, the HTML dump and the Discord summary are
-    identical surfaces either way."""
+    cached-then-flattened text, the page and the Discord summary are identical
+    surfaces either way.
+
+    When the narrator published ranks, the page renders from a copy of *doc*
+    whose narration carries them and their cited reasons. This runs after
+    :func:`_produce_weekly_issue`, so ``check_narration`` has already seen the
+    ranks-only payload; stamping the reasons here cannot make them in-world."""
     from commishdesk.narrate.weekly_template import weekly_issue_to_text
-    from commishdesk.render import recap_to_html, write_html_file, write_text_file
+    from commishdesk.render import render_weekly_web, write_html_file, write_text_file
 
     stem = _issue_filename_stem(week, "weekly")
     text = weekly_issue_to_text(issue)
     typer.echo(text)
 
+    render_doc = doc
+    if published_ranks:
+        render_doc = doc.model_copy(
+            update={
+                "narration": _stamp_published_ranks(
+                    doc.narration,
+                    published_ranks,
+                    nudge_justifications,
+                )
+            }
+        )
+
     written_html = write_html_file(
-        recap_to_html(issue),
+        render_weekly_web(
+            render_doc,
+            issue,
+            output_id=resolved,
+            generated_at=str(doc.generated_at),
+        ),
         Path(out_dir) / f"commishdesk-{resolved}-{stem}.html",
     )
     typer.echo(str(written_html))
