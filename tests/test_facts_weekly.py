@@ -24,6 +24,9 @@ story sums ``compute_weekly_lineups`` over weeks ``1..n`` under one supplied
 divergence (Story 5.5, week 10 only) compounds across every roster's ten
 weeks. Not asserted here either; see that doc's "Divergence from the phase-0
 golden" section.
+
+:data:`SCHEMA_VERSION` is asserted as ``0.8.0`` (Story 5.15) alongside the
+oracle check.
 """
 
 from __future__ import annotations
@@ -179,7 +182,7 @@ def _synthetic(
 def test_week10_build_validates_and_has_twelve_teams() -> None:
     doc = _week10_facts()
     assert isinstance(doc, WeeklyFacts)
-    assert doc.schema_version == "0.7.0" == SCHEMA_VERSION
+    assert doc.schema_version == "0.8.0" == SCHEMA_VERSION
     assert doc.issue_type == "weekly"
     assert doc.week == 10
     assert len(doc.teams) == 12
@@ -293,11 +296,70 @@ def test_week10_leaders_are_present_and_named() -> None:
 
 
 # --------------------------------------------------------------------------- #
+# Story 5.15 — playoff seeding
+# --------------------------------------------------------------------------- #
+
+
+def test_week10_regular_season_playoff_picture_is_not_unconfirmed() -> None:
+    doc = _week10_facts()
+    assert doc.standings.playoff_picture is not None
+    assert doc.standings.playoff_picture.seeding_unconfirmed is False
+
+
+def test_playoff_week_without_seeding_marks_derived_seeding_unconfirmed() -> None:
+    doc = _weekly_facts("week17-playoffs.json")
+    assert doc.standings.playoff_picture is not None
+    assert doc.standings.playoff_picture.source == "derived"
+    assert doc.standings.playoff_picture.seeding_unconfirmed is True
+    assert doc.narration.playoff_picture is not None
+    assert doc.narration.playoff_picture.seeding_unconfirmed is True
+
+
+def test_playoff_seeding_flows_into_facts() -> None:
+    from commishdesk.stats.standings import PlayoffSeeding, validate_playoff_seeding
+
+    bundle = _bundle("week17-playoffs.json")
+    week = build_week_model(bundle)
+    league = build_league_model(bundle)
+    roster_ids = [str(r.roster_id) for r in week.rosters]
+
+    override = PlayoffSeeding(
+        kind="override", seed_roster_ids=tuple(roster_ids[:6][::-1])
+    )
+    bracket = (
+        league.format.playoff.bracket_teams
+        if league.format.playoff is not None
+        else None
+    )
+    validated = validate_playoff_seeding(
+        override, roster_ids=roster_ids, bracket_teams=bracket
+    )
+    doc = build_weekly_facts(
+        week,
+        league,
+        build_player_snapshot(bundle),
+        build_player_names(bundle),
+        generated_at=GENERATED_AT,
+        playoff_seeding=validated,
+    )
+    assert doc.standings.playoff_picture is not None
+    assert doc.standings.playoff_picture.source == "commissioner"
+    assert doc.standings.playoff_picture.seeding_unconfirmed is False
+    assert doc.narration.playoff_picture is not None
+    assert doc.narration.playoff_picture.seeding_unconfirmed is False
+
+
+# --------------------------------------------------------------------------- #
 # Matrix: weekly lead candidates and cross-week storylines (Story 5.9)
 # --------------------------------------------------------------------------- #
 
 
-def _weekly_facts(fixture_name: str, *, previous_storylines: Any = ()) -> WeeklyFacts:
+def _weekly_facts(
+    fixture_name: str,
+    *,
+    previous_storylines: Any = (),
+    playoff_seeding: Any = None,
+) -> WeeklyFacts:
     bundle = _bundle(fixture_name)
     week = build_week_model(bundle)
     league = build_league_model(bundle)
@@ -310,6 +372,7 @@ def _weekly_facts(fixture_name: str, *, previous_storylines: Any = ()) -> Weekly
         names,
         generated_at=GENERATED_AT,
         previous_storylines=previous_storylines,
+        playoff_seeding=playoff_seeding,
     )
 
 

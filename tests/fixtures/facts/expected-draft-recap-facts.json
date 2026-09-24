@@ -1,6 +1,6 @@
 {
   "_derived_from": "Story 2.5 oracle. build_draft_recap_facts() over the anonymized rookie-draft.json board + compute_board_metrics / compute_consensus_metrics / compute_draft_grades, via the Story 2.4b _synthetic_slots() transform (sorted fantasycalc-values.json); generated_at pinned to '2026-09-03T00:00:00Z', fetched_at '2026-09-03', consensus_source name/as_of 'synthetic rookie board' / '2025-05'. Values are synthetic - the test asserts the merge + board projections + self-validation round-trip, not the private phase-0 golden (real-player hand build). Regenerate with model_dump(mode='json') of tests/test_facts.py::_rookie_facts() when the builder or an upstream stage changes.",
-  "schema_version": "0.7.0",
+  "schema_version": "0.8.0",
   "generated_at": "2026-09-03T00:00:00Z",
   "provisional": true,
   "issue_type": "draft_recap",

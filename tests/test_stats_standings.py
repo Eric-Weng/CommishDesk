@@ -21,6 +21,9 @@ totals are regular-season-final, so W-L-T matches exactly and points-for matches
 within the documented per-week rounding tolerance) and a real always-on mismatch
 path (``week10-blowout.json``'s roster totals are season-final, so the fold
 disagrees by construction).
+
+Story 5.15 adds the ``--seeding`` confirm/override tests: the parse/validate
+unit rows on hand-built inputs, and the compute_standings reorder/confirm rows.
 """
 
 from __future__ import annotations
@@ -532,6 +535,115 @@ def test_standings_source_carries_no_hardcoded_bracket_size() -> None:
     }
     assert _WEEK10_CUT_LINE not in integers
     assert len(_WEEK10_OVERALL) not in integers
+
+
+# --------------------------------------------------------------------------- #
+# Story 5.15 — playoff seeding parse/validate/reorder
+# --------------------------------------------------------------------------- #
+
+
+def test_playoff_seeding_parse_handles_syntax_rows() -> None:
+    from commishdesk.stats.standings import (
+        PlayoffSeedingError,
+        parse_playoff_seeding,
+    )
+
+    assert parse_playoff_seeding(None) is None
+    assert parse_playoff_seeding("") is None
+    assert parse_playoff_seeding("   ") is None
+
+    parsed = parse_playoff_seeding("confirm")
+    assert parsed is not None and parsed.kind == "confirm"
+
+    parsed = parse_playoff_seeding("4, 2,7 ,1")
+    assert parsed is not None
+    assert parsed.kind == "override"
+    assert parsed.seed_roster_ids == ("4", "2", "7", "1")
+
+    with pytest.raises(PlayoffSeedingError, match="empty entry"):
+        parse_playoff_seeding("4,,2")
+    with pytest.raises(PlayoffSeedingError, match="cannot be mixed"):
+        parse_playoff_seeding("confirm,4")
+    with pytest.raises(PlayoffSeedingError, match="duplicate"):
+        parse_playoff_seeding("4,2,4")
+
+
+def test_playoff_seeding_validate_names_unknown_duplicate_count_and_no_playoff() -> None:
+    from commishdesk.stats.standings import (
+        PlayoffSeeding,
+        PlayoffSeedingError,
+        validate_playoff_seeding,
+    )
+
+    roster_ids = [str(i) for i in range(1, 6)]
+
+    with pytest.raises(PlayoffSeedingError, match="no playoff format"):
+        validate_playoff_seeding(
+            PlayoffSeeding(kind="confirm"), roster_ids=roster_ids, bracket_teams=None
+        )
+
+    with pytest.raises(PlayoffSeedingError, match="needs exactly 4 seeds, got 3"):
+        validate_playoff_seeding(
+            PlayoffSeeding(kind="override", seed_roster_ids=("4", "2", "3")),
+            roster_ids=roster_ids,
+            bracket_teams=4,
+        )
+
+    with pytest.raises(PlayoffSeedingError, match="99.*not a roster"):
+        validate_playoff_seeding(
+            PlayoffSeeding(kind="override", seed_roster_ids=("4", "2", "99", "1")),
+            roster_ids=roster_ids,
+            bracket_teams=4,
+        )
+
+
+def test_playoff_seeding_validate_accepts_confirm_when_a_bracket_exists() -> None:
+    from commishdesk.stats.standings import PlayoffSeeding, validate_playoff_seeding
+
+    confirm = PlayoffSeeding(kind="confirm")
+    assert validate_playoff_seeding(confirm, roster_ids=["1", "2"], bracket_teams=4) is confirm
+
+
+def test_seeding_override_reorders_standings_and_picture() -> None:
+    from commishdesk.stats.standings import PlayoffSeeding
+
+    league = _league_model(["QB"], playoff_teams=4)
+    week = _week_model(
+        1,
+        [_roster(str(i)) for i in range(1, 6)],
+        [],
+    )
+    standings = compute_standings(
+        week,
+        league,
+        seeding=PlayoffSeeding(
+            kind="override", seed_roster_ids=("4", "2", "3", "1")
+        ),
+    )
+
+    assert [team.roster_id for team in standings.teams] == ["4", "2", "3", "1", "5"]
+    picture = standings.playoff_picture
+    assert picture is not None
+    assert picture.source == "commissioner"
+    assert picture.in_bracket == ["4", "2", "3", "1"]
+    assert picture.first_out == "5"
+
+
+def test_seeding_confirm_marks_picture_confirmed() -> None:
+    from commishdesk.stats.standings import PlayoffSeeding
+
+    league = _league_model(["QB"], playoff_teams=4)
+    week = _week_model(
+        1,
+        [_roster(str(i)) for i in range(1, 6)],
+        [],
+    )
+    standings = compute_standings(
+        week, league, seeding=PlayoffSeeding(kind="confirm")
+    )
+    assert standings.playoff_picture is not None
+    assert standings.playoff_picture.source == "confirmed"
+    assert [team.roster_id for team in standings.teams] == [str(i) for i in range(1, 6)]
 
 
 # --------------------------------------------------------------------------- #

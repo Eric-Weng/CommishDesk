@@ -276,7 +276,7 @@ def _rookie_facts() -> DraftRecapFacts:
 def test_happy_path_shape() -> None:
     doc = _build_minimal()
     dump = doc.model_dump()
-    assert dump["schema_version"] == "0.7.0" == SCHEMA_VERSION
+    assert dump["schema_version"] == "0.8.0" == SCHEMA_VERSION
     assert dump["issue_type"] == "draft_recap"
     assert dump["week"] is None and dump["weekly"] is None
     assert [p["pick_no"] for p in dump["picks"]] == [1, 2]
@@ -361,7 +361,7 @@ def test_unknown_key_on_read_is_dropped() -> None:
     payload["narration"]["future_key"] = {"nested": True}
     doc = DraftRecapFacts.model_validate(payload)
     assert not hasattr(doc, "future_key")
-    assert doc.schema_version == "0.7.0"
+    assert doc.schema_version == "0.8.0"
 
 
 def test_schema_violation_raises_typed_chained_error() -> None:
@@ -1080,9 +1080,9 @@ def test_lead_kind_priority_covers_every_kind_a_detector_can_emit() -> None:
 
 
 def test_schema_version_bumped_additively_to_0_5_0() -> None:
-    assert SCHEMA_VERSION == "0.7.0"
+    assert SCHEMA_VERSION == "0.8.0"
     doc = _build_minimal()
-    assert doc.schema_version == "0.7.0"
+    assert doc.schema_version == "0.8.0"
     assert doc.week is None
     assert doc.weekly is None
 

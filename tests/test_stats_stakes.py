@@ -45,6 +45,7 @@ from commishdesk.stats import (
     NextWeek,
     NextWeekCard,
     NextWeekSide,
+    PlayoffPicture,
     PowerRanks,
     Standings,
     TeamPower,
@@ -850,3 +851,42 @@ def test_a_different_bracket_size_moves_the_lines() -> None:
 
     six = _sides(_scenario(records=records, pairs=_PAIRS, league=_league(playoff_teams=6)))
     assert not six["5"].eliminated
+
+
+def test_a_commissioner_override_makes_stakes_agree_with_the_picture() -> None:
+    """Story 5.15: with an override the picture, not the records, fixes bracket
+    membership, so a 0-0 seed reads as clinched and a 20-0 team left out reads
+    as eliminated."""
+    ids = sorted(_RECORDS, key=int)
+    seeds = ["12", "2", "3", "4", "5", "6"]
+    picture = PlayoffPicture(
+        source="commissioner",
+        in_bracket=seeds,
+        byes=seeds[:2],
+        first_out="1",
+        bubble=["5", "6", "1", "7"],
+        cut_line_after_rank=6,
+        consolation=[rid for rid in ids if rid not in seeds],
+    )
+    standings = _standings(_RECORDS, week=7, through=7).model_copy(
+        update={"playoff_picture": picture}
+    )
+    week_model = WeekModel(
+        week=7,
+        rosters=[Roster(roster_id=rid) for rid in ids],
+        matchups=[],
+        transactions=[],
+        playoff_week_start=10,
+        next_matchups=_pair_rows(_PAIRS, 8),
+    )
+    result = compute_next_week(
+        week_model, _league(), standings, _power(ids, week=7), {}, None
+    )
+    sides = _sides(result)
+
+    for rid in ids:
+        assert sides[rid].clinched_playoff == (rid in picture.in_bracket)
+        assert sides[rid].eliminated == (rid not in picture.in_bracket)
+        assert sides[rid].clinched_bye == (rid in picture.byes)
+    assert "wildcard_race" not in _card_for(result, "6").stakes
+    assert "draft_position" in _card_for(result, "1").stakes

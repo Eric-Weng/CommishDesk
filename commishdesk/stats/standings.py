@@ -33,7 +33,12 @@ has engaged.
 byes are the top :func:`bye_count` of them, ``first_out`` is rank ``N+1``
 (``None`` when the whole league is in), ``bubble`` is ranks ``N-1..N+2`` clipped
 to valid ranks, ``cut_line_after_rank`` is ``N``, and ``consolation`` is
-everything below the cut. The commissioner override is a later story (5.15).
+everything below the cut. Story 5.15 lets a caller *confirm* or *override* the
+derived order: a :class:`PlayoffSeeding` in ``"confirm"`` mode marks the picture
+``"confirmed"``, and one in ``"override"`` mode reorders the standings (and so
+the picture) to the caller's seed order and marks it ``"commissioner"``. The
+commissioner override bypasses nothing else: the cross-check still runs against
+whatever fold the standings produced.
 
 **Cross-check.** ``cross_check_standings(standings, week)`` compares, for every
 roster in ``week.rosters``, the folded W-L-T against ``Roster``'s exactly and the
@@ -47,14 +52,18 @@ This module stays inside the ``stats/`` fence (AD-1): it imports only stdlib,
 pydantic, ``commishdesk.errors``, ``commishdesk.ingest``, and its sibling
 ``stats/`` modules -- never ``adapters`` / ``store`` / ``facts`` / ``narrate`` /
 ``render`` / a later pipeline stage. It reads no file, clock, PRNG, or network.
-The one thing it raises is :class:`~commishdesk.errors.CrossCheckError`.
+The one thing it raises is :class:`~commishdesk.errors.CrossCheckError` (and, for
+a bad seeding input, :class:`PlayoffSeedingError`).
 """
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+from dataclasses import dataclass
+
 from pydantic import BaseModel, ConfigDict
 
-from commishdesk.errors import CrossCheckError, CrossCheckMismatch
+from commishdesk.errors import CommishDeskError, CrossCheckError, CrossCheckMismatch
 from commishdesk.ingest import LeagueModel, WeekModel
 
 from .weekly import _all_play_cutoff, _matchups_by_week, _sort_key
@@ -64,6 +73,8 @@ __all__ = [
     "TIEBREAK",
     "DivisionOrder",
     "PlayoffPicture",
+    "PlayoffSeeding",
+    "PlayoffSeedingError",
     "Standings",
     "Streak",
     "TeamRecord",
@@ -72,7 +83,9 @@ __all__ = [
     "bye_count",
     "compute_standings",
     "cross_check_standings",
+    "parse_playoff_seeding",
     "regular_season_records",
+    "validate_playoff_seeding",
 ]
 
 #: Each folded week's ``Matchup.points`` is already at 2 decimals while Sleeper's
@@ -171,9 +184,11 @@ class DivisionOrder(_Frozen):
 
 
 class PlayoffPicture(_Frozen):
-    """The derived playoff picture for the target week (``source`` is always
-    ``"derived"`` for this module -- the commissioner override is a later
-    story).
+    """The playoff picture for the target week.
+
+    ``source`` is ``"derived"`` (this module's own fold), ``"confirmed"`` (the
+    caller confirmed the derived order) or ``"commissioner"`` (the caller
+    supplied an explicit seed order that the standings were reordered to).
 
     ``in_bracket`` is ranks ``1..N`` (``N = league.format.playoff.bracket_teams``
     clamped to the roster count); ``byes`` the top :func:`bye_count` of them;
@@ -193,7 +208,7 @@ class PlayoffPicture(_Frozen):
 class Standings(_Frozen):
     """The whole result: one :class:`TeamStanding` per roster in
     ``week.rosters``, ordered by ``rank`` (1 first), plus the per-division order
-    and the derived playoff picture.
+    and the playoff picture.
 
     ``through_week`` is the last week folded -- ``min(week.week,
     playoff_week_start - 1)`` once the league declares a ``playoff_week_start``,
@@ -222,6 +237,94 @@ def bye_count(bracket_teams: int) -> int:
     if bracket_teams <= 0:
         return 0
     return (1 << (bracket_teams - 1).bit_length()) - bracket_teams
+
+
+class PlayoffSeedingError(CommishDeskError):
+    """A commissioner-supplied playoff seeding value is invalid."""
+
+
+@dataclass(frozen=True, slots=True)
+class PlayoffSeeding:
+    """A parsed playoff-seeding input.
+
+    ``kind`` is ``"confirm"`` (derived order, confirmed) or ``"override"`` (the
+    caller supplied explicit seed roster ids in seed order).
+    """
+
+    kind: str
+    seed_roster_ids: tuple[str, ...] = ()
+
+
+def parse_playoff_seeding(value: str | None) -> PlayoffSeeding | None:
+    """Parse the raw ``--seeding`` / ``COMMISHDESK_PLAYOFF_SEEDING`` value.
+
+    Only syntax checks happen here -- no roster ids, no bracket size, no model:
+    an empty/blank value is no override, ``confirm`` is confirmation, otherwise
+    a comma-separated list of roster ids. Empty entries, ``confirm`` mixed with
+    ids, and duplicate ids fail here."""
+    raw = (value or "").strip()
+    if not raw:
+        return None
+    if raw == "confirm":
+        return PlayoffSeeding(kind="confirm")
+
+    parts = [part.strip() for part in raw.split(",")]
+    if "confirm" in parts:
+        raise PlayoffSeedingError(
+            "invalid playoff seeding: 'confirm' cannot be mixed with roster ids"
+        )
+    for part in parts:
+        if not part:
+            raise PlayoffSeedingError(f"invalid playoff seeding: empty entry in {raw!r}")
+
+    duplicates = sorted({part for part in parts if parts.count(part) > 1})
+    if duplicates:
+        raise PlayoffSeedingError(
+            f"invalid playoff seeding: duplicate roster id {duplicates[0]}"
+        )
+    return PlayoffSeeding(kind="override", seed_roster_ids=tuple(parts))
+
+
+def validate_playoff_seeding(
+    seeding: PlayoffSeeding,
+    *,
+    roster_ids: Sequence[str],
+    bracket_teams: int | None,
+) -> PlayoffSeeding:
+    """Validate a parsed seeding against a built league-week.
+
+    Roster-membership and count checks run here, after the league and week
+    models exist but before any storage write or LLM spend. A supplied value
+    for a league with no playoff format is rejected here too."""
+    if bracket_teams is None:
+        raise PlayoffSeedingError("cannot seed playoffs: league has no playoff format")
+    if seeding.kind == "confirm":
+        return seeding
+
+    expected = min(bracket_teams, len(roster_ids))
+    given = len(seeding.seed_roster_ids)
+    if given != expected:
+        raise PlayoffSeedingError(
+            f"playoff seeding needs exactly {expected} seeds, got {given}"
+        )
+
+    known = set(roster_ids)
+    for roster_id in seeding.seed_roster_ids:
+        if roster_id not in known:
+            raise PlayoffSeedingError(
+                f"playoff seeding roster id {roster_id} is not a roster in this league"
+            )
+
+    if len(set(seeding.seed_roster_ids)) != len(seeding.seed_roster_ids):
+        duplicate = next(
+            roster_id
+            for roster_id in seeding.seed_roster_ids
+            if seeding.seed_roster_ids.count(roster_id) > 1
+        )
+        raise PlayoffSeedingError(
+            f"invalid playoff seeding: duplicate roster id {duplicate}"
+        )
+    return seeding
 
 
 # --------------------------------------------------------------------------- #
@@ -362,11 +465,13 @@ def _team_standing(
     )
 
 
-def _playoff_picture(ordered: list[str], league: LeagueModel) -> PlayoffPicture | None:
-    """The derived playoff picture for a standings order, or ``None`` when the
-    league declares no playoff bracket size (``league.format.playoff is None``)
-    or has no rosters. Every size here is computed from the league's own declared
-    ``bracket_teams`` -- none of them is a literal."""
+def _playoff_picture(
+    ordered: list[str], league: LeagueModel, source: str
+) -> PlayoffPicture | None:
+    """The playoff picture for a standings order, or ``None`` when the league
+    declares no playoff bracket size (``league.format.playoff is None``) or has
+    no rosters. ``source`` is ``"derived"``, ``"confirmed"`` or
+    ``"commissioner"`` depending on the operative seeding mode."""
     playoff = league.format.playoff
     if playoff is None or not ordered:
         return None
@@ -378,7 +483,7 @@ def _playoff_picture(ordered: list[str], league: LeagueModel) -> PlayoffPicture 
     byes = bye_count(bracket)
     bubble = ordered[max(bracket - 1, 1) - 1 : min(bracket + 2, len(ordered))]
     return PlayoffPicture(
-        source="derived",
+        source=source,
         in_bracket=in_bracket,
         byes=in_bracket[:byes],
         first_out=ordered[bracket] if bracket < len(ordered) else None,
@@ -388,9 +493,12 @@ def _playoff_picture(ordered: list[str], league: LeagueModel) -> PlayoffPicture 
     )
 
 
-def compute_standings(week: WeekModel, league: LeagueModel) -> Standings:
-    """Fold the target week's matchups into the league's standings, then derive
-    the playoff picture.
+def compute_standings(
+    week: WeekModel, league: LeagueModel, *, seeding: PlayoffSeeding | None = None
+) -> Standings:
+    """Fold the target week's matchups into the league's standings, apply an
+    optional commissioner playoff seeding (Story 5.15), then derive the playoff
+    picture.
 
     Pure, deterministic, offline: two calls on equal inputs return an equal
     ``model_dump()``. Never reads ``Roster.wins`` / ``losses`` / ``ties`` /
@@ -401,6 +509,23 @@ def compute_standings(week: WeekModel, league: LeagueModel) -> Standings:
 
     roster_ids = [roster.roster_id for roster in week.rosters]
     ordered = sorted(roster_ids, key=lambda roster_id: _order_key(roster_id, records))
+    picture_source = "derived"
+    if seeding is not None:
+        if seeding.kind == "override":
+            seed_ids = [
+                roster_id
+                for roster_id in seeding.seed_roster_ids
+                if roster_id in set(roster_ids)
+            ]
+            rest = [
+                roster_id
+                for roster_id in ordered
+                if roster_id not in set(seed_ids)
+            ]
+            ordered = [*seed_ids, *rest]
+            picture_source = "commissioner"
+        elif seeding.kind == "confirm":
+            picture_source = "confirmed"
     rank_of = {roster_id: index + 1 for index, roster_id in enumerate(ordered)}
 
     division_of = {team.roster_id: team.division_id for team in league.teams}
@@ -431,7 +556,7 @@ def compute_standings(week: WeekModel, league: LeagueModel) -> Standings:
             _team_standing(roster_id, records, rank_of, division_rank) for roster_id in ordered
         ],
         divisions=divisions,
-        playoff_picture=_playoff_picture(ordered, league),
+        playoff_picture=_playoff_picture(ordered, league, picture_source),
     )
 
 

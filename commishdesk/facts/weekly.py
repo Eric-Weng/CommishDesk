@@ -18,6 +18,11 @@ populates :class:`~commishdesk.facts.schema.WeeklyPower`'s published-rank pair
 from it. The Store read itself stays in ``cli.py``: this module is on the
 ``stats/``-side of the AD-1 fence and never imports ``store``.
 
+Story 5.15 adds ``playoff_seeding`` — the operator's optional confirm/override
+input — threaded through to ``stats/standings.py::compute_standings``. It is a
+pure value object (:class:`~commishdesk.stats.standings.PlayoffSeeding`), so
+this builder stays offline and deterministic.
+
 Pure, deterministic, offline: no network, no clock, no filesystem.
 ``generated_at`` is a caller argument, so two builds of one input produce an
 equal ``model_dump()`` modulo nothing.
@@ -59,6 +64,7 @@ from commishdesk.stats.power import compute_power_ranks
 from commishdesk.stats.stakes import compute_next_week
 from commishdesk.stats.standings import (
     PlayoffPicture,
+    PlayoffSeeding,
     bye_count,
     compute_standings,
     regular_season_records,
@@ -261,6 +267,7 @@ def build_weekly_facts(
     provisional: bool = True,
     previous_storylines: Sequence[Storyline] = (),
     previous_published_ranks: Mapping[int, Mapping[str, int]] | None = None,
+    playoff_seeding: PlayoffSeeding | None = None,
 ) -> WeeklyFacts:
     """Merge the weekly stats modules into a validated :class:`WeeklyFacts`.
 
@@ -271,7 +278,8 @@ def build_weekly_facts(
     ``previous_published_ranks`` (Story 5.12) is every prior week's persisted
     ``{roster_id: published_rank}`` map, keyed by week — the caller read them
     from the ``Store``, and this builder only *reads* the mapping, so the AD-1
-    fence holds.
+    fence holds. ``playoff_seeding`` (Story 5.15) is the caller's optional
+    confirm/override input, threaded through to ``compute_standings``.
 
     Raises
     :class:`~commishdesk.errors.SchemaValidationError` (chained from the
@@ -293,6 +301,7 @@ def build_weekly_facts(
             provisional=provisional,
             previous_storylines=previous_storylines,
             previous_published_ranks=previous_published_ranks,
+            playoff_seeding=playoff_seeding,
         )
     except (ValidationError, KeyError, AttributeError, TypeError, ValueError) as exc:
         raise SchemaValidationError(_violation_message(exc, document="weekly")) from exc
@@ -311,11 +320,12 @@ def _build(
     provisional: bool,
     previous_storylines: Sequence[Storyline],
     previous_published_ranks: Mapping[int, Mapping[str, int]] | None,
+    playoff_seeding: PlayoffSeeding | None,
 ) -> WeeklyFacts:
     weekly = compute_weekly_stats(week)
     lineups = compute_weekly_lineups(week, league, players, nfl_byes)
     power = compute_power_ranks(week)
-    standings = compute_standings(week, league)
+    standings = compute_standings(week, league, seeding=playoff_seeding)
     next_week = compute_next_week(week, league, standings, power, players, nfl_byes_next_week)
     desk = compute_transactions_desk(week)
     records = regular_season_records(week, standings.through_week)
@@ -424,7 +434,7 @@ def _build(
         )
 
     matchups_block = _matchups_block(week, weekly_by_roster, starters_by_roster, next_week, name_of, players)
-    standings_block = _standings_block(standings)
+    standings_block = _standings_block(standings, week)
     transactions_block = _transactions_block(desk, name_of, players)
     leaders_block = _leaders(roster_ids, starters_by_roster, lineups_by_roster, week)
     period_block = _period_block(week, weekly, nfl_byes, nfl_byes_next_week)
@@ -973,22 +983,31 @@ def _matchups_block(
     return WeeklyMatchups(this_week=this_week, next_week=cards)
 
 
-def _standings_block(standings: object) -> WeeklyStandings:
+def _standings_block(standings: object, week: WeekModel) -> WeeklyStandings:
     picture = standings.playoff_picture  # type: ignore[attr-defined]
+    unconfirmed = (
+        picture is not None
+        and picture.source == "derived"  # type: ignore[attr-defined]
+        and week.playoff_week_start is not None
+        and week.week >= week.playoff_week_start
+    )
     return WeeklyStandings(
         overall=[t.roster_id for t in standings.teams],  # type: ignore[attr-defined]
         divisions={d.division_id: list(d.roster_ids) for d in standings.divisions},  # type: ignore[attr-defined]
-        playoff_picture=_playoff_picture(picture),
+        playoff_picture=_playoff_picture(picture, seeding_unconfirmed=unconfirmed),
         through_week=standings.through_week,  # type: ignore[attr-defined]
         regular_season_complete=standings.regular_season_complete,  # type: ignore[attr-defined]
     )
 
 
-def _playoff_picture(picture: PlayoffPicture | None) -> WeeklyPlayoffPicture | None:
+def _playoff_picture(
+    picture: PlayoffPicture | None, *, seeding_unconfirmed: bool
+) -> WeeklyPlayoffPicture | None:
     if picture is None:
         return None
     return WeeklyPlayoffPicture(
         source=picture.source,
+        seeding_unconfirmed=seeding_unconfirmed,
         in_bracket=list(picture.in_bracket),
         byes=list(picture.byes),
         first_out=picture.first_out,
@@ -1207,6 +1226,7 @@ def _weekly_narration(
     if picture is not None:
         playoff_narration = WeeklyNarrationPlayoff(
             format=f"{picture.cut_line_after_rank} teams",
+            seeding_unconfirmed=picture.seeding_unconfirmed,
             in_bracket=[labels.get(rid, rid) for rid in picture.in_bracket],
             byes=[labels.get(rid, rid) for rid in picture.byes],
             first_out=labels.get(picture.first_out, picture.first_out) if picture.first_out else None,

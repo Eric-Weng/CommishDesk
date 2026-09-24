@@ -38,6 +38,7 @@ if TYPE_CHECKING:
     from commishdesk.narrate import Recap, SafetyReport, TieredResponse
     from commishdesk.narrate.llm import CallUsage
     from commishdesk.narrate.weekly_template import WeeklyIssue
+    from commishdesk.stats.standings import PlayoffSeeding
     from commishdesk.store import FileStore, IssueKind, Store
     from commishdesk.voices import Voice
 
@@ -113,6 +114,15 @@ def run(
             "post already confirmed for that league-week."
         ),
     ),
+    seeding: str | None = typer.Option(
+        None,
+        "--seeding",
+        envvar="COMMISHDESK_PLAYOFF_SEEDING",
+        help=(
+            "Playoff seeding: 'confirm', or a comma-separated list of roster ids "
+            "in seed order. Empty means no override."
+        ),
+    ),
     llm: bool | None = typer.Option(
         None,
         "--llm/--no-llm",
@@ -159,8 +169,11 @@ def run(
     legal with either. ``--reason`` is the weekly path's reissue escape hatch
     (Story 5.11c): it only means anything alongside ``--week --post``, so it is
     rejected on the draft-recap path, without ``--week``, without ``--post``, and
-    as blank text — all before any fetch. Neither flag keeps the unchanged
-    informational path.
+    as blank text — all before any fetch. ``--seeding`` (Story 5.15) is the
+    weekly path's playoff-seeding input; its syntax is checked when the run
+    starts, and its roster-id/count checks happen once the league-week models
+    exist, all before any storage write or LLM spend. Neither flag keeps the
+    unchanged informational path.
     """
     if ctx.invoked_subcommand is not None:
         return
@@ -221,7 +234,15 @@ def run(
                 )
             logger.debug("cli invoked: mode=week %s recap", week)
             try:
-                exit_code = _run_weekly(league, week, out_dir, logger, post=post, reason=reason)
+                exit_code = _run_weekly(
+                    league,
+                    week,
+                    out_dir,
+                    logger,
+                    post=post,
+                    reason=reason,
+                    seeding=seeding,
+                )
             except (CommishDeskError, OSError) as exc:
                 typer.echo(_one_line(exc), err=True)
                 raise typer.Exit(code=1) from exc
@@ -490,20 +511,28 @@ def _run_weekly(
     *,
     post: bool,
     reason: str | None = None,
+    seeding: str | None = None,
 ) -> int:
     """Derive the run list (the one Generation Set constructor) and build a weekly
     Issue for each activated league. Returns the process exit code: ``0`` when
     every league in the set produced an Issue, ``1`` when one or more faulted
     (each fault — a not-yet-final week, a cross-check hold, an
     :class:`~commishdesk.errors.OptimalLineupError`, a reissue with nothing to
-    correct, anything else — is isolated and printed as a one-line message, AD-9).
-    Raises :class:`~commishdesk.errors.CommishDeskError` before any league runs
-    when the league is not activated for a run.
+    correct, an invalid ``--seeding`` value, anything else — is isolated and
+    printed as a one-line message, AD-9). Raises
+    :class:`~commishdesk.errors.CommishDeskError` before any league runs when the
+    league is not activated for a run.
 
     ``reason`` (Story 5.11c) is the operator's explicit reissue: it turns this run
     into a correction of an already-confirmed weekly send. It is threaded
     unchanged down to :func:`_recap_one_league_weekly`, which owns both the
     "something to correct" guard and the corrected Issue's label.
+
+    ``seeding`` (Story 5.15) is the raw ``--seeding`` /
+    ``COMMISHDESK_PLAYOFF_SEEDING`` value. Its syntax is parsed here so a
+    malformed value faults before any fetch; the roster-id/count checks run once
+    the league-week models exist, in the same per-league call (before any store
+    write or LLM spend).
 
     Story 5.12 gives this path an optional voiced narrator, but it stays a
     *degrading* one: the narrator is chosen from the environment (a provider key
@@ -514,6 +543,9 @@ def _run_weekly(
     machinery itself lives in :func:`_weekly_estimate_within_ceiling`.
     """
     from commishdesk.generation import build_generation_set
+    from commishdesk.stats.standings import parse_playoff_seeding
+
+    parsed_seeding = parse_playoff_seeding(seeding)
 
     run_list = build_generation_set([league]).league_ids
     if not run_list:
@@ -522,7 +554,15 @@ def _run_weekly(
     exit_code = 0
     for resolved in run_list:
         try:
-            _recap_one_league_weekly(resolved, week, out_dir, logger, post=post, reason=reason)
+            _recap_one_league_weekly(
+                resolved,
+                week,
+                out_dir,
+                logger,
+                post=post,
+                reason=reason,
+                seeding=parsed_seeding,
+            )
         except (CommishDeskError, OSError) as exc:
             logger.debug("league %s faulted: %s", resolved, _one_line(exc))
             typer.echo(_one_line(exc), err=True)
@@ -1279,6 +1319,7 @@ def _recap_one_league_weekly(
     *,
     post: bool,
     reason: str | None = None,
+    seeding: PlayoffSeeding | None = None,
 ) -> None:
     """Story 5.11a: chain ingest → stats → facts → narrator → render for one
     league-week, writing the local text Issue plus the Story 2.7 generic HTML
@@ -1300,22 +1341,28 @@ def _recap_one_league_weekly(
     :class:`~commishdesk.errors.CostCeilingExceededError` — an over-budget run
     degrades to the template.
 
+    Story 5.15 adds ``seeding``: the operator's optional confirm/override of the
+    derived playoff order. Validated once the league-week models exist (so a
+    wrong roster id or count faults before any storage write, render, post or
+    LLM spend) and threaded into both the standings call and the Facts builder.
+
     Ordering (epic-3-retro-item-35, applied to the weekly kind from the start):
 
     1. the ``--post`` webhook fail-fast + already-confirmed ledger short-circuit
        (or, on a reissue, the store must already hold that confirmed entry),
        before any fetch at all;
     2. the fetch and Sleeper's own week-finality refusal;
-    3. the standings cross-check — a ``CrossCheckError`` is a **hold** under
+    3. playoff-seeding validation (Story 5.15) — before any store write;
+    4. the standings cross-check — a ``CrossCheckError`` is a **hold** under
        ``--post`` (nothing rendered, written or posted) and an ``UNVERIFIED —``
        dateline otherwise (the mismatch is printed and the local Issue still
        ships);
-    4. the durable writes (the persisted-or-built player snapshot, then the
+    5. the durable writes (the persisted-or-built player snapshot, then the
        advanced storylines once the Issue exists and any hold has resolved);
-    5. (Story 5.11c, reissue only) the Correction section is prepended to the
-       rebuilt Issue only after step 4's writes, so its diff reads the same
+    6. (Story 5.11c, reissue only) the Correction section is prepended to the
+       rebuilt Issue only after step 5's writes, so its diff reads the same
        Facts JSON the storylines above were advanced from;
-    6. (Story 5.11c) the Facts JSON snapshot this run persists for a future
+    7. (Story 5.11c) the Facts JSON snapshot this run persists for a future
        reissue to diff against — and (Story 5.12) the published ranks the
        narrator stated — are written only once ``--post`` has actually confirmed
        the send: never on a failed delivery, and never on a run that only writes
@@ -1335,7 +1382,11 @@ def _recap_one_league_weekly(
         get_player_snapshot,
     )
     from commishdesk.narrate.weekly_template import WeeklySection
-    from commishdesk.stats.standings import compute_standings, cross_check_standings
+    from commishdesk.stats.standings import (
+        compute_standings,
+        cross_check_standings,
+        validate_playoff_seeding,
+    )
     from commishdesk.store import FileStore
 
     weekly_kind: IssueKind = "weekly"
@@ -1392,6 +1443,18 @@ def _recap_one_league_weekly(
     week_model = build_week_model(week_bundle)
     player_names = build_player_names(week_bundle)
 
+    if seeding is not None:
+        bracket_teams = (
+            model.format.playoff.bracket_teams
+            if model.format.playoff is not None
+            else None
+        )
+        seeding = validate_playoff_seeding(
+            seeding,
+            roster_ids=[roster.roster_id for roster in week_model.rosters],
+            bracket_teams=bracket_teams,
+        )
+
     season = model.season
     nfl_byes = bye_teams(season, week)
     nfl_byes_next_week = bye_teams(season, week + 1)
@@ -1399,7 +1462,7 @@ def _recap_one_league_weekly(
     # Cross-check before the Facts JSON is built (Story 5.11a). This is the one
     # stats call facts/weekly.py::_build does not make itself, so the CLI owns it.
     logger.debug("computing weekly standings + cross-check")
-    standings = compute_standings(week_model, model)
+    standings = compute_standings(week_model, model, seeding=seeding)
     cross_check_passed = True
     try:
         cross_check_standings(standings, week_model)
@@ -1433,6 +1496,7 @@ def _recap_one_league_weekly(
         nfl_byes_next_week=nfl_byes_next_week,
         previous_storylines=previous_storylines,
         previous_published_ranks=previous_published_ranks,
+        playoff_seeding=seeding,
     )
     # The decoded Facts JSON, in two places below: the reissue's diff (against the
     # previous confirmed run's snapshot) and the snapshot this run persists. Read

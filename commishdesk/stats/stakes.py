@@ -247,6 +247,8 @@ def _outlooks(week: WeekModel, league: LeagueModel, standings: Standings) -> dic
     playoff = league.format.playoff
     bracket = min(playoff.bracket_teams, len(roster_ids)) if playoff is not None else None
     byes = bye_count(bracket) if bracket is not None else 0
+    picture = standings.playoff_picture
+    seeded = picture if picture is not None and picture.source == "commissioner" else None
 
     division_of = {team.roster_id: team.division_id for team in league.teams}
     declared = {division.id for division in league.format.divisions}
@@ -277,6 +279,17 @@ def _outlooks(week: WeekModel, league: LeagueModel, standings: Standings) -> dic
                 tags.add("draft_position")
             elif sum(1 for value in others_cur if value > ceiling[roster_id] - 1) >= bracket:
                 tags.add("elimination")
+
+        if seeded is not None:
+            # A commissioner override fixes the bracket: the picture, not the
+            # records, decides membership, so stakes must agree with it.
+            in_bracket = roster_id in seeded.in_bracket
+            clinched_playoff = in_bracket
+            clinched_bye = roster_id in seeded.byes
+            eliminated = not in_bracket
+            tags -= {"bye_seed", "wildcard_race", "elimination", "draft_position"}
+            if eliminated:
+                tags.add("draft_position")
 
         division_id = division_of.get(roster_id)
         clinched_division = False

@@ -1,6 +1,6 @@
 {
   "_derived_from": "Story 5.13a overlay. expected-weekly-facts-week10.json with a hand-authored published-rank layer: the narrator swaps model ranks 7 and 8 (Chip-Block Chinchillas, Nickel Newts). Only teams[*].season.power and narration.power differ from the base. nudge = model_rank - published_rank (positive means moved up). The justification cites only numbers present in narration.power.",
-  "schema_version": "0.7.0",
+  "schema_version": "0.8.0",
   "generated_at": "2026-09-07T00:00:00Z",
   "provisional": true,
   "issue_type": "weekly",
@@ -5493,6 +5493,7 @@
     },
     "playoff_picture": {
       "source": "derived",
+      "seeding_unconfirmed": false,
       "in_bracket": [
         "2",
         "1",
@@ -5920,6 +5921,7 @@
     ],
     "playoff_picture": {
       "format": "6 teams",
+      "seeding_unconfirmed": false,
       "in_bracket": [
         "Two Minute Drill",
         "Flea Flicker Union",

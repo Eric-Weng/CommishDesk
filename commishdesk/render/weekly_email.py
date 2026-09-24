@@ -12,6 +12,9 @@ A ``prefers-color-scheme: dark`` override in the head style block rewrites the
 literal inline colours via ``[style*=...]`` selectors — no CSS custom property
 is emitted, and the light values stay inline as the fallback.
 
+Story 5.15 adds an unconfirmed-seeding note above the standings table when the
+Facts playoff picture carries ``seeding_unconfirmed`` — one line in each part.
+
 **Deterministic and escaped.** ``generated_at`` is the only time value. Every
 interpolated HTML value goes through :func:`~commishdesk.render._body._esc`; the
 text part is bidi-stripped through :func:`~commishdesk.render._body._plain`.
@@ -786,6 +789,9 @@ def _standings(facts: WeeklyFacts, blocks: list[str]) -> _Section | None:
     cut = picture.cut_line_after_rank if picture else None
     max_pf = max(team.season.points_for for team in order)
     text: list[str] = [_standings_title(facts)]
+    unconfirmed_note = "seeding unconfirmed — derived from the standings"
+    if picture is not None and picture.seeding_unconfirmed:
+        text.append(unconfirmed_note)
 
     cell = f"padding:12px 6px;border-top:1px solid {LINE};"
     rows: list[str] = []
@@ -867,6 +873,8 @@ def _standings(facts: WeeklyFacts, blocks: list[str]) -> _Section | None:
     prose_html, prose_lines = _prose(blocks)
     _add_prose(text, prose_lines)
     html = _section_header("Standings", _standings_title(facts))
+    if picture is not None and picture.seeding_unconfirmed:
+        html += _tr(_para(unconfirmed_note), "0 28px")
     html += _tr(table, "2px 28px 0")
     if prose_html:
         html += _tr(prose_html, "0 28px")

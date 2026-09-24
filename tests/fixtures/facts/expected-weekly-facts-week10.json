@@ -1,6 +1,6 @@
 {
   "_derived_from": "Story 5.8 oracle. build_weekly_facts() over week10-blowout.json (the anonymized week-10 fixture); generated_at pinned to '2026-09-07T00:00:00Z'; nfl_byes_next_week={IND, NO}.",
-  "schema_version": "0.7.0",
+  "schema_version": "0.8.0",
   "generated_at": "2026-09-07T00:00:00Z",
   "provisional": true,
   "issue_type": "weekly",
@@ -5493,6 +5493,7 @@
     },
     "playoff_picture": {
       "source": "derived",
+      "seeding_unconfirmed": false,
       "in_bracket": [
         "2",
         "1",
@@ -5920,6 +5921,7 @@
     ],
     "playoff_picture": {
       "format": "6 teams",
+      "seeding_unconfirmed": false,
       "in_bracket": [
         "Two Minute Drill",
         "Flea Flicker Union",

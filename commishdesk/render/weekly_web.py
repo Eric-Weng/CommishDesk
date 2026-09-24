@@ -18,6 +18,8 @@ rankings read the published rank and the cited nudge reason from
 ``narration.power`` (falling back to ``teams[*].season.power.published_rank``,
 then to the model rank); a reason is rendered only when the narration carries
 one. Luck plots ``season.luck`` as-is — this module computes no luck figure.
+Story 5.15's unconfirmed-seeding note comes straight off the Facts playoff
+picture's ``seeding_unconfirmed`` flag.
 
 **Deterministic and escaped.** The only time value is the caller's
 ``generated_at``; ``output_id`` is not rendered into the shareable page. Every
@@ -658,9 +660,14 @@ def _standings_section(ctx: _Ctx) -> str:
             f"{_esc(names.get(div_id) or f'Division {div_id}')}</span>"
             for div_id, cls in dot_of.items()
         ) + '<span>Bar: points for</span></p>'
+    note = ""
+    if picture is not None and picture.seeding_unconfirmed:
+        note = (
+            '<p class="seeding-note">Seeding unconfirmed — derived from the standings.</p>'
+        )
     return (
         f'<section class="card table-card" aria-label="Standings">{_head("Standings", title, "good")}'
-        f'<div class="standings">{"".join(rows)}</div>{legend}'
+        f'<div class="standings">{"".join(rows)}</div>{legend}{note}'
         f"{_prose(ctx.blocks('Standings and the Playoff Picture'))}</section>"
     )
 

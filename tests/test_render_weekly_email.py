@@ -773,3 +773,19 @@ def test_long_names_on_a_16_team_league_wrap_and_keep_numeral_columns_fixed() ->
     assert len(re.findall(r'<td class="lname" width="150" style="width:150px;', luck)) == 16
     assert len(re.findall(r'<td width="44" align="right" style="width:44px;[^"]*">[−+]\d+\.\d</td>', luck)) == 16
     assert _section(html, "Next week").count('<td width="46%" valign="top"') == 16
+
+
+def test_the_unconfirmed_seeding_note_follows_the_facts_flag_alone_in_both_parts() -> None:
+    note = "seeding unconfirmed — derived from the standings"
+    raw = _raw()
+    assert raw["standings"]["playoff_picture"]["seeding_unconfirmed"] is False
+    base_issue = render_weekly_issue(WeeklyFacts.model_validate(raw).narration)
+    off = _parts(raw, base_issue)
+    assert note not in off.html and note not in off.text
+
+    flagged = json.loads(json.dumps(raw))
+    flagged["standings"]["playoff_picture"]["seeding_unconfirmed"] = True
+    on = _parts(flagged, base_issue)
+    assert note in on.html
+    assert note in on.text
+    assert note not in off.html and note not in off.text

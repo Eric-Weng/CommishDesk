@@ -68,6 +68,7 @@ jobs:
       # The Discord webhook and the weekly healthchecks.io ping URL are scoped to
       # only the steps that need them, below.
       COMMISHDESK_LEAGUE_ID: ${{ vars.COMMISHDESK_LEAGUE_ID }}
+      COMMISHDESK_PLAYOFF_SEEDING: ${{ vars.COMMISHDESK_PLAYOFF_SEEDING }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
