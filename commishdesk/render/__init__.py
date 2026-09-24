@@ -17,7 +17,11 @@ designed inline-SVG render is :func:`~commishdesk.render.web.render_web` (Story
 (Story 4.2), returning an :class:`~commishdesk.render.email.EmailParts` pair. The
 CLI writes all three files. The weekly Issue's designed page is
 :func:`~commishdesk.render.weekly_web.render_weekly_web` (Story 5.14a); the weekly
-run writes it in place of the generic dump. This module imports the narrator output type,
+run writes it in place of the generic dump. Story 5.14b adds the weekly email
+pair (:func:`~commishdesk.render.weekly_email.render_weekly_email`) and the
+designed Discord post
+(:func:`~commishdesk.render.discord.render_weekly_discord_post`), all three
+built on :mod:`commishdesk.render._weekly_model`. This module imports the narrator output type,
 ``commishdesk.facts`` schema types (via ``render/web.py`` / ``render/email.py``),
 and the standard library only (AD-1).
 """
@@ -31,9 +35,10 @@ from typing import Protocol
 
 from commishdesk.narrate import Recap
 from commishdesk.render._body import _esc
-from commishdesk.render.discord import render_discord_summary, render_weekly_discord_summary
+from commishdesk.render.discord import render_discord_summary, render_weekly_discord_post, utf16_len
 from commishdesk.render.email import EmailParts, render_email
 from commishdesk.render.web import render_web
+from commishdesk.render.weekly_email import render_weekly_email
 from commishdesk.render.weekly_web import render_weekly_web
 
 __all__ = [
@@ -43,8 +48,10 @@ __all__ = [
     "render_discord_summary",
     "render_email",
     "render_web",
-    "render_weekly_discord_summary",
+    "render_weekly_discord_post",
+    "render_weekly_email",
     "render_weekly_web",
+    "utf16_len",
     "write_draft_recap",
     "write_html_file",
     "write_text_file",

@@ -1450,10 +1450,10 @@ def _recap_one_league_weekly(
         issue = issue.model_copy(update={"dateline": f"UNVERIFIED — {issue.dateline}"})
 
     # Story 5.11c: label the corrected Issue as a correction. The section is
-    # prepended, so its first block is what ``render_weekly_discord_summary`` reads
-    # as the Discord lead — the reason *and* the changed-numbers summary therefore
-    # reach stdout, the text/HTML files and the posted message alike, with no
-    # change to ``render/discord.py``.
+    # prepended, and ``render_weekly_discord_post`` sets any section outside the
+    # seven as the correction line under the title — the reason *and* the
+    # changed-numbers summary therefore reach stdout, the text/HTML/email files
+    # and the posted message alike.
     #
     # Gated on ``post`` too (review-loop 1, edge-case-hunter): ``run()`` already
     # requires ``--post`` alongside ``--reason``, so a CLI-driven call never
@@ -1522,10 +1522,12 @@ def _recap_one_league_weekly(
     if post:
         assert webhook_url is not None  # checked fail-fast at the top of this function
         assert recipient_id is not None  # computed alongside webhook_url, same guard
-        from commishdesk.render import render_weekly_discord_summary
+        from commishdesk.render import render_weekly_discord_post
 
         _deliver_issue(
-            summary=render_weekly_discord_summary(issue, week=week),
+            summary=render_weekly_discord_post(
+                _weekly_render_doc(doc, published_ranks, nudge_justifications), issue
+            ),
             store=store,
             resolved=resolved,
             week=week,
@@ -1650,23 +1652,13 @@ def _render_and_write_weekly_issue(
     :func:`_produce_weekly_issue`, so ``check_narration`` has already seen the
     ranks-only payload; stamping the reasons here cannot make them in-world."""
     from commishdesk.narrate.weekly_template import weekly_issue_to_text
-    from commishdesk.render import render_weekly_web, write_html_file, write_text_file
+    from commishdesk.render import render_weekly_email, render_weekly_web, write_html_file, write_text_file
 
     stem = _issue_filename_stem(week, "weekly")
     text = weekly_issue_to_text(issue)
     typer.echo(text)
 
-    render_doc = doc
-    if published_ranks:
-        render_doc = doc.model_copy(
-            update={
-                "narration": _stamp_published_ranks(
-                    doc.narration,
-                    published_ranks,
-                    nudge_justifications,
-                )
-            }
-        )
+    render_doc = _weekly_render_doc(doc, published_ranks, nudge_justifications)
 
     written_html = write_html_file(
         render_weekly_web(
@@ -1683,7 +1675,31 @@ def _render_and_write_weekly_issue(
         Path(out_dir) / f"commishdesk-{resolved}-{stem}.txt",
     )
     typer.echo(str(written_text))
+
+    # Story 5.14b: the same content model as an email pair (client-safe HTML
+    # plus text/plain), written next to the page. Delivery is Epic 4B/6.
+    email_parts = render_weekly_email(render_doc, issue, generated_at=str(doc.generated_at))
+    email_html = write_html_file(email_parts.html, Path(out_dir) / f"commishdesk-{resolved}-{stem}.email.html")
+    email_text = write_text_file(email_parts.text, Path(out_dir) / f"commishdesk-{resolved}-{stem}.email.txt")
+    typer.echo(str(email_html))
+    typer.echo(str(email_text))
     logger.debug("wrote the weekly Issue for league %s week %s", resolved, week)
+
+
+def _weekly_render_doc(
+    doc: WeeklyFacts,
+    published_ranks: Mapping[str, int],
+    nudge_justifications: Mapping[str, str],
+) -> WeeklyFacts:
+    """The Facts every weekly surface renders from: *doc* itself, or (when the
+    narrator published ranks) a copy whose narration carries those ranks and
+    their cited reasons. Shared by the page, the email and the Discord post so
+    all three pick the same power order."""
+    if not published_ranks:
+        return doc
+    return doc.model_copy(
+        update={"narration": _stamp_published_ranks(doc.narration, published_ranks, nudge_justifications)}
+    )
 
 
 def _deliver_issue(
@@ -1702,7 +1718,7 @@ def _deliver_issue(
 
     Both surfaces build their own ``summary`` first — the draft path via
     :func:`~commishdesk.render.render_discord_summary`, the weekly path via
-    :func:`~commishdesk.render.render_weekly_discord_summary` — so this function
+    :func:`~commishdesk.render.render_weekly_discord_post` — so this function
     owns only the send/ledger logic, shared unchanged. ``week`` / ``kind`` key
     the ledger entry, so a future weekly path uses the same delivery machinery.
 

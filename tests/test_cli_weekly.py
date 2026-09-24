@@ -8,7 +8,7 @@ template unless a provider key is set, so nothing here spends anything by
 default.
 
 Direct unit coverage of ``render/discord.py``'s weekly additions
-(:func:`~commishdesk.render.discord.render_weekly_discord_summary` /
+(:func:`~commishdesk.render.discord.render_weekly_discord_post` /
 :func:`~commishdesk.render.discord._escape_discord_markdown`) lives in
 ``tests/test_render_discord.py`` beside the draft-recap summary's own tests,
 not here — this file is CLI-level (the pipeline chained end to end).
@@ -272,6 +272,9 @@ def test_weekly_happy_path_prints_sections_and_writes_files(
     html_path = tmp_path / "commishdesk-77-weekly-week17.html"
     text_path = tmp_path / "commishdesk-77-weekly-week17.txt"
     assert html_path.is_file() and text_path.is_file()
+    # Story 5.14b: the weekly email pair, next to the page.
+    assert (tmp_path / "commishdesk-77-weekly-week17.email.html").is_file()
+    assert (tmp_path / "commishdesk-77-weekly-week17.email.txt").read_text(encoding="utf-8").strip()
 
     body = html_path.read_text(encoding="utf-8")
     assert body.startswith("<!doctype html>")
@@ -308,7 +311,9 @@ def test_weekly_post_confirms_a_weekly_ledger_entry_and_posts_once(
     assert "posted to Discord" in result.stdout
     assert len(posted) == 1
     assert posted[0][0] == _FAKE_WEBHOOK_URL
-    assert "Week 17 Recap" in posted[0][1]
+    # Story 5.14b: the designed post, not the 5.11a title-plus-lead summary.
+    assert posted[0][1].startswith("## 🏈 ") and posted[0][1].split("\n", 1)[0].endswith(" · Week 17")
+    assert "📊 **Standings**" in posted[0][1] and "Recap" not in posted[0][1]
 
     store = FileStore(tmp_path / "cache" / "commishdesk")
     ledger = store.read_ledger("41", 17)
@@ -724,6 +729,9 @@ def test_weekly_reissue_posts_a_corrected_issue_and_records_the_reason(
     assert "Correction" in reissued.stdout
     assert "Correction" in (tmp_path / "commishdesk-81-weekly-week17.txt").read_text(encoding="utf-8")
     assert "Correction" in (tmp_path / "commishdesk-81-weekly-week17.html").read_text(encoding="utf-8")
+    assert "fixed the QB stat line" in (tmp_path / "commishdesk-81-weekly-week17.email.txt").read_text(encoding="utf-8")
+    # Story 5.14b: the correction is the line right under the post's title
+    assert content.split("\n")[1].startswith("Correction — fixed the QB stat line — ")
 
     assert [
         (entry.kind, entry.channel, entry.recipient, entry.reason)
@@ -1150,24 +1158,66 @@ def test_weekly_week10_run_writes_the_designed_page(tmp_path, monkeypatch: pytes
         assert f'aria-label="{label}"' in body, label
     assert "Nudged" not in body  # the template narrator publishes no rank
     assert (tmp_path / "commishdesk-110-weekly-week10.txt").is_file()
+    # Story 5.14b: the email pair sits next to the page; the .txt Issue is unchanged.
+    email_html = (tmp_path / "commishdesk-110-weekly-week10.email.html").read_text(encoding="utf-8")
+    email_text = (tmp_path / "commishdesk-110-weekly-week10.email.txt").read_text(encoding="utf-8")
+    assert email_html.startswith("<!DOCTYPE html>") and "<svg" not in email_html and "<script" not in email_html
+    assert "THE LUCK INDEX" in email_text and "NEXT WEEK" in email_text
+    text_issue = (tmp_path / "commishdesk-110-weekly-week10.txt").read_text(encoding="utf-8")
+    assert text_issue.startswith("Trench Warfare — Week 10 Recap\n") and "## The Lead" in text_issue
+
+
+def test_weekly_week10_post_is_the_designed_post(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """``--week --post`` sends ``render_weekly_discord_post`` built from the same
+    render doc as the page; the ledger and the snapshot are written as before."""
+    _stub_adapter(monkeypatch, week_bundle=_load_fixture(_WEEK10), nfl_state={"week": 13, "season_type": "regular"})
+    posted = _stub_post_discord_text(monkeypatch)
+    monkeypatch.setenv("COMMISHDESK_DISCORD_WEBHOOK_URL", _FAKE_WEBHOOK_URL)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+
+    result = runner.invoke(app, ["--league", "113", "--week", "10", "--post", "--out-dir", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    assert len(posted) == 1
+    content = posted[0][1]
+    lines = content.split("\n")
+    assert lines[0] == "## 🏈 Trench Warfare · Week 10"
+    assert lines[1].endswith("** 🪑")
+    for marker in ("📊 **Standings**", "── playoff line", "🏈 **Results**", "📈 **Power top 5**", "🍀 **Luck**",
+                   "👀 **Next week**", "🔄 **Wire**", "🏆 Coach of the week"):
+        assert marker in content, marker
+    assert "Full Issue" not in content  # no hosted URL yet
+    assert len(content.encode("utf-16-le")) // 2 <= 1940
+    store = FileStore(tmp_path / "cache" / "commishdesk")
+    assert [entry.kind for entry in store.read_ledger("113", 10)] == ["weekly"]
+    assert store.read_cache("weekly-facts-snapshot", "113-10") is not None
 
 
 def test_weekly_a_voiced_run_renders_its_published_ranks_and_cited_reasons(
     tmp_path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """With published ranks, the page renders from the narration stamped with
-    them and with each deviation's reason parsed from the Issue text."""
+    them and with each deviation's reason parsed from the Issue text. Story
+    5.14b: the email and the Discord post follow the same published order."""
     _stub_adapter(monkeypatch, week_bundle=_load_fixture(_WEEK10), nfl_state={"week": 13, "season_type": "regular"})
     _stub_weekly_voice(monkeypatch, nudge=1)
+    posted = _stub_post_discord_text(monkeypatch)
+    monkeypatch.setenv("COMMISHDESK_DISCORD_WEBHOOK_URL", _FAKE_WEBHOOK_URL)
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
 
-    result = runner.invoke(app, ["--league", "111", "--week", "10", "--out-dir", str(tmp_path)])
+    result = runner.invoke(app, ["--league", "111", "--week", "10", "--post", "--out-dir", str(tmp_path)])
     assert result.exit_code == 0, result.output
     body = (tmp_path / "commishdesk-111-weekly-week10.html").read_text(encoding="utf-8")
     power = body.split('aria-label="Power rankings"', 1)[1].split("</section>", 1)[0]
     assert "Nudged down · model #1" in power
     # the cited reason is the rest of the narrated rank line, never invented
     assert '<span class="why">9-1-0, 202.87 points a week.</span>' in power
+    email_text = (tmp_path / "commishdesk-111-weekly-week10.email.txt").read_text(encoding="utf-8")
+    assert "Nudged down · model #1" in email_text and "9-1-0, 202.87 points a week." in email_text
+    page_rows = re.findall(r'<span class="rk">#?(\d+)</span><span class="tn">(.*?)</span>', power)
+    top = next(line for line in posted[0][1].split("\n") if line.startswith("📈"))
+    # the page's published ranks and order (the stub shifts every rank, so the numbers matter)
+    assert re.findall(r"(\d+)\. (.+?)(?= · |$)", top) == page_rows[:5]
+    assert top.split("  ", 1)[1].startswith("2. ")
 
 
 def test_weekly_a_tight_list_gives_every_nudged_row_its_own_reason(

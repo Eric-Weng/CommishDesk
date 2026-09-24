@@ -12,6 +12,7 @@ template narrator's.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import shutil
@@ -268,6 +269,22 @@ def test_every_svg_has_a_title() -> None:
 
 def test_render_is_deterministic() -> None:
     assert _page(_raw(published=True)) == _page(_raw(published=True))
+
+
+#: SHA-256 of the Story 5.14a page (commit 779de47) for the two committed
+#: fixtures — Story 5.14b moved its selectors into ``render/_weekly_model.py``
+#: and the page must stay byte-identical. Change these only with a deliberate
+#: design change to the page.
+_GOLDEN_SHA256 = {
+    False: "dd0b450de09c78d95648de40ca5974752b40d2cd61ef9b2578b4e59aa51f8cde",
+    True: "ddc400a8254d214c00c6341eab3c14a2642d3ba1db18466aab4c4cfcf593ba82",
+}
+
+
+@pytest.mark.parametrize("published", [False, True])
+def test_page_is_byte_identical_to_the_5_14a_golden(published: bool) -> None:
+    page = _page(_raw(published=published))
+    assert hashlib.sha256(page.encode("utf-8")).hexdigest() == _GOLDEN_SHA256[published]
 
 
 # --------------------------------------------------------------------------- #

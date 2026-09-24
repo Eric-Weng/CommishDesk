@@ -36,7 +36,7 @@ Story 5.12 adds the two shape helpers the weekly **LLM** narrator's caller needs
 :func:`weekly_issue_from_text` parses narrated Markdown back into the same
 :class:`WeeklyIssue` this module emits (so every downstream surface — the
 UNVERIFIED dateline stamp, the Correction prepend, the HTML/text writers and
-``render_weekly_discord_summary`` — is shared unchanged between the two
+``render_weekly_discord_post`` — is shared unchanged between the two
 narrators), and :func:`parse_published_ranks` reads the published power ranks
 back out of that text.
 """

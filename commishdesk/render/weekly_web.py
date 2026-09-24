@@ -41,33 +41,25 @@ from commishdesk.facts.schema import (
     WeeklyMatchup,
     WeeklyMove,
     WeeklyNextWeekCard,
-    WeeklyTeam,
     WeeklyTrade,
 )
 from commishdesk.narrate.weekly_template import SECTION_HEADINGS, WeeklyIssue
+from commishdesk.render import _weekly_model as wm
 from commishdesk.render._body import _esc
+from commishdesk.render._weekly_model import find_matchup as _find_matchup
+from commishdesk.render._weekly_model import key_number
+from commishdesk.render._weekly_model import pct as _pct
+from commishdesk.render._weekly_model import pts as _pts
+from commishdesk.render._weekly_model import record as _record
+from commishdesk.render._weekly_model import signed as _signed
+from commishdesk.render._weekly_model import spell as _spell
+from commishdesk.render._weekly_model import stake_label as _stake_label
+from commishdesk.render._weekly_model import team_label as _team_label
+from commishdesk.render._weekly_model import whole as _whole
+from commishdesk.render._weekly_model import winner_loser as _winner_loser
 from commishdesk.render.style import build_weekly_style
 
 __all__ = ["render_weekly_web"]
-
-#: The real minus sign (U+2212) for signed numerals.
-_MINUS = "−"
-
-_ONES = (
-    "zero", "one", "two", "three", "four", "five", "six", "seven", "eight",
-    "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen",
-    "sixteen", "seventeen", "eighteen", "nineteen", "twenty",
-)
-
-#: Next-week stake tags (``stats/stakes.py``'s vocabulary) as chip words. An
-#: unknown tag falls back to its own words rather than being dropped.
-_STAKE_LABELS = {
-    "bye_seed": "Bye seed",
-    "wildcard_race": "Wildcard race",
-    "division_race": "Division race",
-    "draft_position": "Draft position",
-    "elimination": "Elimination",
-}
 
 # Lead-hero geometry (px, in each SVG's own coordinate space).
 _H_W = 800
@@ -89,53 +81,9 @@ _L_NAME_MAX = 24
 # --------------------------------------------------------------------------- #
 
 
-def _spell(n: int) -> str:
-    return _ONES[n] if 0 <= n < len(_ONES) else str(n)
-
-
-def _pts(value: float) -> str:
-    """A week score / margin: two decimals (``247.20``)."""
-    return f"{value:.2f}"
-
-
-def _whole(value: float) -> str:
-    """A season total: rounded, thousands separated (``2,029``)."""
-    return f"{round(value):,}"
-
-
-def _pct(value: float) -> str:
-    """A ``0..1`` ratio as a one-decimal percentage (``0.992 -> 99.2%``)."""
-    return f"{value * 100:.1f}%"
-
-
-def _signed(value: float) -> str:
-    """A signed figure with a real minus: one decimal unless the value carries
-    more (``+1.5``, ``−0.4``, ``0.0``)."""
-    text = f"{abs(value):.1f}" if round(value, 1) == value else f"{abs(value):.2f}"
-    if value > 0:
-        return f"+{text}"
-    if value < 0:
-        return f"{_MINUS}{text}"
-    return text
-
-
 def _num(value: float) -> str:
     """An SVG coordinate: one decimal, no trailing noise."""
     return f"{value:.1f}"
-
-
-def _record(w: int, l: int, t: int, *, full: bool = False) -> str:  # noqa: E741 -- W-L-T
-    if full or t:
-        return f"{w}-{l}-{t}"
-    return f"{w}-{l}"
-
-
-def _team_label(team: WeeklyTeam | None, roster_id: str | None = None) -> str:
-    """The display label the narration uses: ``team_name or manager or
-    "Roster <id>"``."""
-    if team is None:
-        return f"Roster {roster_id}" if roster_id else "An unclaimed roster"
-    return team.team_name or team.manager or f"Roster {team.roster_id}"
 
 
 _WORD_SPLIT = re.compile(r"[\s\-‐‑‒–—―_/]+")
@@ -158,10 +106,6 @@ def _monogram(label: str) -> str:
 def _mg(label: str, size: str = "") -> str:
     cls = f"mg {size}".strip()
     return f'<span class="{cls}" aria-hidden="true">{_esc(_monogram(label))}</span>'
-
-
-def _stake_label(tag: str) -> str:
-    return _STAKE_LABELS.get(tag, tag.replace("_", " ").capitalize())
 
 
 # --------------------------------------------------------------------------- #
@@ -203,7 +147,7 @@ class _Ctx:
 
     def __init__(self, facts: WeeklyFacts, issue: WeeklyIssue) -> None:
         self.facts = facts
-        self.teams = {team.roster_id: team for team in facts.teams}
+        self.teams = wm.team_index(facts)
         self.prose = {
             section.heading: list(section.blocks)
             for section in issue.sections
@@ -276,24 +220,6 @@ def _notices(issue: WeeklyIssue) -> str:
 # --------------------------------------------------------------------------- #
 # The lead — a hero per lead kind, type-only fallback
 # --------------------------------------------------------------------------- #
-
-
-def _find_matchup(facts: WeeklyFacts, roster_ids: Sequence[str]) -> WeeklyMatchup | None:
-    wanted = set(roster_ids[:2])
-    for matchup in facts.matchups.this_week:
-        if {matchup.home_roster_id, matchup.away_roster_id} == wanted:
-            return matchup
-    return None
-
-
-def _winner_loser(matchup: WeeklyMatchup) -> tuple[str, float, str, float]:
-    home = (matchup.home_roster_id, matchup.home_points)
-    away = (matchup.away_roster_id, matchup.away_points)
-    if matchup.winner_roster_id == matchup.away_roster_id or (
-        matchup.winner_roster_id is None and away[1] > home[1]
-    ):
-        home, away = away, home
-    return home[0], home[1], away[0], away[1]
 
 
 def _hatch(x: float, y: float, w: float, h: float) -> str:
@@ -573,26 +499,9 @@ _HEROES = {
 }
 
 
-def _key_number(ctx: _Ctx, lead: LeadCandidate) -> str:
-    """The one number the type-only lead sets beside its hook, when there is one."""
-    summary = ctx.facts.period.summary
-    if lead.kind == "lineup_loss" and lead.roster_ids:
-        team = ctx.teams.get(lead.roster_ids[0])
-        if team and team.this_week and team.this_week.points_left_on_bench is not None:
-            return _pts(team.this_week.points_left_on_bench)
-    if lead.kind in ("biggest_blowout", "closest_game"):
-        matchup = _find_matchup(ctx.facts, lead.roster_ids)
-        if matchup is not None:
-            return _pts(abs(matchup.margin))
-    if lead.kind == "week_high_score" and summary.high is not None:
-        return _pts(summary.high.points)
-    return ""
-
-
 def _lead_section(ctx: _Ctx) -> str:
     blocks = ctx.blocks("The Lead")
-    leads = sorted(ctx.facts.lead_candidates, key=lambda c: c.rank)
-    lead = next((candidate for candidate in leads if candidate.hook), None)
+    lead = wm.choose_lead(ctx.facts)
     awards = _awards(ctx)
     if lead is None:
         if not blocks:
@@ -607,7 +516,7 @@ def _lead_section(ctx: _Ctx) -> str:
     builder = _HEROES.get(lead.kind)
     drawn = builder(ctx, lead) if builder is not None else None
     if drawn is None:
-        key = _key_number(ctx, lead)
+        key = key_number(ctx.facts, lead)
         key_html = f'<p class="key">{_esc(key)}</p>' if key else ""
         return (
             '<section class="lead-wrap" aria-label="The lead"><div class="card lead-main">'
@@ -628,7 +537,7 @@ def _lead_section(ctx: _Ctx) -> str:
 # --------------------------------------------------------------------------- #
 
 
-_OF_BEST = "of the best possible lineup"
+_AWARD_CLS = {"coach": "aw-good", "player": "aw-emph", "bust": "aw-bad", "goose": "aw-notable"}
 
 
 def _award(key: str, value: str, name: str, sub: str, cls: str) -> str:
@@ -640,30 +549,10 @@ def _award(key: str, value: str, name: str, sub: str, cls: str) -> str:
 
 
 def _awards(ctx: _Ctx) -> str:
-    leaders = ctx.facts.leaders
-    cards: list[str] = []
-    best = leaders.best_coaching
-    if best is not None and best.pct is not None:
-        cards.append(
-            _award("Coach of the week", _pct(best.pct), ctx.label(best.roster_id), _OF_BEST, "aw-good")
-        )
-    star = leaders.week_high_player
-    if star is not None:
-        sub = [star.pos or "", ctx.label(star.roster_id)]
-        if star.is_season_high:
-            sub.append("season high")
-        cards.append(
-            _award("Player of the week", _pts(star.points), star.name, " · ".join(s for s in sub if s), "aw-emph")
-        )
-    worst = leaders.worst_coaching
-    if worst is not None and worst.pct is not None:
-        cards.append(
-            _award("Bust of the week", _pct(worst.pct), ctx.label(worst.roster_id), _OF_BEST, "aw-bad")
-        )
-    egg = leaders.worst_starters[0] if leaders.worst_starters else None
-    if egg is not None and egg.points == 0:
-        sub_text = " · ".join(s for s in (egg.pos or "", f"started by {ctx.label(egg.roster_id)}") if s)
-        cards.append(_award("Goose egg club", _pts(egg.points), egg.name, sub_text, "aw-notable"))
+    cards = [
+        _award(award.key, award.value, award.name, award.sub, _AWARD_CLS[award.kind])
+        for award in wm.awards(ctx.facts)
+    ]
     if not cards:
         return ""
     return f'<div class="awards">{"".join(cards)}</div>'
@@ -674,17 +563,16 @@ def _awards(ctx: _Ctx) -> str:
 # --------------------------------------------------------------------------- #
 
 
+_GAME_TAGS = {
+    "week_high": '<span class="chip chip-good">Week high</span>',
+    "closest": '<span class="chip chip-notable">Nail-biter</span>',
+    "blowout": '<span class="chip chip-ink">Blowout</span>',
+}
+
+
 def _game_card(ctx: _Ctx, matchup: WeeklyMatchup) -> str:
-    summary = ctx.facts.period.summary
     win_id, win_pts, lose_id, lose_pts = _winner_loser(matchup)
-    pair = {matchup.home_roster_id, matchup.away_roster_id}
-    tag = ""
-    if summary.high is not None and summary.high.roster_id in pair:
-        tag = '<span class="chip chip-good">Week high</span>'
-    elif summary.closest is not None and set(summary.closest.roster_ids) == pair:
-        tag = '<span class="chip chip-notable">Nail-biter</span>'
-    elif matchup.is_blowout:
-        tag = '<span class="chip chip-ink">Blowout</span>'
+    tag = _GAME_TAGS.get(wm.game_tag(ctx.facts, matchup) or "", "")
     tied = matchup.winner_roster_id is None
     by = "Tied" if tied else f"Won by {_pts(abs(matchup.margin))}"
     win_name, lose_name = ctx.label(win_id), ctx.label(lose_id)
@@ -783,30 +671,9 @@ def _standings_section(ctx: _Ctx) -> str:
 
 
 def _power_section(ctx: _Ctx) -> str:
-    facts = ctx.facts
-    narrated = {row.roster_id: row for row in facts.narration.power}
-    rows: list[tuple[int | None, int | None, WeeklyTeam, str | None]] = []
-    for team in facts.teams:
-        power = team.season.power
-        row = narrated.get(team.roster_id)
-        published = row.published_rank if row is not None and row.published_rank is not None else None
-        if published is None:
-            published = power.published_rank
-        if published is None:
-            published = power.model_rank
-        reason = row.nudge_justification if row is not None else None
-        rows.append((published, power.model_rank, team, reason))
-    if not any(published is not None for published, _m, _t, _r in rows):
+    rows = wm.power_rows(ctx.facts)
+    if not rows:
         return ""
-    rows.sort(
-        key=lambda item: (
-            item[0] is None,
-            item[0] or 0,
-            item[1] is None,
-            item[1] or 0,
-            item[2].roster_id.zfill(8),
-        )
-    )
     items: list[str] = []
     for published, model, team, reason in rows:
         power = team.season.power
@@ -857,10 +724,9 @@ def _power_section(ctx: _Ctx) -> str:
 
 
 def _luck_section(ctx: _Ctx) -> str:
-    rows = [(team.season.luck, team) for team in ctx.facts.teams if team.season.luck is not None]
+    rows = wm.luck_rows(ctx.facts)
     if not rows:
         return ""
-    rows.sort(key=lambda item: (-(item[0] or 0.0), item[1].roster_id.zfill(8)))
     peak = max(abs(luck or 0.0) for luck, _team in rows) or 1.0
     scale = _L_HALF / peak
     height = _L_TOP + len(rows) * _L_ROW
@@ -918,13 +784,6 @@ def _luck_section(ctx: _Ctx) -> str:
 # --------------------------------------------------------------------------- #
 
 
-def _shared_stakes(cards: Sequence[WeeklyNextWeekCard]) -> list[str]:
-    if len(cards) < 2:
-        return []  # one game: its stakes are its own chips, not "every game"
-    shared = [tag for tag in cards[0].stakes if all(tag in card.stakes for card in cards[1:])]
-    return list(dict.fromkeys(shared))
-
-
 def _nw_side(ctx: _Ctx, roster_id: str, record: str, rank: int | None) -> str:
     name = ctx.label(roster_id)
     meta = record if rank is None else f"{record} · #{rank}"
@@ -940,8 +799,7 @@ def _next_week_card(ctx: _Ctx, card: WeeklyNextWeekCard, shared: set[str]) -> st
         chips.append('<span class="chip chip-emph">Game of the week</span>')
     chips.extend(
         f'<span class="chip chip-plain">{_esc(_stake_label(tag))}</span>'
-        for tag in dict.fromkeys(card.stakes)
-        if tag not in shared
+        for tag in wm.own_stakes(card, list(shared))
     )
     chip_row = f'<div class="nw-chips">{"".join(chips)}</div>' if chips else ""
     bye = ""
@@ -967,7 +825,7 @@ def _next_week_section(ctx: _Ctx) -> str:
     cards = ctx.facts.matchups.next_week
     if not cards:
         return ""
-    shared = _shared_stakes(cards)
+    shared = wm.shared_stakes(cards)
     shared_line = ""
     if shared:
         chips = "".join(f'<span class="chip chip-plain">{_esc(_stake_label(tag))}</span>' for tag in shared)
@@ -1029,13 +887,12 @@ def _trade_card(ctx: _Ctx, trade: WeeklyTrade) -> str:
 
 
 def _transactions_section(ctx: _Ctx) -> str:
-    desk = ctx.facts.transactions
-    moves = [move for move in desk.this_week if move.type != "trade" and (move.adds or move.drops)]
-    trades = sorted(desk.recent_trades, key=lambda trade: trade.week, reverse=True)
+    moves = wm.week_moves(ctx.facts)
+    trades = wm.latest_trades(ctx.facts)
     if not moves and not trades:
         return ""
     cards = [_move_card(ctx, move) for move in moves]
-    cards.extend(_trade_card(ctx, trade) for trade in trades if trade.week == trades[0].week)
+    cards.extend(_trade_card(ctx, trade) for trade in trades)
     return (
         f'<section aria-label="The transaction desk">'
         f'{_head("The transaction desk", "What moved on the wire", "good")}'

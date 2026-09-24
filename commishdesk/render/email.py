@@ -340,7 +340,19 @@ _STYLE_BLOCK = (
 )
 
 
-def _document(title: str, preheader: str, rows: str) -> str:
+def _document(
+    title: str,
+    preheader: str,
+    rows: str,
+    *,
+    body_bg: str = _BODY_BG,
+    sheet_bg: str = _SHEET_BG,
+    width: int = _CONTAINER_W,
+    style_block: str = _STYLE_BLOCK,
+) -> str:
+    """The email shell: colour-scheme meta, the hidden preheader, and the
+    centred ``width``-px container. The keyword defaults are the draft recap's
+    (Story 4.2, unchanged); the weekly email (Story 5.14b) passes its own."""
     return (
         "<!DOCTYPE html>\n"
         '<html lang="en" xmlns="http://www.w3.org/1999/xhtml">\n'
@@ -352,17 +364,17 @@ def _document(title: str, preheader: str, rows: str) -> str:
         '<meta name="supported-color-schemes" content="light">\n'
         f"<title>{title}</title>\n"
         "<!--[if mso]>\n<style>table{border-collapse:collapse;}</style>\n<![endif]-->\n"
-        f"<style>\n{_STYLE_BLOCK}\n</style>\n"
+        f"<style>\n{style_block}\n</style>\n"
         "</head>\n"
-        f'<body style="margin:0;padding:0;background-color:{_BODY_BG};">\n'
+        f'<body style="margin:0;padding:0;background-color:{body_bg};">\n'
         f'<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;'
-        f'font-size:1px;line-height:1px;color:{_BODY_BG};">{preheader}</div>\n'
+        f'font-size:1px;line-height:1px;color:{body_bg};">{preheader}</div>\n'
         f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
-        f'style="background-color:{_BODY_BG};">\n'
+        f'style="background-color:{body_bg};">\n'
         '<tr><td align="center" style="padding:24px 12px 40px;">\n'
-        f'<table role="presentation" class="container" width="{_CONTAINER_W}" '
-        f'cellpadding="0" cellspacing="0" style="width:{_CONTAINER_W}px;'
-        f'max-width:{_CONTAINER_W}px;background-color:{_SHEET_BG};">\n'
+        f'<table role="presentation" class="container" width="{width}" '
+        f'cellpadding="0" cellspacing="0" style="width:{width}px;'
+        f'max-width:{width}px;background-color:{sheet_bg};">\n'
         f"{rows}\n"
         "</table>\n"
         "</td></tr>\n"
