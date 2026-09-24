@@ -55,10 +55,10 @@ WEEKLY_SECTION_HEADINGS = (
 _FAKE_WEBHOOK_URL = "https://discord.com/api/webhooks/222222222222222222/faketoken"
 _WEBHOOK_ID = "222222222222222222"
 
-#: ``week17-playoffs.json`` is the one committed fixture whose standings
-#: cross-check passes; ``week10-blowout.json`` trips ``CrossCheckError`` by
-#: construction (its ``Roster`` totals are season-final). See spec-5-6's Design
-#: Notes ("Hand-off to 5.11a").
+#: Both committed fixtures' standings cross-checks pass since Story 5.13a made
+#: ``week10-blowout.json``'s ``Roster`` totals point-in-time. The mismatch-path
+#: tests below use ``_mismatched_week10`` (season-final wins planted on one
+#: roster). See spec-5-6's Design Notes ("Hand-off to 5.11a").
 _WEEK17 = "week17-playoffs.json"
 _WEEK10 = "week10-blowout.json"
 
@@ -91,6 +91,14 @@ def _load_fixture(name: str) -> dict[str, Any]:
     """The raw committed fixture bundle (mirrors
     ``tests/test_ingest_build.py::_load_fixture``)."""
     return json.loads((FIXTURE_DIR / name).read_text(encoding="utf-8"))
+
+
+def _mismatched_week10() -> dict[str, Any]:
+    """``week10-blowout.json`` with roster 1's wins disagreeing with the fold —
+    the always-on cross-check mismatch."""
+    bundle = _load_fixture(_WEEK10)
+    next(r for r in bundle["rosters"] if r["roster_id"] == 1)["settings"]["wins"] = 10
+    return bundle
 
 
 def _stub_adapter(
@@ -559,7 +567,7 @@ def test_weekly_cross_check_holds_the_issue_with_post(
     nothing rendered, written or posted; one-line alert, exit 1."""
     _stub_adapter(
         monkeypatch,
-        week_bundle=_load_fixture(_WEEK10),
+        week_bundle=_mismatched_week10(),
         nfl_state={"week": 13, "season_type": "regular"},
     )
     posted = _stub_post_discord_text(monkeypatch)
@@ -586,7 +594,7 @@ def test_weekly_cross_check_without_post_writes_an_unverified_issue(
     memory stays untouched for this league-week, same as a held --post run."""
     _stub_adapter(
         monkeypatch,
-        week_bundle=_load_fixture(_WEEK10),
+        week_bundle=_mismatched_week10(),
         nfl_state={"week": 13, "season_type": "regular"},
     )
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
@@ -1033,3 +1041,87 @@ def test_weekly_reissue_stays_on_the_template_even_with_a_key(
     assert again.exit_code == 0, again.output
     assert len(voice.calls) == 1  # no second paid call
     assert store.read_published_rank("100", 17) == original
+
+
+# --------------------------------------------------------------------------- #
+# Story 5.13a: the nudge justification is persisted in the snapshot narration
+# --------------------------------------------------------------------------- #
+
+
+def _snapshot_power_rows(tmp_path, league: str) -> list[dict[str, Any]]:
+    store = FileStore(tmp_path / "cache" / "commishdesk")
+    snapshot = store.read_cache("weekly-facts-snapshot", f"{league}-17")
+    assert snapshot is not None
+    return snapshot["narration"]["power"]
+
+
+def test_weekly_a_voiced_post_persists_each_deviations_justification_in_the_snapshot(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A confirmed voiced publish stamps the cited reason onto the persisted
+    narration for exactly the rosters whose published rank left the model rank,
+    and never stamps ``published_rank`` there (a reissue diff would read it as a
+    moved number)."""
+    _stub_adapter(monkeypatch)
+    _stub_weekly_voice(monkeypatch, nudge=1)
+    _stub_post_discord_text(monkeypatch)
+    monkeypatch.setenv("COMMISHDESK_DISCORD_WEBHOOK_URL", _FAKE_WEBHOOK_URL)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+
+    result = runner.invoke(
+        app, ["--league", "101", "--week", "17", "--post", "--out-dir", str(tmp_path)]
+    )
+    assert result.exit_code == 0, result.output
+    rows = _snapshot_power_rows(tmp_path, "101")
+    ranks = FileStore(tmp_path / "cache" / "commishdesk").read_published_rank("101", 17)
+    assert ranks is not None
+    deviating = {r["roster_id"] for r in rows if ranks[r["roster_id"]] != r["model_rank"]}
+    assert deviating, "the stub's nudge=1 must move at least one roster"
+    stamped = {r["roster_id"] for r in rows if r["nudge_justification"]}
+    assert stamped == deviating
+    assert all(r["published_rank"] is None for r in rows)
+
+
+def test_weekly_the_justification_is_stamped_only_after_check_narration(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The closed-world scan must never see a stamped reason (5.12 residual G2):
+    every narration payload handed to ``check_narration`` has null justifications."""
+    import commishdesk.narrate.safety as safety
+
+    seen: list[list[str | None]] = []
+    real = safety.check_narration
+
+    def spy(text, narration, *args, **kwargs):
+        seen.append([row.nudge_justification for row in narration.power])
+        return real(text, narration, *args, **kwargs)
+
+    monkeypatch.setattr(safety, "check_narration", spy)
+    _stub_adapter(monkeypatch)
+    _stub_weekly_voice(monkeypatch, nudge=1)
+    _stub_post_discord_text(monkeypatch)
+    monkeypatch.setenv("COMMISHDESK_DISCORD_WEBHOOK_URL", _FAKE_WEBHOOK_URL)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+
+    result = runner.invoke(
+        app, ["--league", "102", "--week", "17", "--post", "--out-dir", str(tmp_path)]
+    )
+    assert result.exit_code == 0, result.output
+    assert seen and all(j is None for call in seen for j in call)
+    assert any(r["nudge_justification"] for r in _snapshot_power_rows(tmp_path, "102"))
+
+
+def test_weekly_a_template_post_leaves_every_justification_null(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """No LLM, no deviation, no reason — and none is invented."""
+    _stub_adapter(monkeypatch)
+    _stub_post_discord_text(monkeypatch)
+    monkeypatch.setenv("COMMISHDESK_DISCORD_WEBHOOK_URL", _FAKE_WEBHOOK_URL)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+
+    result = runner.invoke(
+        app, ["--league", "103", "--week", "17", "--post", "--out-dir", str(tmp_path)]
+    )
+    assert result.exit_code == 0, result.output
+    assert all(r["nudge_justification"] is None for r in _snapshot_power_rows(tmp_path, "103"))

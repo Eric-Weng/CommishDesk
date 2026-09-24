@@ -43,8 +43,8 @@
       },
       "bracket": null,
       "expected_wins": 8.0,
-      "losses": 4,
-      "luck": 2.0,
+      "losses": 3,
+      "luck": -1.0,
       "roster_id": "1",
       "this_week": {
         "is_blowout": true,
@@ -54,7 +54,7 @@
         "points": 229.96
       },
       "ties": 0,
-      "wins": 10
+      "wins": 7
     },
     {
       "all_play": {
@@ -66,7 +66,7 @@
       "bracket": null,
       "expected_wins": 8.0,
       "losses": 1,
-      "luck": 5.0,
+      "luck": 1.0,
       "roster_id": "2",
       "this_week": {
         "is_blowout": true,
@@ -76,7 +76,7 @@
         "points": 242.03
       },
       "ties": 0,
-      "wins": 13
+      "wins": 9
     },
     {
       "all_play": {
@@ -87,8 +87,8 @@
       },
       "bracket": null,
       "expected_wins": 5.5,
-      "losses": 5,
-      "luck": 3.5,
+      "losses": 3,
+      "luck": 1.5,
       "roster_id": "3",
       "this_week": {
         "is_blowout": true,
@@ -98,7 +98,7 @@
         "points": 247.2
       },
       "ties": 0,
-      "wins": 9
+      "wins": 7
     },
     {
       "all_play": {
@@ -109,8 +109,8 @@
       },
       "bracket": null,
       "expected_wins": 4.7,
-      "losses": 7,
-      "luck": 2.3,
+      "losses": 6,
+      "luck": -0.7,
       "roster_id": "4",
       "this_week": {
         "is_blowout": false,
@@ -120,7 +120,7 @@
         "points": 172.23
       },
       "ties": 0,
-      "wins": 7
+      "wins": 4
     },
     {
       "all_play": {
@@ -131,8 +131,8 @@
       },
       "bracket": null,
       "expected_wins": 3.8,
-      "losses": 5,
-      "luck": 5.2,
+      "losses": 4,
+      "luck": 2.2,
       "roster_id": "5",
       "this_week": {
         "is_blowout": true,
@@ -142,7 +142,7 @@
         "points": 91.77
       },
       "ties": 0,
-      "wins": 9
+      "wins": 6
     },
     {
       "all_play": {
@@ -153,7 +153,7 @@
       },
       "bracket": null,
       "expected_wins": 4.9,
-      "losses": 9,
+      "losses": 5,
       "luck": 0.1,
       "roster_id": "6",
       "this_week": {
@@ -175,8 +175,8 @@
       },
       "bracket": null,
       "expected_wins": 2.4,
-      "losses": 9,
-      "luck": 2.6,
+      "losses": 8,
+      "luck": -0.4,
       "roster_id": "7",
       "this_week": {
         "is_blowout": false,
@@ -186,7 +186,7 @@
         "points": 119.97
       },
       "ties": 0,
-      "wins": 5
+      "wins": 2
     },
     {
       "all_play": {
@@ -197,8 +197,8 @@
       },
       "bracket": null,
       "expected_wins": 5.0,
-      "losses": 9,
-      "luck": 0.0,
+      "losses": 6,
+      "luck": -1.0,
       "roster_id": "8",
       "this_week": {
         "is_blowout": false,
@@ -208,7 +208,7 @@
         "points": 183.14
       },
       "ties": 0,
-      "wins": 5
+      "wins": 4
     },
     {
       "all_play": {
@@ -219,8 +219,8 @@
       },
       "bracket": null,
       "expected_wins": 7.8,
-      "losses": 7,
-      "luck": -0.8,
+      "losses": 4,
+      "luck": -1.8,
       "roster_id": "9",
       "this_week": {
         "is_blowout": false,
@@ -230,7 +230,7 @@
         "points": 117.13
       },
       "ties": 0,
-      "wins": 7
+      "wins": 6
     },
     {
       "all_play": {
@@ -241,8 +241,8 @@
       },
       "bracket": null,
       "expected_wins": 4.3,
-      "losses": 10,
-      "luck": -0.3,
+      "losses": 7,
+      "luck": -1.3,
       "roster_id": "10",
       "this_week": {
         "is_blowout": true,
@@ -252,7 +252,7 @@
         "points": 112.37
       },
       "ties": 0,
-      "wins": 4
+      "wins": 3
     },
     {
       "all_play": {
@@ -263,8 +263,8 @@
       },
       "bracket": null,
       "expected_wins": 3.0,
-      "losses": 10,
-      "luck": 1.0,
+      "losses": 8,
+      "luck": -1.0,
       "roster_id": "11",
       "this_week": {
         "is_blowout": false,
@@ -274,7 +274,7 @@
         "points": 154.38
       },
       "ties": 0,
-      "wins": 4
+      "wins": 2
     },
     {
       "all_play": {
@@ -285,8 +285,8 @@
       },
       "bracket": null,
       "expected_wins": 2.5,
-      "losses": 8,
-      "luck": 3.5,
+      "losses": 5,
+      "luck": 2.5,
       "roster_id": "12",
       "this_week": {
         "is_blowout": false,
@@ -296,7 +296,7 @@
         "points": 126.03
       },
       "ties": 0,
-      "wins": 6
+      "wins": 5
     }
   ]
 }

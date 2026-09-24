@@ -736,11 +736,19 @@ def test_committed_week10_playoff_picture_is_pinned() -> None:
     assert picture.consolation == _WEEK10_CONSOLATION
 
 
-def test_committed_week10_cross_check_raises_on_the_season_final_rosters() -> None:
-    """``week10-blowout.json``'s ``rosters`` is one season-final pull, so the
-    week-10 fold disagrees with it by construction -- the always-on mismatch
-    path."""
+def test_committed_week10_cross_check_passes_on_the_point_in_time_rosters() -> None:
+    """Story 5.13a: ``week10-blowout.json``'s ``rosters`` totals are as of week 10
+    (``tools/point_in_time_rosters.py``), so the fold matches them."""
     bundle = _bundle(WEEK10)
+    week = build_week_model(bundle)
+    cross_check_standings(compute_standings(week, build_league_model(bundle)), week)
+
+
+def test_cross_check_raises_when_a_roster_carries_season_final_wins() -> None:
+    """The always-on mismatch path: roster 1 planted with the season-final 10 wins
+    against a week-10 fold of 7."""
+    bundle = _bundle(WEEK10)
+    next(r for r in bundle["rosters"] if r["roster_id"] == 1)["settings"]["wins"] = 10
     week = build_week_model(bundle)
     standings = compute_standings(week, build_league_model(bundle))
 

@@ -1,5 +1,5 @@
 {
-  "_derived_from": "Story 5.8 oracle. build_weekly_facts() over week10-blowout.json (the anonymized week-10 fixture); generated_at pinned to '2026-09-07T00:00:00Z'; nfl_byes_next_week={IND, NO}.",
+  "_derived_from": "Story 5.13a overlay. expected-weekly-facts-week10.json with a hand-authored published-rank layer: the narrator swaps model ranks 7 and 8 (Chip-Block Chinchillas, Nickel Newts). Only teams[*].season.power and narration.power differ from the base. nudge = model_rank - published_rank (positive means moved up). The justification cites only numbers present in narration.power.",
   "schema_version": "0.7.0",
   "generated_at": "2026-09-07T00:00:00Z",
   "provisional": true,
@@ -1372,12 +1372,12 @@
         "power": {
           "model_score": 0.433,
           "model_rank": 7,
-          "published_rank": null,
-          "nudge": null,
+          "published_rank": 8,
+          "nudge": -1,
           "prev_model_rank": 9,
           "week_delta": 2,
-          "prev_published_rank": null,
-          "published_week_delta": null
+          "prev_published_rank": 6,
+          "published_week_delta": -1
         },
         "coaching_efficiency": {
           "actual": 1681.22,
@@ -1767,12 +1767,12 @@
         "power": {
           "model_score": 0.371,
           "model_rank": 8,
-          "published_rank": null,
-          "nudge": null,
+          "published_rank": 7,
+          "nudge": 1,
           "prev_model_rank": 6,
           "week_delta": -2,
-          "prev_published_rank": null,
-          "published_week_delta": null
+          "prev_published_rank": 9,
+          "published_week_delta": 1
         },
         "coaching_efficiency": {
           "actual": 1558.93,
@@ -5986,8 +5986,8 @@
         "all_play": "52-58-0",
         "luck": -0.7,
         "week_delta": 2,
-        "published_rank": null,
-        "nudge_justification": null
+        "published_rank": 8,
+        "nudge_justification": "Chip-Block Chinchillas slide behind Nickel Newts on record, 4-6 against 6-4."
       },
       {
         "model_rank": 8,
@@ -5998,8 +5998,8 @@
         "all_play": "42-68-0",
         "luck": 2.2,
         "week_delta": -2,
-        "published_rank": null,
-        "nudge_justification": null
+        "published_rank": 7,
+        "nudge_justification": "Nickel Newts sit 6-4 to Chip-Block Chinchillas' 4-6, and the record settles the tie the model left open."
       },
       {
         "model_rank": 6,

@@ -904,6 +904,9 @@ def test_fixtures_and_tool_need_no_network(monkeypatch: pytest.MonkeyPatch) -> N
 # --------------------------------------------------------------------------- #
 
 ASSEMBLE_PATH = REPO_ROOT / "tools" / "assemble_bundle.py"
+POINT_IN_TIME_PATH = REPO_ROOT / "tools" / "point_in_time_rosters.py"
+#: Fixtures whose ``rosters`` totals are rewritten as of the target week (Story 5.13a).
+POINT_IN_TIME_CASES = frozenset({"week10-blowout"})
 RAW_DIR = REPO_ROOT.parent / "brief" / "phase-0" / "raw"
 CASE_NAMES = sorted(p.stem for p in FIXTURES)
 
@@ -915,6 +918,14 @@ requires_raw = pytest.mark.skipif(
 
 def _load_assemble() -> Any:
     spec = importlib.util.spec_from_file_location("assemble_bundle", ASSEMBLE_PATH)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _load_point_in_time() -> Any:
+    spec = importlib.util.spec_from_file_location("point_in_time_rosters", POINT_IN_TIME_PATH)
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -1285,8 +1296,49 @@ def test_assemble_reports_unreadable_raw_dir_cleanly() -> None:
 @pytest.mark.parametrize("case", CASE_NAMES)
 def test_committed_fixture_reproduces_byte_for_byte_from_raw(case: str) -> None:
     """The committed fixture is exactly assemble(raw) piped through anonymize
-    at seed 0 — nothing hand-edited, nothing stale."""
+    at seed 0 (plus ``tools/point_in_time_rosters.py`` for the cases that pin
+    a point-in-time record) — nothing hand-edited, nothing stale."""
     mod = _load_assemble()
     regenerated = anonymize.anonymize_bundle(mod.assemble(RAW_DIR, case), seed=0)
+    if case in POINT_IN_TIME_CASES:
+        regenerated = _load_point_in_time().apply(regenerated)
     committed = json.loads((FIXTURE_DIR / f"{case}.json").read_text("utf-8"))
     assert regenerated == committed
+
+
+@pytest.mark.parametrize("case", sorted(POINT_IN_TIME_CASES))
+def test_committed_point_in_time_fixture_is_already_point_in_time(case: str) -> None:
+    """Runs without the private raw export: a hand edit or re-anonymize that skips
+    the tool leaves season-final totals, and the fold would change them."""
+    committed = json.loads((FIXTURE_DIR / f"{case}.json").read_text("utf-8"))
+    assert _load_point_in_time().apply(json.loads(json.dumps(committed))) == committed
+
+
+def test_point_in_time_rosters_fold_wins_points_and_streak_from_the_matchups() -> None:
+    """A tie counts as a tie, points split into Sleeper's integer + hundredths,
+    the record string is the folded results, and re-running changes nothing."""
+    mod = _load_point_in_time()
+
+    def row(roster_id: int, points: float) -> dict[str, Any]:
+        return {"roster_id": roster_id, "matchup_id": 1, "points": points}
+
+    bundle: dict[str, Any] = {
+        "meta": {"target_week": 2},
+        "matchups": {
+            "1": [row(1, 100.10), row(2, 90.05)],
+            "2": [row(1, 80.0), row(2, 80.0)],
+            "3": [row(1, 500.0), row(2, 1.0)],  # after the target week: ignored
+        },
+        "rosters": [
+            {"roster_id": 1, "settings": {"wins": 9}, "metadata": {}},
+            {"roster_id": 2, "settings": {"wins": 9}, "metadata": {}},
+        ],
+    }
+    once = mod.apply(bundle)
+    first, second = once["rosters"]
+    assert (first["settings"]["wins"], first["settings"]["ties"]) == (1, 1)
+    assert (second["settings"]["losses"], second["settings"]["ties"]) == (1, 1)
+    assert (first["settings"]["fpts"], first["settings"]["fpts_decimal"]) == (180, 10)
+    assert (first["settings"]["fpts_against"], first["settings"]["fpts_against_decimal"]) == (170, 5)
+    assert first["metadata"] == {"record": "WT", "streak": "1T"}
+    assert mod.apply(json.loads(json.dumps(once))) == once

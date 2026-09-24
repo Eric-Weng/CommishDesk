@@ -13,12 +13,10 @@ is a frozen ``model_dump(mode="json")`` snapshot of the whole document, built
 with a fixed ``generated_at``; the byte-equality check is skipped when the file
 is absent (a workspace that predates the regeneration).
 
-``season.luck`` does **not** reconcile with the golden's ``season.luck`` —
-inherited from ``stats/weekly.py``'s own documented divergence (see
-``tests/test_stats_weekly.py``'s module docstring): the fixture's ``Roster``
-record is a single point-in-time pull, not a true "as of week 10" snapshot, so
-the win-equivalents ``luck`` is measured against never match a live week-10
-pull's. This is expected, not a bug, and is not asserted here.
+``season.luck`` reconciles with the golden since Story 5.13a made the fixture's
+``Roster`` totals point-in-time (``tools/point_in_time_rosters.py``); it is
+asserted below, always-on as ``wins - expected_wins`` and against the golden when
+present.
 
 ``season.coaching_efficiency.pct`` also does not reconcile exactly — this
 story sums ``compute_weekly_lineups`` over weeks ``1..n`` under one supplied
@@ -32,6 +30,7 @@ from __future__ import annotations
 
 import ast
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -59,6 +58,7 @@ from tests.conftest import REPO_ROOT
 FIXTURE_DIR = REPO_ROOT / "tests" / "fixtures"
 FACTS_DIR = FIXTURE_DIR / "facts"
 EXPECTED_WEEKLY_PATH = FACTS_DIR / "expected-weekly-facts-week10.json"
+PUBLISHED_OVERLAY_PATH = FACTS_DIR / "expected-weekly-facts-week10-published.json"
 STATS_WEEKLY = REPO_ROOT / "commishdesk" / "facts" / "weekly.py"
 
 #: The private phase-0 golden — a planning artifact outside the repo.
@@ -584,13 +584,34 @@ def test_week10_records_match_the_pinned_golden_sides() -> None:
         assert (record.w, record.l, record.t) == (w, losses, t), roster_id
 
 
+def test_week10_luck_is_wins_minus_expected_wins_for_every_team() -> None:
+    """Story 5.13a: one luck definition, and the fixture agrees with it."""
+    doc = _week10_facts().model_dump(mode="json")
+    for team in doc["teams"]:
+        season = team["season"]
+        assert season["luck"] == pytest.approx(
+            season["record"]["w"] + season["record"]["t"] / 2 - season["expected_wins"], abs=0.051
+        ), team["roster_id"]
+
+
+@requires_golden
+def test_week10_luck_reconciles_with_the_phase0_golden() -> None:
+    assert GOLDEN is not None
+    doc = _week10_facts().model_dump(mode="json")
+    golden_by_roster = {str(t["roster_id"]): t for t in GOLDEN["teams"]}
+    for team in doc["teams"]:
+        assert team["season"]["luck"] == pytest.approx(
+            golden_by_roster[team["roster_id"]]["season"]["luck"], abs=0.05
+        ), team["roster_id"]
+
+
 @requires_golden
 def test_week10_reconciles_with_the_phase0_golden() -> None:
     """By roster: record, rank, points for/against, all-play, model rank,
     this-week result and margin equal the golden's — or the row is pinned in
-    ``docs/EDGE-CASES.md`` with the raw value and reason. ``season.luck`` and
-    ``season.coaching_efficiency.pct`` are excluded — see the module
-    docstring."""
+    ``docs/EDGE-CASES.md`` with the raw value and reason. ``season.luck`` is
+    asserted in its own test; ``season.coaching_efficiency.pct`` is excluded —
+    see the module docstring."""
     assert GOLDEN is not None
     doc = _week10_facts().model_dump(mode="json")
     golden_by_roster = {str(t["roster_id"]): t for t in GOLDEN["teams"]}
@@ -962,3 +983,55 @@ def test_week10_build_resolves_published_rank_from_the_immediately_prior_week() 
     power_2 = by_roster_published["2"].season.power
     assert power_2.prev_published_rank is None
     assert power_2.published_week_delta is None
+
+
+# --------------------------------------------------------------------------- #
+# Story 5.13a: the hand-authored published-rank overlay fixture
+# --------------------------------------------------------------------------- #
+
+
+def _overlay() -> dict[str, Any]:
+    return json.loads(PUBLISHED_OVERLAY_PATH.read_text(encoding="utf-8"))
+
+
+def test_published_overlay_validates_and_differs_from_the_base_only_in_the_rank_layer() -> None:
+    overlay = _overlay()
+    WeeklyFacts.model_validate({k: v for k, v in overlay.items() if not k.startswith("_")})
+    base = json.loads(EXPECTED_WEEKLY_PATH.read_text(encoding="utf-8"))
+
+    def scrub(doc: dict[str, Any]) -> dict[str, Any]:
+        doc = json.loads(json.dumps({k: v for k, v in doc.items() if not k.startswith("_")}))
+        for team in doc["teams"]:
+            for key in ("published_rank", "nudge", "prev_published_rank", "published_week_delta"):
+                team["season"]["power"][key] = None
+        for row in doc["narration"]["power"]:
+            row["published_rank"] = None
+            row["nudge_justification"] = None
+        return doc
+
+    assert scrub(overlay) == scrub(base)
+
+
+def test_published_overlay_swaps_model_ranks_7_and_8_with_a_cited_justification() -> None:
+    overlay = _overlay()
+    power = {t["roster_id"]: t["season"]["power"] for t in overlay["teams"]}
+    swapped = {rid: p for rid, p in power.items() if p["nudge"]}
+    assert {p["model_rank"]: p["published_rank"] for p in swapped.values()} == {7: 8, 8: 7}
+    for p in swapped.values():
+        assert p["nudge"] == p["model_rank"] - p["published_rank"]
+        assert p["published_week_delta"] == p["prev_published_rank"] - p["model_rank"]
+    assert all(p["published_rank"] is None for rid, p in power.items() if rid not in swapped)
+
+    rows = overlay["narration"]["power"]
+    payload = json.dumps(
+        [{k: v for k, v in r.items() if k != "nudge_justification"} for r in rows]
+    )
+    for row in rows:
+        if row["roster_id"] in swapped:
+            reason = row["nudge_justification"]
+            assert reason
+            # every figure the reason cites is a record present in the payload
+            for record in re.findall(r"\d+-\d+", reason):
+                assert record in payload, record
+        else:
+            assert row["nudge_justification"] is None
