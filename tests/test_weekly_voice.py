@@ -44,6 +44,7 @@ from commishdesk.ingest import (
 from commishdesk.narrate import safety
 from commishdesk.narrate.published_rank import published_rank_findings
 from commishdesk.narrate.weekly_template import (
+    COLD_START_SECTION_HEADINGS,
     SECTION_HEADINGS,
     parse_published_ranks,
     render_weekly_issue,
@@ -51,6 +52,7 @@ from commishdesk.narrate.weekly_template import (
     weekly_issue_to_text,
 )
 from commishdesk.stats.power import POWER_NUDGE_CAP
+from commishdesk.voices.beat_writer import BEAT_WRITER_WEEKLY_COLD_START
 from tests.conftest import REPO_ROOT
 
 EVAL_DIR = REPO_ROOT / "tests" / "eval" / "weekly"
@@ -366,6 +368,27 @@ def test_weekly_voice_prompt_names_all_seven_headings_and_draft_prompt_is_unchan
     assert weekly.banned_topics == draft.banned_topics
     assert "## The Board — Round 1" in draft.system_prompt
     assert "## Power Rankings" not in draft.system_prompt
+
+
+def test_cold_start_voice_prompt_names_only_the_four_cold_start_headings() -> None:
+    """Story 5.16: the Week-1 prompt must carry the four cold-start headings
+    verbatim and must not reintroduce a heading the cold-start parser rejects."""
+    prompt = BEAT_WRITER_WEEKLY_COLD_START.system_prompt
+
+    for heading in COLD_START_SECTION_HEADINGS:
+        assert f"## {heading}" in prompt, heading
+
+    for forbidden in (
+        "## Power Rankings",
+        "## The Luck Index",
+        "## Standings and the Playoff Picture",
+        "## The Transaction Desk",
+    ):
+        assert forbidden not in prompt, forbidden
+
+    assert "no power rankings" in prompt
+    assert "no luck index" in prompt
+    assert "no transaction desk" in prompt
 
 
 def test_parse_nudge_justifications_captures_only_deviating_rows() -> None:

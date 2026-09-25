@@ -43,6 +43,7 @@ from commishdesk.facts.schema import (
     RBRunSummary,
     Superlatives,
     TERunSummary,
+    WeeklyFacts,
     WeeklyNarration,
     WeeklyNarrationLeague,
     WeeklyNarrationTransactions,
@@ -1398,3 +1399,53 @@ def test_an_empty_account_costs_one_attempt_while_a_rate_limit_retries_to_the_ca
         )
     expected = 1 if expected_calls_offset == 0 else 1 + RETRY_CAP
     assert sink["calls"] == expected
+
+
+def _week01_narration() -> WeeklyNarration:
+    from tests.test_facts_weekly import EXPECTED_WEEKLY_WEEK01_PATH
+
+    raw = json.loads(EXPECTED_WEEKLY_WEEK01_PATH.read_text(encoding="utf-8"))
+    return WeeklyFacts.model_validate(raw).narration
+
+
+_COLD_START_OMITTED = ("playoff_picture", "transactions", "power", "luck", "storyline_candidates")
+
+
+def test_weekly_cold_start_payload_omits_the_stood_down_sections() -> None:
+    """Story 5.16: the Week-1 payload must not hand the model data for sections
+    the Issue does not carry (a playoff picture, transactions, power, luck)."""
+    narration = _week01_narration()
+    assert narration.playoff_picture is not None  # the oracle really carries one
+    decoded = json.loads(build_weekly_payload(narration, cold_start=True))
+    for omitted in _COLD_START_OMITTED:
+        assert omitted not in decoded, omitted
+    assert set(decoded) == set(WeeklyNarration.model_fields) - set(_COLD_START_OMITTED)
+    assert decoded["standings"] and decoded["games"] and decoded["next_week"]
+    assert "lead_candidates" in decoded
+    standings = decoded["standings"]
+    assert [row["rank"] for row in standings] == list(range(1, len(standings) + 1))
+    assert [row["pf"] for row in standings] == sorted((row["pf"] for row in standings), reverse=True)
+
+
+def test_weekly_warm_payload_is_unchanged_by_the_cold_start_option() -> None:
+    narration = synthetic_weekly_narration()
+    assert build_weekly_payload(narration) == narration.model_dump_json()
+    assert build_weekly_payload(narration, cold_start=False) == narration.model_dump_json()
+    warm = _week01_narration()  # a full projection, whatever its week
+    assert set(json.loads(build_weekly_payload(warm))) == set(WeeklyNarration.model_fields)
+
+
+def test_weekly_cold_start_call_sends_the_cold_start_payload() -> None:
+    narration = _week01_narration()
+    primary = FakeClient("weekly prose")
+    narrate_weekly_issue(
+        narration,
+        FakeVoice(),
+        CONFIG,
+        llm_enabled=True,
+        client_factory=SeqFactory(primary),
+        cold_start=True,
+    )
+    payload, _ = primary.calls[0]
+    assert payload == build_weekly_payload(narration, cold_start=True)
+    assert payload != build_weekly_payload(narration)

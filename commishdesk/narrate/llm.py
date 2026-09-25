@@ -53,7 +53,11 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 from commishdesk.errors import NarratorError
 from commishdesk.llmconfig import LLMConfig, LLMModelConfig
 from commishdesk.narrate.template import recap_to_text, render_draft_recap
-from commishdesk.narrate.weekly_template import render_weekly_issue, weekly_issue_to_text
+from commishdesk.narrate.weekly_template import (
+    cold_start_standings,
+    render_weekly_issue,
+    weekly_issue_to_text,
+)
 from commishdesk.voices import Voice
 
 if TYPE_CHECKING:
@@ -151,15 +155,25 @@ def build_narration_payload(narration: Narration) -> str:
     return narration.model_dump_json()
 
 
-def build_weekly_payload(narration: WeeklyNarration) -> str:
+def build_weekly_payload(narration: WeeklyNarration, *, cold_start: bool = False) -> str:
     """Serialize the weekly ``narration`` projection to JSON for the model.
 
     Same contract as :func:`build_narration_payload`, for the standalone weekly
     Issue (Story 5.12). ``cli.py`` calls this too, so the payload the pre-call
     cost estimate is priced against is *byte-identical* to the one
     :func:`narrate_weekly_issue` actually sends.
+
+    Story 5.16: ``cold_start=True`` omits ``playoff_picture``, ``transactions``,
+    ``power``, ``luck`` and ``storyline_candidates`` from the model payload and
+    orders ``standings`` by points with positional ranks. Warm payload bytes stay
+    unchanged.
     """
-    return narration.model_dump_json()
+    if not cold_start:
+        return narration.model_dump_json()
+    cold = narration.model_copy(update={"standings": cold_start_standings(narration.standings)})
+    return cold.model_dump_json(
+        exclude={"playoff_picture", "transactions", "power", "luck", "storyline_candidates"}
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -571,6 +585,7 @@ def narrate_weekly_with_llm(
     config: LLMConfig,
     *,
     client_factory: Callable[[LLMModelConfig], LLMClient] = build_client,
+    cold_start: bool = False,
 ) -> tuple[str, _LLMNarrator]:
     """The weekly counterpart of :func:`narrate_with_llm` (Story 5.12).
 
@@ -581,7 +596,7 @@ def narrate_weekly_with_llm(
     the weekly path too.
     """
     try:
-        payload = build_weekly_payload(narration)
+        payload = build_weekly_payload(narration, cold_start=cold_start)
     except Exception as exc:  # a malformed projection is a narrator fault, not a crash
         raise NarratorError("could not serialize the weekly narration payload") from exc
 
@@ -728,6 +743,7 @@ def narrate_weekly_issue(
     *,
     llm_enabled: bool,
     client_factory: Callable[[LLMModelConfig], LLMClient] = build_client,
+    cold_start: bool = False,
 ) -> NarrationResult:
     """The weekly counterpart of :func:`narrate_draft_recap` (Story 5.12).
 
@@ -738,11 +754,18 @@ def narrate_weekly_issue(
     or generation fault is swallowed and logged, never propagated. The caller
     (``cli.py``) owns *whether* the weekly path may spend at all — this function
     only owns what happens once it may, exactly as ``narrate_draft_recap`` does.
+
+    ``cold_start=True`` (Story 5.16) propagates to :func:`narrate_weekly_with_llm`
+    so the payload omits the sections a Week-1 Issue does not carry.
     """
     if llm_enabled:
         try:
             text, tag = narrate_weekly_with_llm(
-                narration, voice, config, client_factory=client_factory
+                narration,
+                voice,
+                config,
+                client_factory=client_factory,
+                cold_start=cold_start,
             )
         except (NarratorError, ValidationError) as exc:
             _LOGGER.warning("weekly llm narrator unavailable; using template narrator: %s", exc)
@@ -750,5 +773,6 @@ def narrate_weekly_issue(
             return NarrationResult(text=text, narrator=tag)
 
     return NarrationResult(
-        text=weekly_issue_to_text(render_weekly_issue(narration)), narrator="template"
+        text=weekly_issue_to_text(render_weekly_issue(narration, has_prior_week=not cold_start)),
+        narrator="template",
     )

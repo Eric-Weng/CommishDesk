@@ -38,6 +38,7 @@ from commishdesk.ingest import (
 from commishdesk.narrate import weekly_template
 from commishdesk.narrate.safety import check_narration
 from commishdesk.narrate.weekly_template import (
+    COLD_START_SECTION_HEADINGS,
     WeeklyIssue,
     WeeklySection,
     render_weekly_issue,
@@ -306,19 +307,78 @@ def _cold_start_narration() -> WeeklyNarration:
 
 
 def test_standings_omit_the_model_rank_clause_at_cold_start() -> None:
-    narration = _cold_start_narration()
-    section = _section(render_weekly_issue(narration), "Standings and the Playoff Picture")
-    for row in narration.standings:
-        line = next(block for block in section.blocks if block.startswith(f"{row.rank}. {row.team}"))
-        assert "model rank" not in line
+    """Story 5.16: the cold-start Issue uses the four-section set, so the
+    Standings heading (not "Standings and the Playoff Picture") is what the
+    renderer emits — and every standings row must drop the model-rank clause
+    because no roster has one yet."""
+    issue = render_weekly_issue(_cold_start_narration())
+    section = _section(issue, "Standings")
+    assert not any("model rank" in block for block in section.blocks)
 
 
-def test_power_rankings_render_unranked_at_cold_start() -> None:
+def test_power_rankings_stand_down_at_cold_start() -> None:
+    issue = render_weekly_issue(_cold_start_narration())
+    assert "Power Rankings" not in [section.heading for section in issue.sections]
+    assert not any("unranked" in block for section in issue.sections for block in section.blocks)
+
+
+def test_cold_start_issue_has_exactly_four_sections() -> None:
+    issue = render_weekly_issue(_cold_start_narration())
+    assert [section.heading for section in issue.sections] == list(COLD_START_SECTION_HEADINGS)
+
+
+def _cold_start_completion(
+    *, drop: str | None = None, extra: str | None = None, empty: str | None = None
+) -> str:
+    headings = [h for h in COLD_START_SECTION_HEADINGS if h != drop]
+    if extra:
+        headings.append(extra)
+    parts = [
+        f"## {h}" + ("" if h == empty else "\n\nSomething happened this week.")
+        for h in headings
+    ]
+    return "\n".join(parts)
+
+
+def test_weekly_issue_from_text_parses_a_valid_cold_start_completion() -> None:
     narration = _cold_start_narration()
-    section = _section(render_weekly_issue(narration), "Power Rankings")
-    assert section.blocks
-    for row in narration.power:
-        assert any(block.startswith(row.team) and block.endswith("unranked.") for block in section.blocks)
+    issue = weekly_template.weekly_issue_from_text(_cold_start_completion(), narration)
+    assert issue is not None
+    assert [s.heading for s in issue.sections] == list(COLD_START_SECTION_HEADINGS)
+    assert all(s.blocks for s in issue.sections)
+
+
+def test_weekly_issue_from_text_rejects_a_warm_completion_at_week_one() -> None:
+    warm = "\n\n".join(f"## {h}\n\nSomething happened." for h in SECTION_HEADINGS)
+    assert weekly_template.weekly_issue_from_text(warm, _cold_start_narration()) is None
+
+
+def test_weekly_issue_from_text_rejects_a_missing_or_empty_cold_start_heading() -> None:
+    narration = _cold_start_narration()
+    assert weekly_template.weekly_issue_from_text(
+        _cold_start_completion(drop="Next Week"), narration
+    ) is None
+    assert weekly_template.weekly_issue_from_text(
+        _cold_start_completion(empty="Standings"), narration
+    ) is None
+
+
+def test_weekly_issue_from_text_rejects_an_extra_heading_at_week_one() -> None:
+    text = _cold_start_completion(extra="Power Rankings")
+    assert weekly_template.weekly_issue_from_text(text, _cold_start_narration()) is None
+
+
+def test_weekly_issue_to_text_on_a_cold_start_issue_prints_no_stood_down_heading() -> None:
+    text = weekly_issue_to_text(render_weekly_issue(_cold_start_narration()))
+    headings = [line[3:] for line in text.splitlines() if line.startswith("## ")]
+    assert headings == list(COLD_START_SECTION_HEADINGS)
+    for stood_down in (
+        "Power Rankings",
+        "The Luck Index",
+        "The Transaction Desk",
+        "Playoff Picture",
+    ):
+        assert stood_down not in text
 
 
 # --------------------------------------------------------------------------- #
@@ -331,15 +391,17 @@ def test_luck_section_stands_down_on_an_empty_list() -> None:
 
 
 def test_luck_section_stands_down_below_the_games_played_minimum() -> None:
-    """The real cold-start shape: one luck row per roster, every value ``None``."""
+    """The real cold-start shape: one luck row per roster, every value ``None``.
+    Story 5.16: at Week 1 the Luck section stands down entirely — no heading,
+    no block — so nothing is rendered over an empty measurement."""
     from tests.test_facts_weekly import _synthetic
 
     week_model, league, players, names = _synthetic(12, week=1, playoff_week_start=10)
     doc = build_weekly_facts(week_model, league, players, names, generated_at=GENERATED_AT)
     assert doc.narration.luck  # a row per roster...
     assert all(row.luck is None for row in doc.narration.luck)  # ...none of them measurable
-    section = _section(render_weekly_issue(doc.narration), "The Luck Index")
-    assert section.blocks == [weekly_template._NO_LUCK]
+    issue = render_weekly_issue(doc.narration)
+    assert "The Luck Index" not in [section.heading for section in issue.sections]
 
 
 def test_luck_index_names_every_measurable_roster(week10: WeeklyNarration) -> None:
@@ -602,3 +664,29 @@ def test_the_unconfirmed_seeding_note_follows_the_narration_flag_alone(
 
     stood_down = _section(render_weekly_issue(_narration()), heading).blocks
     assert not any(note in block for block in stood_down)
+
+
+def test_the_shared_switch_follows_has_prior_week_for_narrator_and_parser() -> None:
+    """Narrators and renderers select the heading set through one helper keyed
+    on ``period.has_prior_week``; an explicit flag wins over ``league.week``."""
+    narration = _cold_start_narration()  # league.week == 1
+    warm_issue = render_weekly_issue(narration, has_prior_week=True)
+    assert [s.heading for s in warm_issue.sections] == list(SECTION_HEADINGS)
+    cold_issue = render_weekly_issue(narration, has_prior_week=False)
+    assert [s.heading for s in cold_issue.sections] == list(COLD_START_SECTION_HEADINGS)
+    warm_text = "\n\n".join(f"## {h}\n\nSomething happened." for h in SECTION_HEADINGS)
+    assert weekly_template.weekly_issue_from_text(warm_text, narration, has_prior_week=True) is not None
+    assert weekly_template.weekly_issue_from_text(warm_text, narration, has_prior_week=False) is None
+
+
+def test_week_ten_narration_keeps_the_seven_warm_sections(week10: WeeklyNarration) -> None:
+    issue = render_weekly_issue(week10)
+    assert [s.heading for s in issue.sections] == list(SECTION_HEADINGS)
+
+
+def test_cold_start_standings_prose_is_by_points_with_positional_ranks() -> None:
+    narration = _cold_start_narration()
+    section = _section(render_weekly_issue(narration), "Standings")
+    assert [b.split(".", 1)[0] for b in section.blocks] == [str(n) for n in range(1, len(section.blocks) + 1)]
+    expected = [row.team for row in sorted(narration.standings, key=lambda r: -r.pf)]
+    assert [b.split(". ", 1)[1].split(" — ", 1)[0] for b in section.blocks] == expected

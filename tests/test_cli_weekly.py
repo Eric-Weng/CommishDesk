@@ -179,9 +179,11 @@ class _WeeklyVoiceClient:
         self.tight = tight
         self.invent_fact = invent_fact
         self.calls: list[str] = []
+        self.voices: list[object] = []
 
     def generate(self, payload: str, voice: object) -> str:
         self.calls.append(payload)
+        self.voices.append(voice)
         narration = WeeklyNarration.model_validate_json(payload)
         issue = render_weekly_issue(narration)
         rows = sorted(narration.power, key=lambda row: (row.model_rank is None, row.model_rank or 0))
@@ -415,6 +417,11 @@ def test_weekly_with_a_key_and_a_budget_uses_the_voice_narrator(
     result = runner.invoke(app, ["--league", "91", "--week", "17", "--out-dir", str(tmp_path)])
     assert result.exit_code == 0, result.output
     assert len(voice.calls) == 1  # I3: one paid generation per league-week
+    from commishdesk.voices.beat_writer import BEAT_WRITER_WEEKLY, BEAT_WRITER_WEEKLY_COLD_START
+
+    # a warm week (17) uses the warm voice, never the Week-1 cold-start prompt
+    assert voice.voices == [BEAT_WRITER_WEEKLY]
+    assert BEAT_WRITER_WEEKLY_COLD_START not in voice.voices
     for heading in WEEKLY_SECTION_HEADINGS:
         assert heading in result.stdout, heading
     assert (tmp_path / "commishdesk-91-weekly-week17.txt").is_file()
@@ -1452,3 +1459,184 @@ def test_weekly_a_league_with_no_playoff_format_rejects_a_supplied_seeding(
     sub.mkdir()
     ok, _, _, _ = _seeded_run(sub, monkeypatch, league="156", league_bundle=no_playoffs)
     assert ok.exit_code == 0, ok.output
+
+
+# --------------------------------------------------------------------------- #
+# Story 5.16 — the Week-1 cold-start Issue, end to end
+# --------------------------------------------------------------------------- #
+
+_WEEK01 = "week01-openers.json"
+_COLD_START_HEADINGS = ("The Lead", "Around the League", "Standings", "Next Week")
+_STOOD_DOWN_HEADINGS = (
+    "Power Rankings",
+    "The Luck Index",
+    "The Transaction Desk",
+    "Playoff Picture",
+    "Standings and the Playoff Picture",
+)
+
+
+def _point_in_time_week01() -> dict[str, Any]:
+    """``week01-openers.json`` with each roster's Sleeper totals made
+    point-in-time (the week-1 record and points, as ``week10-blowout.json`` does
+    for week 10), so the standings cross-check passes and ``--post`` is allowed."""
+    bundle = _load_fixture(_WEEK01)
+    games = bundle["matchups"]["1"]
+    by_id: dict[int, list[dict[str, Any]]] = {}
+    for game in games:
+        by_id.setdefault(game["matchup_id"], []).append(game)
+    for roster in bundle["rosters"]:
+        mine = next(g for g in games if g["roster_id"] == roster["roster_id"])
+        other = next(g for g in by_id[mine["matchup_id"]] if g is not mine)
+        points = round(mine["points"], 2)
+        whole, hundredths = divmod(round(points * 100), 100)
+        settings = roster["settings"]
+        settings["wins"] = int(mine["points"] > other["points"])
+        settings["losses"] = int(mine["points"] < other["points"])
+        settings["ties"] = int(mine["points"] == other["points"])
+        settings["fpts"], settings["fpts_decimal"] = whole, hundredths
+    return bundle
+
+
+def _stub_week01(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
+    _stub_adapter(
+        monkeypatch,
+        week_bundle=_point_in_time_week01(),
+        nfl_state={"week": 3, "season_type": "regular"},
+    )
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+
+
+class _ColdStartVoiceClient:
+    """A fake client that records the Voice it was handed and returns *reply*
+    (or, when ``reply`` is ``None``, the template Issue for the payload it got)."""
+
+    def __init__(self, reply: str | None = None) -> None:
+        self.reply = reply
+        self.voices: list[object] = []
+        self.calls: list[str] = []
+
+    def generate(self, payload: str, voice: object) -> str:
+        self.calls.append(payload)
+        self.voices.append(voice)
+        if self.reply is not None:
+            return self.reply
+        narration = WeeklyNarration.model_validate_json(payload)
+        return weekly_issue_to_text(render_weekly_issue(narration))
+
+
+def _stub_cold_start_client(
+    monkeypatch: pytest.MonkeyPatch, reply: str | None = None
+) -> _ColdStartVoiceClient:
+    client = _ColdStartVoiceClient(reply)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+    monkeypatch.setenv("COMMISHDESK_COST_CEILING_USD", "100")
+    monkeypatch.setattr("commishdesk.narrate.llm.build_client", lambda cfg: client)
+    return client
+
+
+def _issue_headings(text: str) -> list[str]:
+    return re.findall(r"^## (.+)$", text, flags=re.MULTILINE)
+
+
+def test_weekly_week01_template_run_yields_only_the_four_cold_start_sections(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Matrix: Week 1, template + every surface. The text Issue, page, email pair
+    and Discord post carry no Power/Luck/Transaction/playoff heading."""
+    _stub_week01(monkeypatch, tmp_path)
+    posted = _stub_post_discord_text(monkeypatch)
+    monkeypatch.setenv("COMMISHDESK_DISCORD_WEBHOOK_URL", _FAKE_WEBHOOK_URL)
+
+    result = runner.invoke(app, ["--league", "901", "--week", "1", "--post", "--out-dir", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+
+    text_issue = (tmp_path / "commishdesk-901-weekly-week1.txt").read_text(encoding="utf-8")
+    assert _issue_headings(text_issue) == list(_COLD_START_HEADINGS)
+    assert _issue_headings(result.stdout) == list(_COLD_START_HEADINGS)
+
+    page = (tmp_path / "commishdesk-901-weekly-week1.html").read_text(encoding="utf-8")
+    email_html = (tmp_path / "commishdesk-901-weekly-week1.email.html").read_text(encoding="utf-8")
+    email_text = (tmp_path / "commishdesk-901-weekly-week1.email.txt").read_text(encoding="utf-8")
+    assert 'aria-label="The lead"' in page and 'aria-label="Standings"' in page
+    for label in ("Power rankings", "The luck index", "Transaction", "Playoff"):
+        assert f'aria-label="{label}' not in page, label
+    assert len(posted) == 1
+    discord = posted[0][1]
+    for surface in (page, email_html, email_text, discord, text_issue):
+        lowered = surface.lower()
+        for stood_down in ("power rankings", "the luck index", "transaction desk", "playoff picture"):
+            assert stood_down not in lowered, stood_down
+    for marker in ("📈", "🍀", "🔄"):
+        assert marker not in discord, marker
+    assert "📊 **Standings**" in discord and "🏈 **Results**" in discord
+    assert "STANDINGS" in email_text
+
+
+def test_weekly_week01_llm_run_selects_the_cold_start_voice(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from commishdesk.voices.beat_writer import BEAT_WRITER_WEEKLY_COLD_START
+
+    _stub_week01(monkeypatch, tmp_path)
+    client = _stub_cold_start_client(monkeypatch)
+
+    result = runner.invoke(app, ["--league", "902", "--week", "1", "--out-dir", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    assert client.voices and all(v is BEAT_WRITER_WEEKLY_COLD_START for v in client.voices)
+    text_issue = (tmp_path / "commishdesk-902-weekly-week1.txt").read_text(encoding="utf-8")
+    assert _issue_headings(text_issue) == list(_COLD_START_HEADINGS)
+
+
+def test_weekly_week01_malformed_llm_completion_degrades_to_the_template(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A seven-section (warm) completion at Week 1 is rejected by the parser and
+    the run delivers the template Issue instead of failing."""
+    warm = "\n\n".join(f"## {h}\n\nSomething about the league." for h in WEEKLY_SECTION_HEADINGS)
+    _stub_week01(monkeypatch, tmp_path)
+    client = _stub_cold_start_client(monkeypatch, reply=warm)
+
+    result = runner.invoke(app, ["--league", "903", "--week", "1", "--out-dir", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    assert client.calls  # the LLM path was tried
+    text_issue = (tmp_path / "commishdesk-903-weekly-week1.txt").read_text(encoding="utf-8")
+    assert _issue_headings(text_issue) == list(_COLD_START_HEADINGS)
+    assert "Something about the league" not in text_issue
+
+
+def test_weekly_week01_post_after_a_draft_recap_is_not_blocked_and_is_idempotent(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from datetime import UTC, datetime
+
+    from commishdesk.store import LedgerEntry
+
+    _stub_week01(monkeypatch, tmp_path)
+    posted = _stub_post_discord_text(monkeypatch)
+    monkeypatch.setenv("COMMISHDESK_DISCORD_WEBHOOK_URL", _FAKE_WEBHOOK_URL)
+    store = FileStore(tmp_path / "cache" / "commishdesk")
+    store.append_ledger_entry(
+        LedgerEntry(
+            league_id="904",
+            week=1,
+            channel="discord",
+            recipient=_WEBHOOK_ID,
+            kind="draft_recap",
+            sent_at=datetime(2026, 9, 1, tzinfo=UTC),
+        )
+    )
+
+    args = ["--league", "904", "--week", "1", "--post", "--out-dir", str(tmp_path)]
+    first = runner.invoke(app, args)
+    assert first.exit_code == 0, first.output
+    assert len(posted) == 1
+    assert [(e.kind, e.status) for e in store.read_ledger("904", 1)] == [
+        ("draft_recap", "confirmed"),
+        ("weekly", "confirmed"),
+    ]
+
+    second = runner.invoke(app, args)
+    assert second.exit_code == 0, second.output
+    assert len(posted) == 1  # idempotent: the confirmed weekly entry blocks a double post
+    assert [e.kind for e in store.read_ledger("904", 1)] == ["draft_recap", "weekly"]

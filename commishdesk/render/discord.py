@@ -41,7 +41,7 @@ from typing import NamedTuple
 
 from commishdesk.facts.schema import DraftRecapFacts, WeeklyFacts
 from commishdesk.narrate import Recap
-from commishdesk.narrate.weekly_template import SECTION_HEADINGS, WeeklyIssue
+from commishdesk.narrate.weekly_template import WeeklyIssue, section_headings_for_has_prior_week
 from commishdesk.render import _weekly_model as wm
 from commishdesk.render._body import _plain, _sections_from_llm, _sections_from_recap
 
@@ -220,14 +220,16 @@ def _weekly_standings(facts: WeeklyFacts) -> list[_Block]:
     order = wm.standings_order(facts)
     if not order:
         return []
-    picture = facts.standings.playoff_picture
+    picture_ranked = facts.period.has_prior_week
+    picture = facts.standings.playoff_picture if picture_ranked else None
     cut = picture.cut_line_after_rank if picture is not None else None
     rows = []
-    for team in order:
+    for position, team in enumerate(order, start=1):
         season = team.season
         rows.append(
             (
-                str(season.rank),
+                # cold start orders by points, so the rank is the displayed position
+                str(season.rank if picture_ranked else position),
                 _code_name(wm.team_label(team)),
                 wm.record(season.record.w, season.record.l, season.record.t),
                 wm.whole(season.points_for),
@@ -372,12 +374,16 @@ def render_weekly_discord_post(facts: WeeklyFacts, issue: WeeklyIssue, *, issue_
     it, names are unescaped but backtick-free and capped at 22 characters.
     Mention suppression stays at the delivery layer. A ``⚠️ Seeding
     unconfirmed`` note appears only when the Facts playoff picture carries
-    ``seeding_unconfirmed`` (Story 5.15). Deterministic.
+    ``seeding_unconfirmed`` (Story 5.15), and the power, luck and wire lines
+    stand down at Week 1, when ``facts.period.has_prior_week`` is false
+    (Story 5.16). Deterministic.
     """
     league = facts.league
+    headings = section_headings_for_has_prior_week(facts.period.has_prior_week)
+    cold_start = not facts.period.has_prior_week
     blocks: list[_Block] = [_Block(f"## 🏈 {_md(league.name)} · Week {facts.week}", 0)]
     for section in issue.sections:
-        if section.heading in SECTION_HEADINGS:
+        if section.heading in headings:
             continue
         text = " ".join(block for block in section.blocks if block.strip())
         if text:
@@ -386,10 +392,10 @@ def render_weekly_discord_post(facts: WeeklyFacts, issue: WeeklyIssue, *, issue_
         _weekly_lead(facts, issue),
         *_weekly_standings(facts),
         _weekly_results(facts),
-        _weekly_power(facts),
-        _weekly_luck(facts),
+        _weekly_power(facts) if not cold_start else None,
+        _weekly_luck(facts) if not cold_start else None,
         _weekly_next(facts),
-        _weekly_wire(facts),
+        _weekly_wire(facts) if not cold_start else None,
         _weekly_awards(facts),
     ):
         if block is not None:
