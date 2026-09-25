@@ -52,6 +52,12 @@ def _raw(published: bool = False) -> dict[str, Any]:
     return json.loads((FACTS_DIR / name).read_text(encoding="utf-8"))
 
 
+def _week01_raw() -> dict[str, Any]:
+    return json.loads(
+        (FACTS_DIR / "expected-weekly-facts-week01.json").read_text(encoding="utf-8")
+    )
+
+
 def _page(raw: dict[str, Any], issue: WeeklyIssue | None = None) -> str:
     facts = WeeklyFacts.model_validate(raw)
     return render_weekly_web(
@@ -146,6 +152,27 @@ def test_stood_down_sections_render_no_heading_and_no_frame() -> None:
     # the rest still renders
     for kept in ('aria-label="Standings"', 'aria-label="Power rankings"', 'aria-label="Around the league"'):
         assert kept in body
+
+
+def test_week01_cold_start_omits_power_luck_transactions_and_playoff_picture() -> None:
+    """Story 5.16: at Week 1 the page renders only the four cold-start sections
+    (lead, results, standings by points, next week) -- no power rankings, no
+    luck index, no transaction desk, and no playoff picture."""
+    body = _body(_page(_week01_raw()))
+
+    for gone in (
+        'aria-label="Power rankings"',
+        'aria-label="The luck index"',
+        'aria-label="The transaction desk"',
+        "Standings and the Playoff Picture",
+        "Playoff line",
+        "Seeding unconfirmed",
+    ):
+        assert gone not in body, gone
+
+    assert "Standings by points" in body
+    assert "Around the league" in body
+    assert "Next week" in body
 
 
 def test_a_lead_hero_that_cannot_draw_falls_back_to_type_only() -> None:
@@ -471,3 +498,58 @@ def test_the_unconfirmed_seeding_note_follows_the_facts_flag_alone() -> None:
     on = _page(flagged, base_issue)
     assert '<p class="seeding-note">Seeding unconfirmed — derived from the standings.</p>' in on
     assert on.replace('<p class="seeding-note">Seeding unconfirmed — derived from the standings.</p>', "") == off
+
+
+def _cold_start_order(raw: dict[str, Any]) -> list[str]:
+    """Team labels by points-for descending, the order Week-1 standings show."""
+    teams = sorted(raw["teams"], key=lambda t: -t["season"]["points_for"])
+    return [t["team_name"] for t in teams]
+
+
+def _in_order(haystack: str, names: list[str]) -> bool:
+    positions = [haystack.index(name) for name in names]
+    return positions == sorted(positions)
+
+
+def test_week01_standings_rows_are_ordered_by_points_for() -> None:
+    raw = _week01_raw()
+    record_order = [
+        t["team_name"]
+        for rid in raw["standings"]["overall"]
+        for t in raw["teams"]
+        if t["roster_id"] == rid
+    ]
+    expected = _cold_start_order(raw)
+    assert expected != record_order  # the oracle really separates the two orders
+    section = _body(_page(raw)).split('aria-label="Standings"', 1)[1].split("</section>", 1)[0]
+    assert _in_order(section, expected)
+
+
+def test_week01_prose_sections_match_the_cold_start_set() -> None:
+    """The cold-start headings match the renderer's set: no notice box, and the
+    "Standings" prose lands inside the standings card."""
+    raw = _week01_raw()
+    facts = WeeklyFacts.model_validate(raw)
+    issue = render_weekly_issue(facts.narration)
+    marker = "MARKERSTANDINGSPROSE"
+    sections = [
+        s.model_copy(update={"blocks": [marker]}) if s.heading == "Standings" else s
+        for s in issue.sections
+    ]
+    body = _body(_page(raw, issue.model_copy(update={"sections": sections})))
+    assert 'class="notice"' not in body
+    standings = body.split('aria-label="Standings"', 1)[1].split("</section>", 1)[0]
+    assert marker in standings
+    assert body.count(marker) == 1
+
+
+def test_warm_week_keeps_its_seven_section_matching() -> None:
+    body = _body(_page(_raw()))
+    assert 'class="notice"' not in body
+    assert 'aria-label="Power rankings"' in body
+
+
+def test_week01_standings_ranks_are_positional() -> None:
+    section = _body(_page(_week01_raw())).split('aria-label="Standings"', 1)[1].split("</section>", 1)[0]
+    ranks = re.findall(r'<span class="rk">(\d+)</span>', section)
+    assert ranks == [str(n) for n in range(1, 13)]

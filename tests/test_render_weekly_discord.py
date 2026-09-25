@@ -29,6 +29,12 @@ def _raw(published: bool = False) -> dict[str, Any]:
     return json.loads((FACTS_DIR / name).read_text(encoding="utf-8"))
 
 
+def _week01_raw() -> dict[str, Any]:
+    return json.loads(
+        (FACTS_DIR / "expected-weekly-facts-week01.json").read_text(encoding="utf-8")
+    )
+
+
 def _post(raw: dict[str, Any], issue: WeeklyIssue | None = None, **kwargs: Any) -> str:
     facts = WeeklyFacts.model_validate(raw)
     return render_weekly_discord_post(facts, issue or render_weekly_issue(facts.narration), **kwargs)
@@ -189,6 +195,25 @@ def test_stood_down_sections_drop_their_line_and_emoji() -> None:
     assert "📈 **Power top 5**" in post and "🏈 **Results**" in post
 
 
+def test_week01_cold_start_drops_power_luck_wire_and_playoff_line() -> None:
+    """Story 5.16: at Week 1 the ticker drops the 📈 Power, 🍀 Luck and 🔄 Wire
+    lines and never emits a playoff line or seeding note — matching the web page
+    and the email — while the standings, results and next-week lines stay."""
+    facts = WeeklyFacts.model_validate(_week01_raw())
+    issue = render_weekly_issue(facts.narration)
+    post = render_weekly_discord_post(facts, issue)
+
+    assert "📈" not in post
+    assert "🍀" not in post
+    assert "🔄" not in post
+    assert "── playoff line ──────────────" not in post
+    assert "Seeding unconfirmed" not in post
+
+    assert "📊 **Standings**" in post
+    assert "🏈 **Results**" in post
+    assert "👀 **Next week**" in post
+
+
 def test_the_wire_falls_back_to_the_newest_trade() -> None:
     raw = _raw()
     raw["transactions"]["this_week"] = []
@@ -282,3 +307,26 @@ def test_the_unconfirmed_seeding_note_follows_the_facts_flag_alone() -> None:
     flagged["standings"]["playoff_picture"]["seeding_unconfirmed"] = True
     on = _post(flagged, base_issue)
     assert note in on
+
+
+def test_week01_standings_rows_are_ordered_by_points_for() -> None:
+    raw = _week01_raw()
+    expected = [
+        t["team_name"] for t in sorted(raw["teams"], key=lambda t: -t["season"]["points_for"])
+    ]
+    post = _post(raw)
+    block = post.split("📊 **Standings**", 1)[1].split("🏈 **Results**", 1)[0]
+    positions = [block.index(name) for name in expected]
+    assert positions == sorted(positions)
+
+
+def test_warm_week_keeps_its_power_line() -> None:
+    post = _post(_raw())
+    assert "📈 **Power top 5**" in post
+
+
+def test_week01_standings_ranks_are_positional() -> None:
+    post = _post(_week01_raw())
+    block = post.split("📊 **Standings**", 1)[1].split("🏈 **Results**", 1)[0]
+    rows = [line for line in block.splitlines() if line and not line.startswith("`")]
+    assert [int(line.split()[0]) for line in rows] == list(range(1, 13))

@@ -43,6 +43,11 @@ back out of that text.
 Story 5.15 adds one sentence to the playoff picture when
 ``WeeklyNarrationPlayoff.seeding_unconfirmed`` is true, so a bracket that was
 only *derived* — never confirmed, never overridden — says so plainly.
+
+Story 5.16 adds the Week-1 cold-start section set
+(:data:`COLD_START_SECTION_HEADINGS`): four sections, no Power Rankings, no Luck
+Index, no playoff picture and no transaction desk, chosen through one shared
+derivation of ``has_prior_week`` for narrators and renderers.
 """
 
 from __future__ import annotations
@@ -62,12 +67,16 @@ from commishdesk.facts.schema import (
 )
 
 __all__ = [
+    "COLD_START_SECTION_HEADINGS",
     "SECTION_HEADINGS",
     "WeeklyIssue",
     "WeeklySection",
     "parse_nudge_justifications",
     "parse_published_ranks",
+    "cold_start_standings",
     "render_weekly_issue",
+    "section_headings_for_has_prior_week",
+    "section_headings_for_narration",
     "weekly_issue_from_text",
     "weekly_issue_to_text",
 ]
@@ -111,6 +120,45 @@ SECTION_HEADINGS: tuple[str, ...] = (
     "Next Week",
     "The Transaction Desk",
 )
+
+#: The four sections a Week-1 Issue carries (Story 5.16). Power, luck,
+#: storylines, playoff picture and the transaction desk stand down entirely.
+COLD_START_SECTION_HEADINGS: tuple[str, ...] = (
+    "The Lead",
+    "Around the League",
+    "Standings",
+    "Next Week",
+)
+
+#: The week at which all-play / expected-wins / luck become meaningful. The
+#: weekly narration projection carries ``league.week`` but not the Facts
+#: ``period.has_prior_week`` flag, so this is the projection's equivalent
+#: derivation, copied from ``stats/weekly.py::MEANINGFUL_FROM_WEEK``.
+_MEANINGFUL_FROM_WEEK = 2
+
+
+def section_headings_for_has_prior_week(has_prior_week: bool) -> tuple[str, ...]:
+    """The Issue's section set for a weekly run.
+
+    ``has_prior_week=False`` is the Story 5.16 cold-start marker: four sections,
+    no Power/Luck/playoff/transaction headings. ``True`` keeps the seven-section
+    warm set.
+    """
+    return SECTION_HEADINGS if has_prior_week else COLD_START_SECTION_HEADINGS
+
+
+def section_headings_for_narration(
+    narration: WeeklyNarration, has_prior_week: bool | None = None
+) -> tuple[str, ...]:
+    """The section set for *narration*, through the shared cold-start switch.
+
+    Callers holding the Facts pass ``period.has_prior_week``; the narration
+    projection does not carry it, so ``None`` falls back to the equivalent
+    ``league.week`` derivation.
+    """
+    if has_prior_week is None:
+        has_prior_week = narration.league.week >= _MEANINGFUL_FROM_WEEK
+    return section_headings_for_has_prior_week(has_prior_week)
 
 
 # --------------------------------------------------------------------------- #
@@ -183,7 +231,9 @@ _NO_SCHEDULE = "No games are on the schedule for next week."
 # --------------------------------------------------------------------------- #
 
 
-def render_weekly_issue(narration: WeeklyNarration) -> WeeklyIssue:
+def render_weekly_issue(
+    narration: WeeklyNarration, *, has_prior_week: bool | None = None
+) -> WeeklyIssue:
     """Build the :class:`WeeklyIssue` from ``narration`` alone.
 
     Pure and deterministic — no timestamp, no network, no model. The caller (the
@@ -191,15 +241,24 @@ def render_weekly_issue(narration: WeeklyNarration) -> WeeklyIssue:
     narrator does not see it (it is not part of the ``narration`` projection).
     """
     title, dateline = _masthead(narration)
-    sections = [
-        _lead_section(narration),
-        _around_section(narration),
-        _standings_section(narration),
-        _power_section(narration),
-        _luck_section(narration),
-        _next_week_section(narration),
-        _transactions_section(narration),
-    ]
+    headings = section_headings_for_narration(narration, has_prior_week)
+    if headings == COLD_START_SECTION_HEADINGS:
+        sections = [
+            _lead_section(narration),
+            _around_section(narration, include_storylines=False),
+            _standings_section(narration, cold_start=True),
+            _next_week_section(narration),
+        ]
+    else:
+        sections = [
+            _lead_section(narration),
+            _around_section(narration),
+            _standings_section(narration),
+            _power_section(narration),
+            _luck_section(narration),
+            _next_week_section(narration),
+            _transactions_section(narration),
+        ]
     return WeeklyIssue(title=title, dateline=dateline, sections=sections)
 
 
@@ -277,14 +336,17 @@ def _split_sections(text: str) -> list[WeeklySection] | None:
     return sections
 
 
-def weekly_issue_from_text(text: str, narration: WeeklyNarration) -> WeeklyIssue | None:
+def weekly_issue_from_text(
+    text: str, narration: WeeklyNarration, *, has_prior_week: bool | None = None
+) -> WeeklyIssue | None:
     """Parse a narrated weekly Issue's Markdown back into a :class:`WeeklyIssue`.
 
-    Requires all seven :data:`SECTION_HEADINGS`, each with at least one block
-    (the same "no empty section heading" rule the template narrator holds
-    itself to); the sections are then re-ordered into the canonical order and any
-    extra section the narrator added is dropped. The masthead is rebuilt from
-    *narration*, never taken from the text.
+    Requires every heading in :func:`section_headings_for_narration` (the seven
+    warm sections, or the four cold-start sections at Week 1), each with at least
+    one block (the same "no empty section heading" rule the template narrator
+    holds itself to); the sections are then re-ordered into the canonical order
+    and any extra section the narrator added is dropped warm, rejected cold. The
+    masthead is rebuilt from *narration*, never taken from the text.
 
     ``None`` when the text is not the expected shape — the caller then degrades
     to the template narrator rather than shipping a malformed dump.
@@ -292,10 +354,15 @@ def weekly_issue_from_text(text: str, narration: WeeklyNarration) -> WeeklyIssue
     sections = _split_sections(text)
     if sections is None:
         return None
+    headings = section_headings_for_narration(narration, has_prior_week)
     by_heading = {section.heading: section for section in sections}
-    if any(not by_heading.get(name, WeeklySection(heading=name, blocks=[])).blocks for name in SECTION_HEADINGS):
+    if any(not by_heading.get(name, WeeklySection(heading=name, blocks=[])).blocks for name in headings):
         return None
-    ordered = [by_heading[name] for name in SECTION_HEADINGS]
+    if headings == COLD_START_SECTION_HEADINGS:
+        # A cold-start completion must not reintroduce a stood-down section.
+        if {section.heading for section in sections} != set(COLD_START_SECTION_HEADINGS):
+            return None
+    ordered = [by_heading[name] for name in headings]
     title, dateline = _masthead(narration)
     return WeeklyIssue(title=title, dateline=dateline, sections=ordered)
 
@@ -434,15 +501,22 @@ def _game_line(game: WeeklyNarrationGame) -> str:
     return line
 
 
-def _around_section(narration: WeeklyNarration) -> WeeklySection:
+def _around_section(
+    narration: WeeklyNarration, *, include_storylines: bool = True
+) -> WeeklySection:
     """Every game of the week, then the multi-week threads Story 5.9's weekly
-    storyline lifecycle is carrying — skipping any hook the lead already used."""
+    storyline lifecycle is carrying — skipping any hook the lead already used.
+
+    ``include_storylines=False`` is the cold-start call (Story 5.16): Week 1 has
+    no prior week, so no multi-week thread can exist and the section is the
+    scores alone."""
     blocks: list[str] = [_game_line(game) for game in narration.games]
     lead_hooks = {candidate.hook for candidate in narration.lead_candidates if candidate.hook}
-    for storyline in narration.storyline_candidates:
-        hook = storyline.hook
-        if hook and hook not in lead_hooks and hook not in blocks:
-            blocks.append(hook)
+    if include_storylines:
+        for storyline in narration.storyline_candidates:
+            hook = storyline.hook
+            if hook and hook not in lead_hooks and hook not in blocks:
+                blocks.append(hook)
     if not blocks:
         blocks.append(_NO_GAMES)
     return WeeklySection(heading="Around the League", blocks=blocks)
@@ -474,12 +548,31 @@ def _playoff_block(picture: WeeklyNarrationPlayoff | None) -> str:
     return " ".join(parts)
 
 
-def _standings_section(narration: WeeklyNarration) -> WeeklySection:
-    blocks = [_standings_line(row) for row in narration.standings]
+def cold_start_standings(rows: list[WeeklyNarrationStanding]) -> list[WeeklyNarrationStanding]:
+    """Week-1 standings "by points": ordered by points for, ranked by position.
+
+    The one ordering rule the template narrator and the cold-start LLM payload
+    share, so a completion cannot narrate ranks that contradict the table."""
+    ordered = sorted(rows, key=lambda r: (-r.pf, r.roster_id.zfill(8)))
+    return [row.model_copy(update={"rank": position}) for position, row in enumerate(ordered, start=1)]
+
+
+def _standings_section(
+    narration: WeeklyNarration, *, cold_start: bool = False
+) -> WeeklySection:
+    """The standings table, then the playoff picture.
+
+    ``cold_start=True`` (Week 1) drops the playoff block entirely and uses the
+    plain "Standings" heading — there is no bracket yet to describe, and the
+    heading is the cold-start set's own (Story 5.16)."""
+    rows = cold_start_standings(narration.standings) if cold_start else narration.standings
+    blocks = [_standings_line(row) for row in rows]
     if not blocks:
         blocks.append(_NO_STANDINGS)
-    blocks.append(_playoff_block(narration.playoff_picture))
-    return WeeklySection(heading="Standings and the Playoff Picture", blocks=blocks)
+    if not cold_start:
+        blocks.append(_playoff_block(narration.playoff_picture))
+    heading = "Standings" if cold_start else "Standings and the Playoff Picture"
+    return WeeklySection(heading=heading, blocks=blocks)
 
 
 def _power_line(row: WeeklyNarrationPower) -> str:

@@ -258,7 +258,10 @@ def game_tag(facts: WeeklyFacts, matchup: WeeklyMatchup) -> str | None:
 
 def standings_order(facts: WeeklyFacts) -> list[WeeklyTeam]:
     teams = team_index(facts)
-    return [teams[rid] for rid in facts.standings.overall if rid in teams]
+    order = [teams[rid] for rid in facts.standings.overall if rid in teams]
+    if not facts.period.has_prior_week:
+        order.sort(key=lambda team: (-team.season.points_for, team.roster_id.zfill(8)))
+    return order
 
 
 # --------------------------------------------------------------------------- #

@@ -31,7 +31,7 @@ from collections.abc import Sequence
 from typing import NamedTuple
 
 from commishdesk.facts.schema import LeadCandidate, WeeklyFacts, WeeklyMove, WeeklyTrade
-from commishdesk.narrate.weekly_template import SECTION_HEADINGS, WeeklyIssue
+from commishdesk.narrate.weekly_template import WeeklyIssue, section_headings_for_has_prior_week
 from commishdesk.render import _weekly_model as wm
 from commishdesk.render._body import _esc, _plain
 from commishdesk.render.email import EmailParts, _document
@@ -433,7 +433,7 @@ def _tiles(facts: WeeklyFacts) -> str:
     )
 
 
-def _notices(issue: WeeklyIssue) -> list[_Section]:
+def _notices(issue: WeeklyIssue, headings: tuple[str, ...]) -> list[_Section]:
     out: list[_Section] = []
     if issue.dateline.startswith("UNVERIFIED"):
         body = _para(issue.dateline)
@@ -445,7 +445,7 @@ def _notices(issue: WeeklyIssue) -> list[_Section]:
             )
         )
     for section in issue.sections:
-        if section.heading in SECTION_HEADINGS:
+        if section.heading in headings:
             continue
         body, lines = _prose(section.blocks)
         out.append(
@@ -770,6 +770,8 @@ def _results(facts: WeeklyFacts, blocks: list[str]) -> _Section | None:
 
 
 def _standings_title(facts: WeeklyFacts) -> str:
+    if not facts.period.has_prior_week:
+        return "Standings by points"
     playoff = facts.league.format.playoff
     if facts.standings.playoff_picture is not None and playoff is not None:
         title = f"{wm.spell(playoff.bracket_teams).capitalize()} make it"
@@ -780,10 +782,11 @@ def _standings_title(facts: WeeklyFacts) -> str:
 
 
 def _standings(facts: WeeklyFacts, blocks: list[str]) -> _Section | None:
+    cold_start = not facts.period.has_prior_week
     order = wm.standings_order(facts)
     if not order:
         return None
-    picture = facts.standings.playoff_picture
+    picture = None if cold_start else facts.standings.playoff_picture
     byes = set(picture.byes) if picture else set()
     bubble = set(picture.bubble) if picture else set()
     cut = picture.cut_line_after_rank if picture else None
@@ -858,7 +861,8 @@ def _standings(facts: WeeklyFacts, blocks: list[str]) -> _Section | None:
             f'border-top:1px solid {LINE};border-radius:0 8px 8px 0;padding:10px 8px 10px 4px;'
             f'vertical-align:middle;">{marker or "&nbsp;"}</td></tr>'
         )
-        text.append(f"{season.rank:>2}. {name} — {rec}, {wm.whole(season.points_for)} PF{marker_text}")
+        rank = index if cold_start else season.rank
+        text.append(f"{rank:>2}. {name} — {rec}, {wm.whole(season.points_for)} PF{marker_text}")
         if cut is not None and index == cut and index < len(order):
             rows.append(
                 f'<tr><td colspan="6" style="padding:10px 0;">'
@@ -1277,28 +1281,39 @@ def render_weekly_email(facts: WeeklyFacts, issue: WeeklyIssue, *, generated_at:
     """Render the weekly Issue as an :class:`EmailParts` ``(html, text)`` pair.
 
     ``facts`` supplies every number; ``issue`` supplies the narrated prose
-    (matched by :data:`SECTION_HEADINGS`), the title, and any stamp the run
-    added (an ``UNVERIFIED`` dateline, a Correction section). ``generated_at`` is
-    the only time value; identical arguments give byte-identical output.
+    (matched by :func:`~commishdesk.narrate.weekly_template.section_headings_for_has_prior_week`),
+    the title, and any stamp the run added (an ``UNVERIFIED`` dateline, a
+    Correction section). ``generated_at`` is the only time value; identical
+    arguments give byte-identical output.
+
+    Story 5.16: at Week 1 (``facts.period.has_prior_week`` false) the power,
+    luck and transaction desk sections are omitted entirely, the standings table
+    stands down its playoff picture and uses the "Standings by points" title,
+    and the narrated prose is read from the four-section cold-start heading set.
     """
+    headings = section_headings_for_has_prior_week(facts.period.has_prior_week)
+    cold_start = not facts.period.has_prior_week
     prose = {
         section.heading: list(section.blocks)
         for section in issue.sections
-        if section.heading in SECTION_HEADINGS
+        if section.heading in headings
     }
 
     def blocks(heading: str) -> list[str]:
         return prose.get(heading, [])
 
     built = [
-        *_notices(issue),
+        *_notices(issue, headings),
         _lead(facts, blocks("The Lead")),
         _results(facts, blocks("Around the League")),
-        _standings(facts, blocks("Standings and the Playoff Picture")),
-        _power(facts, blocks("Power Rankings")),
-        _luck(facts, blocks("The Luck Index")),
+        _standings(
+            facts,
+            blocks("Standings" if cold_start else "Standings and the Playoff Picture"),
+        ),
+        _power(facts, blocks("Power Rankings")) if not cold_start else None,
+        _luck(facts, blocks("The Luck Index")) if not cold_start else None,
         _next_week(facts, blocks("Next Week")),
-        _transactions(facts, blocks("The Transaction Desk")),
+        _transactions(facts, blocks("The Transaction Desk")) if not cold_start else None,
     ]
     sections = [section for section in built if section is not None]
 

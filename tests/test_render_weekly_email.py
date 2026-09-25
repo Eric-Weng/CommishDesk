@@ -52,6 +52,12 @@ def _raw(published: bool = False) -> dict[str, Any]:
     return json.loads((FACTS_DIR / name).read_text(encoding="utf-8"))
 
 
+def _week01_raw() -> dict[str, Any]:
+    return json.loads(
+        (FACTS_DIR / "expected-weekly-facts-week01.json").read_text(encoding="utf-8")
+    )
+
+
 def _parts(raw: dict[str, Any], issue: WeeklyIssue | None = None) -> EmailParts:
     facts = WeeklyFacts.model_validate(raw)
     return render_weekly_email(facts, issue or render_weekly_issue(facts.narration), generated_at=_STAMP)
@@ -274,6 +280,27 @@ def test_stood_down_sections_leave_no_heading_in_either_part() -> None:
     assert "█" not in parts.html and "On the line in every game" not in parts.text
     for label in ("The lead", "Around the league", "Standings", "Power rankings"):
         assert _label_html(label) in parts.html
+
+
+def test_week01_cold_start_omits_power_luck_transactions_and_playoff_picture() -> None:
+    """Story 5.16: at Week 1 the email renders only the four cold-start sections
+    (lead, results, standings by points, next week) — no power rankings, no luck
+    index, no transaction desk, and no playoff-picture rows."""
+    parts = _parts(_week01_raw())
+
+    for label in (
+        "Power rankings",
+        "The luck index",
+        "The transaction desk",
+        "Standings and the Playoff Picture",
+    ):
+        assert _label_html(label) not in parts.html, label
+        assert label.upper() not in parts.text, label
+
+    assert _label_html("Standings") in parts.html
+    assert "Standings by points" in parts.text
+    assert "THE LEAD" in parts.text
+    assert "NEXT WEEK" in parts.text
 
 
 def test_shared_stakes_appear_once_and_a_differing_stake_stays_on_its_card() -> None:
@@ -789,3 +816,58 @@ def test_the_unconfirmed_seeding_note_follows_the_facts_flag_alone_in_both_parts
     assert note in on.html
     assert note in on.text
     assert note not in off.html and note not in off.text
+
+
+def test_week01_email_has_no_playoff_line_and_no_bye_or_bubble_chips() -> None:
+    parts = _parts(_week01_raw())
+    section = _section(parts.html, "Standings")
+    assert ">Bye<" not in section and ">Bubble<" not in section
+    assert "playoff line" not in parts.text
+    assert "[BYE]" not in parts.text and "[BUBBLE]" not in parts.text
+    assert "seeding unconfirmed" not in parts.text
+
+
+def test_week01_email_standings_rows_are_ordered_by_points_for() -> None:
+    raw = _week01_raw()
+    expected = [
+        t["team_name"] for t in sorted(raw["teams"], key=lambda t: -t["season"]["points_for"])
+    ]
+    record_order = [
+        t["team_name"]
+        for rid in raw["standings"]["overall"]
+        for t in raw["teams"]
+        if t["roster_id"] == rid
+    ]
+    assert expected != record_order
+    parts = _parts(raw)
+
+    def ordered(haystack: str) -> bool:
+        positions = [haystack.index(name) for name in expected]
+        return positions == sorted(positions)
+
+    assert ordered(_section(parts.html, "Standings"))
+    table = parts.text.split("Standings by points\n", 1)[1].split("\n\n", 1)[0]
+    assert ordered(table)
+
+
+def test_week01_prose_sections_match_the_cold_start_set() -> None:
+    raw = _week01_raw()
+    facts = WeeklyFacts.model_validate(raw)
+    issue = render_weekly_issue(facts.narration)
+    marker = "MARKERSTANDINGSPROSE"
+    sections = [
+        s.model_copy(update={"blocks": [marker]}) if s.heading == "Standings" else s
+        for s in issue.sections
+    ]
+    parts = _parts(raw, issue.model_copy(update={"sections": sections}))
+    # in the standings card, not a second "Standings" notice section
+    assert marker in _section(parts.html, "Standings")
+    lines = parts.text.splitlines()
+    assert lines.count("STANDINGS") == 1
+    assert parts.text.index("Standings by points") < parts.text.index(marker) < parts.text.index("NEXT WEEK")
+
+
+def test_week01_email_standings_ranks_are_positional() -> None:
+    parts = _parts(_week01_raw())
+    table = parts.text.split("Standings by points\n", 1)[1].split("\n\n", 1)[0]
+    assert [int(line.split(".", 1)[0]) for line in table.splitlines()] == list(range(1, 13))

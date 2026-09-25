@@ -13,8 +13,8 @@ heading, no empty frame.
 
 **Where each value comes from.** Numbers and charts come from Facts. Narrated
 prose comes from the Issue's sections, matched by
-:data:`~commishdesk.narrate.weekly_template.SECTION_HEADINGS`. The power
-rankings read the published rank and the cited nudge reason from
+:func:`~commishdesk.narrate.weekly_template.section_headings_for_has_prior_week`.
+The power rankings read the published rank and the cited nudge reason from
 ``narration.power`` (falling back to ``teams[*].season.power.published_rank``,
 then to the model rank); a reason is rendered only when the narration carries
 one. Luck plots ``season.luck`` as-is — this module computes no luck figure.
@@ -45,7 +45,7 @@ from commishdesk.facts.schema import (
     WeeklyNextWeekCard,
     WeeklyTrade,
 )
-from commishdesk.narrate.weekly_template import SECTION_HEADINGS, WeeklyIssue
+from commishdesk.narrate.weekly_template import WeeklyIssue, section_headings_for_has_prior_week
 from commishdesk.render import _weekly_model as wm
 from commishdesk.render._body import _esc
 from commishdesk.render._weekly_model import find_matchup as _find_matchup
@@ -150,10 +150,11 @@ class _Ctx:
     def __init__(self, facts: WeeklyFacts, issue: WeeklyIssue) -> None:
         self.facts = facts
         self.teams = wm.team_index(facts)
+        self.sections = section_headings_for_has_prior_week(facts.period.has_prior_week)
         self.prose = {
             section.heading: list(section.blocks)
             for section in issue.sections
-            if section.heading in SECTION_HEADINGS
+            if section.heading in self.sections
         }
 
     def label(self, roster_id: str | None) -> str:
@@ -202,9 +203,10 @@ def _masthead(ctx: _Ctx) -> str:
     )
 
 
-def _notices(issue: WeeklyIssue) -> str:
-    """The UNVERIFIED dateline stamp and any section outside the seven (a
-    reissue's Correction), shown above the lead so they are never missed."""
+def _notices(issue: WeeklyIssue, headings: tuple[str, ...]) -> str:
+    """The UNVERIFIED dateline stamp and any section outside the current
+    section set (a reissue's Correction), shown above the lead so they are
+    never missed."""
     out: list[str] = []
     if issue.dateline.startswith("UNVERIFIED"):
         out.append(
@@ -212,7 +214,7 @@ def _notices(issue: WeeklyIssue) -> str:
             f"<p>{_esc(issue.dateline)}</p></aside>"
         )
     for section in issue.sections:
-        if section.heading in SECTION_HEADINGS:
+        if section.heading in headings:
             continue
         body = "".join(f"<p>{_esc(block)}</p>" for block in section.blocks)
         out.append(f'<aside class="notice" role="note"><h2>{_esc(section.heading)}</h2>{body}</aside>')
@@ -607,17 +609,23 @@ def _around_section(ctx: _Ctx) -> str:
 
 def _standings_section(ctx: _Ctx) -> str:
     facts = ctx.facts
-    order = [rid for rid in facts.standings.overall if rid in ctx.teams]
+    cold_start = not facts.period.has_prior_week
+    order = [team.roster_id for team in wm.standings_order(facts)]
     if not order:
         return ""
-    picture = facts.standings.playoff_picture
-    playoff = facts.league.format.playoff
-    if picture is not None and playoff is not None:
-        title = f"{_spell(playoff.bracket_teams).capitalize()} make it"
-        if playoff.byes:
-            title += f", {_spell(playoff.byes)} get {'a bye' if playoff.byes == 1 else 'byes'}"
+    if cold_start:
+        picture = None
+        playoff = None
+        title = "Standings by points"
     else:
-        title = "The table"
+        picture = facts.standings.playoff_picture
+        playoff = facts.league.format.playoff
+        if picture is not None and playoff is not None:
+            title = f"{_spell(playoff.bracket_teams).capitalize()} make it"
+            if playoff.byes:
+                title += f", {_spell(playoff.byes)} get {'a bye' if playoff.byes == 1 else 'byes'}"
+        else:
+            title = "The table"
     divisions = [division.id for division in facts.league.format.divisions]
     dot_of = {div_id: f"dot-d{index % 3 + 1}" for index, div_id in enumerate(divisions)} if len(divisions) > 1 else {}
     max_pf = max((ctx.teams[rid].season.points_for for rid in order), default=0.0)
@@ -643,7 +651,7 @@ def _standings_section(ctx: _Ctx) -> str:
         rec = season.record
         rows.append(
             f'<div class="st-row{" below" if below else ""}">'
-            f'<span class="rk">{season.rank}</span>{_mg(name)}'
+            f'<span class="rk">{index if cold_start else season.rank}</span>{_mg(name)}'
             f'<span class="tn">{dot}{_esc(name)}</span>'
             f'<span class="rec">{_esc(_record(rec.w, rec.l, rec.t))}</span>'
             f'<span class="bar" aria-hidden="true"><i style="width:{width:.1f}%"></i></span>'
@@ -665,10 +673,11 @@ def _standings_section(ctx: _Ctx) -> str:
         note = (
             '<p class="seeding-note">Seeding unconfirmed — derived from the standings.</p>'
         )
+    prose_heading = "Standings" if cold_start else "Standings and the Playoff Picture"
     return (
         f'<section class="card table-card" aria-label="Standings">{_head("Standings", title, "good")}'
         f'<div class="standings">{"".join(rows)}</div>{legend}{note}'
-        f"{_prose(ctx.blocks('Standings and the Playoff Picture'))}</section>"
+        f"{_prose(ctx.blocks(prose_heading))}</section>"
     )
 
 
@@ -921,8 +930,15 @@ def render_weekly_web(facts: WeeklyFacts, issue: WeeklyIssue, *, output_id: str,
     added (an ``UNVERIFIED`` dateline, a Correction section). ``generated_at``
     is the only time value; ``output_id`` is accepted for parity with
     :func:`~commishdesk.render.web.render_web` and is not rendered.
+
+    Story 5.16: when ``facts.period.has_prior_week`` is false (Week 1), the power
+    rankings, luck index and transaction desk are omitted entirely, the standings
+    section stands down its playoff picture, and the section set used to pick
+    the narrated prose is the four-section cold-start set.
     """
     del output_id  # not rendered into the shareable page (parity with render_web)
+    headings = section_headings_for_has_prior_week(facts.period.has_prior_week)
+    cold_start = not facts.period.has_prior_week
     ctx = _Ctx(facts, issue)
     footer = (
         f"<footer><p>{_esc(facts.league.name)} · {_esc(facts.league.season)} · Week {facts.week} · "
@@ -932,14 +948,14 @@ def render_weekly_web(facts: WeeklyFacts, issue: WeeklyIssue, *, output_id: str,
     )
     sections = [
         _masthead(ctx),
-        _notices(issue),
+        _notices(issue, headings),
         _lead_section(ctx),
         _around_section(ctx),
         _standings_section(ctx),
-        _power_section(ctx),
-        _luck_section(ctx),
+        _power_section(ctx) if not cold_start else "",
+        _luck_section(ctx) if not cold_start else "",
         _next_week_section(ctx),
-        _transactions_section(ctx),
+        _transactions_section(ctx) if not cold_start else "",
         footer,
     ]
     document = [

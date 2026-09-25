@@ -11,7 +11,9 @@ plus the "no hardcoded league shape" guard.
 The committed CI oracle ``tests/fixtures/facts/expected-weekly-facts-week10.json``
 is a frozen ``model_dump(mode="json")`` snapshot of the whole document, built
 with a fixed ``generated_at``; the byte-equality check is skipped when the file
-is absent (a workspace that predates the regeneration).
+is absent (a workspace that predates the regeneration). Story 5.16 adds a
+parallel Week-1 oracle at ``expected-weekly-facts-week01.json`` and a
+cold-start build smoke test on the ``week01-openers.json`` fixture.
 
 ``season.luck`` reconciles with the golden since Story 5.13a made the fixture's
 ``Roster`` totals point-in-time (``tools/point_in_time_rosters.py``); it is
@@ -61,6 +63,7 @@ from tests.conftest import REPO_ROOT
 FIXTURE_DIR = REPO_ROOT / "tests" / "fixtures"
 FACTS_DIR = FIXTURE_DIR / "facts"
 EXPECTED_WEEKLY_PATH = FACTS_DIR / "expected-weekly-facts-week10.json"
+EXPECTED_WEEKLY_WEEK01_PATH = FACTS_DIR / "expected-weekly-facts-week01.json"
 PUBLISHED_OVERLAY_PATH = FACTS_DIR / "expected-weekly-facts-week10-published.json"
 STATS_WEEKLY = REPO_ROOT / "commishdesk" / "facts" / "weekly.py"
 
@@ -78,6 +81,7 @@ requires_committed_oracle = pytest.mark.skipif(
 
 GENERATED_AT = "2026-09-07T00:00:00Z"
 WEEK10 = "week10-blowout.json"
+WEEK01 = "week01-openers.json"
 BYES_NEXT_WEEK = frozenset({"IND", "NO"})
 
 
@@ -103,6 +107,21 @@ def _week10_facts(*, nfl_byes_next_week: frozenset[str] | None = BYES_NEXT_WEEK)
         names,
         generated_at=GENERATED_AT,
         nfl_byes_next_week=nfl_byes_next_week,
+    )
+
+
+def _week01_facts() -> WeeklyFacts:
+    bundle = _bundle(WEEK01)
+    week = build_week_model(bundle)
+    league = build_league_model(bundle)
+    players = build_player_snapshot(bundle)
+    names = build_player_names(bundle)
+    return build_weekly_facts(
+        week,
+        league,
+        players,
+        names,
+        generated_at=GENERATED_AT,
     )
 
 
@@ -293,6 +312,31 @@ def test_week10_leaders_are_present_and_named() -> None:
     assert len(doc.leaders.worst_starters) <= 5
     assert doc.leaders.best_coaching is not None
     assert doc.leaders.worst_coaching is not None
+
+
+# --------------------------------------------------------------------------- #
+# Story 5.16 — Week-1 cold start (openers fixture + committed oracle)
+# --------------------------------------------------------------------------- #
+
+
+def test_week01_openers_fixture_builds_a_cold_start_issue() -> None:
+    doc = _week01_facts()
+    assert doc.period.has_prior_week is False
+    assert doc.week == 1
+    assert doc.narration.week_shape == "cold_start"
+    for team in doc.teams:
+        assert team.season.all_play is None
+        assert team.season.expected_wins is None
+        assert team.season.luck is None
+        assert team.season.power.model_rank is None
+        assert team.history.weekly[0].power_rank is None
+
+
+def test_week01_matches_the_committed_oracle() -> None:
+    built = _week01_facts().model_dump(mode="json")
+    expected = json.loads(EXPECTED_WEEKLY_WEEK01_PATH.read_text(encoding="utf-8"))
+    expected = {k: v for k, v in expected.items() if not k.startswith("_")}
+    assert built == expected
 
 
 # --------------------------------------------------------------------------- #

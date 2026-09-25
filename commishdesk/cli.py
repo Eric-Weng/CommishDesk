@@ -1073,7 +1073,9 @@ def _recap_one_league(
 # --------------------------------------------------------------------------- #
 
 
-def _weekly_llm_selection(resolved: str, logger: logging.Logger) -> tuple[Voice, LLMConfig] | None:
+def _weekly_llm_selection(
+    resolved: str, logger: logging.Logger, *, cold_start: bool = False
+) -> tuple[Voice, LLMConfig] | None:
     """The weekly path's narrator gate: the default Voice + LLM config, or
     ``None`` when this run must use the deterministic template.
 
@@ -1081,11 +1083,18 @@ def _weekly_llm_selection(resolved: str, logger: logging.Logger) -> tuple[Voice,
     run has no interactive operator to pass ``--llm``), and ``None`` again when
     the ``COMMISHDESK_LLM_*`` values are malformed: an unattended scheduled run
     degrades, it never dies on a config typo.
+
+    ``cold_start`` (Story 5.16) selects the Week-1 voice directly from
+    ``commishdesk.voices.beat_writer`` rather than through
+    :func:`commishdesk.voices.load_default_voice`, whose selector is keyed by
+    content type alone (``"weekly"``) and would otherwise return the seven-section
+    prompt for a four-section Issue.
     """
     if not _llm_enabled(None):
         return None
     from commishdesk.llmconfig import load_llm_config
     from commishdesk.voices import load_default_voice
+    from commishdesk.voices.beat_writer import BEAT_WRITER_WEEKLY_COLD_START
 
     try:
         config = load_llm_config()
@@ -1096,7 +1105,8 @@ def _weekly_llm_selection(resolved: str, logger: logging.Logger) -> tuple[Voice,
             _one_line(exc),
         )
         return None
-    return load_default_voice("weekly"), config
+    voice = BEAT_WRITER_WEEKLY_COLD_START if cold_start else load_default_voice("weekly")
+    return voice, config
 
 
 def _weekly_estimate_within_ceiling(
@@ -1106,6 +1116,7 @@ def _weekly_estimate_within_ceiling(
     *,
     resolved: str,
     logger: logging.Logger,
+    cold_start: bool = False,
 ) -> bool:
     """Whether one weekly league-week may spend (Story 5.12).
 
@@ -1122,7 +1133,7 @@ def _weekly_estimate_within_ceiling(
     from commishdesk.narrate.pricing import estimate_cost_usd
 
     try:
-        payload = build_weekly_payload(narration) + voice.system_prompt
+        payload = build_weekly_payload(narration, cold_start=cold_start) + voice.system_prompt
         per_call_estimate = estimate_cost_usd(
             payload, config.primary, max_output_tokens=MAX_OUTPUT_TOKENS
         ) + estimate_cost_usd(payload, config.fallback, max_output_tokens=MAX_OUTPUT_TOKENS)
@@ -1216,6 +1227,9 @@ def _produce_weekly_issue(
     template Issue: the weekly path never withholds an Issue, and it never makes
     a third paid call. A *reissue* (Story 5.11c) always takes the template: the
     correction must not re-spend or drift the prose and the persisted ranks.
+
+    ``doc.period.has_prior_week`` (Story 5.16) selects which Voice the LLM path
+    may use — the cold-start weekly prompt on a Week-1 run.
     """
     from commishdesk.narrate.response import classify
     from commishdesk.narrate.safety import check_narration
@@ -1223,20 +1237,28 @@ def _produce_weekly_issue(
         parse_nudge_justifications,
         parse_published_ranks,
         render_weekly_issue,
+        section_headings_for_has_prior_week,
         weekly_issue_from_text,
         weekly_issue_to_text,
     )
 
     narration = doc.narration
+    cold_start = not doc.period.has_prior_week
 
     def template() -> tuple[WeeklyIssue, dict[str, int], dict[str, str]]:
-        return render_weekly_issue(narration), {}, {}
+        return render_weekly_issue(narration, has_prior_week=doc.period.has_prior_week), {}, {}
 
-    selection = None if reissue else _weekly_llm_selection(resolved, logger)
+    selection = (
+        None
+        if reissue
+        else _weekly_llm_selection(resolved, logger, cold_start=cold_start)
+    )
     if selection is None:
         return template()
     voice, config = selection
-    if not _weekly_estimate_within_ceiling(narration, voice, config, resolved=resolved, logger=logger):
+    if not _weekly_estimate_within_ceiling(
+        narration, voice, config, resolved=resolved, logger=logger, cold_start=cold_start
+    ):
         return template()
 
     # ``build_client`` is imported (not captured as a default argument) so a test
@@ -1251,17 +1273,26 @@ def _produce_weekly_issue(
 
     for attempt in (1, 2):
         result = narrate_weekly_issue(
-            narration, voice, config, llm_enabled=True, client_factory=build_client
+            narration,
+            voice,
+            config,
+            llm_enabled=True,
+            client_factory=build_client,
+            cold_start=cold_start,
         )
         if result.narrator == "template":
             # every provider attempt failed inside narrate_weekly_issue
             return template()
-        issue = weekly_issue_from_text(result.text, narration)
+        issue = weekly_issue_from_text(
+            result.text, narration, has_prior_week=doc.period.has_prior_week
+        )
         if issue is None:
+            expected = section_headings_for_has_prior_week(doc.period.has_prior_week)
             logger.warning(
-                "league %s: the weekly LLM narration is not the expected seven-section "
+                "league %s: the weekly LLM narration is not the expected %s-section "
                 "shape; using the template narrator",
                 resolved,
+                len(expected),
             )
             return template()
 
