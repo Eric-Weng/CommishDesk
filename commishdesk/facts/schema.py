@@ -48,6 +48,11 @@ Story 5.15 (``0.7.0`` -> ``0.8.0``) adds
 whose bracket was derived (not confirmed, not overridden) says so on every
 surface.
 
+Story 5B.3 (``0.8.0`` -> ``0.9.0``) adds ``WeeklyHistoryRow.published_rank``
+additively: the published rank a prior confirmed week persisted for one roster,
+carried on the roster's own weekly history so the power-rank bump chart can
+plot the "desk overruled the model" trail week over week.
+
 This module imports stdlib + pydantic only — no engine package.
 """
 
@@ -146,7 +151,7 @@ __all__ = [
     "WeeklyWeekPoints",
 ]
 
-SCHEMA_VERSION = "0.8.0"
+SCHEMA_VERSION = "0.9.0"
 """Semver contract version. Additive key -> minor bump; shape change -> major.
 ``0.4.0`` -> ``0.5.0`` (Story 5.8): the empty ``WeeklyFacts`` placeholder becomes
 the real weekly document and its ``WeeklyNarration``; ``DraftRecapFacts.weekly``
@@ -156,7 +161,8 @@ adds ``StorylineCandidate.weeks_running`` additively. ``0.6.0`` -> ``0.7.0``
 ``WeeklyPower.published_week_delta`` and ``WeeklyNarrationPower.published_rank``
 / ``WeeklyNarrationPower.nudge_justification`` additively. ``0.7.0`` -> ``0.8.0``
 (Story 5.15) adds ``WeeklyPlayoffPicture.seeding_unconfirmed`` and
-``WeeklyNarrationPlayoff.seeding_unconfirmed`` additively."""
+``WeeklyNarrationPlayoff.seeding_unconfirmed`` additively. ``0.8.0`` -> ``0.9.0``
+(Story 5B.3) adds ``WeeklyHistoryRow.published_rank`` additively."""
 
 _ISSUE_TYPE: Literal["draft_recap"] = "draft_recap"
 _IssueType = Literal["draft_recap", "weekly"]
@@ -926,8 +932,15 @@ class WeeklyTeamGame(_Doc):
 
 class WeeklyHistoryRow(_Doc):
     """One week of a roster's season, with the cumulative picture as of that
-    week. ``power_rank`` / ``all_play`` / ``luck`` are ``None`` before
-    ``MEANINGFUL_FROM_WEEK`` and past the regular season."""
+    week. ``power_rank`` / ``published_rank`` / ``all_play`` / ``luck`` are
+    ``None`` before ``MEANINGFUL_FROM_WEEK`` and past the regular season.
+
+    ``published_rank`` (Story 5B.3, ``0.9.0``) is the rank a **prior confirmed
+    week** persisted for this roster — read from the caller-supplied
+    ``previous_published_ranks`` mapping keyed by week — so the power-rank bump
+    chart can plot the desk's overrules of the model week over week. It is a
+    different axis from ``power_rank`` (the model's own rank as of week ``k``)
+    and is ``None`` for any week with no persisted published rank."""
 
     week: int
     points: float
@@ -936,6 +949,7 @@ class WeeklyHistoryRow(_Doc):
     margin: float | None = None
     cum_record: WeeklyRecord
     power_rank: int | None = None
+    published_rank: int | None = None
     all_play: WeeklyAllPlay | None = None
     luck: float | None = None
 

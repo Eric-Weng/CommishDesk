@@ -8,7 +8,9 @@ formatters for the static-PNG helper — no import cycle, no shared mutable stat
 
 Story 5.14a adds the weekly Issue's separate Tuesday Morning token set and
 :func:`build_weekly_style`, which inlines the embedded WOFF2 faces shipped in
-``render/fonts/`` (read through :mod:`importlib.resources`).
+``render/fonts/`` (read through :mod:`importlib.resources`). Story 5B.3 adds
+the power-rank bump chart rules (grid, model / published strokes, hover + pin
+hit-list, responsive stacking) to the weekly stylesheet.
 
 Standard library only, credential-free. Numerals only: ``render`` emits digits in
 data contexts, so this module carries **no** copy of
@@ -899,6 +901,206 @@ svg .name {{ font-family: {WEEKLY_FONT_BODY}; font-size: 14px; font-weight: 700;
 .down {{ color: var(--bad-text); }}
 .nudge {{ margin: 4px 0 2px 44px; font-size: 13px; color: var(--ink-2); }}
 .nudge .why {{ margin-left: 6px; }}
+
+/* power-rank bump chart (Story 5B.3) */
+.bump-layout {{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 22px;
+  align-items: start;
+}}
+.bump-main {{ min-width: 0; }}
+.bump-side {{
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}}
+.bump-detail {{
+  min-height: 96px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px 16px;
+  background: var(--paper-2);
+  color: var(--ink-2);
+  font-size: 13.5px;
+}}
+.bump-detail p {{ margin: 0; }}
+.bump-detail .bd-team {{
+  font-family: {WEEKLY_FONT_DISPLAY};
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink);
+  margin-bottom: 6px;
+}}
+.bump-detail .bd-list {{
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}}
+.bump-detail .bd-list li {{
+  font-family: {FONT_MONO};
+  font-size: 12px;
+}}
+.bump-callout {{
+  border-left: 3px solid var(--emph);
+  background: var(--emph-wash);
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 13.5px;
+}}
+.bump-callout p {{ margin: 0; }}
+.bump-callout p + p {{ margin-top: 6px; }}
+.bump-callout .bd-title {{
+  font-family: {FONT_MONO};
+  font-size: 11px;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--emph);
+  margin-bottom: 6px;
+}}
+.pw-hits {{
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}}
+.hit {{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}}
+.hit .hit-tn {{
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-weight: 500;
+}}
+.hit .hit-state {{
+  font-family: {FONT_MONO};
+  font-size: 10px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--emph);
+}}
+.hit:hover,
+.hit:focus-visible {{
+  border-color: var(--emph);
+}}
+.hit.is-active {{
+  border-color: var(--emph);
+  box-shadow: 0 0 0 2px var(--emph-wash);
+}}
+.hit.is-pinned {{
+  background: var(--emph-wash);
+}}
+.hit.is-dim {{
+  opacity: .45;
+}}
+.bump-team .bump-model {{
+  fill: none;
+  stroke: var(--ink-3);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}}
+.bump-team .bump-model-dot {{
+  fill: var(--ink-3);
+}}
+.bump-team .bump-pub-line {{
+  fill: none;
+  stroke: var(--ink-2);
+  stroke-width: 1.4;
+  stroke-dasharray: 4 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}}
+.bump-team .bump-pub {{
+  fill: var(--bar);
+  stroke: var(--card);
+  stroke-width: 1.5;
+}}
+/* Story 5B.3 -- generous invisible hit targets layered under the thin
+   marks (interaction-decisions.md): a wide transparent stroke under each
+   line, a larger transparent circle under each dot/diamond. */
+.bump-team polyline.bump-hit {{
+  fill: none;
+  stroke: transparent;
+  stroke-width: 14;
+  pointer-events: stroke;
+}}
+.bump-team circle.bump-hit {{
+  fill: transparent;
+  pointer-events: fill;
+}}
+/* Story 5B.3 -- per-mark draw-in: each line's dash length is its own traced
+   path length (the ``--len`` custom property, computed in Python from the
+   line's real points -- never a shared constant), staggered ~25ms per team
+   via the same ``--draw-i`` the reveal/draw-in script already sets on every
+   ``[data-draw]`` chart's direct children (Story 5B.2). Undeclared outside
+   the ``html.js-reveal … .is-revealed`` rule below, so JS-off and
+   not-yet-revealed both default to a fully drawn, fully visible mark. */
+.bump-team .bump-model {{
+  stroke-dasharray: var(--len, 0);
+}}
+html.js-reveal [data-reveal].is-revealed .bump-team .bump-model {{
+  animation: bump-draw-line 400ms cubic-bezier(.16, 1, .3, 1) both;
+  animation-delay: calc(var(--draw-i, 0) * 25ms);
+}}
+html.js-reveal [data-reveal].is-revealed .bump-team .bump-point,
+html.js-reveal [data-reveal].is-revealed .bump-team .bump-pub-line {{
+  animation: bump-draw-point 400ms cubic-bezier(.16, 1, .3, 1) both;
+  animation-delay: calc(var(--draw-i, 0) * 25ms);
+}}
+@keyframes bump-draw-line {{
+  from {{ stroke-dashoffset: var(--len, 0); }}
+  to {{ stroke-dashoffset: 0; }}
+}}
+@keyframes bump-draw-point {{
+  from {{ opacity: 0; }}
+  to {{ opacity: 1; }}
+}}
+.bump-team.is-active .bump-model {{
+  stroke: var(--emph);
+  stroke-width: 3;
+}}
+.bump-team.is-active .bump-model-dot {{
+  fill: var(--emph);
+}}
+.bump-team.is-active .bump-pub-line {{
+  stroke: var(--emph);
+  stroke-width: 2;
+}}
+.bump-team.is-active .bump-pub {{
+  fill: var(--emph);
+}}
+.bump-team {{
+  transition: opacity 160ms linear;
+}}
+.bump-team.is-dim {{
+  opacity: .22;
+}}
+.bump-grid {{
+  stroke: var(--line);
+  stroke-width: 1;
+}}
+.bump-rank,
+.bump-week {{
+  font-family: {FONT_MONO};
+  font-size: 11px;
+  fill: var(--ink-3);
+}}
 .r {{ text-align: right; }}
 
 /* luck */
@@ -996,6 +1198,7 @@ footer p {{ margin: 0; }}
 @media (max-width: 900px) {{
   .lead {{ grid-template-columns: minmax(0, 1fr); }}
   .awards {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
+  .bump-layout {{ grid-template-columns: minmax(0, 1fr); }}
 }}
 @media (max-width: 560px) {{
   body {{ font-size: 16px; }}
