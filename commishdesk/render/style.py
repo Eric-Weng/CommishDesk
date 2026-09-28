@@ -687,6 +687,27 @@ body {{
 .mg-xl {{ width: 56px; height: 56px; border-radius: 18px; font-size: 23px; }}
 .mg-xxl {{ width: 64px; height: 64px; border-radius: 20px; font-size: 26px; }}
 svg.chart {{ display: block; max-width: 100%; height: auto; }}
+/* Story 5B.2 — reveal/draw-in motion. Hiding values only exist inside
+   @keyframes and are gated by the script-added html.js-reveal ancestor. */
+@keyframes reveal-in {{
+  from {{ opacity: 0; transform: translateY(12px); }}
+  to {{ opacity: 1; transform: translateY(0); }}
+}}
+@keyframes draw-in {{
+  from {{ opacity: 0; transform: translateY(4px); }}
+  to {{ opacity: 1; transform: translateY(0); }}
+}}
+html.js-reveal [data-reveal].is-revealed {{
+  animation: reveal-in 500ms cubic-bezier(.16, 1, .3, 1) both;
+}}
+html.js-reveal [data-reveal].is-revealed [data-draw] > *:not(title) {{
+  animation: draw-in 400ms cubic-bezier(.16, 1, .3, 1) both;
+  animation-delay: calc(var(--draw-i, 0) * 25ms);
+}}
+:focus-visible {{
+  outline: 3px solid var(--emph);
+  outline-offset: 3px;
+}}
 svg .lbl {{ font-family: {FONT_MONO}; font-size: 15px; fill: var(--ink); }}
 svg .lbl-2 {{ font-family: {FONT_MONO}; font-size: 14px; fill: var(--ink-2); }}
 svg .lbl-b {{ font-family: {FONT_MONO}; font-size: 18px; font-weight: 500; }}
@@ -990,6 +1011,17 @@ footer p {{ margin: 0; }}
 """.strip()
 
 
+_REDUCED_MOTION_CSS = """
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+    transition-duration: 0s !important;
+  }
+}
+""".strip()
+
+
 def build_weekly_style() -> str:
     """The weekly Issue's inline stylesheet (CSS text, no ``<style>`` tags):
     the embedded ``@font-face`` rules, the Tuesday Morning tokens in the same
@@ -1000,5 +1032,6 @@ def build_weekly_style() -> str:
             weekly_font_faces(),
             _themed_tokens(WEEKLY_LIGHT_TOKENS, WEEKLY_DARK_TOKENS),
             _WEEKLY_CSS,
+            _REDUCED_MOTION_CSS,
         ]
     )

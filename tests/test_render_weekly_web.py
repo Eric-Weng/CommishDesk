@@ -207,7 +207,7 @@ def test_a_hostile_team_name_appears_only_escaped() -> None:
             row["nudge_justification"] = hostile
     page = _page(raw)
     assert hostile not in page
-    assert "<script" not in page
+    assert "<script>x</script>" not in page
     assert "onload=1>" not in page
     escaped = "&lt;script&gt;x&lt;/script&gt;&quot;&gt;&lt;svg onload=1&gt;"
     body = _body(page)
@@ -255,9 +255,12 @@ def test_page_is_self_contained() -> None:
     page = _page(_raw(published=True))
     assert page.startswith("<!doctype html>") and page.endswith("\n") and "\r" not in page
     assert page.count("<style>") == 1
+    assert page.count("<script") == 1
+    assert page.count("<script>") == 1
     lowered = page.lower()
-    for banned in ("<script", "<link", "@import", "src=", "http"):
+    for banned in ("<link", "@import", "src=", "http"):
         assert banned not in lowered, banned
+    assert "script src=" not in lowered
     urls = re.findall(r"url\(([^)]*)\)", page)
     assert urls and all(url.startswith("data:font/woff2;base64,") for url in urls)
     assert len(urls) == len(style_mod.WEEKLY_FONT_FILES)
@@ -292,6 +295,7 @@ def test_every_svg_has_a_title() -> None:
     assert len(svgs) >= 2  # the lead hero and the luck index
     for svg in svgs:
         assert re.match(r'<svg\b[^>]*role="img"[^>]*><title>[^<]+</title>', svg), svg[:120]
+        assert ' data-draw' in svg.split('>', 1)[0]
 
 
 def test_render_is_deterministic() -> None:
@@ -299,12 +303,12 @@ def test_render_is_deterministic() -> None:
 
 
 #: SHA-256 of the Story 5.14a page (commit 779de47) for the two committed
-#: fixtures — Story 5.14b moved its selectors into ``render/_weekly_model.py``
-#: and the page must stay byte-identical. Change these only with a deliberate
-#: design change to the page.
+#: fixtures — Story 5B.2 added the interaction layer's inline ``<script>`` and
+#: the reveal/draw-in CSS, which moved the hash. Change these only with a
+#: deliberate design change to the page.
 _GOLDEN_SHA256 = {
-    False: "dd0b450de09c78d95648de40ca5974752b40d2cd61ef9b2578b4e59aa51f8cde",
-    True: "ddc400a8254d214c00c6341eab3c14a2642d3ba1db18466aab4c4cfcf593ba82",
+    False: "9ff865f907218de5f4acad09780ea7b2875b84820cfc6793a02748ab32632c16",
+    True: "22c498006d3428e14eb2f1b489a9a504b61dbd4d08c16766daf1b4629e2821cf",
 }
 
 
@@ -312,6 +316,80 @@ _GOLDEN_SHA256 = {
 def test_page_is_byte_identical_to_the_5_14a_golden(published: bool) -> None:
     page = _page(_raw(published=published))
     assert hashlib.sha256(page.encode("utf-8")).hexdigest() == _GOLDEN_SHA256[published]
+
+
+def test_interaction_script_is_csp_safe() -> None:
+    page = _page(_raw())
+    assert page.count("<script") == 1
+    script = page.split("<script>", 1)[1].split("</script>", 1)[0]
+    assert "eval(" not in script
+    assert "innerHTML" not in script.lower()
+    assert "document.write" not in script.lower()
+    assert not re.search(r"\son[a-z]+\s*=", script, flags=re.IGNORECASE)
+
+
+def test_reduced_motion_query_zeroes_interaction_durations() -> None:
+    page = _page(_raw())
+    css = page.split("<style>", 1)[1].split("</style>", 1)[0]
+    assert "@media (prefers-reduced-motion: reduce)" in css
+    block = css.split("@media (prefers-reduced-motion: reduce)", 1)[1].split("}", 1)[0]
+    assert "animation-duration: 0s" in block
+    assert "animation-delay: 0s" in block
+    assert "transition-duration: 0s" in block
+
+
+def test_js_off_is_finished_and_visible_by_default() -> None:
+    page = _page(_raw())
+    css = page.split("<style>", 1)[1].split("</style>", 1)[0]
+    body_without_script = _body(page).split("<script>", 1)[0]
+    assert "data-reveal" in body_without_script
+    assert 'style="opacity: 0' not in body_without_script
+    assert "is-revealed" not in body_without_script
+    assert not re.search(r'\[data-reveal\][^{}]*\{[^}]*opacity\s*:\s*0', css)
+    assert not re.search(r'\[data-reveal\][^{}]*\{[^}]*visibility\s*:\s*hidden', css)
+
+
+def test_normal_scroll_js_and_motion_on_reveals_once_and_draws_in() -> None:
+    """I/O matrix row: "Normal scroll, JS+motion on" — each section reveals on
+    first entry only (never re-fires scrolling back up), and each chart's
+    marks draw in with the approved stagger/easing."""
+    page = _page(_raw())
+    script = page.split("<script>", 1)[1].split("</script>", 1)[0]
+    css = page.split("<style>", 1)[1].split("</style>", 1)[0]
+
+    # Fires once, never re-triggers scrolling back up: an IntersectionObserver
+    # that unobserves the element as soon as it has been revealed.
+    assert "IntersectionObserver" in script
+    observer_body = script.split("new IntersectionObserver(", 1)[1]
+    assert "unobserve(" in observer_body
+
+    # Each chart's own marks draw in within the approved 350-450ms window,
+    # with the approved easing curve.
+    match = re.search(r"animation:\s*draw-in\s+(\d+)ms\s+cubic-bezier\(([^)]+)\)", css)
+    assert match, "expected a draw-in animation rule in the interaction CSS"
+    duration_ms = int(match.group(1))
+    assert 350 <= duration_ms <= 450
+    assert match.group(2).replace(" ", "") == ".16,1,.3,1"
+
+    # The stagger: a per-element index drives a ~25ms-multiplied delay via a
+    # CSS custom property, set from the child's index in the script.
+    assert re.search(r"animation-delay:\s*calc\(var\(--draw-i,\s*0\)\s*\*\s*25ms\)", css)
+    assert 'setProperty("--draw-i"' in script
+
+
+def test_keyboard_only_nav_shows_a_visible_focus_outline() -> None:
+    """I/O matrix row: "Keyboard-only nav" — tabbing through the page must show
+    a visible focus outline on every focusable element, via a real (non-zero,
+    non-``none``) ``:focus-visible`` outline."""
+    page = _page(_raw())
+    css = page.split("<style>", 1)[1].split("</style>", 1)[0]
+    match = re.search(r":focus-visible\s*\{([^}]*)\}", css)
+    assert match, "expected a :focus-visible rule in the stylesheet"
+    block = match.group(1)
+    outline_match = re.search(r"outline:\s*([^;]+);", block)
+    assert outline_match, block
+    outline_value = outline_match.group(1).strip().lower()
+    assert outline_value not in ("none", "0")
 
 
 # --------------------------------------------------------------------------- #

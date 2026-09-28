@@ -283,7 +283,8 @@ def test_weekly_happy_path_prints_sections_and_writes_files(
     # Story 5.14a: the designed weekly page, not the Story 2.7 generic dump.
     assert 'class="paper weekly_issue"' in body
     assert "<h1>" not in body and "<h2>" not in body  # the dump's bare, unstyled headings
-    assert body.count("<style>") == 1 and "<script" not in body
+    assert body.count("<style>") == 1
+    assert body.count("<script") == 1 and body.count("<script>") == 1
     assert "UNVERIFIED" not in body
     assert text_path.read_text(encoding="utf-8").strip()
 
