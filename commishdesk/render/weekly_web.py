@@ -4,7 +4,10 @@
 :class:`~commishdesk.narrate.weekly_template.WeeklyIssue` into one
 ``<!doctype html>`` string: the approved Story 5.13 design (Tuesday Morning
 theme, Editorial layout) with inline CSS, embedded fonts, hand-authored inline
-SVG, no script and no external request.
+SVG and no external request. Story 5B.2 adds exactly one small inline script
+(reveal / draw-in motion); the page is complete and fully visible without it —
+the script only sets ``html.js-reveal`` and adds ``is-revealed`` as sections
+scroll into view.
 
 **Section order** — masthead, lead (hero chosen by lead kind, plus the awards
 row), around the league, standings, power rankings, luck index, next week,
@@ -78,6 +81,51 @@ _L_TOP = 30
 _L_NAME_MAX = 24
 
 
+# The single inline interaction layer for Story 5B.2. The page is already
+# finished without script; this only adds the enabling class and observes
+# [data-reveal] elements. It writes no markup, uses no innerHTML/eval, and
+# sets only class/style state.
+_INTERACTION_SCRIPT = """(function () {
+  "use strict";
+  var root = document.documentElement;
+  root.classList.add("js-reveal");
+
+  var charts = document.querySelectorAll("[data-draw]");
+  Array.prototype.forEach.call(charts, function (chart) {
+    var drawIndex = 0;
+    Array.prototype.forEach.call(chart.children, function (child) {
+      if (child.tagName.toLowerCase() !== "title") {
+        child.style.setProperty("--draw-i", String(drawIndex));
+        drawIndex += 1;
+      }
+    });
+  });
+
+  var targets = document.querySelectorAll("[data-reveal]");
+  function show(target) {
+    target.classList.add("is-revealed");
+  }
+
+  if (!("IntersectionObserver" in window)) {
+    Array.prototype.forEach.call(targets, show);
+    return;
+  }
+
+  var observer = new IntersectionObserver(function (entries, obs) {
+    entries.forEach(function (entry) {
+      if (entry.isIntersecting) {
+        show(entry.target);
+        obs.unobserve(entry.target);
+      }
+    });
+  }, { rootMargin: "0px 0px -8% 0px", threshold: 0.1 });
+
+  Array.prototype.forEach.call(targets, function (target) {
+    observer.observe(target);
+  });
+})();"""
+
+
 # --------------------------------------------------------------------------- #
 # Small formatters
 # --------------------------------------------------------------------------- #
@@ -119,7 +167,7 @@ def _svg_open(width: float, height: float, aria: str) -> str:
     """Opening ``<svg>`` tag plus a ``<title>`` first child (mirrors
     ``render/web.py``)."""
     return (
-        f'<svg class="chart" viewBox="0 0 {width} {height}" width="{width}" height="{height}" '
+        f'<svg class="chart" data-draw viewBox="0 0 {width} {height}" width="{width}" height="{height}" '
         f'role="img" aria-label="{_esc(aria)}"><title>{_esc(aria)}</title>'
     )
 
@@ -196,7 +244,7 @@ def _masthead(ctx: _Ctx) -> str:
         )
         tile_html = f'<ul class="tiles" aria-label="The week at a glance">{items}</ul>'
     return (
-        '<header class="masthead"><div>'
+        '<header class="masthead" data-reveal><div>'
         f'<p class="weekline">{_esc(weekline)}</p>'
         f'<h1 class="nameplate">{_esc(league.name)}</h1>'
         f"</div>{tile_html}</header>"
@@ -210,14 +258,14 @@ def _notices(issue: WeeklyIssue, headings: tuple[str, ...]) -> str:
     out: list[str] = []
     if issue.dateline.startswith("UNVERIFIED"):
         out.append(
-            '<aside class="notice" role="note"><h2>Unverified</h2>'
+            '<aside class="notice" role="note" data-reveal><h2>Unverified</h2>'
             f"<p>{_esc(issue.dateline)}</p></aside>"
         )
     for section in issue.sections:
         if section.heading in headings:
             continue
         body = "".join(f"<p>{_esc(block)}</p>" for block in section.blocks)
-        out.append(f'<aside class="notice" role="note"><h2>{_esc(section.heading)}</h2>{body}</aside>')
+        out.append(f'<aside class="notice" role="note" data-reveal><h2>{_esc(section.heading)}</h2>{body}</aside>')
     return "\n".join(out)
 
 
@@ -509,9 +557,9 @@ def _lead_section(ctx: _Ctx) -> str:
     awards = _awards(ctx)
     if lead is None:
         if not blocks:
-            return awards
+            return f'<section aria-label="The lead" data-reveal>{awards}</section>' if awards else awards
         return (
-            '<section class="lead-wrap" aria-label="The lead"><div class="card lead-main">'
+            '<section class="lead-wrap" aria-label="The lead" data-reveal><div class="card lead-main">'
             f'{_head("The lead", blocks[0], "bad")}{_prose(blocks[1:], extra_cls="lead-prose")}'
             f"</div>{awards}</section>"
         )
@@ -523,14 +571,14 @@ def _lead_section(ctx: _Ctx) -> str:
         key = key_number(ctx.facts, lead)
         key_html = f'<p class="key">{_esc(key)}</p>' if key else ""
         return (
-            '<section class="lead-wrap" aria-label="The lead"><div class="card lead-main">'
+            '<section class="lead-wrap" aria-label="The lead" data-reveal><div class="card lead-main">'
             '<p class="eyebrow dash-bad">The lead</p>'
             f'<div class="lead-type"><h2 class="hook">{_esc(hook)}</h2>{key_html}</div>'
             f"{prose}</div>{awards}</section>"
         )
     svg, side = drawn
     return (
-        '<section class="lead-wrap" aria-label="The lead"><div class="lead">'
+        '<section class="lead-wrap" aria-label="The lead" data-reveal><div class="lead">'
         f'<div class="card lead-main">{_head("The lead", hook, "bad")}{prose}{svg}</div>'
         f'<div class="lead-side">{side}</div></div>{awards}</section>'
     )
@@ -597,7 +645,7 @@ def _around_section(ctx: _Ctx) -> str:
         return ""
     cards = "".join(_game_card(ctx, matchup) for matchup in games)
     return (
-        f'<section aria-label="Around the league">{_head("Around the league", "Results", "emph")}'
+        f'<section aria-label="Around the league" data-reveal>{_head("Around the league", "Results", "emph")}'
         f'<div class="grid3">{cards}</div>{_prose(blocks)}</section>'
     )
 
@@ -675,7 +723,7 @@ def _standings_section(ctx: _Ctx) -> str:
         )
     prose_heading = "Standings" if cold_start else "Standings and the Playoff Picture"
     return (
-        f'<section class="card table-card" aria-label="Standings">{_head("Standings", title, "good")}'
+        f'<section class="card table-card" aria-label="Standings" data-reveal>{_head("Standings", title, "good")}'
         f'<div class="standings">{"".join(rows)}</div>{legend}{note}'
         f"{_prose(ctx.blocks(prose_heading))}</section>"
     )
@@ -727,7 +775,7 @@ def _power_section(ctx: _Ctx) -> str:
         '<span class="r">Avg PF</span><span class="ms">Model score</span><span class="r">Wk</span></div>'
     )
     return (
-        f'<section class="card table-card" aria-label="Power rankings">'
+        f'<section class="card table-card" aria-label="Power rankings" data-reveal>'
         f'{_head("Power rankings", "Where the model and the desk land", "emph")}'
         f'{head}<div class="power">{"".join(items)}</div>'
         f"{_prose(ctx.blocks('Power Rankings'))}</section>"
@@ -789,7 +837,7 @@ def _luck_section(ctx: _Ctx) -> str:
     aria = "Luck index: actual wins minus expected wins, most lucky to least"
     svg = _svg_open(_L_W, height, aria) + "".join(parts) + "</svg>"
     return (
-        f'<section class="card luck-card" aria-label="The luck index">'
+        f'<section class="card luck-card" aria-label="The luck index" data-reveal>'
         f'{_head("The luck index", "Who the schedule favoured", "notable")}{svg}'
         f"{_prose(ctx.blocks('The Luck Index'))}</section>"
     )
@@ -853,7 +901,7 @@ def _next_week_section(ctx: _Ctx) -> str:
         )
     body = "".join(_next_week_card(ctx, card, set(shared)) for card in cards)
     return (
-        f'<section aria-label="Next week">{_head("Next week", "Next week" + chr(8217) + "s games", "bad")}'
+        f'<section aria-label="Next week" data-reveal>{_head("Next week", "Next week" + chr(8217) + "s games", "bad")}'
         f'{shared_line}{byes_line}<div class="grid3">{body}</div>'
         f"{_prose(ctx.blocks('Next Week'))}</section>"
     )
@@ -910,7 +958,7 @@ def _transactions_section(ctx: _Ctx) -> str:
     cards = [_move_card(ctx, move) for move in moves]
     cards.extend(_trade_card(ctx, trade) for trade in trades)
     return (
-        f'<section aria-label="The transaction desk">'
+        f'<section aria-label="The transaction desk" data-reveal>'
         f'{_head("The transaction desk", "What moved on the wire", "good")}'
         f'<div class="grid3">{"".join(cards)}</div>'
         f"{_prose(ctx.blocks('The Transaction Desk'))}</section>"
@@ -941,7 +989,7 @@ def render_weekly_web(facts: WeeklyFacts, issue: WeeklyIssue, *, output_id: str,
     cold_start = not facts.period.has_prior_week
     ctx = _Ctx(facts, issue)
     footer = (
-        f"<footer><p>{_esc(facts.league.name)} · {_esc(facts.league.season)} · Week {facts.week} · "
+        f'<footer data-reveal><p>{_esc(facts.league.name)} · {_esc(facts.league.season)} · Week {facts.week} · '
         f"generated {_esc(generated_at)}</p>"
         "<p>Every number is computed from the league&rsquo;s own Sleeper record; "
         "the prose is the narrator&rsquo;s.</p></footer>"
@@ -973,6 +1021,9 @@ def render_weekly_web(facts: WeeklyFacts, issue: WeeklyIssue, *, output_id: str,
         '<main class="paper weekly_issue">',
         *[part for part in sections if part],
         "</main>",
+        "<script>",
+        _INTERACTION_SCRIPT,
+        "</script>",
         "</body>",
         "</html>",
     ]
