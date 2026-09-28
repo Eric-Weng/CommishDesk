@@ -13,6 +13,10 @@ the power-rank bump chart rules (grid, model / published strokes, hover + pin
 hit-list, responsive stacking) to the weekly stylesheet. Story 5B.4 adds the
 luck row's focus / tap preview and grow-from-zero bars, and the standings
 actual-vs-all-play toggle with its cross-fading record, bar and legend values.
+Story 5B.5 adds the expandable matchup and next-week cards: an in-card
+CSS-revealed detail panel (a pinned card holds it open; a bare card only
+reveals it while hovered), with the same reduced-motion zeroing applying to
+its states.
 
 Standard library only, credential-free. Numerals only: ``render`` emits digits in
 data contexts, so this module carries **no** copy of
@@ -845,6 +849,85 @@ html.js-reveal [data-reveal].is-revealed .luck-bar {{
 .side.win {{ background: var(--win-tint); border-radius: 12px; padding: 8px 10px; }}
 .side.win .tn {{ font-weight: 700; font-size: 16px; color: var(--ink); }}
 .side.win .sc {{ font-size: 28px; color: var(--ink); }}
+
+/* Story 5B.5 -- expandable matchup and next-week cards */
+.game,
+.nw {{ position: relative; }}
+
+.card-expand {{
+  display: none;
+  position: relative;
+  z-index: 3;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 7px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--ink-2);
+  font-family: {FONT_MONO};
+  font-size: 11px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}}
+.card-expand:hover,
+.card-expand:focus-visible {{ border-color: var(--emph); }}
+.card-expand:focus-visible {{ outline: 3px solid var(--emph); outline-offset: 3px; }}
+.card-expand-state {{ color: var(--emph); }}
+
+html.js-reveal .card-expand {{ display: inline-flex; }}
+
+.game-detail,
+.nw-detail {{
+  position: absolute;
+  inset: 1px;
+  z-index: 2;
+  display: none;
+  overflow-y: auto;
+  padding: 16px 18px;
+  border-radius: 19px;
+  background: var(--card);
+  color: var(--ink-2);
+  font-size: 14px;
+  line-height: 1.45;
+}}
+html.js-reveal .card:hover .game-detail,
+html.js-reveal .card:hover .nw-detail,
+html.js-reveal .card.is-pinned .game-detail,
+html.js-reveal .card.is-pinned .nw-detail {{
+  display: block;
+}}
+
+.game-side-detail + .game-side-detail {{
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}}
+.d-team {{
+  margin: 0 0 6px;
+  font-family: {WEEKLY_FONT_DISPLAY};
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}}
+.d-line {{ margin: 2px 0; }}
+.d-k {{
+  display: inline-block;
+  margin-right: 8px;
+  font-family: {FONT_MONO};
+  font-size: 10.5px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}}
+
+html.js-reveal .card.is-pinned {{
+  border-color: var(--emph);
+  box-shadow: 0 0 0 2px var(--emph-wash), var(--shadow);
+}}
 
 /* standings and power */
 .table-card {{ padding: 30px; }}

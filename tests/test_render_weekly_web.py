@@ -8,7 +8,8 @@ next-week stakes line, and luck bars that plot ``season.luck`` as-is.
 
 Story 5B.4 adds the luck index's focus / tap preview, its grow-from-zero bar
 animation, and the standings actual-vs-all-play toggle (including its stand-down
-when no team carries an all-play record).
+when no team carries an all-play record). Story 5B.5 adds the expandable
+matchup and next-week cards (hover preview, pinned state, per-card detail).
 
 Inputs are the committed weekly Facts fixtures; the narrated Issue is the
 template narrator's.
@@ -98,6 +99,11 @@ def _bump_team_blocks(power_html: str) -> dict[str, str]:
     return dict(
         re.findall(r'<g class="bump-team" data-team="([^"]+)">(.*?)</g>', power_html, flags=re.DOTALL)
     )
+
+
+def _detail_blocks(page: str, cls: str) -> list[str]:
+    pattern = rf'<div class="{cls}">(.*?)</div>\s*</article>'
+    return re.findall(pattern, _body(page), flags=re.DOTALL)
 
 
 # --------------------------------------------------------------------------- #
@@ -326,11 +332,13 @@ def test_render_is_deterministic() -> None:
 #: power-rank bump chart (SVG, per-mark draw-in, hit targets, hover/pin CSS
 #: and JS), which moved it again. Story 5B.4 adds the luck focus / tap preview
 #: and grow-in bars plus the all-play standings toggle, which moved it again.
-#: Change these only with a deliberate design change to the page, and regenerate
-#: them by running this test once and copying the printed digests.
+#: Story 5B.5 adds the expandable matchup and next-week cards (in-card detail
+#: panel, pinned state, expand button), which moved it again. Change these
+#: only with a deliberate design change to the page, and regenerate them by
+#: running this test once and copying the printed digests.
 _GOLDEN_SHA256 = {
-    False: "86c84e576db8cc37735d238a19bd03683f91185c8475b4f9c2fa7fd5e68160ee",
-    True: "bf4bf5440a7ff927646d36ed6f33b3996d461d7ff7a92050e280c9fc6386b47f",
+    False: "c4dbb12ee6d5dd4ef9cc5e88e5ec6c2e10b327c5f713ef80a4c62018ac1f36ad",
+    True: "008985a8b23a0d27b181cbd82234dde187fb89af33053507daf9422a20a93167",
 }
 
 
@@ -661,10 +669,13 @@ def test_shared_stakes_render_once_and_cards_carry_no_empty_chip_row() -> None:
     cards = re.findall(r'<article class="card nw[^"]*">(.*?)</article>', next_week)
     assert len(cards) == len(raw["matchups"]["next_week"])
     for card, data in zip(cards, raw["matchups"]["next_week"], strict=True):
+        chip_row = re.search(r'<div class="nw-chips">(.*?)</div>', card)
         if data["game_of_week"]:
-            assert "Game of the week" in card and "Bye seed" not in card
+            assert "Game of the week" in card
+            assert chip_row is not None
+            assert "Bye seed" not in chip_row.group(1)
         else:
-            assert 'class="nw-chips"' not in card
+            assert chip_row is None
 
 
 def test_a_differing_stake_shows_as_a_chip_on_its_card_only() -> None:
@@ -1002,3 +1013,125 @@ def test_week01_standings_ranks_are_positional() -> None:
     section = _body(_page(_week01_raw())).split('aria-label="Standings"', 1)[1].split("</section>", 1)[0]
     ranks = re.findall(r'<span class="rk">(\d+)</span>', section)
     assert ranks == [str(n) for n in range(1, 13)]
+
+
+# --------------------------------------------------------------------------- #
+# Story 5B.5 -- expandable matchup and next-week cards
+# --------------------------------------------------------------------------- #
+
+
+def test_expandable_card_hover_preview_is_css_only() -> None:
+    page = _page(_raw(published=True))
+    css = page.split("<style>", 1)[1].split("</style>", 1)[0]
+    assert "html.js-reveal .card:hover .game-detail" in css
+    assert "html.js-reveal .card:hover .nw-detail" in css
+
+    script = page.split("<script>", 1)[1].split("</script>", 1)[0]
+    card_block = script.split('querySelectorAll(".card-expand")', 1)[1].split(
+        'querySelectorAll("[data-bump-chart]")', 1
+    )[0]
+    assert "mouseenter" not in card_block
+    assert "mouseleave" not in card_block
+
+
+def test_expandable_card_pin_has_its_own_button_label_and_state() -> None:
+    page = _page(_raw(published=True))
+    body = _body(page)
+    assert 'class="card-expand"' in body
+    assert 'aria-expanded="false"' in body
+
+    script = page.split("<script>", 1)[1].split("</script>", 1)[0]
+    card_block = script.split('querySelectorAll(".card-expand")', 1)[1].split(
+        'querySelectorAll("[data-bump-chart]")', 1
+    )[0]
+    assert 'addEventListener("click"' in card_block
+    assert 'classList.toggle("is-pinned"' in card_block
+    assert 'setAttribute("aria-expanded"' in card_block
+    assert '"Pinned open"' in card_block
+
+    css = page.split("<style>", 1)[1].split("</style>", 1)[0]
+    assert "html.js-reveal .card.is-pinned .game-detail" in css
+    assert "html.js-reveal .card.is-pinned .nw-detail" in css
+    assert "html.js-reveal .card.is-pinned" in css
+
+
+def test_game_detail_omits_bench_regret_when_none() -> None:
+    raw = _raw(published=True)
+    for team in raw["teams"]:
+        if team["this_week"] is not None:
+            team["this_week"]["bench_regret"] = None
+
+    page = _page(raw)
+    details = _detail_blocks(page, "game-detail")
+    assert details
+    assert all("Bench regret" not in detail for detail in details)
+    assert any('class="d-k">Top<' in detail for detail in details)
+
+
+def test_next_week_detail_shows_stakes_only_when_no_bye_impact() -> None:
+    raw = _raw(published=True)
+    raw["matchups"]["next_week"][0]["stakes"] = [
+        *raw["matchups"]["next_week"][0]["stakes"],
+        "elimination",
+    ]
+    for card in raw["matchups"]["next_week"]:
+        card["bye_impact"] = []
+
+    page = _page(raw)
+    details = _detail_blocks(page, "nw-detail")
+    assert details
+    assert all('class="d-k">Stakes<' in detail for detail in details)
+    assert all('class="d-k">On bye<' not in detail for detail in details)
+
+
+def test_expandable_card_states_snap_under_reduced_motion() -> None:
+    page = _page(_raw(published=True))
+    css = page.split("<style>", 1)[1].split("</style>", 1)[0]
+
+    motion = css.split("@media (prefers-reduced-motion: reduce)", 1)[1].split("}", 1)[0]
+    assert "animation-duration: 0s" in motion
+    assert "transition-duration: 0s" in motion
+
+    story_css = css.split("/* Story 5B.5", 1)[1].split("/* standings and power */", 1)[0]
+    assert "transition:" not in story_css
+    assert "animation:" not in story_css
+
+
+def test_expand_controls_are_hidden_without_the_script_gate() -> None:
+    page = _page(_raw(published=True))
+    body_without_script = _body(page).split("<script>", 1)[0]
+    assert 'class="card-expand"' in body_without_script
+    assert 'class="game-detail"' in body_without_script
+
+    css = page.split("<style>", 1)[1].split("</style>", 1)[0]
+    base_css = css.split("@media (prefers-reduced-motion: reduce)", 1)[0]
+    assert ".card-expand {" in base_css
+    assert "display: none;" in base_css
+    assert "html.js-reveal .card-expand {" in base_css
+    assert "display: inline-flex;" in base_css
+
+
+def test_expandable_card_escapes_hostile_names_in_detail_markup() -> None:
+    hostile = "<script>x</script>"
+    raw = _raw(published=True)
+    for team in raw["teams"]:
+        roster_id = team["roster_id"]
+        in_this_week = any(
+            m["home_roster_id"] == roster_id or m["away_roster_id"] == roster_id
+            for m in raw["matchups"]["this_week"]
+        )
+        in_next_week = any(
+            c["a_roster_id"] == roster_id or c["b_roster_id"] == roster_id
+            for c in raw["matchups"]["next_week"]
+        )
+        if in_this_week or in_next_week:
+            team["team_name"] = hostile
+
+    page = _page(raw)
+    assert hostile not in page
+
+    details = _detail_blocks(page, "game-detail") + _detail_blocks(page, "nw-detail")
+    assert details
+    escaped = "&lt;script&gt;x&lt;/script&gt;"
+    assert any(escaped in detail for detail in details)
+    assert all("<script>x</script>" not in detail for detail in details)

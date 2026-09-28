@@ -13,6 +13,9 @@ detail layer. Story 5B.4 adds two more layers to that same script: the luck
 index's focus / tap preview and the standings' actual-vs-all-play toggle (both
 progressively enhanced — the page still renders complete and readable with
 script off, and the toggle stays hidden until the script can drive it).
+Story 5B.5 adds expandable matchup and next-week cards: an in-card CSS-revealed
+detail panel (never a layout-expanding accordion, so cards don't reorder or
+resize on hover/pin), with the same one inline script driving the pin state.
 
 **Section order** — masthead, lead (hero chosen by lead kind, plus the awards
 row), around the league, standings, power rankings (with the bump chart),
@@ -47,6 +50,8 @@ from collections.abc import Sequence
 
 from commishdesk.facts.schema import (
     LeadCandidate,
+    WeeklyByeImpact,
+    WeeklyByeStarter,
     WeeklyFacts,
     WeeklyMatchup,
     WeeklyMove,
@@ -87,12 +92,13 @@ _L_TOP = 30
 _L_NAME_MAX = 24
 
 
-# The single inline interaction layer for Story 5B.2 / 5B.3 / 5B.4. The page is
-# already finished without script; this only adds the enabling class, observes
-# [data-reveal] elements, drives the power-rank bump chart's hover / pin detail,
-# previews a luck row on focus / tap, and flips the standings all-play view. It
-# writes markup only through createElement/textContent (no innerHTML/eval), and
-# sets only class/style state.
+# The single inline interaction layer for Story 5B.2 / 5B.3 / 5B.4 / 5B.5. The
+# page is already finished without script; this only adds the enabling class,
+# observes [data-reveal] elements, drives the power-rank bump chart's hover /
+# pin detail, previews a luck row on focus / tap, flips the standings all-play
+# view, and pins an expandable matchup / next-week card. It writes markup only
+# through createElement/textContent (no innerHTML/eval), and sets only
+# class/style state.
 _INTERACTION_SCRIPT = """(function () {
   "use strict";
   var root = document.documentElement;
@@ -147,6 +153,24 @@ _INTERACTION_SCRIPT = """(function () {
         });
       });
     });
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll(".card-expand"), function (button) {
+    var card = button.closest(".card");
+    if (!card) { return; }
+    function renderPinned() {
+      var pinned = card.classList.contains("is-pinned");
+      button.setAttribute("aria-expanded", pinned ? "true" : "false");
+      var state = button.querySelector(".card-expand-state");
+      if (state) {
+        state.textContent = pinned ? "Pinned open" : "";
+      }
+    }
+    button.addEventListener("click", function () {
+      card.classList.toggle("is-pinned");
+      renderPinned();
+    });
+    renderPinned();
   });
 
   Array.prototype.forEach.call(document.querySelectorAll("[data-bump-chart]"), function (bumpRoot) {
@@ -392,6 +416,71 @@ class _Ctx:
 
     def blocks(self, heading: str) -> list[str]:
         return self.prose.get(heading, [])
+
+
+def _bye_impact_text(players: Sequence[WeeklyByeStarter | WeeklyByeImpact]) -> str:
+    return ", ".join(
+        f"{player.name} ({' '.join(part for part in (player.pos, player.nfl_team) if part)})"
+        if (player.pos or player.nfl_team)
+        else player.name
+        for player in players
+    )
+
+
+def _card_expand() -> str:
+    return (
+        '<button type="button" class="card-expand" aria-expanded="false">'
+        "<span>Details</span>"
+        '<span class="card-expand-state" aria-hidden="true"></span></button>'
+    )
+
+
+def _game_side_detail(ctx: _Ctx, roster_id: str) -> str:
+    team = ctx.teams.get(roster_id)
+    game = team.this_week if team else None
+    name = ctx.label(roster_id)
+    if game is None:
+        return f'<div class="game-side-detail"><p class="d-team">{_esc(name)}</p></div>'
+
+    lines: list[str] = []
+    if game.top_performers:
+        performers = " · ".join(
+            f"{_esc(player.name)} {_pts(player.points)}" for player in game.top_performers
+        )
+        lines.append(f'<p class="d-line"><span class="d-k">Top</span>{performers}</p>')
+    if game.bench_regret is not None:
+        bench = game.bench_regret
+        lines.append(
+            f'<p class="d-line"><span class="d-k">Bench regret</span>'
+            f"{_esc(bench.name)} {_pts(bench.points)}</p>"
+        )
+    return (
+        f'<div class="game-side-detail"><p class="d-team">{_esc(name)}</p>'
+        f'{"".join(lines)}</div>'
+    )
+
+
+def _game_detail(ctx: _Ctx, win_roster_id: str, lose_roster_id: str) -> str:
+    return (
+        '<div class="game-detail">'
+        f"{_game_side_detail(ctx, win_roster_id)}"
+        f"{_game_side_detail(ctx, lose_roster_id)}"
+        "</div>"
+    )
+
+
+def _nw_detail(card: WeeklyNextWeekCard, shared: set[str]) -> str:
+    parts: list[str] = []
+    own_stakes = wm.own_stakes(card, list(shared))
+    if own_stakes:
+        labels = " · ".join(_esc(_stake_label(tag)) for tag in own_stakes)
+        parts.append(f'<p class="d-line"><span class="d-k">Stakes</span>{labels}</p>')
+    if card.bye_impact:
+        byes = _esc(_bye_impact_text(card.bye_impact))
+        parts.append(f'<p class="d-line"><span class="d-k">On bye</span>{byes}</p>')
+    if not parts:
+        return ""
+    return f'<div class="nw-detail">{"".join(parts)}</div>'
 
 
 # --------------------------------------------------------------------------- #
@@ -811,12 +900,14 @@ def _game_card(ctx: _Ctx, matchup: WeeklyMatchup) -> str:
     by = "Tied" if tied else f"Won by {_pts(abs(matchup.margin))}"
     win_name, lose_name = ctx.label(win_id), ctx.label(lose_id)
     win_cls = "side" if tied else "side win"
+    expand = _card_expand()
+    detail = _game_detail(ctx, win_id, lose_id)
     return (
-        f'<article class="card game"><div class="game-top"><span class="by">{_esc(by)}</span>{tag}</div>'
+        f'<article class="card game"><div class="game-top"><span class="by">{_esc(by)}</span>{tag}{expand}</div>'
         f'<div class="{win_cls}">{_mg(win_name, "" if tied else "mg-l")}<span class="tn">{_esc(win_name)}</span>'
         f'<span class="sc">{_esc(_pts(win_pts))}</span></div>'
         f'<div class="side">{_mg(lose_name)}<span class="tn">{_esc(lose_name)}</span>'
-        f'<span class="sc">{_esc(_pts(lose_pts))}</span></div></article>'
+        f'<span class="sc">{_esc(_pts(lose_pts))}</span></div>{detail}</article>'
     )
 
 
@@ -1310,21 +1401,17 @@ def _next_week_card(ctx: _Ctx, card: WeeklyNextWeekCard, shared: set[str]) -> st
     )
     chip_row = f'<div class="nw-chips">{"".join(chips)}</div>' if chips else ""
     bye = ""
+    detail = _nw_detail(card, shared)
+    expand = _card_expand() if detail else ""
     if card.bye_impact:
-        names = ", ".join(
-            f"{player.name} ({' '.join(p for p in (player.pos, player.nfl_team) if p)})"
-            if (player.pos or player.nfl_team)
-            else player.name
-            for player in card.bye_impact
-        )
-        bye = f'<p class="byeline"><b>On bye</b> {_esc(names)}</p>'
+        bye = f'<p class="byeline"><b>On bye</b> {_esc(_bye_impact_text(card.bye_impact))}</p>'
     cls = "card nw gotw" if card.game_of_week else "card nw"
     return (
-        f'<article class="{cls}">{chip_row}<div class="nw-vs">'
+        f'<article class="{cls}">{chip_row}{expand}<div class="nw-vs">'
         f"{_nw_side(ctx, card.a_roster_id, card.a_record, card.a_power_rank)}"
         '<span class="vs">vs</span>'
         f"{_nw_side(ctx, card.b_roster_id, card.b_record, card.b_power_rank)}"
-        f"</div>{bye}</article>"
+        f"</div>{bye}{detail}</article>"
     )
 
 
