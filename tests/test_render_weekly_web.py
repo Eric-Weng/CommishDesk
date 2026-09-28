@@ -6,6 +6,10 @@ page's self-containment, the embedded fonts, the ``<title>`` on every chart,
 WCAG AA contrast for the Tuesday Morning text roles in both themes, the shared
 next-week stakes line, and luck bars that plot ``season.luck`` as-is.
 
+Story 5B.4 adds the luck index's focus / tap preview, its grow-from-zero bar
+animation, and the standings actual-vs-all-play toggle (including its stand-down
+when no team carries an all-play record).
+
 Inputs are the committed weekly Facts fixtures; the narrated Issue is the
 template narrator's.
 """
@@ -13,6 +17,7 @@ template narrator's.
 from __future__ import annotations
 
 import hashlib
+import html
 import json
 import re
 import shutil
@@ -26,6 +31,7 @@ import pytest
 
 from commishdesk.facts.schema import WeeklyFacts
 from commishdesk.narrate.weekly_template import SECTION_HEADINGS, WeeklyIssue, WeeklySection, render_weekly_issue
+from commishdesk.render import _weekly_model as wm
 from commishdesk.render import render_weekly_web
 from commishdesk.render import style as style_mod
 from tests.conftest import REPO_ROOT
@@ -318,18 +324,28 @@ def test_render_is_deterministic() -> None:
 #: fixtures — Story 5B.2 added the interaction layer's inline ``<script>`` and
 #: the reveal/draw-in CSS, which moved the hash. Story 5B.3 adds the
 #: power-rank bump chart (SVG, per-mark draw-in, hit targets, hover/pin CSS
-#: and JS), which moved it again. Change these only with a deliberate design
-#: change to the page.
+#: and JS), which moved it again. Story 5B.4 adds the luck focus / tap preview
+#: and grow-in bars plus the all-play standings toggle, which moved it again.
+#: Change these only with a deliberate design change to the page, and regenerate
+#: them by running this test once and copying the printed digests.
 _GOLDEN_SHA256 = {
-    False: "0a77a463dde409887c96a0d757032d26a28f205a37584df6c085dc1a13285c27",
-    True: "cec7b9cb9921b73d95aa97a69488dd7cefbb7cbf26234811e91a2d9b01b033b6",
+    False: "86c84e576db8cc37735d238a19bd03683f91185c8475b4f9c2fa7fd5e68160ee",
+    True: "bf4bf5440a7ff927646d36ed6f33b3996d461d7ff7a92050e280c9fc6386b47f",
 }
 
 
 @pytest.mark.parametrize("published", [False, True])
 def test_page_is_byte_identical_to_the_5_14a_golden(published: bool) -> None:
     page = _page(_raw(published=published))
-    assert hashlib.sha256(page.encode("utf-8")).hexdigest() == _GOLDEN_SHA256[published]
+    actual = hashlib.sha256(page.encode("utf-8")).hexdigest()
+    expected = _GOLDEN_SHA256[published]
+    assert actual == expected, (
+        f"rendered page hash changed (published={published}).\n"
+        f"  actual   = {actual}\n"
+        f"  expected = {expected}\n"
+        f"If this is a deliberate design change, set _GOLDEN_SHA256[{published}] "
+        f"to the actual value above."
+    )
 
 
 def test_interaction_script_is_csp_safe() -> None:
@@ -738,6 +754,185 @@ def test_luck_bars_plot_season_luck_most_lucky_first() -> None:
     assert plotted == expected
     # the labels carry the same values, with a real minus
     assert "−1.8" in body and "+2.5" in body
+
+
+def test_luck_rows_are_focusable_and_carry_the_template_voice_preview() -> None:
+    raw = _raw()
+    facts = WeeklyFacts.model_validate(raw)
+    body = _body(_page(raw))
+    luck = body.split('aria-label="The luck index"', 1)[1].split("</section>", 1)[0]
+
+    previews = re.findall(r'<g class="luck-row"[^>]*data-luck-preview="([^"]*)"', luck)
+    assert previews
+    assert 'tabindex="0"' in luck
+    assert 'class="luck-hit"' in luck
+    assert 'class="luck-preview" data-luck-preview hidden' in luck
+
+    lucky, team = wm.luck_rows(facts)[0]
+    expected = f"{wm.team_label(team)} — " + wm.record(
+        team.season.record.w, team.season.record.l, team.season.record.t
+    )
+    if team.season.expected_wins is not None:
+        expected += f", {team.season.expected_wins} wins earned"
+    expected += f", luck {wm.signed(lucky)}."
+    assert html.unescape(previews[0]) == expected
+
+
+def test_luck_bar_reveal_is_a_single_grow_from_the_zero_line() -> None:
+    raw = _raw()
+    page = _page(raw)
+    css = page.split("<style>", 1)[1].split("</style>", 1)[0]
+    body = _body(page)
+
+    assert "@keyframes luck-grow" in css
+    # The whole keyframes rule: its closing brace sits at the start of a line.
+    block = css.split("@keyframes luck-grow", 1)[1].split("\n}", 1)[0]
+    assert "infinite" not in block
+    assert "transform: scaleX(0)" in block
+    assert "transform: scaleX(var(--luck-len, 1))" in block
+    assert 'class="luck-bar"' in body
+    assert "--luck-len:1" in body
+    assert "transform-origin: var(--luck-origin, left center)" in css
+
+    # Grow direction is per-row, not a fixed constant: a positive-luck bar
+    # grows from its left (axis) edge, a negative-luck bar from its right —
+    # the fixture's own known-sign rows ("−1.8" / "+2.5") pin each down.
+    luck = body.split('aria-label="The luck index"', 1)[1].split("</section>", 1)[0]
+    positive_row = luck.split(">+2.5<", 1)[0].rsplit('<g class="luck-row"', 1)[1]
+    negative_row = luck.split(">−1.8<", 1)[0].rsplit('<g class="luck-row"', 1)[1]
+    assert "--luck-origin:left center" in positive_row
+    assert "--luck-origin:right center" in negative_row
+
+
+def test_all_play_toggle_renders_and_carries_both_record_and_bar_values() -> None:
+    raw = _raw()
+    facts = WeeklyFacts.model_validate(raw)
+    body = _body(_page(raw))
+    standings = body.split('aria-label="Standings"', 1)[1].split("</section>", 1)[0]
+
+    assert 'class="standings-toggle"' in standings
+    assert 'data-view="actual"' in standings
+    assert 'data-view="allplay"' in standings
+    assert 'aria-pressed="true"' in standings
+
+    eligible = [team for team in facts.teams if team.season.all_play is not None]
+    assert eligible
+    assert standings.count('class="rec rec-swap"') == len(eligible)
+    assert standings.count('class="bar bar-swap"') == len(eligible)
+    assert "Bar: points for" in standings
+    assert "Bar: all-play win pct" in standings
+
+    # Content, not just count: one eligible team's all-play record text and
+    # bar width must be the value computed from its own facts, not a
+    # swapped or mis-sourced one.
+    all_play = eligible[0].season.all_play
+    expected_rec = wm.record(all_play.w, all_play.l, all_play.t)
+    expected_width = (all_play.pct or 0.0) * 100
+    assert f'<span class="rec-ap" aria-hidden="true">{expected_rec}</span>' in standings
+    assert f'class="fill-allplay" style="width:{expected_width:.1f}%"' in standings
+
+
+def test_standings_toggle_hidden_by_default_css_only() -> None:
+    """I/O matrix row: "JavaScript off" — no toggle control renders. The
+    mechanism is CSS-only: ``.standings-toggle`` is ``display: none`` in a
+    rule that is not itself gated behind the reduced-motion media query (or
+    otherwise inert), and the only override that makes it visible is scoped
+    under the script-added ``html.js-reveal`` ancestor class, which the page
+    never gets when JS doesn't run."""
+    raw = _raw()
+    facts = WeeklyFacts.model_validate(raw)
+    assert any(team.season.all_play is not None for team in facts.teams)  # eligible fixture
+
+    page = _page(raw)
+    body = _body(page)
+    assert 'class="standings-toggle"' in body
+
+    css = page.split("<style>", 1)[1].split("</style>", 1)[0]
+    css_before_reduced_motion = css.split("@media (prefers-reduced-motion: reduce)", 1)[0]
+
+    assert ".standings-toggle {" in css_before_reduced_motion
+    toggle_block = css_before_reduced_motion.split(".standings-toggle {", 1)[1].split("}", 1)[0]
+    assert "display: none" in toggle_block
+
+    assert "html.js-reveal .standings-toggle { display: flex; }" in css_before_reduced_motion
+
+
+def test_all_play_toggle_stands_down_when_no_team_has_all_play() -> None:
+    raw = _raw()
+    for team in raw["teams"]:
+        team["season"]["all_play"] = None
+
+    body = _body(_page(raw))
+    standings = body.split('aria-label="Standings"', 1)[1].split("</section>", 1)[0]
+
+    assert "standings-toggle" not in standings
+    assert "rec-swap" not in standings
+    assert "bar-swap" not in standings
+    assert "Bar: all-play win pct" not in standings
+    assert "Bar: points for" in standings
+
+
+def test_single_division_league_omits_legend_when_toggle_absent() -> None:
+    """Pre-5B.4, a single-/no-division league's standings never rendered a
+    ``<p class="legend">`` at all (the whole legend, "Bar: points for"
+    included, lived inside ``if dot_of:``). The all-play toggle must not
+    change that for leagues where it doesn't itself apply."""
+    raw = _raw()
+    for team in raw["teams"]:
+        team["division_id"] = 1
+        team["season"]["all_play"] = None
+    raw["league"]["format"]["divisions"] = [{"id": 1, "name": None}]
+
+    standings = _body(_page(raw)).split('aria-label="Standings"', 1)[1].split("</section>", 1)[0]
+    assert 'class="legend"' not in standings
+    assert "Bar: points for" not in standings
+
+
+def test_single_division_league_still_shows_toggle_legend_when_eligible() -> None:
+    """A single-/no-division league with eligible all-play data still needs
+    the cross-fading "Bar: ..." legend, since the toggle can change what the
+    bar means even without a division-dot legend to sit beside."""
+    raw = _raw()
+    for team in raw["teams"]:
+        team["division_id"] = 1
+    raw["league"]["format"]["divisions"] = [{"id": 1, "name": None}]
+
+    standings = _body(_page(raw)).split('aria-label="Standings"', 1)[1].split("</section>", 1)[0]
+    assert 'class="legend"' in standings
+    assert "Bar: points for" in standings
+    assert "Bar: all-play win pct" in standings
+
+
+def test_all_play_toggle_keeps_ineligible_rows_on_actual_only() -> None:
+    raw = _raw()
+    raw["teams"][0]["season"]["all_play"] = None
+    facts = WeeklyFacts.model_validate(raw)
+    body = _body(_page(raw))
+    standings = body.split('aria-label="Standings"', 1)[1].split("</section>", 1)[0]
+
+    eligible = sum(1 for team in facts.teams if team.season.all_play is not None)
+    assert standings.count('class="rec rec-swap"') == eligible
+    assert standings.count('<span class="rec">') == len(facts.teams) - eligible
+
+
+def test_hostile_team_name_is_escaped_in_luck_preview() -> None:
+    hostile = "<script>x</script>"
+    raw = _raw()
+    for team in raw["teams"]:
+        if team["season"]["luck"] is not None:
+            team["team_name"] = hostile
+            break
+
+    body = _body(_page(raw))
+    assert hostile not in body
+    assert "<script>x</script>" not in body
+
+    escaped = "&lt;script&gt;x&lt;/script&gt;"
+    assert escaped in body
+
+    luck = body.split('aria-label="The luck index"', 1)[1].split("</section>", 1)[0]
+    assert escaped in luck
+    assert 'data-luck-preview="' in luck
 
 
 def test_the_unconfirmed_seeding_note_follows_the_facts_flag_alone() -> None:
