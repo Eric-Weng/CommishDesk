@@ -23,6 +23,12 @@ input — threaded through to ``stats/standings.py::compute_standings``. It is a
 pure value object (:class:`~commishdesk.stats.standings.PlayoffSeeding`), so
 this builder stays offline and deterministic.
 
+Story 5B.3 extends that read: each roster's :class:`WeeklyHistoryRow` now carries
+``published_rank``, drawn from the same ``previous_published_ranks`` mapping —
+the per-week rank a prior confirmed week persisted. This is what the power-rank
+bump chart plots: the model's own rank trail from ``power_rank``, the desk's
+overrules from ``published_rank``.
+
 Pure, deterministic, offline: no network, no clock, no filesystem.
 ``generated_at`` is a caller argument, so two builds of one input produce an
 equal ``model_dump()`` modulo nothing.
@@ -278,8 +284,10 @@ def build_weekly_facts(
     ``previous_published_ranks`` (Story 5.12) is every prior week's persisted
     ``{roster_id: published_rank}`` map, keyed by week — the caller read them
     from the ``Store``, and this builder only *reads* the mapping, so the AD-1
-    fence holds. ``playoff_seeding`` (Story 5.15) is the caller's optional
-    confirm/override input, threaded through to ``compute_standings``.
+    fence holds. Story 5B.3 also threads it into each roster's
+    ``WeeklyHistoryRow.published_rank``. ``playoff_seeding`` (Story 5.15) is the
+    caller's optional confirm/override input, threaded through to
+    ``compute_standings``.
 
     Raises
     :class:`~commishdesk.errors.SchemaValidationError` (chained from the
@@ -411,7 +419,16 @@ def _build(
 
         history = WeeklyHistory(
             weekly=[
-                _history_row(rid, k, all_rows, records_at, power_at, allplay_at, regular_cutoff)
+                _history_row(
+                    rid,
+                    k,
+                    all_rows,
+                    records_at,
+                    power_at,
+                    allplay_at,
+                    regular_cutoff,
+                    previous_published_ranks,
+                )
                 for k in weeks
                 if (k, rid) in all_rows
             ]
@@ -786,6 +803,7 @@ def _history_row(
     power_at: Mapping[int, Mapping[str, int | None]],
     allplay_at: Mapping[int, Mapping[str, TeamWeekStats]],
     regular_cutoff: int,
+    previous_published_ranks: Mapping[int, Mapping[str, int]] | None,
 ) -> WeeklyHistoryRow:
     matchup = all_rows[(k, rid)]
     points = matchup.points  # type: ignore[attr-defined]
@@ -814,11 +832,19 @@ def _history_row(
     )
 
     power_rank = None
+    published_rank = None
     all_play = None
     luck = None
     in_range = MEANINGFUL_FROM_WEEK <= k <= regular_cutoff
     if in_range:
         power_rank = power_at[k].get(rid)
+        # Story 5B.3: the rank a prior confirmed week persisted for this roster,
+        # plotted by the power-rank bump chart alongside the model trail.
+        published_rank = (
+            previous_published_ranks.get(k, {}).get(rid)
+            if previous_published_ranks is not None
+            else None
+        )
         wrow = allplay_at[k].get(rid)
         if wrow is not None and wrow.all_play is not None:
             ap = wrow.all_play
@@ -835,6 +861,7 @@ def _history_row(
         margin=margin,
         cum_record=cum,
         power_rank=power_rank,
+        published_rank=published_rank,
         all_play=all_play,
         luck=luck,
     )

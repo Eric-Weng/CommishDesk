@@ -7,12 +7,14 @@ theme, Editorial layout) with inline CSS, embedded fonts, hand-authored inline
 SVG and no external request. Story 5B.2 adds exactly one small inline script
 (reveal / draw-in motion); the page is complete and fully visible without it —
 the script only sets ``html.js-reveal`` and adds ``is-revealed`` as sections
-scroll into view.
+scroll into view. Story 5B.3 adds the power-rank bump chart (model trail +
+published overrules) and grows the same one inline script with its hover / pin
+detail layer.
 
 **Section order** — masthead, lead (hero chosen by lead kind, plus the awards
-row), around the league, standings, power rankings, luck index, next week,
-transaction desk. A section whose data is absent renders nothing at all: no
-heading, no empty frame.
+row), around the league, standings, power rankings (with the bump chart),
+luck index, next week, transaction desk. A section whose data is absent renders
+nothing at all: no heading, no empty frame.
 
 **Where each value comes from.** Numbers and charts come from Facts. Narrated
 prose comes from the Issue's sections, matched by
@@ -81,10 +83,11 @@ _L_TOP = 30
 _L_NAME_MAX = 24
 
 
-# The single inline interaction layer for Story 5B.2. The page is already
-# finished without script; this only adds the enabling class and observes
-# [data-reveal] elements. It writes no markup, uses no innerHTML/eval, and
-# sets only class/style state.
+# The single inline interaction layer for Story 5B.2 / 5B.3. The page is already
+# finished without script; this only adds the enabling class, observes
+# [data-reveal] elements, and drives the power-rank bump chart's hover / pin
+# detail. It writes markup only through createElement/textContent (no
+# innerHTML/eval), and sets only class/style state.
 _INTERACTION_SCRIPT = """(function () {
   "use strict";
   var root = document.documentElement;
@@ -99,6 +102,120 @@ _INTERACTION_SCRIPT = """(function () {
         drawIndex += 1;
       }
     });
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll("[data-bump-chart]"), function (bumpRoot) {
+    var detail = bumpRoot.querySelector("[data-bump-detail]");
+    var buttons = bumpRoot.querySelectorAll(".pw-hit[data-team]");
+    var lines = bumpRoot.querySelectorAll(".bump-team[data-team]");
+    var hoverTeam = null;
+    var pinnedTeam = null;
+
+    function clearDetail() {
+      while (detail.firstChild) {
+        detail.removeChild(detail.firstChild);
+      }
+    }
+
+    function showDefault() {
+      clearDetail();
+      var p = document.createElement("p");
+      p.className = "bd-default";
+      p.textContent = "Hover or select a team to inspect its ranks.";
+      detail.appendChild(p);
+    }
+
+    function showTeam(team, pinned) {
+      clearDetail();
+      var button = bumpRoot.querySelector('.pw-hit[data-team="' + CSS.escape(team) + '"]');
+      var name = button ? button.getAttribute("data-name") : team;
+      var heading = document.createElement("p");
+      heading.className = "bd-team";
+      heading.textContent = name + (pinned ? " \u00b7 Pinned open" : "");
+      detail.appendChild(heading);
+
+      var list = document.createElement("ul");
+      list.className = "bd-list";
+      Array.prototype.forEach.call(
+        bumpRoot.querySelectorAll('.bump-point.bump-model-dot[data-team="' + CSS.escape(team) + '"]'),
+        function (dot) {
+          var week = dot.getAttribute("data-week");
+          var model = dot.getAttribute("data-rank");
+          var published = dot.getAttribute("data-pub");
+          var line = document.createElement("li");
+          line.textContent = "Week " + week + ": model " + model + (published ? ", published " + published : "");
+          list.appendChild(line);
+        }
+      );
+      detail.appendChild(list);
+    }
+
+    function setActive() {
+      var active = pinnedTeam || hoverTeam;
+      var isPinned = pinnedTeam !== null;
+      Array.prototype.forEach.call(lines, function (line) {
+        var team = line.getAttribute("data-team");
+        line.classList.toggle("is-active", active === team);
+        line.classList.toggle("is-dim", active !== null && active !== team);
+      });
+      Array.prototype.forEach.call(buttons, function (button) {
+        var team = button.getAttribute("data-team");
+        button.classList.toggle("is-active", active === team);
+        button.classList.toggle("is-dim", active !== null && active !== team);
+        button.classList.toggle("is-pinned", isPinned && pinnedTeam === team);
+        button.setAttribute("aria-pressed", (isPinned && pinnedTeam === team) ? "true" : "false");
+        var state = button.querySelector(".hit-state");
+        if (state) {
+          state.textContent = (isPinned && pinnedTeam === team) ? "Pinned open" : "";
+        }
+      });
+      if (active !== null) {
+        showTeam(active, isPinned);
+      } else {
+        showDefault();
+      }
+    }
+
+    function bindTeamHover(element, team) {
+      element.addEventListener("mouseenter", function () {
+        if (pinnedTeam === null || pinnedTeam === team) {
+          hoverTeam = team;
+          setActive();
+        }
+      });
+      element.addEventListener("mouseleave", function () {
+        if (hoverTeam === team) {
+          hoverTeam = null;
+          setActive();
+        }
+      });
+    }
+
+    Array.prototype.forEach.call(buttons, function (button) {
+      var team = button.getAttribute("data-team");
+      if (!team) {
+        return;
+      }
+      bindTeamHover(button, team);
+      button.addEventListener("click", function () {
+        if (pinnedTeam === team) {
+          pinnedTeam = null;
+        } else {
+          pinnedTeam = team;
+        }
+        hoverTeam = null;
+        setActive();
+      });
+    });
+
+    Array.prototype.forEach.call(lines, function (line) {
+      var team = line.getAttribute("data-team");
+      if (team) {
+        bindTeamHover(line, team);
+      }
+    });
+
+    setActive();
   });
 
   var targets = document.querySelectorAll("[data-reveal]");
@@ -156,6 +273,26 @@ def _monogram(label: str) -> str:
 def _mg(label: str, size: str = "") -> str:
     cls = f"mg {size}".strip()
     return f'<span class="{cls}" aria-hidden="true">{_esc(_monogram(label))}</span>'
+
+
+def _diamond(cx: float, cy: float, r: float = 7.0) -> str:
+    """An SVG diamond path centered on *cx*, *cy*."""
+    return (
+        f"M {_num(cx)} {_num(cy - r)} L {_num(cx + r)} {_num(cy)} "
+        f"L {_num(cx)} {_num(cy + r)} L {_num(cx - r)} {_num(cy)} Z"
+    )
+
+
+def _polyline_length(points: Sequence[tuple[float, float]]) -> float:
+    """Total Euclidean length of a traced polyline.
+
+    Story 5B.3's per-mark draw-in computes each line's own dash length from
+    its own points, never a shared guessed constant (epic-5B-context.md
+    Technical Decisions)."""
+    total = 0.0
+    for (x0, y0), (x1, y1) in zip(points, points[1:], strict=False):
+        total += math.hypot(x1 - x0, y1 - y0)
+    return total
 
 
 # --------------------------------------------------------------------------- #
@@ -730,8 +867,188 @@ def _standings_section(ctx: _Ctx) -> str:
 
 
 # --------------------------------------------------------------------------- #
-# Power rankings — by published rank, nudge chip + cited reason
+# Power rankings — by published rank, nudge chip + cited reason + bump chart
 # --------------------------------------------------------------------------- #
+
+
+def _power_bump_chart(ctx: _Ctx, rows: Sequence[wm.PowerRow]) -> str:
+    """The Story 5B.3 SVG bump chart, or ``""`` under 2 usable weeks."""
+    series: list[tuple[wm.PowerRow, list[wm.PowerHistoryPoint]]] = []
+    for row in rows:
+        points = wm.power_history(row.team, row)
+        if len(points) >= 2:
+            series.append((row, points))
+
+    if not series:
+        return ""
+
+    weeks = sorted({point.week for _, points in series for point in points})
+    max_rank = max(
+        [point.model for _, points in series for point in points]
+        + [
+            point.published
+            for _, points in series
+            for point in points
+            if point.published is not None
+        ],
+        default=1,
+    )
+
+    x0, x1 = 60.0, 720.0
+    top = 30.0
+    row_h = 22.0
+    plot_bottom = top + (max_rank - 1) * row_h
+    height = int(plot_bottom + 62)
+    step = (x1 - x0) / (len(weeks) - 1) if len(weeks) > 1 else 0.0
+
+    def x(week: int) -> float:
+        return x0 + weeks.index(week) * step
+
+    def y(rank: int) -> float:
+        return top + (rank - 1) * row_h
+
+    parts: list[str] = []
+
+    for rank in range(1, max_rank + 1):
+        parts.append(
+            f'<line class="bump-grid" x1="{_num(x0)}" y1="{_num(y(rank))}" '
+            f'x2="{_num(x1)}" y2="{_num(y(rank))}"/>'
+        )
+
+    for rank in sorted({1, max_rank}):
+        parts.append(
+            f'<text class="bump-rank" x="{_num(x0 - 10)}" y="{_num(y(rank) + 4)}" '
+            f'text-anchor="end">{rank}</text>'
+        )
+
+    for week in weeks:
+        parts.append(
+            f'<text class="bump-week" x="{_num(x(week))}" y="{_num(plot_bottom + 28)}" '
+            f'text-anchor="middle">{_esc(str(week))}</text>'
+        )
+
+    def _pub_segment(segment: Sequence[wm.PowerHistoryPoint]) -> str:
+        """A published-rank polyline (plus its wide invisible hit target)
+        for one unbroken run of weeks -- callers never span a gap week
+        across two segments, so the line breaks rather than interpolates."""
+        seg_xy = [(x(p.week), y(p.published)) for p in segment if p.published is not None]
+        pub_pts = " ".join(f"{_num(px)},{_num(py)}" for px, py in seg_xy)
+        pub_len = _polyline_length(seg_xy)
+        return (
+            f'<polyline class="bump-hit" points="{pub_pts}"/>'
+            f'<polyline class="bump-pub-line" style="--len:{_num(pub_len)}" points="{pub_pts}"/>'
+        )
+
+    for row, points in series:
+        team = row.team
+        team_id = _esc(team.roster_id)
+        name = _team_label(team)
+
+        parts.append(f'<g class="bump-team" data-team="{team_id}">')
+
+        # Model line: a generous invisible hit-stroke layered under the thin
+        # visible one (interaction-decisions.md), and a draw-in dash length
+        # computed from this line's own traced path (never a shared constant).
+        model_xy = [(x(point.week), y(point.model)) for point in points]
+        model_pts = " ".join(f"{_num(px)},{_num(py)}" for px, py in model_xy)
+        model_len = _polyline_length(model_xy)
+        parts.append(
+            f'<polyline class="bump-hit" points="{model_pts}"/>'
+            f'<polyline class="bump-model" style="--len:{_num(model_len)}" points="{model_pts}"/>'
+        )
+
+        # Published-rank line: broken into one polyline per unbroken run of
+        # weeks so a held/skipped week never interpolates across the gap.
+        segment: list[wm.PowerHistoryPoint] = []
+        for point in points:
+            if point.published is not None:
+                segment.append(point)
+            else:
+                if len(segment) >= 2:
+                    parts.append(_pub_segment(segment))
+                segment = []
+        if len(segment) >= 2:
+            parts.append(_pub_segment(segment))
+
+        for point in points:
+            has_pub = point.published is not None
+            publish = point.published if has_pub else ""
+            label = f"Week {point.week}: model {point.model}"
+            if has_pub:
+                label += f", published {point.published}"
+            cx, cy = _num(x(point.week)), _num(y(point.model))
+            parts.append(
+                f'<circle class="bump-hit" cx="{cx}" cy="{cy}" r="10"/>'
+                f'<circle class="bump-point bump-model-dot" data-team="{team_id}" '
+                f'data-week="{point.week}" data-rank="{point.model}" data-pub="{publish}" '
+                f'cx="{cx}" cy="{cy}" r="4">'
+                f"<title>{_esc(label)}</title></circle>"
+            )
+
+        for point in points:
+            if point.published is None or point.published == point.model:
+                continue
+            title = (
+                f"{name} week {point.week}: published {point.published} "
+                f"(model {point.model})"
+            )
+            dcx, dcy = x(point.week), y(point.published)
+            parts.append(
+                f'<circle class="bump-hit" cx="{_num(dcx)}" cy="{_num(dcy)}" r="10"/>'
+                f'<path class="bump-point bump-pub" data-team="{team_id}" '
+                f'data-week="{point.week}" data-rank="{point.published}" '
+                f'data-model="{point.model}" d="{_diamond(dcx, dcy)}">'
+                f"<title>{_esc(title)}</title></path>"
+            )
+
+        parts.append("</g>")
+
+    detail = (
+        '<div class="bump-detail" data-bump-detail aria-live="polite">'
+        '<p class="bd-default">Hover or select a team to inspect its ranks.</p>'
+        "</div>"
+    )
+
+    buttons: list[str] = []
+    for row, _points in series:
+        name = _team_label(row.team)
+        buttons.append(
+            f'<button type="button" class="hit pw-hit" data-team="{_esc(row.team.roster_id)}" '
+            f'data-name="{_esc(name)}" aria-pressed="false">'
+            f'<span class="hit-mg mg" aria-hidden="true">{_esc(_monogram(name))}</span>'
+            f'<span class="hit-tn">{_esc(name)}</span>'
+            '<span class="hit-state" aria-hidden="true"></span></button>'
+        )
+    hit_list = f'<div class="pw-hits" role="list">{"".join(buttons)}</div>'
+
+    reason_html = ""
+    reasons: list[str] = []
+    for row, points in series:
+        point = points[-1]
+        if (
+            point.reason
+            and point.published is not None
+            and point.published != point.model
+        ):
+            name = _team_label(row.team)
+            reasons.append(f"<p><strong>{_esc(name)}</strong> {_esc(point.reason)}</p>")
+
+    if reasons:
+        reason_html = (
+            '<div class="bump-callout" data-bump-callout>'
+            '<p class="bd-title">This week&rsquo;s overrules</p>'
+            f'{"".join(reasons)}</div>'
+        )
+
+    aria = "Power rankings bump chart: model rank trajectory and published-rank overrules"
+    svg = _svg_open(760, height, aria) + "".join(parts) + "</svg>"
+
+    return (
+        '<div class="bump" data-reveal data-bump-chart>'
+        f'<div class="bump-layout"><div class="bump-main">{svg}</div>'
+        f'<div class="bump-side">{detail}{reason_html}{hit_list}</div>'
+        "</div></div>"
+    )
 
 
 def _power_section(ctx: _Ctx) -> str:
@@ -770,6 +1087,7 @@ def _power_section(ctx: _Ctx) -> str:
             why = f'<span class="why">{_esc(reason)}</span>' if reason else ""
             nudge = f'<p class="nudge">{chip}{why}</p>'
         items.append(f'<div class="pw-item">{line}{nudge}</div>')
+    bump = _power_bump_chart(ctx, rows)
     head = (
         '<div class="pw-head" aria-hidden="true"><span class="r">Rk</span><span>Team</span><span>W-L</span>'
         '<span class="r">Avg PF</span><span class="ms">Model score</span><span class="r">Wk</span></div>'
@@ -777,6 +1095,7 @@ def _power_section(ctx: _Ctx) -> str:
     return (
         f'<section class="card table-card" aria-label="Power rankings" data-reveal>'
         f'{_head("Power rankings", "Where the model and the desk land", "emph")}'
+        f"{bump}"
         f'{head}<div class="power">{"".join(items)}</div>'
         f"{_prose(ctx.blocks('Power Rankings'))}</section>"
     )

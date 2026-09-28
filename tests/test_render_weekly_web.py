@@ -82,6 +82,18 @@ def _power_rows(page: str) -> list[tuple[str, str, str]]:
     return out
 
 
+def _power_section(page: str) -> str:
+    """The whole ``aria-label="Power rankings"`` section, bump chart and all."""
+    return _body(page).split('aria-label="Power rankings"', 1)[1].split("</section>", 1)[0]
+
+
+def _bump_team_blocks(power_html: str) -> dict[str, str]:
+    """``{roster_id: inner html}`` for every ``<g class="bump-team">`` group."""
+    return dict(
+        re.findall(r'<g class="bump-team" data-team="([^"]+)">(.*?)</g>', power_html, flags=re.DOTALL)
+    )
+
+
 # --------------------------------------------------------------------------- #
 # I/O matrix
 # --------------------------------------------------------------------------- #
@@ -304,11 +316,13 @@ def test_render_is_deterministic() -> None:
 
 #: SHA-256 of the Story 5.14a page (commit 779de47) for the two committed
 #: fixtures — Story 5B.2 added the interaction layer's inline ``<script>`` and
-#: the reveal/draw-in CSS, which moved the hash. Change these only with a
-#: deliberate design change to the page.
+#: the reveal/draw-in CSS, which moved the hash. Story 5B.3 adds the
+#: power-rank bump chart (SVG, per-mark draw-in, hit targets, hover/pin CSS
+#: and JS), which moved it again. Change these only with a deliberate design
+#: change to the page.
 _GOLDEN_SHA256 = {
-    False: "9ff865f907218de5f4acad09780ea7b2875b84820cfc6793a02748ab32632c16",
-    True: "22c498006d3428e14eb2f1b489a9a504b61dbd4d08c16766daf1b4629e2821cf",
+    False: "0a77a463dde409887c96a0d757032d26a28f205a37584df6c085dc1a13285c27",
+    True: "cec7b9cb9921b73d95aa97a69488dd7cefbb7cbf26234811e91a2d9b01b033b6",
 }
 
 
@@ -390,6 +404,168 @@ def test_keyboard_only_nav_shows_a_visible_focus_outline() -> None:
     assert outline_match, block
     outline_value = outline_match.group(1).strip().lower()
     assert outline_value not in ("none", "0")
+
+
+# --------------------------------------------------------------------------- #
+# Power-ranking bump chart (Story 5B.3) -- I/O matrix
+# --------------------------------------------------------------------------- #
+
+
+def test_bump_chart_draws_model_line_and_diamonds_only_where_nudged() -> None:
+    """Matrix row: enough history (>=2 usable weeks) draws the model line for
+    every team, with a published-rank diamond only for the nudged teams."""
+    raw = _raw(published=True)
+    power = _power_section(_page(raw))
+    assert "data-bump-chart" in power
+    teams = _bump_team_blocks(power)
+    assert len(teams) == 12
+    nudged = {"4", "5"}  # Chip-Block Chinchillas, Nickel Newts (week 10 overrule)
+    for roster_id, block in teams.items():
+        assert 'class="bump-hit"' in block
+        assert 'class="bump-model" style="--len:' in block
+        has_diamond = 'class="bump-point bump-pub"' in block
+        assert has_diamond == (roster_id in nudged), roster_id
+
+
+def test_bump_chart_stands_down_under_two_usable_weeks() -> None:
+    """Matrix row: fewer than 2 usable weeks -- no chart, today's static
+    ranked list renders exactly as now."""
+    raw = _raw(published=True)
+    for team in raw["teams"]:
+        team["history"]["weekly"] = [row for row in team["history"]["weekly"] if row["week"] == 10]
+    page = _page(raw)
+    power = _power_section(page)
+    assert "data-bump-chart" not in power
+    assert "bump-team" not in power
+    assert 'class="pw-item"' in power
+    ranks = [rank for rank, _team, _nudge in _power_rows(page)]
+    assert ranks == [str(n) for n in range(1, 13)]
+
+
+def test_a_held_week_breaks_the_published_line_never_interpolated() -> None:
+    """Matrix row: a held/skipped published week -- that team's published-rank
+    line has a visible break at the gap (two separate polylines), never one
+    polyline interpolating across it; the model line is unaffected."""
+    raw = _raw(published=True)
+    team4 = next(t for t in raw["teams"] if t["roster_id"] == "4")
+    by_week = {row["week"]: row for row in team4["history"]["weekly"]}
+    by_week[6]["published_rank"] = 9
+    by_week[7]["published_rank"] = 9
+    by_week[8]["published_rank"] = None  # held/skipped week -- the gap
+    by_week[9]["published_rank"] = 9
+    # week 10 stays the render-time-resolved current nudge (published 8)
+    block = _bump_team_blocks(_power_section(_page(raw)))["4"]
+    pub_segments = re.findall(r'<polyline class="bump-pub-line"[^>]*points="([^"]*)"', block)
+    assert len(pub_segments) == 2, pub_segments
+    for points in pub_segments:
+        assert len(points.split()) == 2  # each broken run is exactly 2 points
+    model_pts = re.search(r'<polyline class="bump-model"[^>]*points="([^"]*)"', block)
+    assert model_pts and len(model_pts.group(1).split()) == 5  # model line unbroken
+
+
+def test_bump_chart_shows_current_week_diamond_and_justification_callout() -> None:
+    """Matrix row: the current week's nudge shows a diamond for that team +
+    week, and the justification callout (existing ``PowerRow.reason``)
+    beside the chart."""
+    raw = _raw(published=True)
+    power = _power_section(_page(raw))
+    blocks = _bump_team_blocks(power)
+    assert 'class="bump-point bump-pub"' in blocks["4"]
+    assert 'data-week="10"' in blocks["4"]
+    assert 'class="bump-point bump-pub"' in blocks["5"]
+    assert 'data-week="10"' in blocks["5"]
+    assert "data-bump-callout" in power
+    assert _esc_text("Chip-Block Chinchillas slide behind Nickel Newts on record, 4-6 against 6-4.") in power
+    assert (
+        _esc_text(
+            "Nickel Newts sit 6-4 to Chip-Block Chinchillas' 4-6, "
+            "and the record settles the tie the model left open."
+        )
+        in power
+    )
+
+
+def test_bump_chart_hostile_team_name_is_escaped_everywhere() -> None:
+    """Matrix row: a hostile team name is escaped via ``_esc``/``textContent``
+    only, everywhere it appears in the new chart markup -- never ``innerHTML``."""
+    hostile = '<script>x</script>"><svg onload=1>'
+    raw = _raw(published=True)
+    for team in raw["teams"]:
+        if team["roster_id"] == "4":
+            team["team_name"] = hostile
+    page = _page(raw)
+    assert hostile not in page
+    assert "<script>x</script>" not in page
+    power = _power_section(page)
+    assert "data-bump-chart" in power
+    escaped = "&lt;script&gt;x&lt;/script&gt;&quot;&gt;&lt;svg onload=1&gt;"
+    assert escaped in power
+    assert f'data-name="{escaped}"' in power  # legend chip, read via getAttribute + textContent only
+    assert f"<title>{escaped} week 10" in power  # dot/diamond tooltip
+    script = page.split("<script>", 1)[1].split("</script>", 1)[0]
+    assert "innerHTML" not in script.lower()
+
+
+def test_bump_chart_keyboard_pin_is_button_driven_with_a_distinct_pinned_label() -> None:
+    """Matrix row: keyboard-only nav -- Tab to a legend chip (a native
+    <button>, so Enter/Space fires a click for free) pins that team with a
+    "Pinned open" label and its own ``.is-pinned`` state, distinct from the
+    hover-only ``.is-active`` state (interaction-decisions.md: the two must
+    never share their only signal)."""
+    page = _page(_raw(published=True))
+    assert '<button type="button" class="hit pw-hit"' in page
+    script = page.split("<script>", 1)[1].split("</script>", 1)[0]
+    assert 'addEventListener("click"' in script
+    assert '"Pinned open"' in script
+    assert 'classList.toggle("is-pinned"' in script
+    assert 'classList.toggle("is-active"' in script
+    css = page.split("<style>", 1)[1].split("</style>", 1)[0]
+    assert ".hit.is-pinned" in css
+    assert ".hit.is-active" in css
+    assert not re.search(r":hover\s*\.is-pinned|\.is-pinned[^{}]*:hover", css)
+
+
+def test_bump_chart_hit_targets_are_wide_and_layered_under_each_mark() -> None:
+    """interaction-decisions.md: real hover-tracking on thin marks needs a
+    generous invisible hit target layered under the visible stroke."""
+    page = _page(_raw(published=True))
+    body = _body(page)
+    css = page.split("<style>", 1)[1].split("</style>", 1)[0]
+    stroke_width = re.search(r"\.bump-team polyline\.bump-hit\s*\{[^}]*stroke-width:\s*(\d+)", css)
+    assert stroke_width and int(stroke_width.group(1)) >= 10
+    assert re.search(r"\.bump-team circle\.bump-hit\s*\{[^}]*fill:\s*transparent", css)
+    assert re.search(r'<polyline class="bump-hit"[^>]*/><polyline class="bump-model"', body)
+    assert re.search(r'<circle class="bump-hit"[^>]*/><circle class="bump-point bump-model-dot"', body)
+
+
+def test_bump_chart_lines_draw_in_via_their_own_traced_path_length() -> None:
+    """epic-5B-context.md: draw-in dash length is computed from each line's
+    own traced path, not a shared constant; 350-450ms, ~25ms/team stagger,
+    the approved easing -- matching 5B.2's other charts' timing."""
+    page = _page(_raw(published=True))
+    body = _body(page)
+    css = page.split("<style>", 1)[1].split("</style>", 1)[0]
+
+    lens = {m for m in re.findall(r'class="bump-model" style="--len:([\d.]+)"', body)}
+    assert len(lens) > 1  # every team's line has its own length, not one shared value
+
+    match = re.search(r"animation:\s*bump-draw-line\s+(\d+)ms\s+cubic-bezier\(([^)]+)\)", css)
+    assert match, "expected a bump-draw-line animation rule"
+    assert 350 <= int(match.group(1)) <= 450
+    assert match.group(2).replace(" ", "") == ".16,1,.3,1"
+    assert re.search(r"animation-delay:\s*calc\(var\(--draw-i,\s*0\)\s*\*\s*25ms\)", css)
+    assert re.search(r"@keyframes bump-draw-line\s*\{[^}]*stroke-dashoffset:\s*var\(--len", css)
+
+
+def test_bump_chart_marks_are_fully_drawn_by_default_not_stuck_mid_dash() -> None:
+    """JS-off / not-yet-revealed degrades to fully finished marks, never a
+    stuck dashed-in state -- ``stroke-dashoffset`` only ever appears inside
+    the ``@keyframes`` it animates, never as a static/base property."""
+    page = _page(_raw(published=True))
+    css = page.split("<style>", 1)[1].split("</style>", 1)[0]
+    assert css.count("stroke-dashoffset") == 2  # the keyframe's from/to only
+    body_without_script = _body(page).split("<script>", 1)[0]
+    assert "stroke-dashoffset" not in body_without_script
 
 
 # --------------------------------------------------------------------------- #

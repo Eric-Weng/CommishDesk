@@ -1,6 +1,6 @@
 {
   "_derived_from": "Story 5.16 oracle. build_weekly_facts() over week01-openers.json (the anonymized Week-1 fixture); generated_at pinned to '2026-09-07T00:00:00Z'; nfl_byes_next_week=None.",
-  "schema_version": "0.8.0",
+  "schema_version": "0.9.0",
   "generated_at": "2026-09-07T00:00:00Z",
   "provisional": true,
   "issue_type": "weekly",
@@ -293,6 +293,7 @@
               "t": 0
             },
             "power_rank": null,
+            "published_rank": null,
             "all_play": null,
             "luck": null
           }
@@ -516,6 +517,7 @@
               "t": 0
             },
             "power_rank": null,
+            "published_rank": null,
             "all_play": null,
             "luck": null
           }
@@ -745,6 +747,7 @@
               "t": 0
             },
             "power_rank": null,
+            "published_rank": null,
             "all_play": null,
             "luck": null
           }
@@ -974,6 +977,7 @@
               "t": 0
             },
             "power_rank": null,
+            "published_rank": null,
             "all_play": null,
             "luck": null
           }
@@ -1197,6 +1201,7 @@
               "t": 0
             },
             "power_rank": null,
+            "published_rank": null,
             "all_play": null,
             "luck": null
           }
@@ -1407,6 +1412,7 @@
               "t": 0
             },
             "power_rank": null,
+            "published_rank": null,
             "all_play": null,
             "luck": null
           }
@@ -1630,6 +1636,7 @@
               "t": 0
             },
             "power_rank": null,
+            "published_rank": null,
             "all_play": null,
             "luck": null
           }
@@ -1859,6 +1866,7 @@
               "t": 0
             },
             "power_rank": null,
+            "published_rank": null,
             "all_play": null,
             "luck": null
           }
@@ -2076,6 +2084,7 @@
               "t": 0
             },
             "power_rank": null,
+            "published_rank": null,
             "all_play": null,
             "luck": null
           }
@@ -2299,6 +2308,7 @@
               "t": 0
             },
             "power_rank": null,
+            "published_rank": null,
             "all_play": null,
             "luck": null
           }
@@ -2528,6 +2538,7 @@
               "t": 0
             },
             "power_rank": null,
+            "published_rank": null,
             "all_play": null,
             "luck": null
           }
@@ -2757,6 +2768,7 @@
               "t": 0
             },
             "power_rank": null,
+            "published_rank": null,
             "all_play": null,
             "luck": null
           }

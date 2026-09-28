@@ -1,6 +1,6 @@
 {
   "_derived_from": "Story 5.13a overlay. expected-weekly-facts-week10.json with a hand-authored published-rank layer: the narrator swaps model ranks 7 and 8 (Chip-Block Chinchillas, Nickel Newts). Only teams[*].season.power and narration.power differ from the base. nudge = model_rank - published_rank (positive means moved up). The justification cites only numbers present in narration.power.",
-  "schema_version": "0.8.0",
+  "schema_version": "0.9.0",
   "generated_at": "2026-09-07T00:00:00Z",
   "provisional": true,
   "issue_type": "weekly",
@@ -301,6 +301,7 @@
               "t": 0
             },
             "power_rank": null,
+            "published_rank": null,
             "all_play": null,
             "luck": null
           },
@@ -316,6 +317,7 @@
               "t": 0
             },
             "power_rank": 3,
+            "published_rank": null,
             "all_play": {
               "w": 16,
               "l": 6,
@@ -336,6 +338,7 @@
               "t": 0
             },
             "power_rank": 1,
+            "published_rank": null,
             "all_play": {
               "w": 26,
               "l": 7,
@@ -356,6 +359,7 @@
               "t": 0
             },
             "power_rank": 2,
+            "published_rank": null,
             "all_play": {
               "w": 36,
               "l": 8,
@@ -376,6 +380,7 @@
               "t": 0
             },
             "power_rank": 3,
+            "published_rank": null,
             "all_play": {
               "w": 41,
               "l": 14,
@@ -396,6 +401,7 @@
               "t": 0
             },
             "power_rank": 3,
+            "published_rank": null,
             "all_play": {
               "w": 51,
               "l": 15,
@@ -416,6 +422,7 @@
               "t": 0
             },
             "power_rank": 3,
+            "published_rank": null,
             "all_play": {
               "w": 61,
               "l": 16,
@@ -436,6 +443,7 @@
               "t": 0
             },
             "power_rank": 2,
+            "published_rank": null,
             "all_play": {
               "w": 69,
               "l": 19,
@@ -456,6 +464,7 @@
               "t": 0
             },
             "power_rank": 2,
+            "published_rank": null,
             "all_play": {
               "w": 79,
               "l": 20,
@@ -476,6 +485,7 @@
               "t": 0
             },
             "power_rank": 2,
+            "published_rank": null,
             "all_play": {
               "w": 88,
               "l": 22,
@@ -711,6 +721,7 @@
               "t": 0
             },
             "power_rank": null,
+            "published_rank": null,
             "all_play": null,
             "luck": null
           },
@@ -726,6 +737,7 @@
               "t": 0
             },
             "power_rank": 1,
+            "published_rank": null,
             "all_play": {
               "w": 18,
               "l": 3,
@@ -746,6 +758,7 @@
               "t": 0
             },
             "power_rank": 2,
+            "published_rank": null,
             "all_play": {
               "w": 26,
               "l": 6,
@@ -766,6 +779,7 @@
               "t": 0
             },
             "power_rank": 1,
+            "published_rank": null,
             "all_play": {
               "w": 37,
               "l": 6,
@@ -786,6 +800,7 @@
               "t": 0
             },
             "power_rank": 1,
+            "published_rank": null,
             "all_play": {
               "w": 46,
               "l": 8,
@@ -806,6 +821,7 @@
               "t": 0
             },
             "power_rank": 1,
+            "published_rank": null,
             "all_play": {
               "w": 55,
               "l": 10,
@@ -826,6 +842,7 @@
               "t": 0
             },
             "power_rank": 1,
+            "published_rank": null,
             "all_play": {
               "w": 64,
               "l": 12,
@@ -846,6 +863,7 @@
               "t": 0
             },
             "power_rank": 3,
+            "published_rank": null,
             "all_play": {
               "w": 66,
               "l": 21,
@@ -866,6 +884,7 @@
               "t": 0
             },
             "power_rank": 3,
+            "published_rank": null,
             "all_play": {
               "w": 77,
               "l": 21,
@@ -886,6 +905,7 @@
               "t": 0
             },
             "power_rank": 1,
+            "published_rank": null,
             "all_play": {
               "w": 87,
               "l": 22,
@@ -1127,6 +1147,7 @@
               "t": 0
             },
             "power_rank": null,
+            "published_rank": null,
             "all_play": null,
             "luck": null
           },
@@ -1142,6 +1163,7 @@
               "t": 0
             },
             "power_rank": 8,
+            "published_rank": null,
             "all_play": {
               "w": 9,
               "l": 13,
@@ -1162,6 +1184,7 @@
               "t": 0
             },
             "power_rank": 4,
+            "published_rank": null,
             "all_play": {
               "w": 20,
               "l": 13,
@@ -1182,6 +1205,7 @@
               "t": 0
             },
             "power_rank": 4,
+            "published_rank": null,
             "all_play": {
               "w": 23,
               "l": 21,
@@ -1202,6 +1226,7 @@
               "t": 0
             },
             "power_rank": 4,
+            "published_rank": null,
             "all_play": {
               "w": 31,
               "l": 24,
@@ -1222,6 +1247,7 @@
               "t": 0
             },
             "power_rank": 4,
+            "published_rank": null,
             "all_play": {
               "w": 38,
               "l": 28,
@@ -1242,6 +1268,7 @@
               "t": 0
             },
             "power_rank": 4,
+            "published_rank": null,
             "all_play": {
               "w": 41,
               "l": 36,
@@ -1262,6 +1289,7 @@
               "t": 0
             },
             "power_rank": 4,
+            "published_rank": null,
             "all_play": {
               "w": 47,
               "l": 41,
@@ -1282,6 +1310,7 @@
               "t": 0
             },
             "power_rank": 4,
+            "published_rank": null,
             "all_play": {
               "w": 50,
               "l": 49,
@@ -1302,6 +1331,7 @@
               "t": 0
             },
             "power_rank": 4,
+            "published_rank": null,
             "all_play": {
               "w": 61,
               "l": 49,
@@ -1530,6 +1560,7 @@
               "t": 0
             },
             "power_rank": null,
+            "published_rank": null,
             "all_play": null,
             "luck": null
           },
@@ -1545,6 +1576,7 @@
               "t": 0
             },
             "power_rank": 9,
+            "published_rank": null,
             "all_play": {
               "w": 11,
               "l": 11,
@@ -1565,6 +1597,7 @@
               "t": 0
             },
             "power_rank": 10,
+            "published_rank": null,
             "all_play": {
               "w": 13,
               "l": 20,
@@ -1585,6 +1618,7 @@
               "t": 0
             },
             "power_rank": 7,
+            "published_rank": null,
             "all_play": {
               "w": 22,
               "l": 22,
@@ -1605,6 +1639,7 @@
               "t": 0
             },
             "power_rank": 10,
+            "published_rank": null,
             "all_play": {
               "w": 22,
               "l": 33,
@@ -1625,6 +1660,7 @@
               "t": 0
             },
             "power_rank": 10,
+            "published_rank": null,
             "all_play": {
               "w": 25,
               "l": 41,
@@ -1645,6 +1681,7 @@
               "t": 0
             },
             "power_rank": 9,
+            "published_rank": null,
             "all_play": {
               "w": 30,
               "l": 47,
@@ -1665,6 +1702,7 @@
               "t": 0
             },
             "power_rank": 9,
+            "published_rank": null,
             "all_play": {
               "w": 39,
               "l": 49,
@@ -1685,6 +1723,7 @@
               "t": 0
             },
             "power_rank": 9,
+            "published_rank": null,
             "all_play": {
               "w": 45,
               "l": 54,
@@ -1705,6 +1744,7 @@
               "t": 0
             },
             "power_rank": 7,
+            "published_rank": null,
             "all_play": {
               "w": 52,
               "l": 58,
@@ -1944,6 +1984,7 @@
               "t": 0
             },
             "power_rank": null,
+            "published_rank": null,
             "all_play": null,
             "luck": null
           },
@@ -1959,6 +2000,7 @@
               "t": 0
             },
             "power_rank": 5,
+            "published_rank": null,
             "all_play": {
               "w": 9,
               "l": 13,
@@ -1979,6 +2021,7 @@
               "t": 0
             },
             "power_rank": 6,
+            "published_rank": null,
             "all_play": {
               "w": 14,
               "l": 19,
@@ -1999,6 +2042,7 @@
               "t": 0
             },
             "power_rank": 8,
+            "published_rank": null,
             "all_play": {
               "w": 16,
               "l": 28,
@@ -2019,6 +2063,7 @@
               "t": 0
             },
             "power_rank": 8,
+            "published_rank": null,
             "all_play": {
               "w": 22,
               "l": 33,
@@ -2039,6 +2084,7 @@
               "t": 0
             },
             "power_rank": 7,
+            "published_rank": null,
             "all_play": {
               "w": 26,
               "l": 40,
@@ -2059,6 +2105,7 @@
               "t": 0
             },
             "power_rank": 6,
+            "published_rank": null,
             "all_play": {
               "w": 33,
               "l": 44,
@@ -2079,6 +2126,7 @@
               "t": 0
             },
             "power_rank": 7,
+            "published_rank": null,
             "all_play": {
               "w": 38,
               "l": 50,
@@ -2099,6 +2147,7 @@
               "t": 0
             },
             "power_rank": 6,
+            "published_rank": null,
             "all_play": {
               "w": 42,
               "l": 57,
@@ -2119,6 +2168,7 @@
               "t": 0
             },
             "power_rank": 8,
+            "published_rank": null,
             "all_play": {
               "w": 42,
               "l": 68,
@@ -2358,6 +2408,7 @@
               "t": 0
             },
             "power_rank": null,
+            "published_rank": null,
             "all_play": null,
             "luck": null
           },
@@ -2373,6 +2424,7 @@
               "t": 0
             },
             "power_rank": 12,
+            "published_rank": null,
             "all_play": {
               "w": 3,
               "l": 19,
@@ -2393,6 +2445,7 @@
               "t": 0
             },
             "power_rank": 11,
+            "published_rank": null,
             "all_play": {
               "w": 10,
               "l": 23,
@@ -2413,6 +2466,7 @@
               "t": 0
             },
             "power_rank": 9,
+            "published_rank": null,
             "all_play": {
               "w": 18,
               "l": 26,
@@ -2433,6 +2487,7 @@
               "t": 0
             },
             "power_rank": 7,
+            "published_rank": null,
             "all_play": {
               "w": 25,
               "l": 30,
@@ -2453,6 +2508,7 @@
               "t": 0
             },
             "power_rank": 9,
+            "published_rank": null,
             "all_play": {
               "w": 25,
               "l": 41,
@@ -2473,6 +2529,7 @@
               "t": 0
             },
             "power_rank": 8,
+            "published_rank": null,
             "all_play": {
               "w": 33,
               "l": 44,
@@ -2493,6 +2550,7 @@
               "t": 0
             },
             "power_rank": 5,
+            "published_rank": null,
             "all_play": {
               "w": 44,
               "l": 44,
@@ -2513,6 +2571,7 @@
               "t": 0
             },
             "power_rank": 5,
+            "published_rank": null,
             "all_play": {
               "w": 52,
               "l": 47,
@@ -2533,6 +2592,7 @@
               "t": 0
             },
             "power_rank": 6,
+            "published_rank": null,
             "all_play": {
               "w": 54,
               "l": 56,
@@ -2780,6 +2840,7 @@
               "t": 0
             },
             "power_rank": null,
+            "published_rank": null,
             "all_play": null,
             "luck": null
           },
@@ -2795,6 +2856,7 @@
               "t": 0
             },
             "power_rank": 7,
+            "published_rank": null,
             "all_play": {
               "w": 9,
               "l": 13,
@@ -2815,6 +2877,7 @@
               "t": 0
             },
             "power_rank": 7,
+            "published_rank": null,
             "all_play": {
               "w": 13,
               "l": 20,
@@ -2835,6 +2898,7 @@
               "t": 0
             },
             "power_rank": 11,
+            "published_rank": null,
             "all_play": {
               "w": 14,
               "l": 30,
@@ -2855,6 +2919,7 @@
               "t": 0
             },
             "power_rank": 11,
+            "published_rank": null,
             "all_play": {
               "w": 16,
               "l": 39,
@@ -2875,6 +2940,7 @@
               "t": 0
             },
             "power_rank": 11,
+            "published_rank": null,
             "all_play": {
               "w": 17,
               "l": 49,
@@ -2895,6 +2961,7 @@
               "t": 0
             },
             "power_rank": 11,
+            "published_rank": null,
             "all_play": {
               "w": 21,
               "l": 56,
@@ -2915,6 +2982,7 @@
               "t": 0
             },
             "power_rank": 11,
+            "published_rank": null,
             "all_play": {
               "w": 22,
               "l": 66,
@@ -2935,6 +3003,7 @@
               "t": 0
             },
             "power_rank": 12,
+            "published_rank": null,
             "all_play": {
               "w": 22,
               "l": 77,
@@ -2955,6 +3024,7 @@
               "t": 0
             },
             "power_rank": 12,
+            "published_rank": null,
             "all_play": {
               "w": 26,
               "l": 84,
@@ -3175,6 +3245,7 @@
               "t": 0
             },
             "power_rank": null,
+            "published_rank": null,
             "all_play": null,
             "luck": null
           },
@@ -3190,6 +3261,7 @@
               "t": 0
             },
             "power_rank": 11,
+            "published_rank": null,
             "all_play": {
               "w": 5,
               "l": 17,
@@ -3210,6 +3282,7 @@
               "t": 0
             },
             "power_rank": 9,
+            "published_rank": null,
             "all_play": {
               "w": 11,
               "l": 22,
@@ -3230,6 +3303,7 @@
               "t": 0
             },
             "power_rank": 10,
+            "published_rank": null,
             "all_play": {
               "w": 18,
               "l": 26,
@@ -3250,6 +3324,7 @@
               "t": 0
             },
             "power_rank": 5,
+            "published_rank": null,
             "all_play": {
               "w": 28,
               "l": 27,
@@ -3270,6 +3345,7 @@
               "t": 0
             },
             "power_rank": 5,
+            "published_rank": null,
             "all_play": {
               "w": 33,
               "l": 33,
@@ -3290,6 +3366,7 @@
               "t": 0
             },
             "power_rank": 7,
+            "published_rank": null,
             "all_play": {
               "w": 33,
               "l": 44,
@@ -3310,6 +3387,7 @@
               "t": 0
             },
             "power_rank": 8,
+            "published_rank": null,
             "all_play": {
               "w": 40,
               "l": 48,
@@ -3330,6 +3408,7 @@
               "t": 0
             },
             "power_rank": 7,
+            "published_rank": null,
             "all_play": {
               "w": 47,
               "l": 52,
@@ -3350,6 +3429,7 @@
               "t": 0
             },
             "power_rank": 5,
+            "published_rank": null,
             "all_play": {
               "w": 55,
               "l": 55,
@@ -3589,6 +3669,7 @@
               "t": 0
             },
             "power_rank": null,
+            "published_rank": null,
             "all_play": null,
             "luck": null
           },
@@ -3604,6 +3685,7 @@
               "t": 0
             },
             "power_rank": 4,
+            "published_rank": null,
             "all_play": {
               "w": 18,
               "l": 4,
@@ -3624,6 +3706,7 @@
               "t": 0
             },
             "power_rank": 3,
+            "published_rank": null,
             "all_play": {
               "w": 27,
               "l": 6,
@@ -3644,6 +3727,7 @@
               "t": 0
             },
             "power_rank": 3,
+            "published_rank": null,
             "all_play": {
               "w": 31,
               "l": 13,
@@ -3664,6 +3748,7 @@
               "t": 0
             },
             "power_rank": 2,
+            "published_rank": null,
             "all_play": {
               "w": 42,
               "l": 13,
@@ -3684,6 +3769,7 @@
               "t": 0
             },
             "power_rank": 2,
+            "published_rank": null,
             "all_play": {
               "w": 53,
               "l": 13,
@@ -3704,6 +3790,7 @@
               "t": 0
             },
             "power_rank": 2,
+            "published_rank": null,
             "all_play": {
               "w": 64,
               "l": 13,
@@ -3724,6 +3811,7 @@
               "t": 0
             },
             "power_rank": 1,
+            "published_rank": null,
             "all_play": {
               "w": 74,
               "l": 14,
@@ -3744,6 +3832,7 @@
               "t": 0
             },
             "power_rank": 1,
+            "published_rank": null,
             "all_play": {
               "w": 83,
               "l": 16,
@@ -3764,6 +3853,7 @@
               "t": 0
             },
             "power_rank": 3,
+            "published_rank": null,
             "all_play": {
               "w": 86,
               "l": 24,
@@ -4011,6 +4101,7 @@
               "t": 0
             },
             "power_rank": null,
+            "published_rank": null,
             "all_play": null,
             "luck": null
           },
@@ -4026,6 +4117,7 @@
               "t": 0
             },
             "power_rank": 2,
+            "published_rank": null,
             "all_play": {
               "w": 16,
               "l": 6,
@@ -4046,6 +4138,7 @@
               "t": 0
             },
             "power_rank": 5,
+            "published_rank": null,
             "all_play": {
               "w": 17,
               "l": 16,
@@ -4066,6 +4159,7 @@
               "t": 0
             },
             "power_rank": 5,
+            "published_rank": null,
             "all_play": {
               "w": 23,
               "l": 21,
@@ -4086,6 +4180,7 @@
               "t": 0
             },
             "power_rank": 6,
+            "published_rank": null,
             "all_play": {
               "w": 27,
               "l": 28,
@@ -4106,6 +4201,7 @@
               "t": 0
             },
             "power_rank": 6,
+            "published_rank": null,
             "all_play": {
               "w": 35,
               "l": 31,
@@ -4126,6 +4222,7 @@
               "t": 0
             },
             "power_rank": 5,
+            "published_rank": null,
             "all_play": {
               "w": 41,
               "l": 36,
@@ -4146,6 +4243,7 @@
               "t": 0
             },
             "power_rank": 6,
+            "published_rank": null,
             "all_play": {
               "w": 44,
               "l": 44,
@@ -4166,6 +4264,7 @@
               "t": 0
             },
             "power_rank": 8,
+            "published_rank": null,
             "all_play": {
               "w": 46,
               "l": 53,
@@ -4186,6 +4285,7 @@
               "t": 0
             },
             "power_rank": 9,
+            "published_rank": null,
             "all_play": {
               "w": 47,
               "l": 63,
@@ -4433,6 +4533,7 @@
               "t": 0
             },
             "power_rank": null,
+            "published_rank": null,
             "all_play": null,
             "luck": null
           },
@@ -4448,6 +4549,7 @@
               "t": 0
             },
             "power_rank": 6,
+            "published_rank": null,
             "all_play": {
               "w": 11,
               "l": 10,
@@ -4468,6 +4570,7 @@
               "t": 0
             },
             "power_rank": 8,
+            "published_rank": null,
             "all_play": {
               "w": 14,
               "l": 18,
@@ -4488,6 +4591,7 @@
               "t": 0
             },
             "power_rank": 6,
+            "published_rank": null,
             "all_play": {
               "w": 19,
               "l": 24,
@@ -4508,6 +4612,7 @@
               "t": 0
             },
             "power_rank": 9,
+            "published_rank": null,
             "all_play": {
               "w": 22,
               "l": 32,
@@ -4528,6 +4633,7 @@
               "t": 0
             },
             "power_rank": 8,
+            "published_rank": null,
             "all_play": {
               "w": 24,
               "l": 41,
@@ -4548,6 +4654,7 @@
               "t": 0
             },
             "power_rank": 10,
+            "published_rank": null,
             "all_play": {
               "w": 26,
               "l": 50,
@@ -4568,6 +4675,7 @@
               "t": 0
             },
             "power_rank": 10,
+            "published_rank": null,
             "all_play": {
               "w": 26,
               "l": 61,
@@ -4588,6 +4696,7 @@
               "t": 0
             },
             "power_rank": 11,
+            "published_rank": null,
             "all_play": {
               "w": 27,
               "l": 71,
@@ -4608,6 +4717,7 @@
               "t": 0
             },
             "power_rank": 11,
+            "published_rank": null,
             "all_play": {
               "w": 33,
               "l": 76,
@@ -4862,6 +4972,7 @@
               "t": 0
             },
             "power_rank": null,
+            "published_rank": null,
             "all_play": null,
             "luck": null
           },
@@ -4877,6 +4988,7 @@
               "t": 0
             },
             "power_rank": 10,
+            "published_rank": null,
             "all_play": {
               "w": 6,
               "l": 16,
@@ -4897,6 +5009,7 @@
               "t": 0
             },
             "power_rank": 12,
+            "published_rank": null,
             "all_play": {
               "w": 6,
               "l": 27,
@@ -4917,6 +5030,7 @@
               "t": 0
             },
             "power_rank": 12,
+            "published_rank": null,
             "all_play": {
               "w": 6,
               "l": 38,
@@ -4937,6 +5051,7 @@
               "t": 0
             },
             "power_rank": 12,
+            "published_rank": null,
             "all_play": {
               "w": 7,
               "l": 48,
@@ -4957,6 +5072,7 @@
               "t": 0
             },
             "power_rank": 12,
+            "published_rank": null,
             "all_play": {
               "w": 13,
               "l": 53,
@@ -4977,6 +5093,7 @@
               "t": 0
             },
             "power_rank": 12,
+            "published_rank": null,
             "all_play": {
               "w": 14,
               "l": 63,
@@ -4997,6 +5114,7 @@
               "t": 0
             },
             "power_rank": 12,
+            "published_rank": null,
             "all_play": {
               "w": 18,
               "l": 70,
@@ -5017,6 +5135,7 @@
               "t": 0
             },
             "power_rank": 10,
+            "published_rank": null,
             "all_play": {
               "w": 23,
               "l": 76,
@@ -5037,6 +5156,7 @@
               "t": 0
             },
             "power_rank": 10,
+            "published_rank": null,
             "all_play": {
               "w": 28,
               "l": 82,

@@ -243,7 +243,7 @@
           "type": "boolean"
         },
         "schema_version": {
-          "default": "0.8.0",
+          "default": "0.9.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -2100,7 +2100,7 @@
           "type": "boolean"
         },
         "schema_version": {
-          "default": "0.8.0",
+          "default": "0.9.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -2287,7 +2287,7 @@
       "type": "object"
     },
     "WeeklyHistoryRow": {
-      "description": "One week of a roster's season, with the cumulative picture as of that\nweek. ``power_rank`` / ``all_play`` / ``luck`` are ``None`` before\n``MEANINGFUL_FROM_WEEK`` and past the regular season.",
+      "description": "One week of a roster's season, with the cumulative picture as of that\nweek. ``power_rank`` / ``published_rank`` / ``all_play`` / ``luck`` are\n``None`` before ``MEANINGFUL_FROM_WEEK`` and past the regular season.\n\n``published_rank`` (Story 5B.3, ``0.9.0``) is the rank a **prior confirmed\nweek** persisted for this roster — read from the caller-supplied\n``previous_published_ranks`` mapping keyed by week — so the power-rank bump\nchart can plot the desk's overrules of the model week over week. It is a\ndifferent axis from ``power_rank`` (the model's own rank as of week ``k``)\nand is ``None`` for any week with no persisted published rank.",
       "properties": {
         "all_play": {
           "anyOf": [
@@ -2354,6 +2354,18 @@
           ],
           "default": null,
           "title": "Power Rank"
+        },
+        "published_rank": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Published Rank"
         },
         "result": {
           "anyOf": [

@@ -11,6 +11,11 @@ objects, never markup, and never escape anything (each surface escapes for its
 own medium). Numbers come from the Facts JSON; this module computes no stat of
 its own (luck is ``season.luck`` as-is).
 
+Story 5B.3 adds :func:`power_history` — the trailing power-rank trail the
+web power-rank bump chart plots (model rank from ``WeeklyHistoryRow.power_rank``,
+published rank from ``WeeklyHistoryRow.published_rank``, current-week values
+resolved from the render-time :class:`PowerRow`).
+
 **Pipeline fence (AD-1).** Imports the standard library and
 ``commishdesk.facts`` schema types only.
 """
@@ -302,6 +307,50 @@ def power_rows(facts: WeeklyFacts) -> list[PowerRow]:
         )
     )
     return rows
+
+
+class PowerHistoryPoint(NamedTuple):
+    """One trailing power-rank point for the bump chart."""
+
+    week: int
+    model: int
+    published: int | None
+    reason: str | None
+
+
+def power_history(team: WeeklyTeam, current: PowerRow) -> list[PowerHistoryPoint]:
+    """The trailing <=5 ``team.history.weekly`` rows with model ranks.
+
+    The last point is the render-time-resolved current week, so it carries
+    ``current.published`` and ``current.reason``; historical points carry only
+    ``WeeklyHistoryRow.published_rank`` and no prose.
+    """
+    points: list[PowerHistoryPoint] = []
+    for row in team.history.weekly:
+        if row.power_rank is None:
+            continue
+        points.append(
+            PowerHistoryPoint(
+                week=row.week,
+                model=row.power_rank,
+                published=row.published_rank,
+                reason=None,
+            )
+        )
+
+    if not points:
+        return []
+
+    points = points[-5:]
+    last = points[-1]
+    model = current.model if current.model is not None else last.model
+    points[-1] = PowerHistoryPoint(
+        week=last.week,
+        model=model,
+        published=current.published,
+        reason=current.reason,
+    )
+    return points
 
 
 # --------------------------------------------------------------------------- #

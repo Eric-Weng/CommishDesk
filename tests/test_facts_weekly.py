@@ -201,7 +201,7 @@ def _synthetic(
 def test_week10_build_validates_and_has_twelve_teams() -> None:
     doc = _week10_facts()
     assert isinstance(doc, WeeklyFacts)
-    assert doc.schema_version == "0.8.0" == SCHEMA_VERSION
+    assert doc.schema_version == "0.9.0" == SCHEMA_VERSION
     assert doc.issue_type == "weekly"
     assert doc.week == 10
     assert len(doc.teams) == 12
@@ -1090,6 +1090,16 @@ def test_week10_build_resolves_published_rank_from_the_immediately_prior_week() 
     power_2 = by_roster_published["2"].season.power
     assert power_2.prev_published_rank is None
     assert power_2.published_week_delta is None
+
+    # Story 5B.3: the same ``previous_published_ranks`` also threads into
+    # ``WeeklyHistoryRow.published_rank`` on the roster's own weekly history
+    # (the bump chart's data source), not just the season-level pair above.
+    history_1 = {row.week: row for row in by_roster_published["1"].history.weekly}
+    assert history_1[9].published_rank == model_rank_1 + 1
+    # A week/roster pair the supplied history never mentions stays null.
+    history_2 = {row.week: row for row in by_roster_published["2"].history.weekly}
+    assert history_2[9].published_rank is None
+    assert history_1[8].published_rank is None
 
 
 # --------------------------------------------------------------------------- #
