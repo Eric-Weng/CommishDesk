@@ -9,7 +9,10 @@ SVG and no external request. Story 5B.2 adds exactly one small inline script
 the script only sets ``html.js-reveal`` and adds ``is-revealed`` as sections
 scroll into view. Story 5B.3 adds the power-rank bump chart (model trail +
 published overrules) and grows the same one inline script with its hover / pin
-detail layer.
+detail layer. Story 5B.4 adds two more layers to that same script: the luck
+index's focus / tap preview and the standings' actual-vs-all-play toggle (both
+progressively enhanced — the page still renders complete and readable with
+script off, and the toggle stays hidden until the script can drive it).
 
 **Section order** — masthead, lead (hero chosen by lead kind, plus the awards
 row), around the league, standings, power rankings (with the bump chart),
@@ -48,6 +51,7 @@ from commishdesk.facts.schema import (
     WeeklyMatchup,
     WeeklyMove,
     WeeklyNextWeekCard,
+    WeeklyTeam,
     WeeklyTrade,
 )
 from commishdesk.narrate.weekly_template import WeeklyIssue, section_headings_for_has_prior_week
@@ -83,11 +87,12 @@ _L_TOP = 30
 _L_NAME_MAX = 24
 
 
-# The single inline interaction layer for Story 5B.2 / 5B.3. The page is already
-# finished without script; this only adds the enabling class, observes
-# [data-reveal] elements, and drives the power-rank bump chart's hover / pin
-# detail. It writes markup only through createElement/textContent (no
-# innerHTML/eval), and sets only class/style state.
+# The single inline interaction layer for Story 5B.2 / 5B.3 / 5B.4. The page is
+# already finished without script; this only adds the enabling class, observes
+# [data-reveal] elements, drives the power-rank bump chart's hover / pin detail,
+# previews a luck row on focus / tap, and flips the standings all-play view. It
+# writes markup only through createElement/textContent (no innerHTML/eval), and
+# sets only class/style state.
 _INTERACTION_SCRIPT = """(function () {
   "use strict";
   var root = document.documentElement;
@@ -101,6 +106,46 @@ _INTERACTION_SCRIPT = """(function () {
         child.style.setProperty("--draw-i", String(drawIndex));
         drawIndex += 1;
       }
+    });
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll("[data-luck-section]"), function (section) {
+    var preview = section.querySelector(".luck-preview");
+    Array.prototype.forEach.call(section.querySelectorAll(".luck-row[data-luck-preview]"), function (row) {
+      function selectRow() {
+        if (!preview) { return; }
+        preview.hidden = false;
+        preview.textContent = row.getAttribute("data-luck-preview") || "";
+      }
+      row.addEventListener("click", selectRow);
+      row.addEventListener("focus", function () {
+        row.classList.add("is-active");
+        selectRow();
+      });
+      row.addEventListener("blur", function () {
+        row.classList.remove("is-active");
+      });
+    });
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll("[data-standings]"), function (section) {
+    var toggle = section.querySelector(".standings-toggle");
+    if (!toggle) { return; }
+    Array.prototype.forEach.call(toggle.querySelectorAll("button[data-view]"), function (button) {
+      button.addEventListener("click", function () {
+        var allplay = button.getAttribute("data-view") === "allplay";
+        section.classList.toggle("is-allplay", allplay);
+        Array.prototype.forEach.call(toggle.querySelectorAll("button[data-view]"), function (node) {
+          node.classList.toggle("is-active", node === button);
+          node.setAttribute("aria-pressed", node === button ? "true" : "false");
+        });
+        Array.prototype.forEach.call(section.querySelectorAll(".rec-act, .legend-act"), function (node) {
+          node.setAttribute("aria-hidden", allplay ? "true" : "false");
+        });
+        Array.prototype.forEach.call(section.querySelectorAll(".rec-ap, .legend-ap"), function (node) {
+          node.setAttribute("aria-hidden", allplay ? "false" : "true");
+        });
+      });
     });
   });
 
@@ -818,12 +863,49 @@ def _standings_section(ctx: _Ctx) -> str:
     bubble = set(picture.bubble) if picture else set()
     cut = picture.cut_line_after_rank if picture else None
 
+    ap_rows = wm.all_play_rows(facts)
+    all_play_by_team = {team.roster_id: all_play for all_play, team in ap_rows}
+    has_all_play = not cold_start and bool(all_play_by_team)
+
+    toggle_html = ""
+    if has_all_play:
+        toggle_html = (
+            '<div class="standings-toggle" role="group" aria-label="Standings view">'
+            '<button type="button" class="toggle-btn is-active" data-view="actual" '
+            'aria-pressed="true">Actual</button>'
+            '<button type="button" class="toggle-btn" data-view="allplay" '
+            'aria-pressed="false">All-play</button>'
+            "</div>"
+        )
+
     rows: list[str] = []
     for index, roster_id in enumerate(order, start=1):
         team = ctx.teams[roster_id]
         season = team.season
         name = _team_label(team)
         width = (season.points_for / max_pf * 100) if max_pf > 0 else 0.0
+        actual_rec = _record(season.record.w, season.record.l, season.record.t)
+        all_play = all_play_by_team.get(roster_id)
+        if all_play is not None:
+            ap_rec = _record(all_play.w, all_play.l, all_play.t)
+            ap_width = (all_play.pct or 0.0) * 100
+            rec_html = (
+                '<span class="rec rec-swap">'
+                f'<span class="rec-act" aria-hidden="false">{_esc(actual_rec)}</span>'
+                f'<span class="rec-ap" aria-hidden="true">{_esc(ap_rec)}</span></span>'
+            )
+            bar_html = (
+                '<span class="bar bar-swap" aria-hidden="true">'
+                f'<i class="fill-actual" style="width:{width:.1f}%"></i>'
+                f'<i class="fill-allplay" style="width:{ap_width:.1f}%"></i>'
+                "</span>"
+            )
+        else:
+            rec_html = f'<span class="rec">{_esc(actual_rec)}</span>'
+            bar_html = (
+                '<span class="bar" aria-hidden="true">'
+                f'<i style="width:{width:.1f}%"></i></span>'
+            )
         chip = ""
         if roster_id in byes:
             chip = '<span class="chip chip-emph">Bye</span>'
@@ -833,35 +915,45 @@ def _standings_section(ctx: _Ctx) -> str:
         if team.division_id in dot_of:
             dot = f'<span class="dot {dot_of[team.division_id]}" aria-hidden="true"></span>'
         below = cut is not None and index > cut
-        rec = season.record
         rows.append(
             f'<div class="st-row{" below" if below else ""}">'
             f'<span class="rk">{index if cold_start else season.rank}</span>{_mg(name)}'
             f'<span class="tn">{dot}{_esc(name)}</span>'
-            f'<span class="rec">{_esc(_record(rec.w, rec.l, rec.t))}</span>'
-            f'<span class="bar" aria-hidden="true"><i style="width:{width:.1f}%"></i></span>'
+            f"{rec_html}"
+            f"{bar_html}"
             f'<span class="pf">{_esc(_whole(season.points_for))}</span>'
             f'<span class="tag">{chip}</span></div>'
         )
         if cut is not None and index == cut and index < len(order):
             rows.append('<div class="cutline" role="separator">Playoff line</div>')
-    legend = ""
+
+    legend_bits: list[str] = []
     if dot_of:
         names = {division.id: division.name for division in facts.league.format.divisions}
-        legend = '<p class="legend">' + "".join(
-            f'<span><span class="dot {cls}" aria-hidden="true"></span>'
-            f"{_esc(names.get(div_id) or f'Division {div_id}')}</span>"
-            for div_id, cls in dot_of.items()
-        ) + '<span>Bar: points for</span></p>'
+        legend_bits.append(
+            "".join(
+                f'<span><span class="dot {cls}" aria-hidden="true"></span>'
+                f"{_esc(names.get(div_id) or f'Division {div_id}')}</span>"
+                for div_id, cls in dot_of.items()
+            )
+        )
+    if has_all_play:
+        legend_bits.append(
+            '<span class="legend-swap"><span class="legend-act" aria-hidden="false">Bar: points for</span>'
+            '<span class="legend-ap" aria-hidden="true">Bar: all-play win pct</span></span>'
+        )
+    elif dot_of:
+        legend_bits.append("<span>Bar: points for</span>")
+    legend = f'<p class="legend">{"".join(legend_bits)}</p>' if legend_bits else ""
+
     note = ""
     if picture is not None and picture.seeding_unconfirmed:
-        note = (
-            '<p class="seeding-note">Seeding unconfirmed — derived from the standings.</p>'
-        )
+        note = '<p class="seeding-note">Seeding unconfirmed — derived from the standings.</p>'
     prose_heading = "Standings" if cold_start else "Standings and the Playoff Picture"
     return (
-        f'<section class="card table-card" aria-label="Standings" data-reveal>{_head("Standings", title, "good")}'
-        f'<div class="standings">{"".join(rows)}</div>{legend}{note}'
+        '<section class="card table-card" data-standings aria-label="Standings" data-reveal>'
+        f'{_head("Standings", title, "good")}'
+        f'{toggle_html}<div class="standings">{"".join(rows)}</div>{legend}{note}'
         f"{_prose(ctx.blocks(prose_heading))}</section>"
     )
 
@@ -1106,6 +1198,18 @@ def _power_section(ctx: _Ctx) -> str:
 # --------------------------------------------------------------------------- #
 
 
+def _luck_preview(team: WeeklyTeam, value: float) -> str:
+    """The deterministic click/tap/focus preview sentence, matching the
+    template narrator's ``_luck_line`` voice without an LLM."""
+    record_line = _record(
+        team.season.record.w, team.season.record.l, team.season.record.t
+    )
+    line = f"{_team_label(team)} — {record_line}"
+    if team.season.expected_wins is not None:
+        line += f", {team.season.expected_wins} wins earned"
+    return f"{line}, luck {_signed(value)}."
+
+
 def _luck_section(ctx: _Ctx) -> str:
     rows = wm.luck_rows(ctx.facts)
     if not rows:
@@ -1123,41 +1227,61 @@ def _luck_section(ctx: _Ctx) -> str:
         value = float(luck or 0.0)
         name = _team_label(team)
         short = name if len(name) <= _L_NAME_MAX else name[: _L_NAME_MAX - 1].rstrip() + "…"
-        top = _L_TOP + index * _L_ROW + (_L_ROW - _L_BAR) / 2
+        row_top = _L_TOP + index * _L_ROW
+        top = row_top + (_L_ROW - _L_BAR) / 2
         base = top + _L_BAR / 2 + 5
         length = abs(value) * scale
         text = _signed(value)
+        preview = _esc(_luck_preview(team, value))
+        origin = "left center" if value >= 0 else "right center"
         cells = [
+            f'<rect class="luck-hit" x="0" y="{_num(row_top)}" width="{_L_W}" '
+            f'height="{_L_ROW}" fill="transparent"/>',
             f"<title>{_esc(f'{name} {text}')}</title>",
             f'<text class="name" x="0" y="{_num(base)}">{_esc(short)}</text>',
         ]
         if value > 0:
             cells.append(
-                f'<rect class="luck-bar" data-luck="{_esc(repr(value))}" x="{_L_AXIS}" y="{_num(top)}" '
-                f'width="{_num(max(length, 2))}" height="{_L_BAR}" rx="8" fill="var(--good)"/>'
+                f'<rect class="luck-bar" data-luck="{_esc(repr(value))}" '
+                f'x="{_L_AXIS}" y="{_num(top)}" width="{_num(max(length, 2))}" '
+                f'height="{_L_BAR}" rx="8" fill="var(--good)" '
+                f'style="--luck-len:1; --luck-origin:{origin}"/>'
             )
-            cells.append(f'<text class="lbl" x="{_num(_L_AXIS + length + 10)}" y="{_num(base)}">{_esc(text)}</text>')
+            cells.append(
+                f'<text class="lbl" x="{_num(_L_AXIS + length + 10)}" '
+                f'y="{_num(base)}">{_esc(text)}</text>'
+            )
         elif value < 0:
             cells.append(
-                f'<rect class="luck-bar" data-luck="{_esc(repr(value))}" x="{_num(_L_AXIS - length)}" y="{_num(top)}" '
-                f'width="{_num(max(length, 2))}" height="{_L_BAR}" rx="8" fill="var(--bad)"/>'
+                f'<rect class="luck-bar" data-luck="{_esc(repr(value))}" '
+                f'x="{_num(_L_AXIS - length)}" y="{_num(top)}" '
+                f'width="{_num(max(length, 2))}" height="{_L_BAR}" rx="8" '
+                f'fill="var(--bad)" style="--luck-len:1; --luck-origin:{origin}"/>'
             )
             cells.append(
-                f'<text class="lbl" x="{_num(_L_AXIS - length - 10)}" y="{_num(base)}" text-anchor="end">'
-                f"{_esc(text)}</text>"
+                f'<text class="lbl" x="{_num(_L_AXIS - length - 10)}" '
+                f'y="{_num(base)}" text-anchor="end">{_esc(text)}</text>'
             )
         else:
             cells.append(
-                f'<rect class="luck-bar" data-luck="{_esc(repr(value))}" x="{_L_AXIS - 1}" y="{_num(top)}" '
-                f'width="2" height="{_L_BAR}" fill="var(--ink-3)"/>'
+                f'<rect class="luck-bar" data-luck="{_esc(repr(value))}" '
+                f'x="{_L_AXIS - 1}" y="{_num(top)}" width="2" height="{_L_BAR}" '
+                f'fill="var(--ink-3)" style="--luck-len:1; --luck-origin:{origin}"/>'
             )
-            cells.append(f'<text class="lbl" x="{_L_AXIS + 10}" y="{_num(base)}">{_esc(text)}</text>')
-        parts.append(f"<g>{''.join(cells)}</g>")
+            cells.append(
+                f'<text class="lbl" x="{_L_AXIS + 10}" y="{_num(base)}">{_esc(text)}</text>'
+            )
+        cells_html = "".join(cells)
+        parts.append(
+            f'<g class="luck-row" role="button" tabindex="0" data-luck-preview="{preview}">'
+            f"{cells_html}</g>"
+        )
     aria = "Luck index: actual wins minus expected wins, most lucky to least"
     svg = _svg_open(_L_W, height, aria) + "".join(parts) + "</svg>"
     return (
-        f'<section class="card luck-card" aria-label="The luck index" data-reveal>'
+        '<section class="card luck-card" data-luck-section aria-label="The luck index" data-reveal>'
         f'{_head("The luck index", "Who the schedule favoured", "notable")}{svg}'
+        '<p class="luck-preview" data-luck-preview hidden></p>'
         f"{_prose(ctx.blocks('The Luck Index'))}</section>"
     )
 

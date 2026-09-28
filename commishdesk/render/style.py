@@ -10,7 +10,9 @@ Story 5.14a adds the weekly Issue's separate Tuesday Morning token set and
 :func:`build_weekly_style`, which inlines the embedded WOFF2 faces shipped in
 ``render/fonts/`` (read through :mod:`importlib.resources`). Story 5B.3 adds
 the power-rank bump chart rules (grid, model / published strokes, hover + pin
-hit-list, responsive stacking) to the weekly stylesheet.
+hit-list, responsive stacking) to the weekly stylesheet. Story 5B.4 adds the
+luck row's focus / tap preview and grow-from-zero bars, and the standings
+actual-vs-all-play toggle with its cross-fading record, bar and legend values.
 
 Standard library only, credential-free. Numerals only: ``render`` emits digits in
 data contexts, so this module carries **no** copy of
@@ -716,6 +718,26 @@ svg .lbl-b {{ font-family: {FONT_MONO}; font-size: 18px; font-weight: 500; }}
 svg .lbl-big {{ font-family: {FONT_MONO}; font-size: 26px; font-weight: 500; fill: var(--ink); }}
 svg .name {{ font-family: {WEEKLY_FONT_BODY}; font-size: 14px; font-weight: 700; fill: var(--ink); }}
 
+/* Story 5B.4 -- luck row preview + grow-from-zero bars */
+.luck-row {{ cursor: pointer; outline: none; }}
+.luck-row rect.luck-hit {{ fill: transparent; pointer-events: fill; }}
+.luck-row:focus-visible {{ outline: 3px solid var(--emph); outline-offset: 3px; }}
+.luck-row.is-active rect.luck-hit {{ stroke: var(--emph); stroke-width: 2; }}
+.luck-preview {{ margin: 14px 0 0; font-size: 15px; color: var(--ink-2); }}
+.luck-preview[hidden] {{ display: none; }}
+.luck-bar {{
+  transform-box: fill-box;
+  transform-origin: var(--luck-origin, left center);
+}}
+html.js-reveal [data-reveal].is-revealed .luck-bar {{
+  animation: luck-grow 500ms cubic-bezier(.16, 1, .3, 1) both;
+  animation-delay: calc(var(--draw-i, 0) * 25ms);
+}}
+@keyframes luck-grow {{
+  from {{ transform: scaleX(0); }}
+  to {{ transform: scaleX(var(--luck-len, 1)); }}
+}}
+
 /* lead */
 .lead {{ display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 28px; align-items: stretch; }}
 .lead-main {{ padding: 34px 38px; }}
@@ -826,6 +848,70 @@ svg .name {{ font-family: {WEEKLY_FONT_BODY}; font-size: 14px; font-weight: 700;
 
 /* standings and power */
 .table-card {{ padding: 30px; }}
+/* Story 5B.4 -- segmented all-play toggle and cross-fading row values */
+.standings-toggle {{
+  display: none;
+  gap: 8px;
+  margin: 0 0 16px;
+}}
+html.js-reveal .standings-toggle {{ display: flex; }}
+.toggle-btn {{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 8px 16px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--ink-2);
+  font-family: {FONT_MONO};
+  font-size: 12px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}}
+.toggle-btn:hover,
+.toggle-btn:focus-visible {{ border-color: var(--emph); }}
+.toggle-btn:focus-visible {{ outline: 3px solid var(--emph); outline-offset: 3px; }}
+.toggle-btn.is-active {{
+  background: var(--emph);
+  border-color: var(--emph);
+  color: var(--on-emph);
+}}
+.rec-swap {{ display: grid; }}
+.rec-swap > span {{
+  grid-row-start: 1;
+  grid-column-start: 1;
+  transition: opacity 160ms linear;
+}}
+.rec-swap .rec-ap {{ opacity: 0; }}
+.table-card.is-allplay .rec-swap .rec-act {{ opacity: 0; }}
+.table-card.is-allplay .rec-swap .rec-ap {{ opacity: 1; }}
+.bar-swap {{ display: block; position: relative; overflow: hidden; }}
+.bar-swap > i {{
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  border-radius: 6px;
+  transition: opacity 160ms linear;
+}}
+.bar-swap .fill-allplay {{
+  opacity: 0;
+  background: var(--good);
+}}
+.table-card.is-allplay .bar-swap .fill-actual {{ opacity: 0; }}
+.table-card.is-allplay .bar-swap .fill-allplay {{ opacity: 1; }}
+.legend-swap {{ display: inline-grid; }}
+.legend-swap > span {{
+  grid-row-start: 1;
+  grid-column-start: 1;
+  transition: opacity 160ms linear;
+}}
+.legend-swap .legend-ap {{ opacity: 0; }}
+.table-card.is-allplay .legend-swap .legend-act {{ opacity: 0; }}
+.table-card.is-allplay .legend-swap .legend-ap {{ opacity: 1; }}
 .st-row {{
   display: grid;
   grid-template-columns: 26px 30px minmax(0, 190px) 46px minmax(48px, 1fr) 50px 64px;

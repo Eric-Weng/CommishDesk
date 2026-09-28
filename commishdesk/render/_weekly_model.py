@@ -16,6 +16,10 @@ web power-rank bump chart plots (model rank from ``WeeklyHistoryRow.power_rank``
 published rank from ``WeeklyHistoryRow.published_rank``, current-week values
 resolved from the render-time :class:`PowerRow`).
 
+Story 5B.4 adds :func:`all_play_rows` — the season all-play rows the web
+standings view toggle swaps in, with the same ``None``-filtering shape as
+:func:`luck_rows`.
+
 **Pipeline fence (AD-1).** Imports the standard library and
 ``commishdesk.facts`` schema types only.
 """
@@ -27,6 +31,7 @@ from typing import NamedTuple
 
 from commishdesk.facts.schema import (
     LeadCandidate,
+    WeeklyAllPlay,
     WeeklyFacts,
     WeeklyMatchup,
     WeeklyMove,
@@ -361,6 +366,19 @@ def power_history(team: WeeklyTeam, current: PowerRow) -> list[PowerHistoryPoint
 def luck_rows(facts: WeeklyFacts) -> list[tuple[float, WeeklyTeam]]:
     rows = [(float(team.season.luck), team) for team in facts.teams if team.season.luck is not None]
     rows.sort(key=lambda item: (-item[0], item[1].roster_id.zfill(8)))
+    return rows
+
+
+def all_play_rows(facts: WeeklyFacts) -> list[tuple[WeeklyAllPlay, WeeklyTeam]]:
+    """Teams with a season all-play record, mirroring ``luck_rows``'s
+    None-filtering shape. The standings toggle uses this list as its single
+    eligibility source."""
+    rows: list[tuple[WeeklyAllPlay, WeeklyTeam]] = []
+    for team in facts.teams:
+        all_play = team.season.all_play
+        if all_play is not None:
+            rows.append((all_play, team))
+    rows.sort(key=lambda item: item[1].roster_id.zfill(8))
     return rows
 
 
