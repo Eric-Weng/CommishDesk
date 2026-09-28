@@ -1106,7 +1106,8 @@ def test_expand_controls_are_hidden_without_the_script_gate() -> None:
     css = page.split("<style>", 1)[1].split("</style>", 1)[0]
     base_css = css.split("@media (prefers-reduced-motion: reduce)", 1)[0]
     assert ".card-expand {" in base_css
-    assert "display: none;" in base_css
+    expand_block = base_css.split(".card-expand {", 1)[1].split("}", 1)[0]
+    assert "display: none;" in expand_block
     assert "html.js-reveal .card-expand {" in base_css
     assert "display: inline-flex;" in base_css
 
