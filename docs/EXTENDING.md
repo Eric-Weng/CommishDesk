@@ -156,6 +156,12 @@ it — any LLM prose that cannot be cleanly repaired is replaced by the template
 league always gets a complete Issue. `sanitize_completion` + `structural_ok` run on the
 LLM completion before the safety check.
 
+The **weekly** Issue (`--week`) runs the same check on its template narrator, with one
+difference: it has no section-suppression path, so a `suppress_section` finding on the
+weekly template holds the whole Issue just like a `hold_issue` one (`ContentSafetyError`,
+exit 1, or shipped under `--allow-content-hold`). A weekly LLM hold still degrades to the
+template first, but a template that also holds does not ship.
+
 **The operator override.** `--allow-content-hold` (or `COMMISHDESK_ALLOW_CONTENT_HOLD` set
 to any non-blank value other than `0` / `false` / `no` / `off`) downgrades every
 `hold_issue` above: instead of raising `ContentSafetyError`, the CLI logs one
