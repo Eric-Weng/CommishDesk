@@ -163,6 +163,54 @@ def _league_bundle_with(monkeypatch: pytest.MonkeyPatch, **league_updates: Any) 
     return {**bundle, "league": {**bundle["league"], **league_updates}}
 
 
+def _league_bundle_with_hold_team_name(*, roster_id: int = 1, team_name: str = "Idiot Squad") -> dict[str, Any]:
+    """The demo fixture's league bundle with one roster's team name renamed to
+    carry a personal insult (S11 / epic-5-retro-item-82): a league team label is
+    exactly the kind of league person-label ``check_narration``'s proximity scan
+    treats as "someone was named", so the *template* narrator's own rendered
+    line for this roster (e.g. "1. Idiot Squad — 5-2, ...") trips a
+    ``named_person_proximity`` hold with no LLM involved at all — the template
+    itself is the offender, which is exactly the gap S11 found."""
+    from commishdesk import demo
+
+    bundle = demo.load_demo_bundle()
+    rosters = [
+        {**r, "metadata": {**(r.get("metadata") or {}), "team_name": team_name}}
+        if r["roster_id"] == roster_id
+        else r
+        for r in bundle["rosters"]
+    ]
+    return {**bundle, "rosters": rosters}
+
+
+def _league_bundle_with_suppress_team_name(*, roster_id: int = 1, team_name: str = "Parlay Squad") -> dict[str, Any]:
+    """The demo fixture's league bundle with one roster's team name renamed to
+    carry a *non-escalating* banned-topic hit (S11 matrix row: "Template
+    suppress-tier finding"): ``gambling`` (unlike ``gambling_personal``) is not
+    in ``escalate_to_hold`` (``safety_lists.toml``), so "Parlay Squad" trips
+    only a ``banned_topic``/``suppress_section`` finding on the pattern
+    ``\\bparlay\\b`` — never a ``named_person_proximity`` hold — regardless of
+    the league person-label in the same sentence. Verified directly: running
+    the weekly CLI against this bundle and spying on
+    ``commishdesk.narrate.safety.check_narration`` /
+    ``commishdesk.narrate.response.classify`` shows every finding is
+    ``banned_topic``/``suppress_section`` ("gambling content: 'Parlay'") and
+    ``classify(..., narrator_is_template=True)`` returns
+    ``hold=False, suppress=True`` — the mirror image of
+    ``_league_bundle_with_hold_team_name``'s "Idiot Squad", which trips a real
+    hold."""
+    from commishdesk import demo
+
+    bundle = demo.load_demo_bundle()
+    rosters = [
+        {**r, "metadata": {**(r.get("metadata") or {}), "team_name": team_name}}
+        if r["roster_id"] == roster_id
+        else r
+        for r in bundle["rosters"]
+    ]
+    return {**bundle, "rosters": rosters}
+
+
 class _WeeklyVoiceClient:
     """A deterministic stand-in for the weekly Voice (Story 5.12).
 
@@ -1145,6 +1193,231 @@ def test_weekly_a_template_post_leaves_every_justification_null(
     )
     assert result.exit_code == 0, result.output
     assert all(r["nudge_justification"] is None for r in _snapshot_power_rows(tmp_path, "103"))
+
+
+# --------------------------------------------------------------------------- #
+# retro-5-s11 — the weekly template narrator is itself content-safety gated
+# --------------------------------------------------------------------------- #
+
+
+def test_weekly_a_held_template_faults_with_no_override(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A renamed team trips a hold-tier finding on the *template* text itself
+    (no LLM involved at all): nothing ships for that league, no local write, no
+    post, ``ContentSafetyError`` caught per-league (AD-9), exit 1."""
+    _stub_adapter(monkeypatch, league_bundle=_league_bundle_with_hold_team_name())
+    calls = _stub_post_discord_text(monkeypatch)
+    monkeypatch.setenv("COMMISHDESK_DISCORD_WEBHOOK_URL", _FAKE_WEBHOOK_URL)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+
+    result = runner.invoke(
+        app, ["--league", "200", "--week", "17", "--post", "--out-dir", str(tmp_path)]
+    )
+    assert result.exit_code == 1
+    assert "content-safety hold" in result.output
+    assert "OVERRIDDEN" not in result.output
+    assert not calls
+    assert not (tmp_path / "commishdesk-200-weekly-week17.html").is_file()
+    assert not (tmp_path / "commishdesk-200-weekly-week17.txt").is_file()
+
+
+def test_weekly_a_template_suppress_tier_finding_also_faults_with_no_override(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The matrix's "Template suppress-tier finding" row: a renamed team trips a
+    genuine ``banned_topic``/``suppress_section`` finding on the *template*
+    text (``gambling`` is non-escalating, so this is never a hold on its own),
+    and ``template()`` treats an unoverridden suppress exactly like a hold —
+    same fault shape as the hold-tier case above: exit 1, no post, no local
+    write."""
+    _stub_adapter(monkeypatch, league_bundle=_league_bundle_with_suppress_team_name())
+    calls = _stub_post_discord_text(monkeypatch)
+    monkeypatch.setenv("COMMISHDESK_DISCORD_WEBHOOK_URL", _FAKE_WEBHOOK_URL)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+
+    result = runner.invoke(
+        app, ["--league", "205", "--week", "17", "--post", "--out-dir", str(tmp_path)]
+    )
+    assert result.exit_code == 1
+    assert "content-safety hold" in result.output
+    # the suppress-tier fallback reason, not a real hold's own reason
+    assert "suppress/regenerate-tier finding on the weekly template" in result.output
+    assert "OVERRIDDEN" not in result.output
+    assert not calls
+    assert not (tmp_path / "commishdesk-205-weekly-week17.html").is_file()
+    assert not (tmp_path / "commishdesk-205-weekly-week17.txt").is_file()
+
+
+@pytest.mark.parametrize(
+    "flag, env",
+    [
+        (["--allow-content-hold"], {}),
+        ([], {"COMMISHDESK_ALLOW_CONTENT_HOLD": "1"}),
+    ],
+)
+def test_weekly_allow_content_hold_ships_the_held_template(
+    tmp_path, monkeypatch: pytest.MonkeyPatch, flag: list[str], env: dict[str, str]
+) -> None:
+    """The operator override (flag or env var) ships the held template anyway:
+    exit 0, the Issue is written and posted, and the hold is logged + echoed
+    with ``OVERRIDDEN`` plus its reason; the per-finding alert still fires too."""
+    _stub_adapter(monkeypatch, league_bundle=_league_bundle_with_hold_team_name())
+    calls = _stub_post_discord_text(monkeypatch)
+    monkeypatch.setenv("COMMISHDESK_DISCORD_WEBHOOK_URL", _FAKE_WEBHOOK_URL)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+    for key, value in env.items():
+        monkeypatch.setenv(key, value)
+
+    result = runner.invoke(
+        app,
+        ["--league", "201", "--week", "17", "--post", "--out-dir", str(tmp_path), *flag],
+    )
+    assert result.exit_code == 0, result.output
+    assert "OVERRIDDEN" in result.stderr
+    assert "Idiot" in result.stderr  # every hold reason is named
+    assert "content-safety alert for league 201" in result.stderr
+    assert (tmp_path / "commishdesk-201-weekly-week17.txt").is_file()
+    assert calls  # alerts fire, but the post still goes out
+
+
+def test_weekly_allow_content_hold_ships_a_suppress_tier_template(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The override covers the suppress tier too: the "Parlay Squad" template
+    ships, and the ``OVERRIDDEN`` line names the suppress-tier fallback reason."""
+    _stub_adapter(monkeypatch, league_bundle=_league_bundle_with_suppress_team_name())
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+
+    result = runner.invoke(
+        app,
+        ["--league", "206", "--week", "17", "--allow-content-hold", "--out-dir", str(tmp_path)],
+    )
+    assert result.exit_code == 0, result.output
+    assert "OVERRIDDEN" in result.stderr
+    assert "suppress/regenerate-tier finding on the weekly template" in result.stderr
+    assert (tmp_path / "commishdesk-206-weekly-week17.txt").is_file()
+
+
+def test_weekly_the_same_input_without_the_override_still_holds(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The regression anchor for the row above: no override in force (including
+    the explicit negative form beating an ambient env var) still faults."""
+    _stub_adapter(monkeypatch, league_bundle=_league_bundle_with_hold_team_name())
+    monkeypatch.setenv("COMMISHDESK_ALLOW_CONTENT_HOLD", "1")
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+
+    result = runner.invoke(
+        app,
+        ["--league", "204", "--week", "17", "--no-allow-content-hold", "--out-dir", str(tmp_path)],
+    )
+    assert result.exit_code == 1
+    assert "content-safety hold" in result.output
+    assert "OVERRIDDEN" not in result.output
+    assert not (tmp_path / "commishdesk-204-weekly-week17.txt").is_file()
+
+
+def test_weekly_llm_hold_whose_template_also_holds_faults_not_a_silent_double_fallback(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """When the voiced LLM narration holds *and* the template it degrades to
+    also holds (a renamed team, independent of the LLM stub), the run must
+    fault — not silently ship the also-held template as though degrading to it
+    were automatically safe. One paid LLM attempt only."""
+    _stub_adapter(monkeypatch, league_bundle=_league_bundle_with_hold_team_name())
+    voice = _stub_weekly_voice(monkeypatch, hold=True)
+    calls = _stub_post_discord_text(monkeypatch)
+    monkeypatch.setenv("COMMISHDESK_DISCORD_WEBHOOK_URL", _FAKE_WEBHOOK_URL)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+
+    result = runner.invoke(
+        app, ["--league", "202", "--week", "17", "--post", "--out-dir", str(tmp_path)]
+    )
+    assert result.exit_code == 1
+    assert len(voice.calls) == 1
+    assert "content-safety hold" in result.output
+    assert "OVERRIDDEN" not in result.output
+    assert not calls
+    assert not (tmp_path / "commishdesk-202-weekly-week17.txt").is_file()
+
+
+@pytest.mark.parametrize(
+    "stub_kwargs, expected_calls",
+    [
+        ({"nudge": 1, "ceiling": "0.000001"}, 0),  # over-ceiling degrade, no paid call
+        ({}, 1),  # the LLM text is suppress-tier unclean too, degrade with no retry
+    ],
+)
+def test_weekly_every_degrade_site_gates_the_template(
+    tmp_path, monkeypatch: pytest.MonkeyPatch, stub_kwargs: dict[str, Any], expected_calls: int
+) -> None:
+    """The over-ceiling and still-unclean degrades reach the same gated
+    ``template()`` as the LLM-hold degrade above: a suppress-tier template
+    ("Parlay Squad") faults on each, with nothing written or posted."""
+    _stub_adapter(monkeypatch, league_bundle=_league_bundle_with_suppress_team_name())
+    voice = _stub_weekly_voice(monkeypatch, **stub_kwargs)
+    calls = _stub_post_discord_text(monkeypatch)
+    monkeypatch.setenv("COMMISHDESK_DISCORD_WEBHOOK_URL", _FAKE_WEBHOOK_URL)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+
+    result = runner.invoke(
+        app, ["--league", "207", "--week", "17", "--post", "--out-dir", str(tmp_path)]
+    )
+    assert result.exit_code == 1
+    assert len(voice.calls) == expected_calls
+    assert "suppress/regenerate-tier finding on the weekly template" in result.output
+    assert not calls
+    assert not (tmp_path / "commishdesk-207-weekly-week17.txt").is_file()
+
+
+def test_weekly_a_degrade_checks_the_template_with_the_selected_voice(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """On a degrade the template's check reads the already-selected Voice (its
+    keyword patterns), not ``voice=None``."""
+    import commishdesk.narrate.safety as safety
+
+    voices: list[object] = []
+    real = safety.check_narration
+
+    def spy(text: str, narration: object, *args: object, **kwargs: object) -> object:
+        voices.append(kwargs.get("voice"))
+        return real(text, narration, *args, **kwargs)
+
+    monkeypatch.setattr(safety, "check_narration", spy)
+    _stub_adapter(monkeypatch)
+    _stub_weekly_voice(monkeypatch, hold=True)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+
+    result = runner.invoke(app, ["--league", "208", "--week", "17", "--out-dir", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    assert len(voices) == 2  # the held LLM text, then the template it degraded to
+    assert voices[-1] is not None
+
+
+def test_weekly_check_narration_runs_on_the_clean_template_path(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """S11's gate runs on *every* call to the template narrator, including the
+    ordinary clean happy path — not only when something trips it. Exactly one
+    call, and no hold/override lines anywhere in the output."""
+    import commishdesk.narrate.safety as safety
+
+    calls: list[str] = []
+    real = safety.check_narration
+
+    def spy(text: str, narration: object, *args: object, **kwargs: object) -> object:
+        calls.append(text)
+        return real(text, narration, *args, **kwargs)
+
+    monkeypatch.setattr(safety, "check_narration", spy)
+    _stub_adapter(monkeypatch)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+
+    result = runner.invoke(app, ["--league", "203", "--week", "17", "--out-dir", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    assert len(calls) == 1
+    assert "content-safety" not in result.output
+    assert "OVERRIDDEN" not in result.output
 
 
 # --------------------------------------------------------------------------- #

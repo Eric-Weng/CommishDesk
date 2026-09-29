@@ -242,6 +242,7 @@ def run(
                     post=post,
                     reason=reason,
                     seeding=seeding,
+                    allow_content_hold=_allow_content_hold(allow_content_hold),
                 )
             except (CommishDeskError, OSError) as exc:
                 typer.echo(_one_line(exc), err=True)
@@ -512,11 +513,13 @@ def _run_weekly(
     post: bool,
     reason: str | None = None,
     seeding: str | None = None,
+    allow_content_hold: bool = False,
 ) -> int:
     """Derive the run list (the one Generation Set constructor) and build a weekly
     Issue for each activated league. Returns the process exit code: ``0`` when
     every league in the set produced an Issue, ``1`` when one or more faulted
-    (each fault — a not-yet-final week, a cross-check hold, an
+    (each fault — a not-yet-final week, a cross-check hold, a content-safety
+    hold on the weekly template (Story 5.11 S11) or the LLM narrator, an
     :class:`~commishdesk.errors.OptimalLineupError`, a reissue with nothing to
     correct, an invalid ``--seeding`` value, anything else — is isolated and
     printed as a one-line message, AD-9). Raises
@@ -527,6 +530,10 @@ def _run_weekly(
     into a correction of an already-confirmed weekly send. It is threaded
     unchanged down to :func:`_recap_one_league_weekly`, which owns both the
     "something to correct" guard and the corrected Issue's label.
+
+    ``allow_content_hold`` (Story 5.11 S11) is threaded unchanged down to
+    :func:`_recap_one_league_weekly` → :func:`_produce_weekly_issue`, mirroring
+    how ``_run_draft_recap`` threads it to the draft path.
 
     ``seeding`` (Story 5.15) is the raw ``--seeding`` /
     ``COMMISHDESK_PLAYOFF_SEEDING`` value. Its syntax is parsed here so a
@@ -562,6 +569,7 @@ def _run_weekly(
                 post=post,
                 reason=reason,
                 seeding=parsed_seeding,
+                allow_content_hold=allow_content_hold,
             )
         except (CommishDeskError, OSError) as exc:
             logger.debug("league %s faulted: %s", resolved, _one_line(exc))
@@ -1214,23 +1222,39 @@ def _stamp_nudge_justifications(
 
 
 def _produce_weekly_issue(
-    doc: WeeklyFacts, *, resolved: str, logger: logging.Logger, reissue: bool = False
+    doc: WeeklyFacts,
+    *,
+    resolved: str,
+    logger: logging.Logger,
+    reissue: bool = False,
+    allow_content_hold: bool = False,
 ) -> tuple[WeeklyIssue, dict[str, int], dict[str, str]]:
     """Select the weekly narrator and return ``(issue, published_ranks,
     nudge_justifications)``.
 
-    The template narrator returns ``(render_weekly_issue(narration), {}, {})``.
+    The template narrator's rendered Issue is itself gated on content safety
+    (Story 5.11's retro finding S11): ``template()`` runs ``check_narration`` +
+    ``classify(narrator_is_template=True)`` on every call, like
+    ``_produce_issue``'s draft-recap ``_template_issue``. An unoverridden hold
+    (or a suppress/regenerate-tier finding — the template has no repair path to
+    spend one on) raises :class:`~commishdesk.errors.ContentSafetyError`;
+    ``allow_content_hold`` downgrades that to a logged, echoed ``OVERRIDDEN``
+    and ships the template anyway, exactly as the draft path's
+    ``--allow-content-hold`` does.
+
     The LLM narrator (Story 5.12) returns a parsed :class:`WeeklyIssue` plus the
     published ranks it stated and their cited reasons — at most two ``generate()`` attempts, the second
     only when the first earned the ``regenerate`` tier. A hold, a
     non-seven-section completion, or an unrepairable finding degrades to the
-    template Issue: the weekly path never withholds an Issue, and it never makes
-    a third paid call. A *reissue* (Story 5.11c) always takes the template: the
+    template Issue — which now runs through the same gate above, so a degrade
+    whose template is *also* unshippable raises or overrides exactly like the
+    template-only path. A *reissue* (Story 5.11c) always takes the template: the
     correction must not re-spend or drift the prose and the persisted ranks.
 
     ``doc.period.has_prior_week`` (Story 5.16) selects which Voice the LLM path
     may use — the cold-start weekly prompt on a Week-1 run.
     """
+    from commishdesk.errors import ContentSafetyError
     from commishdesk.narrate.response import classify
     from commishdesk.narrate.safety import check_narration
     from commishdesk.narrate.weekly_template import (
@@ -1245,8 +1269,65 @@ def _produce_weekly_issue(
     narration = doc.narration
     cold_start = not doc.period.has_prior_week
 
-    def template() -> tuple[WeeklyIssue, dict[str, int], dict[str, str]]:
-        return render_weekly_issue(narration, has_prior_week=doc.period.has_prior_week), {}, {}
+    def emit_alerts(alerts: tuple[str, ...]) -> None:
+        for line in alerts:
+            logger.error("league %s content-safety: %s", resolved, line)
+            typer.echo(f"content-safety alert for league {resolved}: {line}", err=True)
+
+    def _hold(reasons: tuple[str, ...]) -> ContentSafetyError | None:
+        """The hold, unless the operator overrode it — mirrors ``_produce_issue``'s
+        own ``_hold`` helper below. Returns the fault for the caller to
+        ``raise``, or ``None`` when ``allow_content_hold`` is set, having already
+        logged the override at ``error`` (with ``OVERRIDDEN`` and every reason)
+        and echoed a stderr line distinct from both the AD-9 fault line and the
+        per-finding ``emit_alerts`` lines."""
+        joined = "; ".join(reasons)
+        if not allow_content_hold:
+            return ContentSafetyError(f"content-safety hold for league {resolved}: {joined}")
+        logger.error(
+            "league %s weekly content-safety hold OVERRIDDEN (--allow-content-hold): %s",
+            resolved,
+            joined,
+        )
+        typer.echo(
+            f"content-safety hold OVERRIDDEN for league {resolved} (--allow-content-hold): {joined}",
+            err=True,
+        )
+        return None
+
+    def template(voice: Voice | None = None) -> tuple[WeeklyIssue, dict[str, int], dict[str, str]]:
+        """The deterministic weekly narrator, gated like the draft path's
+        ``_template_issue`` (except that a suppress-tier finding holds rather
+        than trimming sections — see below): ``check_narration`` runs on the rendered
+        Issue text before it ships, on *every* call site — the no-selection /
+        reissue path, the over-ceiling degrade, a malformed completion, and an
+        LLM-hold degrade all land here. ``voice`` is the already-selected Voice
+        on a degrade path (``None`` when no Voice was ever selected), so the
+        check reads the same voice-derived keyword list the LLM attempt did.
+
+        ``classify(..., narrator_is_template=True)`` filters every
+        ``hallucination`` finding (the template only ever states the
+        ``narration`` projection, so a closed-world miss against it would be a
+        false positive by construction) and structurally never yields
+        ``regenerate`` — checked defensively here anyway, since the template has
+        no regeneration to spend. A ``suppress_section`` finding also holds: a
+        real ``WeeklySection``-suppression path is a separable feature (Design
+        Notes), so the conservative default is never to ship a flagged
+        template section.
+        """
+        issue = render_weekly_issue(narration, has_prior_week=doc.period.has_prior_week)
+        report = check_narration(weekly_issue_to_text(issue), narration, voice=voice)
+        decision = classify(report, narrator_is_template=True)
+        if decision.hold or decision.regenerate or decision.suppress:
+            emit_alerts(decision.alerts)
+            reasons = decision.hold_reasons or (
+                "a suppress/regenerate-tier finding on the weekly template "
+                "narrator, which has no repair path to spend",
+            )
+            held = _hold(reasons)
+            if held is not None:
+                raise held
+        return issue, {}, {}
 
     selection = (
         None
@@ -1259,17 +1340,12 @@ def _produce_weekly_issue(
     if not _weekly_estimate_within_ceiling(
         narration, voice, config, resolved=resolved, logger=logger, cold_start=cold_start
     ):
-        return template()
+        return template(voice)
 
     # ``build_client`` is imported (not captured as a default argument) so a test
     # can swap the factory on ``commishdesk.narrate.llm`` and have it take effect.
     from commishdesk.narrate.llm import build_client, narrate_weekly_issue
     from commishdesk.narrate.published_rank import published_rank_findings
-
-    def emit_alerts(alerts: tuple[str, ...]) -> None:
-        for line in alerts:
-            logger.error("league %s content-safety: %s", resolved, line)
-            typer.echo(f"content-safety alert for league {resolved}: {line}", err=True)
 
     for attempt in (1, 2):
         result = narrate_weekly_issue(
@@ -1282,7 +1358,7 @@ def _produce_weekly_issue(
         )
         if result.narrator == "template":
             # every provider attempt failed inside narrate_weekly_issue
-            return template()
+            return template(voice)
         issue = weekly_issue_from_text(
             result.text, narration, has_prior_week=doc.period.has_prior_week
         )
@@ -1294,7 +1370,7 @@ def _produce_weekly_issue(
                 resolved,
                 len(expected),
             )
-            return template()
+            return template(voice)
 
         ranks = parse_published_ranks(result.text, narration)
         # Ranks only: the closed-world scan reads the whole stamped payload, so a
@@ -1306,17 +1382,17 @@ def _produce_weekly_issue(
             report = report.model_copy(update={"findings": report.findings + deviation})
         decision = classify(report, narrator_is_template=False)
 
-        # A hold is never shipped as an *LLM* Issue: the deterministic template is
-        # the floor, exactly as it is for a failed generation. (This is a stronger
-        # response than the draft path's ``raise``, and deliberately so — the
-        # weekly run is scheduled and must always produce an Issue.)
+        # A hold is never shipped as an *LLM* Issue: degrade to the deterministic
+        # template, exactly as for a failed generation, rather than the draft
+        # path's immediate ``raise``. The template is itself gated (S11), so a
+        # template that also holds still raises ``ContentSafetyError`` there.
         if decision.hold:
             emit_alerts(decision.alerts)
             logger.warning(
                 "league %s: weekly LLM narration held on content safety; using the template narrator",
                 resolved,
             )
-            return template()
+            return template(voice)
 
         if decision.regenerate and attempt == 1:
             logger.warning(
@@ -1334,12 +1410,12 @@ def _produce_weekly_issue(
                 resolved,
                 attempt,
             )
-            return template()
+            return template(voice)
 
         # Parsed from the raw completion, like the ranks: the parsed Issue joins a
         # tight list's lines into one block, which would hide every item after the first.
         return issue, ranks, parse_nudge_justifications(result.text, narration)
-    return template()
+    return template(voice)
 
 
 def _recap_one_league_weekly(
@@ -1351,10 +1427,16 @@ def _recap_one_league_weekly(
     post: bool,
     reason: str | None = None,
     seeding: PlayoffSeeding | None = None,
+    allow_content_hold: bool = False,
 ) -> None:
     """Story 5.11a: chain ingest → stats → facts → narrator → render for one
     league-week, writing the local text Issue plus the Story 2.7 generic HTML
     dump and (with ``--post``) delivering an idempotent Discord summary.
+
+    ``allow_content_hold`` (Story 5.11 S11) threads straight into
+    :func:`_produce_weekly_issue`: the weekly template narrator is content-safety
+    gated like the draft path (a suppress-tier finding holds the whole Issue),
+    and this is its operator override.
 
     Story 5.11c adds the reissue seam: a non-``None`` ``reason`` is the operator's
     explicit "post this again, it was wrong". That inverts the ledger gate at the
@@ -1536,7 +1618,11 @@ def _recap_one_league_weekly(
 
     logger.debug("narrating the weekly Issue")
     issue, published_ranks, nudge_justifications = _produce_weekly_issue(
-        doc, resolved=resolved, logger=logger, reissue=reason is not None
+        doc,
+        resolved=resolved,
+        logger=logger,
+        reissue=reason is not None,
+        allow_content_hold=allow_content_hold,
     )
     if not cross_check_passed:
         # Visible on every surface that reads the dateline (stdout, the text
