@@ -523,6 +523,9 @@ def test_zero_zero_tie_is_never_a_blowout_at_team_or_summary_level() -> None:
 
 
 def test_week_summary_closest_and_biggest_blowout_identify_the_right_pair() -> None:
+    # Also the regression guard for Epic 5's retro S5 gate: this widest
+    # margin (110, loser 40 <= 0.65*150) genuinely clears BLOWOUT_RATIO, so it
+    # must still fire exactly as before.
     week = _week_model(
         2,
         [_roster(str(i)) for i in range(1, 5)],
@@ -559,14 +562,92 @@ def test_week_summary_high_low_and_totals() -> None:
 
 
 def test_week_summary_high_low_tie_break_favors_lower_roster_id() -> None:
+    # Real opponents throughout (S4 excludes no-opponent rows from scores) --
+    # "5" and "1" tie for the week's high at 100.0, "3" is the outright low.
     week = _week_model(
         2,
-        [_roster("5"), _roster("1"), _roster("3")],
-        [_matchup(2, "5", None, 100.0), _matchup(2, "1", None, 100.0), _matchup(2, "3", None, 50.0)],
+        [_roster(str(i)) for i in (5, 8, 1, 9, 3, 7)],
+        [
+            _matchup(2, "5", "8", 100.0),
+            _matchup(2, "8", "5", 60.0),
+            _matchup(2, "1", "9", 100.0),
+            _matchup(2, "9", "1", 70.0),
+            _matchup(2, "3", "7", 50.0),
+            _matchup(2, "7", "3", 55.0),
+        ],
     )
     stats = compute_weekly_stats(week)
     assert stats.summary.high.roster_id == "1"  # tied at 100.0 with "5" -- lower id wins
     assert stats.summary.low.roster_id == "3"
+
+
+def test_week_summary_excludes_a_bye_seed_row_from_high_and_low() -> None:
+    """Epic 5's retro, S4: a first-round playoff-bye roster (``opponent_roster_id
+    is None``) has no real game this week -- its raw points must not win the
+    week's high (or lose it the low) even when they are the week's most
+    extreme value."""
+    week = _week_model(
+        2,
+        [_roster("1"), _roster("2"), _roster("3")],
+        [
+            _matchup(2, "1", "2", 100.0),
+            _matchup(2, "2", "1", 90.0),
+            _matchup(2, "3", None, 999.0),  # bye-seed: no opponent, sky-high points
+        ],
+        playoff_week_start=2,
+    )
+    stats = compute_weekly_stats(week)
+    assert stats.summary.games == 1
+    assert stats.summary.high.roster_id == "1"  # not "3", despite its 999.0
+    assert stats.summary.low.roster_id == "2"
+    # total_points / avg_team_score are the week's raw scoring, not filtered
+    # by the high/low opponent exclusion -- the bye-seed's 999.0 still counts.
+    assert stats.summary.total_points == 100.0 + 90.0 + 999.0
+    assert stats.summary.avg_team_score == round((100.0 + 90.0 + 999.0) / 3, 2)
+
+
+def test_week_summary_biggest_blowout_prefers_the_blowout_on_a_margin_tie() -> None:
+    """Two games can tie for the week's widest margin while only one is an
+    actual blowout -- ``is_blowout`` depends on the loser/winner ratio, not
+    margin alone. Roster "1" (the non-blowout tie partner) sorts before "3",
+    so a tiebreak that ignores blowout-ness would pick the non-blowout game
+    and wrongly report ``biggest_blowout`` as ``None``."""
+    week = _week_model(
+        2,
+        [_roster(str(i)) for i in range(1, 5)],
+        [
+            _matchup(2, "1", "2", 200.0),
+            _matchup(2, "2", "1", 135.0),  # margin 65, loser 0.675x winner -- not a blowout
+            _matchup(2, "3", "4", 100.0),
+            _matchup(2, "4", "3", 35.0),  # margin 65, loser 0.35x winner -- a blowout
+        ],
+    )
+    stats = compute_weekly_stats(week)
+    assert stats.summary.biggest_blowout is not None
+    assert stats.summary.biggest_blowout.roster_ids == ["3", "4"]
+
+
+def test_week_summary_biggest_blowout_is_none_when_the_widest_margin_is_not_itself_a_blowout() -> None:
+    """Epic 5's retro, S5 (decided: Gate): the widest game margin in the week
+    is only "the week's biggest blowout" when that game's own ``is_blowout``
+    is ``True``. Neither game here clears ``BLOWOUT_RATIO`` (0.65), so
+    ``biggest_blowout`` must be ``None`` even though one game's margin is
+    numerically the widest."""
+    week = _week_model(
+        2,
+        [_roster(str(i)) for i in range(1, 5)],
+        [
+            _matchup(2, "1", "2", 100.0),
+            _matchup(2, "2", "1", 90.0),  # margin 10, loser 0.9x winner -- not a blowout
+            _matchup(2, "3", "4", 60.0),
+            _matchup(2, "4", "3", 59.0),  # margin 1 -- closest, also not a blowout
+        ],
+    )
+    stats = compute_weekly_stats(week)
+    assert stats.summary.biggest_blowout is None
+    assert stats.summary.blowout_count == 0
+    assert stats.summary.closest is not None
+    assert stats.summary.closest.roster_ids == ["3", "4"]
 
 
 def test_week_summary_is_none_for_closest_and_blowout_when_no_games() -> None:

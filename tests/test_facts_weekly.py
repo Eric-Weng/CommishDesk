@@ -272,6 +272,41 @@ def test_week10_history_rows_cover_every_week_played() -> None:
         assert team.history.weekly[-1].power_rank is not None
 
 
+def test_history_row_cum_record_is_frozen_at_the_regular_cutoff() -> None:
+    """Epic 5's retro, S3: a history row past ``regular_cutoff`` must not fold
+    playoff/consolation results into ``cum_record`` -- it stays pinned at the
+    record frozen the last regular-season week. ``_synthetic`` always has the
+    lower-id side of each pair win, so an unclamped roster "1" would show
+    17-0 at week 17; clamped, it must show the week-9 record (9-0) instead.
+    The week's own game data (points/result/margin) is untouched by the
+    clamp -- only ``cum_record`` is frozen."""
+    week_model, league, players, names = _synthetic(4, week=17, playoff_week_start=10)
+    doc = build_weekly_facts(week_model, league, players, names, generated_at=GENERATED_AT)
+    team1 = next(t for t in doc.teams if t.roster_id == "1")
+    by_week = {row.week: row for row in team1.history.weekly}
+
+    week9_row = by_week[9]
+    assert (week9_row.cum_record.w, week9_row.cum_record.l, week9_row.cum_record.t) == (9, 0, 0)
+
+    week17_row = by_week[17]
+    assert (week17_row.cum_record.w, week17_row.cum_record.l, week17_row.cum_record.t) == (9, 0, 0)
+    assert week17_row.result == "W"  # the week-17 game itself is still reported
+    assert week17_row.points == 100.0
+
+
+def test_history_row_cum_record_does_not_crash_when_playoff_week_start_is_1() -> None:
+    """``playoff_week_start=1`` pins ``regular_cutoff`` at 0 (``_regular_cutoff``
+    returns ``max(0, playoff_week_start - 1)``), a key the per-week
+    ``records_at`` fold never otherwise produces (it only covers weeks
+    ``1..week.week``) -- every history row's clamp must still resolve to a
+    frozen (0-0-0) record instead of raising ``KeyError``."""
+    week_model, league, players, names = _synthetic(4, week=3, playoff_week_start=1)
+    doc = build_weekly_facts(week_model, league, players, names, generated_at=GENERATED_AT)
+    team1 = next(t for t in doc.teams if t.roster_id == "1")
+    for row in team1.history.weekly:
+        assert (row.cum_record.w, row.cum_record.l, row.cum_record.t) == (0, 0, 0)
+
+
 def test_week10_bye_impact_names_the_starter_on_a_next_week_bye() -> None:
     doc = _week10_facts()
     flagged = [entry for card in doc.matchups.next_week for entry in (card.bye_impact or [])]
@@ -447,6 +482,59 @@ def test_lead_candidates_skip_lineup_loss_when_no_team_qualifies() -> None:
     assert doc.lead_candidates[0].kind != "week_high_score"  # a higher-priority kind still fired
 
 
+def test_week_high_score_lead_excludes_a_bye_seed_row() -> None:
+    """Epic 5's retro, S4 (leads half): a first-round playoff-bye roster
+    (``opponent_roster_id is None``) has no real game this week -- it must not
+    win the ``week_high_score`` lead on a non-game score, even when its raw
+    points are the week's highest."""
+    from commishdesk.facts.leads import build_weekly_lead_candidates
+    from commishdesk.facts.schema import (
+        WeeklyCoachingEfficiency,
+        WeeklyHistory,
+        WeeklyPeriod,
+        WeeklyPower,
+        WeeklyRecord,
+        WeeklySeason,
+        WeeklyTeam,
+        WeeklyTeamGame,
+        WeekSummaryRef,
+    )
+
+    def _season() -> WeeklySeason:
+        return WeeklySeason(
+            record=WeeklyRecord(w=1, l=0, t=0),
+            rank=1,
+            points_for=0.0,
+            points_against=0.0,
+            avg_for=0.0,
+            power=WeeklyPower(),
+            coaching_efficiency=WeeklyCoachingEfficiency(actual=0.0, optimal=0.0),
+        )
+
+    bye_seed = WeeklyTeam(
+        roster_id="1",
+        manager="m1",
+        team_name="Bye Seed",
+        season=_season(),
+        this_week=WeeklyTeamGame(opponent_roster_id=None, points=999.0),
+        history=WeeklyHistory(),
+    )
+    real_game = WeeklyTeam(
+        roster_id="2",
+        manager="m2",
+        team_name="Real Game",
+        season=_season(),
+        this_week=WeeklyTeamGame(opponent_roster_id="3", points=150.0, opponent_points=100.0),
+        history=WeeklyHistory(),
+    )
+    summary = WeekSummaryRef(games=1, total_points=250.0, avg_team_score=125.0, blowout_count=0, blowout_threshold=0.65)
+    period = WeeklyPeriod(week=15, type="playoff", has_prior_week=True, summary=summary)
+
+    candidates = build_weekly_lead_candidates([bye_seed, real_game], period)
+    high_score = next(c for c in candidates if c.kind == "week_high_score")
+    assert high_score.roster_ids == ["2"]  # not "1", despite its 999.0
+
+
 def test_weekly_storylines_carry_across_weeks_with_growing_weeks_running() -> None:
     """AD-14 / FR-20: a storyline active in one week's payload is active in a
     later week's, ``weeks_running`` growing with it -- traced on the real
@@ -599,6 +687,54 @@ def test_weekly_storylines_stand_down_on_a_cold_start() -> None:
     doc = build_weekly_facts(week_model, league, players, names, generated_at=GENERATED_AT)
     assert doc.storyline_candidates == []
     assert doc.lead_candidates  # leads don't need history
+
+
+def test_weekly_storylines_stand_down_in_the_playoffs() -> None:
+    """Epic 5's retro, S2: ``streak`` and ``luck_extreme`` are frozen
+    regular-season storylines -- neither may keep firing off stale data once
+    ``period.type == "playoff"``. ``power_climb`` is unaffected, since it
+    reads the current week's model-rank delta rather than a frozen streak or
+    season-long luck figure. A regular-week build off the identical team data
+    is the regression guard: the same signals still fire exactly as before."""
+    from commishdesk.facts.schema import (
+        WeeklyCoachingEfficiency,
+        WeeklyHistory,
+        WeeklyPeriod,
+        WeeklyPower,
+        WeeklyRecord,
+        WeeklySeason,
+        WeeklyStreak,
+        WeeklyTeam,
+        WeekSummaryRef,
+    )
+    from commishdesk.facts.storylines import advance_storylines
+
+    team = WeeklyTeam(
+        roster_id="1",
+        manager="m1",
+        team_name="Team One",
+        season=WeeklySeason(
+            record=WeeklyRecord(w=6, l=0, t=0),
+            rank=1,
+            points_for=0.0,
+            points_against=0.0,
+            avg_for=0.0,
+            streak=WeeklyStreak(type="W", count=6),
+            luck=2.0,
+            power=WeeklyPower(week_delta=1),
+            coaching_efficiency=WeeklyCoachingEfficiency(actual=0.0, optimal=0.0),
+        ),
+        history=WeeklyHistory(),
+    )
+    summary = WeekSummaryRef(games=1, total_points=0.0, avg_team_score=0.0, blowout_count=0, blowout_threshold=0.65)
+
+    playoff_period = WeeklyPeriod(week=17, type="playoff", has_prior_week=True, summary=summary)
+    stood_down = advance_storylines((), kind="weekly", week=17, teams=[team], period=playoff_period)
+    assert {s.id for s in stood_down} == set()  # no streak/luck_extreme; power_climb needs delta >= 3
+
+    regular_period = WeeklyPeriod(week=17, type="regular", has_prior_week=True, summary=summary)
+    firing = advance_storylines((), kind="weekly", week=17, teams=[team], period=regular_period)
+    assert {s.id for s in firing} == {"streak:1", "luck_extreme:1"}
 
 
 def test_advance_storylines_prunes_resolved_threads_after_the_configured_window() -> None:

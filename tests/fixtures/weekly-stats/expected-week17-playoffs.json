@@ -6,13 +6,7 @@
   },
   "summary": {
     "avg_team_score": 156.8,
-    "biggest_blowout": {
-      "margin": 44.92,
-      "roster_ids": [
-        "11",
-        "12"
-      ]
-    },
+    "biggest_blowout": null,
     "blowout_count": 0,
     "blowout_threshold": 0.65,
     "closest": {

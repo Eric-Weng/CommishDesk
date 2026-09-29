@@ -337,9 +337,15 @@ def test_weekly_happy_path_prints_sections_and_writes_files(
     assert text_path.read_text(encoding="utf-8").strip()
 
     # A passing cross-check does advance narrative memory (the flip side of
-    # test_weekly_cross_check_without_post_writes_an_unverified_issue's guard).
+    # test_weekly_cross_check_without_post_writes_an_unverified_issue's guard)
+    # -- proven by the write happening at all, not by its content: week 17 is
+    # a playoff week, so Epic 5's retro (S2) correctly stands the frozen
+    # streak/luck_extreme storylines down here, and this fixture's power_climb
+    # deltas are all zero, so the persisted list is legitimately empty.
     store = FileStore(tmp_path / "cache" / "commishdesk")
-    assert store.read_storylines("77") != []
+    storylines_path = tmp_path / "cache" / "commishdesk" / "storylines" / "77.json"
+    assert storylines_path.is_file(), "a passing cross-check must persist narrative memory"
+    assert store.read_storylines("77") == []
     # ...and the template narrator persisted no published rank at all (Story 5.12:
     # only a confirmed voiced publish leaves one).
     assert store.read_published_rank("77", 17) is None

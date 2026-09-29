@@ -367,7 +367,12 @@ def _build(
 
     # Per-week cumulative folds, computed once and shared across rosters.
     weeks = list(range(1, week.week + 1))
+    regular_cutoff = _regular_cutoff(week)
     records_at = {k: regular_season_records(week, k) for k in weeks}
+    # A playoff_week_start of 1 freezes regular_cutoff at 0, a key `weeks`
+    # (1..week.week) never produces -- the _history_row clamp below still
+    # needs it to look up the (empty) frozen record.
+    records_at.setdefault(regular_cutoff, regular_season_records(week, regular_cutoff))
     power_at: dict[int, dict[str, int | None]] = {}
     allplay_at: dict[int, dict[str, TeamWeekStats]] = {}
     for k in weeks:
@@ -375,7 +380,6 @@ def _build(
         scoped = week.model_copy(update={"week": k, "playoff_week_start": None})
         allplay_at[k] = {t.roster_id: t for t in compute_weekly_stats(scoped).teams}
 
-    regular_cutoff = _regular_cutoff(week)
     all_rows = {(m.week, m.roster_id): m for m in week.matchups}
 
     card_by_roster: dict[str, object] = {}
@@ -824,7 +828,11 @@ def _history_row(
         else:
             result = "T"
 
-    record = records_at[k].get(rid)
+    # Frozen past regular_cutoff (Epic 5's retro, S3): a playoff/consolation
+    # week's record never rolls into cum_record -- the history fold stays
+    # pinned at the last regular-season week, same as the in_range-gated
+    # fields below.
+    record = records_at[min(k, regular_cutoff)].get(rid)
     cum = WeeklyRecord(
         w=record.wins if record is not None else 0,  # type: ignore[attr-defined]
         l=record.losses if record is not None else 0,  # type: ignore[attr-defined]
