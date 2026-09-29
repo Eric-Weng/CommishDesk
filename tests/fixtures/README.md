@@ -123,6 +123,12 @@ trade and week-10 waiver are pinned in `tests/test_stats_transactions.py`.
 passing cross-check are pinned against — and, for Story 5.7, the fixture whose
 `n + 1` is past the playoff cutoff, so its `next_matchups` is `[]`.
 
+`week08-median.json` is also the only committed fixture with any non-null
+`custom_points` rows (all twelve of its week-8 matchups carry one), so it is
+the fixture that exercises `ingest/build.py`'s `_build_matchup` preferring a
+commissioner's `custom_points` correction over the raw `points` field
+(epic-5-retro-item-83).
+
 ## Provenance and regeneration
 
 All eight derive from one private Phase-0 pull of a real 12-team Sleeper league
