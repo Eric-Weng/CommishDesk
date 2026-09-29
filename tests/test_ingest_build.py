@@ -373,6 +373,42 @@ def test_empty_starter_slot_builds_without_raising() -> None:
     assert row.starters == ["10", "", "11"]
 
 
+def test_non_null_custom_points_overrides_points() -> None:
+    """A commissioner score correction (Sleeper's ``custom_points``) must win
+    over the computed ``points`` field -- epic-5-retro-item-83 (S1):
+    ``points_for`` folds ``Matchup.points`` and is cross-checked against
+    Sleeper's own ``Roster.fpts``, which already reflects the correction.
+    Roster 2's row (the same matchup's opponent) is untouched, guarding
+    against the override leaking across a shared matchup pairing."""
+    bundle = _synthetic_bundle()
+    bundle["matchups"]["1"][0]["custom_points"] = 55.0
+    model = build_week_model(bundle)
+    week1 = {m.roster_id: m for m in model.matchups if m.week == 1}
+    assert week1["1"].points == 55.0
+    assert week1["2"].points == 99.0
+
+
+def test_zero_custom_points_overrides_points() -> None:
+    """``0.0`` is a real, falsy-but-non-null override (a commissioner zeroing
+    out a score) -- must not be mistaken for "no override" by a truthiness
+    check in place of the required ``is not None`` test."""
+    bundle = _synthetic_bundle()
+    bundle["matchups"]["1"][0]["custom_points"] = 0.0
+    model = build_week_model(bundle)
+    row = next(m for m in model.matchups if m.week == 1 and m.roster_id == "1")
+    assert row.points == 0.0
+
+
+def test_null_custom_points_falls_back_to_points() -> None:
+    """Sleeper sends ``custom_points: null`` on every uncorrected matchup row
+    -- an explicit null must not be treated as a real override."""
+    bundle = _synthetic_bundle()
+    bundle["matchups"]["1"][0]["custom_points"] = None
+    model = build_week_model(bundle)
+    row = next(m for m in model.matchups if m.week == 1 and m.roster_id == "1")
+    assert row.points == 100.5
+
+
 # --------------------------------------------------------------------------- #
 # Season totals: fpts/fpts_decimal combining, IR, taxi
 # --------------------------------------------------------------------------- #

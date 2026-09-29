@@ -228,7 +228,12 @@ class Matchup(_Frozen):
     A Story 5.7 ``next_matchups`` row is the same shape for week ``n+1``, but
     projects only ``roster_id`` / ``matchup_id`` from the platform (no score,
     lineup or player list), so ``points`` is ``0.0`` and every scoring field is
-    left at its default."""
+    left at its default.
+
+    ``points`` prefers Sleeper's ``custom_points`` (a commissioner's manual
+    score correction) over the computed ``points`` field whenever
+    ``custom_points`` is non-null -- see ``ingest/build.py``'s
+    ``_build_matchup`` (epic-5-retro-item-83)."""
 
     week: int
     roster_id: str

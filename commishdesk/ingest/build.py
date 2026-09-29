@@ -635,12 +635,14 @@ def _build_matchup(row: Mapping[str, Any], week: int, opponents: dict[Any, Any])
     )
 
     opponent = opponents.get(roster_id_raw)
+    custom_points = _as_float(row.get("custom_points"))
+    points = custom_points if custom_points is not None else _as_float(row.get("points")) or 0.0
     return Matchup(
         week=week,
         roster_id=str(roster_id_raw),
         matchup_id=_as_int(row.get("matchup_id")),
         opponent_roster_id=str(opponent) if opponent is not None else None,
-        points=_as_float(row.get("points")) or 0.0,
+        points=points,
         starters=starters,
         starters_points=[_as_float(pts) or 0.0 for pts in (row.get("starters_points") or [])],
         bench=bench,
