@@ -408,7 +408,10 @@ def _week_high_score(teams: list[WeeklyTeam]) -> LeadCandidate | None:
     best_points = 0.0
     for team in sorted(teams, key=lambda t: _roster_key(t.roster_id)):
         game = team.this_week
-        if game is None:
+        # A first-round playoff-bye roster (opponent_roster_id is None) has
+        # no real game this week -- it must not win the week's high score on
+        # a non-game score (Epic 5's retro, S4).
+        if game is None or game.opponent_roster_id is None:
             continue
         if best is None or game.points > best_points:
             best, best_points = team, game.points

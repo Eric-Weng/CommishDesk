@@ -35,8 +35,14 @@ Weekly signals, in the fixed priority :data:`WEEKLY_STORYLINE_KIND_PRIORITY`:
 
 * ``luck_extreme`` — the season's luckiest and unluckiest rosters, each its own
   thread, when ``abs(season.luck) >= 1.5`` (a cold start carries no luck).
-* ``streak`` — the single longest active streak of length ``>= 3``.
+  Stood down entirely once ``period.type == "playoff"`` -- a frozen
+  regular-season value, not something a playoff week can move (Story 5's
+  retro, S2).
+* ``streak`` — the single longest active streak of length ``>= 3``. Stood
+  down the same way, and for the same reason, as ``luck_extreme``.
 * ``power_climb`` — the single largest ``abs(season.power.week_delta) >= 3``.
+  Still fires in the playoffs -- it reads the current week's model-rank
+  move, which keeps updating.
 
 Every thread's ``id`` is ``"<kind>:<roster_id>"`` — :func:`project_storyline_candidates`
 decodes ``kind`` and ``roster_ids`` straight back out of it.
@@ -421,12 +427,19 @@ def _power_climb(teams: Sequence[WeeklyTeam]) -> list[_Signal]:
     ]
 
 
-def _detect_weekly(teams: Sequence[WeeklyTeam]) -> list[_Signal]:
+def _detect_weekly(teams: Sequence[WeeklyTeam], period_type: str | None) -> list[_Signal]:
     """Every weekly signal that fires this period, de-duplicated by ``id`` and
-    ordered by :data:`WEEKLY_STORYLINE_KIND_PRIORITY` then roster id."""
+    ordered by :data:`WEEKLY_STORYLINE_KIND_PRIORITY` then roster id.
+
+    A playoff period (``period_type == "playoff"``) stands ``luck_extreme`` and
+    ``streak`` down entirely -- both are frozen regular-season storylines and
+    must not keep firing off stale data once the regular season has ended
+    (Story 5's retro, S2). ``power_climb`` is unaffected -- it reads the
+    current week's model-rank delta, which stays meaningful in the
+    playoffs."""
     raw = [
-        *_luck_extreme(teams),
-        *_streak(teams),
+        *([] if period_type == "playoff" else _luck_extreme(teams)),
+        *([] if period_type == "playoff" else _streak(teams)),
         *_power_climb(teams),
     ]
     raw.sort(key=lambda s: (WEEKLY_STORYLINE_KIND_PRIORITY.index(s.kind), _id_roster_key(s.id)))
@@ -465,8 +478,10 @@ def advance_storylines(
     The stage-result kwargs are optional and read by whichever detector the
     ``kind`` selects: a ``draft_recap`` call reads ``board`` / ``grades`` /
     ``draft_summary`` / ``superlatives`` (Story 3.1); a ``weekly`` call (Story
-    5.9) reads ``teams``. ``consensus`` and ``period`` are accepted for symmetry
-    with :func:`~commishdesk.facts.build.build_draft_recap_facts` /
+    5.9) reads ``teams`` and, since Epic 5's retro (S2), ``period.type`` --
+    ``"playoff"`` stands the ``luck_extreme`` and ``streak`` signals down for
+    that period. ``consensus`` is accepted for symmetry with
+    :func:`~commishdesk.facts.build.build_draft_recap_facts` /
     :func:`~commishdesk.facts.weekly.build_weekly_facts` and reserved for a
     future signal (the ``leads.build_lead_candidates`` reserved-params
     precedent).
@@ -483,7 +498,8 @@ def advance_storylines(
     """
     del consensus  # reserved
     if kind == "weekly":
-        signals = _detect_weekly([] if teams is None else list(teams))
+        period_type = period.type if period is not None else None
+        signals = _detect_weekly([] if teams is None else list(teams), period_type)
     else:
         if board is None or grades is None or draft_summary is None or superlatives is None:
             raise TypeError(

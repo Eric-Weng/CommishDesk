@@ -45,7 +45,15 @@ this story's Boundaries & Constraints.
 Blowout: a completed head-to-head game (both sides have a :class:`Matchup`
 naming each other as opponent) is a blowout when the loser's points are
 ``<= BLOWOUT_RATIO`` times the winner's. A roster on a bye that week (no
-opponent) can never be flagged.
+opponent) can never be flagged. ``WeekSummary.biggest_blowout`` is ``None``
+unless the week's widest-margin game is itself a blowout (Epic 5's retro, S5)
+-- a lopsided-looking score in an otherwise tight week is never mislabeled.
+
+A roster with no real opponent that week (``opponent_roster_id is None``, a
+first-round playoff bye) is excluded from ``WeekSummary.high``/``.low`` and
+from ``games`` -- it has no game to lead or trail with (Epic 5's retro, S4).
+``total_points``/``avg_team_score`` are unaffected by this exclusion; they
+still fold in every roster's raw points for the week.
 
 Bracket classification (playoff weeks only): ``round = week.week -
 playoff_week_start + 1``; a roster is ``"playoff"`` when a
@@ -325,10 +333,20 @@ def _bracket_for(roster_id: str, week: WeekModel, period: Period) -> str | None:
 
 
 def _week_summary(target_week_rows: dict[str, Matchup]) -> WeekSummary:
-    scores = [(roster_id, matchup.points) for roster_id, matchup in target_week_rows.items()]
+    # A first-round playoff-bye row (opponent_roster_id is None) has no real
+    # game this week -- its raw points must not compete for the week's
+    # high/low (Epic 5's retro, S4).
+    scores = [
+        (roster_id, matchup.points)
+        for roster_id, matchup in target_week_rows.items()
+        if matchup.opponent_roster_id is not None
+    ]
 
-    total_points = round(sum(points for _, points in scores), 2)
-    avg_team_score = round(total_points / len(scores), 2) if scores else 0.0
+    # total_points / avg_team_score are the week's raw scoring, unaffected by
+    # who has a real opponent -- only high/low/games use the opponent filter.
+    all_points = [matchup.points for matchup in target_week_rows.values()]
+    total_points = round(sum(all_points), 2)
+    avg_team_score = round(total_points / len(all_points), 2) if all_points else 0.0
 
     high = None
     low = None
@@ -366,9 +384,18 @@ def _week_summary(target_week_rows: dict[str, Matchup]) -> WeekSummary:
     biggest_blowout = None
     if games:
         closest_game = min(games, key=lambda g: (g[2], _sort_key(g[0])))
-        biggest_game = min(games, key=lambda g: (-g[2], _sort_key(g[0])))
         closest = WeekMargin(roster_ids=[closest_game[0], closest_game[1]], margin=closest_game[2])
-        biggest_blowout = WeekMargin(roster_ids=[biggest_game[0], biggest_game[1]], margin=biggest_game[2])
+        # The widest margin is only "the week's biggest blowout" when that
+        # game itself clears the blowout ratio -- a lopsided-looking score in
+        # an otherwise tight week is not a blowout (Epic 5's retro, S5:
+        # decided as a silent gate, not a relabeled non-blowout lead).
+        # Two games can tie for the widest margin while only one is an actual
+        # blowout (is_blowout depends on the winner/loser ratio, not margin
+        # alone) -- prefer the blowout on a margin tie so it isn't dropped by
+        # an unrelated roster-id tiebreak.
+        biggest_game = min(games, key=lambda g: (-g[2], not g[3], _sort_key(g[0])))
+        if biggest_game[3]:
+            biggest_blowout = WeekMargin(roster_ids=[biggest_game[0], biggest_game[1]], margin=biggest_game[2])
 
     return WeekSummary(
         games=len(games),
