@@ -131,8 +131,10 @@ def run(
         help=(
             "Force the voiced LLM narrator on/off. Default: on when a provider API "
             "key is set (ANTHROPIC_API_KEY / LLM_API_KEY / GEMINI_API_KEY / "
-            "GOOGLE_API_KEY). '--league demo' is always the template narrator, and "
-            "the weekly recap is always the template narrator."
+            "GOOGLE_API_KEY). '--league demo' is always the template narrator. "
+            "The weekly recap ignores this flag -- its narrator is chosen from "
+            "the environment (a provider key + a budget), degrading to the "
+            "template narrator on missing key, budget, or a content-safety hold."
         ),
     ),
     out_dir: Path = typer.Option(  # noqa: B008 -- canonical typer idiom
