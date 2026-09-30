@@ -21,25 +21,20 @@ name: scheduled-weekly
 # whatever the reason. See docs/scheduled-runs.md.
 
 on:
-  # DISARMED at merge, exactly as scheduled-draft-recap.yml shipped (Epic 4 retro:
-  # "ship in a known state"). Arming, 2026-09-30: the `commishdesk-weekly-schedule`
-  # Environment exists (main-only deployment branch policy), its
-  # COMMISHDESK_DISCORD_WEBHOOK_URL secret and the repository's
-  # vars.COMMISHDESK_LEAGUE_ID are both set. Still waiting on the
-  # COMMISHDESK_WEEKLY_HEALTHCHECKS_PING_URL Environment secret before the
-  # schedule block below can be un-commented -- without it, a real run's
-  # dead-man's-switch ping steps would fail against an empty secret even though
-  # the recap itself posted fine. `workflow_dispatch` is the live trigger until
-  # then, so an operator can run a real week by hand.
-  #
-  # schedule:
-  #   # Wednesday 12:00 UTC = 8:00am ET (EDT, UTC-4, Mar-Nov) / 7:00am ET (EST,
-  #   # UTC-5, the rest of the year -- the November DST shift moves the local time
-  #   # by an hour, the UTC expression itself never changes). Deliberately not
-  #   # 23:00 UTC, the hour scheduled-draft-recap.yml uses: both workflows share
-  #   # the `commishdesk-ledger-` cache namespace, and simultaneous runs would
-  #   # race the same restore/save pair.
-  #   - cron: '0 12 * * 3'
+  # ARMED 2026-09-30: the `commishdesk-weekly-schedule` Environment exists
+  # (main-only deployment branch policy) with both its secrets set
+  # (COMMISHDESK_DISCORD_WEBHOOK_URL, COMMISHDESK_WEEKLY_HEALTHCHECKS_PING_URL),
+  # and the repository's vars.COMMISHDESK_LEAGUE_ID is set. `workflow_dispatch`
+  # stays live alongside the schedule so an operator can still run a real week
+  # by hand.
+  schedule:
+    # Wednesday 12:00 UTC = 8:00am ET (EDT, UTC-4, Mar-Nov) / 7:00am ET (EST,
+    # UTC-5, the rest of the year -- the November DST shift moves the local time
+    # by an hour, the UTC expression itself never changes). Deliberately not
+    # 23:00 UTC, the hour scheduled-draft-recap.yml uses: both workflows share
+    # the `commishdesk-ledger-` cache namespace, and simultaneous runs would
+    # race the same restore/save pair.
+    - cron: '0 12 * * 3'
   workflow_dispatch: {}
 
 # Least privilege: this workflow only reads the checked-out tree and talks to

@@ -25,7 +25,9 @@ other when setting up secrets.
 Both workflows ship disarmed: their `schedule:` trigger is commented out and only
 `workflow_dispatch` is live until the operator sets the league id variable, the
 channel webhook, and — for the weekly run — the `commishdesk-weekly-schedule`
-GitHub Environment.
+GitHub Environment. `scheduled-weekly.yml` was armed 2026-09-30 (its `schedule:`
+trigger is live); `scheduled-draft-recap.yml` remains disarmed until its own
+variable/webhook are set.
 
 ## Confirm or override playoff seeding
 

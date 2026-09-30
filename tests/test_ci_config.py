@@ -770,23 +770,26 @@ def test_scheduled_draft_recap_workflow_content() -> None:
 def test_scheduled_weekly_workflow_content() -> None:
     """Retro item 64's precedent, applied to Story 5.11b's second unattended workflow:
     the over-every-workflow guards above cover its generic shape but say nothing about
-    this file's actual content. Pins the disarmed-but-recorded schedule trigger, the
-    Environment scoping, the week-resolution gate, the cache ratchet (same namespace as
+    this file's actual content. Pins the armed schedule trigger, the Environment
+    scoping, the week-resolution gate, the cache ratchet (same namespace as
     ``scheduled-draft-recap.yml``), the ``--week`` / ``--post`` invocation with no LLM
     flag, and the *dedicated* weekly healthchecks.io ping URL."""
     text = _read_github_file(WORKFLOW_DIR / "scheduled-weekly.yml")
 
-    # Ships disarmed, with the state recorded: the schedule trigger is commented out --
-    # not a live `schedule:` key -- and `workflow_dispatch` is the only active trigger,
-    # so an operator can still run a real week by hand.
-    assert re.search(r"^\s*#\s*schedule:\s*$", text, re.MULTILINE), "cron is not commented out"
-    assert re.search(r"^\s*#\s*- cron: '0 12 \* \* 3'\s*$", text, re.MULTILINE), (
-        "commented Wednesday cron expression not found"
+    # Armed 2026-09-30: the schedule trigger is live (not commented out) alongside
+    # workflow_dispatch, so an operator can still run a real week by hand in addition
+    # to the Wednesday cron.
+    assert re.search(r"^\s*schedule:\s*$", text, re.MULTILINE), "schedule: trigger is not live"
+    assert re.search(r"^\s*- cron: '0 12 \* \* 3'\s*$", text, re.MULTILINE), (
+        "live Wednesday cron expression not found"
     )
-    assert _on_block_top_keys(text) == {"workflow_dispatch"}, (
-        "workflow_dispatch is not the only active trigger"
+    assert not re.search(r"^\s*#\s*schedule:\s*$", text, re.MULTILINE), (
+        "schedule: trigger is still commented out"
     )
-    assert "DISARMED" in text, "no record that the workflow ships disarmed"
+    assert _on_block_top_keys(text) == {"schedule", "workflow_dispatch"}, (
+        "schedule and workflow_dispatch are not both active triggers"
+    )
+    assert "ARMED" in text, "no record that the workflow ships armed"
 
     # Every secret is Environment-scoped, not repository-wide; the league id stays a
     # plain repository variable, unchanged from 4.7's pattern (league ids are not secret).
