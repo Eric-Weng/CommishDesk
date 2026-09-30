@@ -819,7 +819,9 @@ def test_scheduled_weekly_workflow_content() -> None:
     )
 
     # The invocation itself: --week / --post, and no LLM selection flag (the weekly
-    # narrator is the deterministic template until Story 5.12).
+    # narrator is chosen from the environment per Story 5.12; the schedule
+    # deliberately never sets a provider key, so it stays template-only, per
+    # epic-5-retro-item-90's decision).
     assert re.search(r"uv run --frozen commishdesk\b", text)
     assert "--week" in text and "--post" in text
     assert "--llm" not in text and "--no-llm" not in text
