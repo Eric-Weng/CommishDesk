@@ -15,11 +15,12 @@ from __future__ import annotations
 import logging
 import os
 import tempfile
+from abc import ABC, abstractmethod
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import typer
 
@@ -33,7 +34,8 @@ from commishdesk.errors import (
 from commishdesk.logconfig import configure_logging, log_context
 
 if TYPE_CHECKING:
-    from commishdesk.facts.schema import DraftRecapFacts, WeeklyFacts, WeeklyNarration
+    from commishdesk.adapters.sleeper import SleeperAdapter
+    from commishdesk.facts.schema import DraftRecapFacts, Storyline, WeeklyFacts, WeeklyNarration
     from commishdesk.llmconfig import LLMConfig
     from commishdesk.narrate import Recap, SafetyReport, TieredResponse
     from commishdesk.narrate.llm import CallUsage
@@ -795,6 +797,416 @@ def _weekly_facts_diff_summary(
     return summary
 
 
+class _RecapPhases(ABC):
+    """The phase differences between recap paths (draft, weekly; hosted later).
+
+    A path subclasses this, keeps its working state on ``self`` and supplies only
+    what differs; :func:`_run_recap_skeleton` owns the sequencing. Hook names are
+    deliberately neutral (not "draft"/"weekly") so a further path fits unrenamed.
+
+    Attributes a path sets: ``kind`` / ``week`` key the Send Ledger; ``reason`` is
+    a reissue's correction text (``None`` for every path but a weekly reissue);
+    ``uses_adapter`` is ``False`` for an offline path (the demo fixture);
+    ``post`` is whether this run delivers to Discord (the skeleton reads it here,
+    so the phases and the sequencing can never disagree about it); ``store`` is
+    the Store delivery writes the ledger to (``None`` when the run has no Store,
+    which is only legal without ``--post``).
+    """
+
+    kind: IssueKind
+    week: int
+    post: bool
+    reason: str | None = None
+    uses_adapter: bool = True
+    store: FileStore | None = None
+
+    @abstractmethod
+    def ledger_store(self) -> FileStore:
+        """The Store whose Send Ledger the ``--post`` gate reads."""
+
+    @abstractmethod
+    def fetch(self, adapter: SleeperAdapter | None) -> None:
+        """Pull the raw inputs. *adapter* is open for the call and closed by the
+        skeleton afterwards; it is ``None`` when ``uses_adapter`` is ``False``."""
+
+    @abstractmethod
+    def build(self) -> None:
+        """Raw inputs to Facts JSON. Any refusal or hold that must precede
+        durable writes or paid narration is raised here or in :meth:`fetch`."""
+
+    @abstractmethod
+    def narrate(self) -> None:
+        """Facts JSON to the narrated Issue (any spend gate, hold, degradation)."""
+
+    @abstractmethod
+    def persist_storylines(self) -> None:
+        """Durably advance narrative memory (or decline to, per path gate)."""
+
+    @abstractmethod
+    def render(self) -> None:
+        """Write the local Issue files."""
+
+    @abstractmethod
+    def discord_summary(self) -> str:
+        """The pre-composed Discord message for this Issue."""
+
+    def after_confirmed_send(self) -> None:  # noqa: B027 -- optional hook, no-op by default
+        """Writes that may only follow a confirmed ``--post`` send."""
+
+
+def _run_recap_skeleton(resolved: str, phases: _RecapPhases) -> None:
+    """Sequence one league's recap: preamble, ledger gate, fetch, build, narrate,
+    storylines, render, deliver, post-confirm writes. Raises on any fault; the
+    per-league AD-9 catch lives in the callers (``_run_draft_recap`` /
+    ``_run_weekly``), never here.
+
+    The ordering is load-bearing; a new path must keep it:
+
+    1. Checks precede fetch and spend: the ``--post`` webhook fail-fast and the
+       confirmed-send ledger gate (a plain run skips an already-confirmed send; a
+       reissue, ``phases.reason`` set, *requires* one) run before any fetch,
+       storage write or paid call.
+    2. ``persist_storylines`` runs only after ``build`` and ``narrate`` returned,
+       i.e. after a refusal, cost-ceiling abort or content hold is ruled out.
+    3. ``after_confirmed_send`` (snapshots, published ranks) runs only after
+       ``_deliver_issue`` returned, i.e. after the send is confirmed; never on a
+       failed delivery or a local-only run.
+    """
+    post = phases.post
+    webhook_url: str | None = None
+    recipient_id: str | None = None
+    if post:
+        from commishdesk.deliver.discord import webhook_id
+
+        webhook_url = (os.environ.get(_DISCORD_WEBHOOK_VAR) or "").strip()
+        if not webhook_url:
+            raise DeliveryError(
+                f"set {_DISCORD_WEBHOOK_VAR} to the league's Discord channel webhook URL before running --post"
+            )
+        # ``webhook_id`` validates the URL shape too (not just non-blank) and hands
+        # back the recipient id delivery reuses: computed once here.
+        recipient_id = webhook_id(webhook_url)
+
+        # Retro finding O1/H1: check the Send Ledger for an already-confirmed
+        # Discord post *before* any fetch, board/facts work, storyline write, or
+        # paid narration. Mirrors the dedupe-set pattern in ``deliver/ledger.py``'s
+        # ``send_issue`` (defense in depth, kept at the actual send site: this is a
+        # fast-path short-circuit in front of it, not a replacement for it).
+        already_confirmed = {
+            entry.recipient
+            for entry in phases.ledger_store().read_ledger(resolved, phases.week)
+            if entry.channel == "discord" and entry.kind == phases.kind
+        }
+        if phases.reason is None:
+            if recipient_id in already_confirmed:
+                typer.echo(f"Discord post already confirmed for webhook {recipient_id} — skipped")
+                return
+        elif recipient_id not in already_confirmed:
+            raise CommishDeskError(
+                f"nothing to correct for league {resolved!r} week {phases.week} — "
+                "no confirmed send for this league-week"
+            )
+
+    if phases.uses_adapter:
+        from commishdesk.adapters.sleeper import SleeperAdapter
+
+        adapter = SleeperAdapter()
+        try:
+            phases.fetch(adapter)
+        finally:
+            adapter.close()
+    else:
+        phases.fetch(None)
+
+    phases.build()
+    phases.narrate()
+    phases.persist_storylines()
+    phases.render()
+
+    if post:
+        assert webhook_url is not None  # checked fail-fast above
+        assert recipient_id is not None  # computed alongside webhook_url, same guard
+        assert phases.store is not None  # post=True guarantees a store on every path
+        _deliver_issue(
+            summary=phases.discord_summary(),
+            store=phases.store,
+            resolved=resolved,
+            week=phases.week,
+            kind=phases.kind,
+            webhook_url=webhook_url,
+            recipient_id=recipient_id,
+            reason=phases.reason,
+        )
+        phases.after_confirmed_send()
+
+
+class _DraftRecapPhases(_RecapPhases):
+    """The draft-recap path's phase differences (Story 4.6): the committed demo
+    fixture or a live Sleeper board, the consensus bridge, the LLM cost-ceiling
+    gate, usage recording, and the storyline write gated on ``not is_demo``."""
+
+    kind: IssueKind = "draft_recap"
+
+    def __init__(
+        self,
+        resolved: str,
+        out_dir: Path,
+        logger: logging.Logger,
+        *,
+        demo_id: str,
+        demo_source_name: str,
+        demo_as_of: str,
+        voice: Voice | None,
+        llm_config: LLMConfig | None,
+        llm_enabled: bool,
+        allow_content_hold: bool,
+        post: bool,
+    ) -> None:
+        from commishdesk.facts.storylines import DRAFT_RECAP_WEEK
+
+        self.week = DRAFT_RECAP_WEEK
+        self.resolved = resolved
+        self.out_dir = out_dir
+        self.logger = logger
+        self.demo_source_name = demo_source_name
+        self.demo_as_of = demo_as_of
+        self.voice = voice
+        self.llm_config = llm_config
+        self.llm_enabled = llm_enabled
+        self.allow_content_hold = allow_content_hold
+        self.post = post
+        # Storyline persistence bridge — the Store I/O lives here in the CLI, never
+        # in ``facts/`` (import fence). The demo path stays side-effect-free and
+        # offline for storylines specifically, so ``previous_storylines`` stays
+        # empty for it regardless of ``post``: ``is_demo`` gates the write, not
+        # ``store is not None`` (a ``--post`` demo run still gets a ``store``, for
+        # the Send Ledger only).
+        self.bundle: Mapping[str, Any]
+        self.is_demo = resolved == demo_id
+        self.uses_adapter = not self.is_demo
+        self.store = None
+        self.previous_storylines: list[Storyline] = []
+        self.next_storylines: list[Storyline] | None = None
+
+    def ledger_store(self) -> FileStore:
+        from commishdesk.store import FileStore
+
+        return FileStore(_cache_dir())
+
+    def fetch(self, adapter: SleeperAdapter | None) -> None:
+        self.generated_at = datetime.now(tz=UTC)
+        if adapter is None:
+            self.logger.debug("loading committed demo fixture")
+            from commishdesk.demo import load_demo_bundle
+
+            self.bundle = load_demo_bundle()
+            # I4: the onboarding sample is stats + templated prose only — no model
+            # call, no SDK import, byte-deterministic — regardless of any provider key.
+            if self.llm_enabled:
+                self.logger.info("--league demo always uses the template narrator")
+            self.llm_enabled = False
+        else:
+            self.logger.debug("fetching Sleeper board")
+            self.bundle = adapter.fetch(self.resolved)
+
+    def build(self) -> None:
+        from commishdesk.facts import build_draft_recap_facts
+        from commishdesk.facts.storylines import advance_storylines
+        from commishdesk.ingest import build_league_model
+        from commishdesk.stats import (
+            compute_board_metrics,
+            compute_consensus_metrics,
+            compute_draft_grades,
+        )
+        from commishdesk.store import FileStore
+
+        resolved = self.resolved
+        model = build_league_model(self.bundle)
+        if self.is_demo:
+            from commishdesk.demo import demo_consensus_slots
+
+            slots = demo_consensus_slots()
+            consensus_source_name: str | None = self.demo_source_name
+            consensus_as_of: str | None = self.demo_as_of
+            if self.post:
+                # --post needs a Store for the Send Ledger even on the demo path —
+                # this must NOT re-enable storyline persistence for demo (see the
+                # ``is_demo`` guard in ``persist_storylines``).
+                self.store = FileStore(_cache_dir())
+        else:
+            from commishdesk.consensus import build_consensus_rank
+
+            self.logger.debug("fetching consensus rank")
+            self.store = FileStore(_cache_dir())
+            rank = build_consensus_rank(model, self.store)
+            slots = rank.slots
+            consensus_source_name = rank.source
+            consensus_as_of = rank.as_of
+            self.previous_storylines = self.store.read_storylines(resolved)
+
+        self.logger.debug("computing board / consensus / grades")
+        board = compute_board_metrics(model)
+        consensus = compute_consensus_metrics(model, slots)
+        grades = compute_draft_grades(model, consensus)
+
+        self.logger.debug("building Facts JSON")
+        self.doc = build_draft_recap_facts(
+            model,
+            board,
+            consensus,
+            grades,
+            generated_at=self.generated_at,
+            draft_id=model.draft.id,
+            consensus_source_name=consensus_source_name,
+            consensus_as_of=consensus_as_of,
+            previous_storylines=self.previous_storylines,
+        )
+
+        # Epic-3-retro-item-35 / AC2: computing the next storyline set is pure (no
+        # store I/O) and safe to do here; the actual ``store.write_storylines``
+        # call is deferred to ``persist_storylines``, which the skeleton runs only
+        # after ``narrate`` returned (no hold) and the cost-ceiling check passed.
+        if self.store is not None and not self.is_demo:
+            self.next_storylines = [
+                storyline.model_copy(update={"league_id": resolved})
+                for storyline in advance_storylines(
+                    self.previous_storylines,
+                    kind=self.kind,
+                    week=self.week,
+                    board=board,
+                    consensus=consensus,
+                    grades=grades,
+                    draft_summary=self.doc.draft_summary,
+                    superlatives=self.doc.superlatives,
+                )
+            ]
+
+    def narrate(self) -> None:
+        logger = self.logger
+        resolved = self.resolved
+        llm_config = self.llm_config
+        voice = self.voice
+        doc = self.doc
+        if self.llm_enabled:
+            assert llm_config is not None  # loaded before the loop whenever llm_enabled holds
+            assert voice is not None  # loaded alongside llm_config, same guard
+            from commishdesk.narrate import (
+                MAX_OUTPUT_TOKENS,
+                build_narration_payload,
+                estimate_cost_usd,
+                is_pricing_stale,
+            )
+            from commishdesk.narrate import pricing as narrate_pricing
+
+            if is_pricing_stale():
+                logger.warning(
+                    "narrate/pricing.py's price table was last reviewed %s (more "
+                    "than %d days ago) — cost estimates may be stale; refresh "
+                    "MODEL_PRICES",
+                    narrate_pricing.PRICING_UPDATED,
+                    narrate_pricing.PRICING_REVIEW_INTERVAL_DAYS,
+                )
+
+            # Priced for length only — this concatenation is never sent anywhere as
+            # a real payload. Both AnthropicClient.generate and GoogleClient.generate
+            # (narrate/llm.py) send voice.system_prompt as the system message on
+            # every real call, so the worst-case bound must count it too, or it is
+            # not actually a worst-case bound.
+            payload = build_narration_payload(doc.narration) + voice.system_prompt
+            # Worst case: primary AND fallback both billed — a non-transient
+            # failure on the primary (e.g. a truncated max_tokens completion) can
+            # fall through to the fallback within the same narration attempt, so
+            # the ceiling must sum the two per-call costs, not take whichever
+            # model is pricier alone. Times the two narration attempts one
+            # league-week can actually bill (the initial attempt plus the one
+            # permitted regeneration — see _MAX_BILLABLE_NARRATION_ATTEMPTS).
+            # max_output_tokens is imported from narrate.llm (via the narrate
+            # package re-export), not duplicated, so the two can never silently
+            # desync.
+            per_call_estimate = estimate_cost_usd(
+                payload, llm_config.primary, max_output_tokens=MAX_OUTPUT_TOKENS
+            ) + estimate_cost_usd(payload, llm_config.fallback, max_output_tokens=MAX_OUTPUT_TOKENS)
+            estimate = per_call_estimate * _MAX_BILLABLE_NARRATION_ATTEMPTS
+            if llm_config.verifier is not None:
+                from commishdesk.narrate.pricing import CHARS_PER_TOKEN
+                from commishdesk.narrate.verify import EXTRACTOR_VOICE
+
+                # The claim verifier reads the finished prose — at most one completion
+                # long, so MAX_OUTPUT_TOKENS tokens at the estimator's CHARS_PER_TOKEN — plus its own
+                # system prompt, and its reply is priced at the same output ceiling.
+                # Priced for length only, like the narration payload above; an
+                # unpriced verifier model fails closed here by name, as an unpriced
+                # narrator does.
+                verifier_input = "x" * int(MAX_OUTPUT_TOKENS * CHARS_PER_TOKEN) + EXTRACTOR_VOICE.system_prompt
+                estimate += (
+                    estimate_cost_usd(verifier_input, llm_config.verifier, max_output_tokens=MAX_OUTPUT_TOKENS)
+                    * _MAX_BILLABLE_VERIFICATION_CALLS
+                )
+            typer.echo(f"estimated cost: {_fmt_usd(estimate)} (ceiling {_fmt_usd(llm_config.cost_ceiling_usd)})")
+            if estimate > llm_config.cost_ceiling_usd:
+                raise CostCeilingExceededError(
+                    f"estimated cost {_fmt_usd(estimate)} for league {resolved} "
+                    f"exceeds the ceiling {_fmt_usd(llm_config.cost_ceiling_usd)} — "
+                    "no paid call made"
+                )
+
+        logger.debug("narrating local HTML")
+
+        # AD-12 Layer 3 + FR-17: select the narrator, validate its output, apply the
+        # tiered response (suppress a section / one LLM regeneration / hold the
+        # Issue), and degrade to the template narrator whenever LLM prose cannot be
+        # cleanly repaired. A hold raises ``ContentSafetyError`` — caught per league
+        # in ``_run_draft_recap`` → one-line stderr, exit 1, no HTML (AD-9).
+        from commishdesk.narrate.llm import recording_usage
+
+        # Every paid call _produce_issue makes — narration, the one permitted
+        # regeneration, claim verification — records the provider's own token
+        # counts. Reported even when the Issue is then held: that spend happened.
+        with recording_usage() as usage:
+            try:
+                self.body = _produce_issue(
+                    doc,
+                    voice,
+                    llm_config,
+                    llm_enabled=self.llm_enabled,
+                    logger=logger,
+                    resolved=resolved,
+                    allow_content_hold=self.allow_content_hold,
+                )
+            finally:
+                _report_actual_spend(usage, logger=logger, resolved=resolved)
+
+    def persist_storylines(self) -> None:
+        # Epic-3-retro-item-35 / AC2: the skeleton reaches this only after
+        # ``narrate`` returned, so neither a hold (``ContentSafetyError``) nor a
+        # cost-ceiling abort happened -- the earliest point narrative memory may be
+        # durably updated. A held or cost-aborted run therefore leaves
+        # ``store.read_storylines`` unchanged (AC2). That guarantee is scoped to
+        # those two cases; a later ``OSError`` writing render output or a
+        # ``DeliveryError`` posting to Discord run after this point and are
+        # outside AC2.
+        if self.store is not None and not self.is_demo:
+            self.logger.debug("persisting storylines")
+            assert self.next_storylines is not None  # computed in build whenever store is not None and not is_demo
+            self.store.write_storylines(self.resolved, self.next_storylines)
+
+    def render(self) -> None:
+        _render_and_write_issue(
+            self.doc,
+            self.body,
+            out_dir=self.out_dir,
+            resolved=self.resolved,
+            week=self.week,
+            kind=self.kind,
+            logger=self.logger,
+        )
+
+    def discord_summary(self) -> str:
+        from commishdesk.render import render_discord_summary
+
+        return render_discord_summary(self.doc, recap=self.body.recap, llm_text=self.body.llm_text)
+
+
 def _recap_one_league(
     resolved: str,
     out_dir: Path,
@@ -810,274 +1222,26 @@ def _recap_one_league(
     post: bool,
 ) -> None:
     """Chain the five pipeline stages for one league and emit the recap to stdout
-    plus a local HTML file; optionally deliver it to Discord (Story 4.6)."""
-    from commishdesk.demo import demo_consensus_slots, load_demo_bundle
-    from commishdesk.facts import build_draft_recap_facts
-    from commishdesk.facts.schema import Storyline
-    from commishdesk.facts.storylines import DRAFT_RECAP_WEEK, advance_storylines
-    from commishdesk.ingest import build_league_model
-    from commishdesk.stats import (
-        compute_board_metrics,
-        compute_consensus_metrics,
-        compute_draft_grades,
+    plus a local HTML file; optionally deliver it to Discord (Story 4.6).
+
+    A thin phase supplier over :func:`_run_recap_skeleton`: this path states only
+    what differs from the weekly one (see :class:`_DraftRecapPhases`)."""
+    _run_recap_skeleton(
+        resolved,
+        _DraftRecapPhases(
+            resolved,
+            out_dir,
+            logger,
+            demo_id=demo_id,
+            demo_source_name=demo_source_name,
+            demo_as_of=demo_as_of,
+            voice=voice,
+            llm_config=llm_config,
+            llm_enabled=llm_enabled,
+            allow_content_hold=allow_content_hold,
+            post=post,
+        ),
     )
-    from commishdesk.store import FileStore
-
-    # The one Issue kind this function ever sends — named once so the early-check
-    # filter and the real ``send_issue`` call below can't drift apart into two
-    # independent string literals.
-    draft_recap_kind: IssueKind = "draft_recap"
-
-    # --post fails fast on a missing/blank/malformed webhook before any Sleeper /
-    # consensus / LLM work for this league (mirrors verify-webhook's own check)
-    # — zero wasted work, zero spend, on a misconfigured destination.
-    # ``webhook_id`` validates the URL shape too (not just non-blank) and hands
-    # back the recipient id the Discord block below reuses — computed once here,
-    # never recomputed.
-    webhook_url: str | None = None
-    recipient_id: str | None = None
-    if post:
-        from commishdesk.deliver.discord import webhook_id
-
-        webhook_url = (os.environ.get(_DISCORD_WEBHOOK_VAR) or "").strip()
-        if not webhook_url:
-            raise DeliveryError(
-                f"set {_DISCORD_WEBHOOK_VAR} to the league's Discord channel webhook URL before running --post"
-            )
-        recipient_id = webhook_id(webhook_url)
-
-        # Retro finding O1/H1: check the Send Ledger for an already-confirmed
-        # Discord post *before* any Sleeper fetch, board/facts work, storyline
-        # write, or paid narration — not after rendering. Mirrors the
-        # dedupe-set pattern in ``deliver/ledger.py``'s ``send_issue`` (defense
-        # in depth, kept below at the actual send site — this is a fast-path
-        # short-circuit in front of it, not a replacement for it).
-        already_confirmed = {
-            entry.recipient
-            for entry in FileStore(_cache_dir()).read_ledger(resolved, DRAFT_RECAP_WEEK)
-            if entry.channel == "discord" and entry.kind == draft_recap_kind
-        }
-        if recipient_id in already_confirmed:
-            typer.echo(f"Discord post already confirmed for webhook {recipient_id} — skipped")
-            return
-
-    generated_at = datetime.now(tz=UTC)
-
-    # Storyline persistence bridge — mirrors the consensus bridge below: the Store
-    # I/O lives here in the CLI, never in ``facts/`` (import fence). The demo path
-    # stays side-effect-free and offline for storylines specifically, so
-    # ``previous_storylines`` stays empty for it regardless of ``post`` — see
-    # ``is_demo`` below, which gates the write, not ``store is not None`` (a
-    # ``--post`` demo run still gets a ``store``, for the Send Ledger only).
-    is_demo = resolved == demo_id
-    store: FileStore | None = None
-    previous_storylines: list[Storyline] = []
-
-    if is_demo:
-        logger.debug("loading committed demo fixture")
-        model = build_league_model(load_demo_bundle())
-        slots = demo_consensus_slots()
-        consensus_source_name: str | None = demo_source_name
-        consensus_as_of: str | None = demo_as_of
-        # I4: the onboarding sample is stats + templated prose only — no model call,
-        # no SDK import, byte-deterministic — regardless of any provider key.
-        if llm_enabled:
-            logger.info("--league demo always uses the template narrator")
-        llm_enabled = False
-        if post:
-            # --post needs a Store for the Send Ledger even on the demo path —
-            # this must NOT re-enable storyline persistence for demo (see the
-            # ``is_demo`` guard below, not ``store is not None``).
-            store = FileStore(_cache_dir())
-    else:
-        from commishdesk.adapters.sleeper import SleeperAdapter
-        from commishdesk.consensus import build_consensus_rank
-
-        logger.debug("fetching Sleeper board")
-        adapter = SleeperAdapter()
-        try:
-            bundle = adapter.fetch(resolved)
-        finally:
-            adapter.close()
-        model = build_league_model(bundle)
-        logger.debug("fetching consensus rank")
-        store = FileStore(_cache_dir())
-        rank = build_consensus_rank(model, store)
-        slots = rank.slots
-        consensus_source_name = rank.source
-        consensus_as_of = rank.as_of
-        previous_storylines = store.read_storylines(resolved)
-
-    logger.debug("computing board / consensus / grades")
-    board = compute_board_metrics(model)
-    consensus = compute_consensus_metrics(model, slots)
-    grades = compute_draft_grades(model, consensus)
-
-    logger.debug("building Facts JSON")
-    doc = build_draft_recap_facts(
-        model,
-        board,
-        consensus,
-        grades,
-        generated_at=generated_at,
-        draft_id=model.draft.id,
-        consensus_source_name=consensus_source_name,
-        consensus_as_of=consensus_as_of,
-        previous_storylines=previous_storylines,
-    )
-
-    # Epic-3-retro-item-35 / AC2: computing the next storyline set is pure (no
-    # store I/O) and safe to do here; the actual ``store.write_storylines``
-    # call is deferred until after ``_produce_issue`` returns successfully AND
-    # the cost-ceiling check (below) has passed — see that call site for why.
-    next_storylines: list[Storyline] | None = None
-    if store is not None and not is_demo:
-        next_storylines = [
-            storyline.model_copy(update={"league_id": resolved})
-            for storyline in advance_storylines(
-                previous_storylines,
-                kind=draft_recap_kind,
-                week=DRAFT_RECAP_WEEK,
-                board=board,
-                consensus=consensus,
-                grades=grades,
-                draft_summary=doc.draft_summary,
-                superlatives=doc.superlatives,
-            )
-        ]
-
-    if llm_enabled:
-        assert llm_config is not None  # loaded before the loop whenever llm_enabled holds
-        assert voice is not None  # loaded alongside llm_config, same guard
-        from commishdesk.narrate import (
-            MAX_OUTPUT_TOKENS,
-            build_narration_payload,
-            estimate_cost_usd,
-            is_pricing_stale,
-        )
-        from commishdesk.narrate import pricing as narrate_pricing
-
-        if is_pricing_stale():
-            logger.warning(
-                "narrate/pricing.py's price table was last reviewed %s (more "
-                "than %d days ago) — cost estimates may be stale; refresh "
-                "MODEL_PRICES",
-                narrate_pricing.PRICING_UPDATED,
-                narrate_pricing.PRICING_REVIEW_INTERVAL_DAYS,
-            )
-
-        # Priced for length only — this concatenation is never sent anywhere as
-        # a real payload. Both AnthropicClient.generate and GoogleClient.generate
-        # (narrate/llm.py) send voice.system_prompt as the system message on
-        # every real call, so the worst-case bound must count it too, or it is
-        # not actually a worst-case bound.
-        payload = build_narration_payload(doc.narration) + voice.system_prompt
-        # Worst case: primary AND fallback both billed — a non-transient
-        # failure on the primary (e.g. a truncated max_tokens completion) can
-        # fall through to the fallback within the same narration attempt, so
-        # the ceiling must sum the two per-call costs, not take whichever
-        # model is pricier alone. Times the two narration attempts one
-        # league-week can actually bill (the initial attempt plus the one
-        # permitted regeneration — see _MAX_BILLABLE_NARRATION_ATTEMPTS).
-        # max_output_tokens is imported from narrate.llm (via the narrate
-        # package re-export), not duplicated, so the two can never silently
-        # desync.
-        per_call_estimate = estimate_cost_usd(
-            payload, llm_config.primary, max_output_tokens=MAX_OUTPUT_TOKENS
-        ) + estimate_cost_usd(payload, llm_config.fallback, max_output_tokens=MAX_OUTPUT_TOKENS)
-        estimate = per_call_estimate * _MAX_BILLABLE_NARRATION_ATTEMPTS
-        if llm_config.verifier is not None:
-            from commishdesk.narrate.pricing import CHARS_PER_TOKEN
-            from commishdesk.narrate.verify import EXTRACTOR_VOICE
-
-            # The claim verifier reads the finished prose — at most one completion
-            # long, so MAX_OUTPUT_TOKENS tokens at the estimator's CHARS_PER_TOKEN — plus its own
-            # system prompt, and its reply is priced at the same output ceiling.
-            # Priced for length only, like the narration payload above; an
-            # unpriced verifier model fails closed here by name, as an unpriced
-            # narrator does.
-            verifier_input = "x" * int(MAX_OUTPUT_TOKENS * CHARS_PER_TOKEN) + EXTRACTOR_VOICE.system_prompt
-            estimate += (
-                estimate_cost_usd(verifier_input, llm_config.verifier, max_output_tokens=MAX_OUTPUT_TOKENS)
-                * _MAX_BILLABLE_VERIFICATION_CALLS
-            )
-        typer.echo(f"estimated cost: {_fmt_usd(estimate)} (ceiling {_fmt_usd(llm_config.cost_ceiling_usd)})")
-        if estimate > llm_config.cost_ceiling_usd:
-            raise CostCeilingExceededError(
-                f"estimated cost {_fmt_usd(estimate)} for league {resolved} "
-                f"exceeds the ceiling {_fmt_usd(llm_config.cost_ceiling_usd)} — "
-                "no paid call made"
-            )
-
-    logger.debug("narrating local HTML")
-
-    # AD-12 Layer 3 + FR-17: select the narrator, validate its output, apply the
-    # tiered response (suppress a section / one LLM regeneration / hold the
-    # Issue), and degrade to the template narrator whenever LLM prose cannot be
-    # cleanly repaired. A hold raises ``ContentSafetyError`` — caught per league
-    # in ``_run_draft_recap`` → one-line stderr, exit 1, no HTML (AD-9).
-    from commishdesk.narrate.llm import recording_usage
-
-    # Every paid call _produce_issue makes — narration, the one permitted
-    # regeneration, claim verification — records the provider's own token
-    # counts. Reported even when the Issue is then held: that spend happened.
-    with recording_usage() as usage:
-        try:
-            body = _produce_issue(
-                doc,
-                voice,
-                llm_config,
-                llm_enabled=llm_enabled,
-                logger=logger,
-                resolved=resolved,
-                allow_content_hold=allow_content_hold,
-            )
-        finally:
-            _report_actual_spend(usage, logger=logger, resolved=resolved)
-
-    # Epic-3-retro-item-35 / AC2: this is the earliest point a hold
-    # (``ContentSafetyError``, above) or a cost-ceiling abort (raised earlier,
-    # before this function even reaches ``_produce_issue``) is guaranteed to
-    # have NOT happened — so it is the earliest point narrative memory may be
-    # durably updated. Writing here, rather than back when ``next_storylines``
-    # was computed, is what makes a held or cost-aborted run leave
-    # ``store.read_storylines`` for this league completely unchanged (AC2).
-    # This ordering guarantee is scoped precisely to those two cases; it says
-    # nothing about a later ``OSError`` writing render output or a
-    # ``DeliveryError`` posting to Discord below, both of which run after this
-    # point and are outside AC2.
-    if store is not None and not is_demo:
-        logger.debug("persisting storylines")
-        assert next_storylines is not None  # computed above whenever store is not None and not is_demo
-        store.write_storylines(resolved, next_storylines)
-
-    _render_and_write_issue(
-        doc,
-        body,
-        out_dir=out_dir,
-        resolved=resolved,
-        week=DRAFT_RECAP_WEEK,
-        kind=draft_recap_kind,
-        logger=logger,
-    )
-
-    # Story 4.6: --post chains Story 4.4's idempotent Send Ledger through
-    # Story 4.3's Discord webhook delivery.
-    if post:
-        assert webhook_url is not None  # checked fail-fast at the top of this function
-        assert recipient_id is not None  # computed alongside webhook_url, same guard
-        assert store is not None  # post=True guarantees a store on every path, demo included
-        from commishdesk.render import render_discord_summary
-
-        _deliver_issue(
-            summary=render_discord_summary(doc, recap=body.recap, llm_text=body.llm_text),
-            store=store,
-            resolved=resolved,
-            week=DRAFT_RECAP_WEEK,
-            kind=draft_recap_kind,
-            webhook_url=webhook_url,
-            recipient_id=recipient_id,
-        )
 
 
 # --------------------------------------------------------------------------- #
@@ -1422,6 +1586,269 @@ def _produce_weekly_issue(
     return template(voice)
 
 
+class _WeeklyRecapPhases(_RecapPhases):
+    """The weekly path's phase differences (Stories 5.11a-5.16): the Store up
+    front, Sleeper's week-finality refusal, seeding validation, the standings
+    cross-check (a hold under ``--post``, an UNVERIFIED dateline otherwise), the
+    reissue Correction section, and the post-confirm snapshot and ranks."""
+
+    kind: IssueKind = "weekly"
+
+    def __init__(
+        self,
+        resolved: str,
+        week: int,
+        out_dir: Path,
+        logger: logging.Logger,
+        *,
+        post: bool,
+        reason: str | None,
+        seeding: PlayoffSeeding | None,
+        allow_content_hold: bool,
+    ) -> None:
+        from commishdesk.store import FileStore
+
+        self.resolved = resolved
+        self.week = week
+        self.out_dir = out_dir
+        self.logger = logger
+        self.post = post
+        self.reason = reason
+        self.seeding = seeding
+        self.allow_content_hold = allow_content_hold
+        self.store = FileStore(_cache_dir())
+
+    def ledger_store(self) -> FileStore:
+        assert self.store is not None  # created in __init__
+        return self.store
+
+    def fetch(self, adapter: SleeperAdapter | None) -> None:
+        assert adapter is not None  # uses_adapter is True for the weekly path
+        resolved = self.resolved
+        week = self.week
+        self.logger.debug("fetching Sleeper week %s for league %s", week, resolved)
+        self.week_bundle = adapter.fetch_week(resolved, week)
+        # Refuse before any stats work when Sleeper's own state says this week's
+        # games are not final yet (or the season has not started).
+        reason_not_final = _week_not_final_reason(self.week_bundle.get("nfl_state"), week)
+        if reason_not_final is not None:
+            raise CommishDeskError(
+                f"league {resolved!r}: cannot build a Week {week} recap — {reason_not_final}"
+            )
+        self.league_bundle = adapter.fetch(resolved)
+
+    def build(self) -> None:
+        from commishdesk.errors import CrossCheckError
+        from commishdesk.facts.weekly import build_weekly_facts
+        from commishdesk.ingest import (
+            build_league_model,
+            build_player_names,
+            build_week_model,
+            bye_teams,
+            get_player_snapshot,
+        )
+        from commishdesk.stats.standings import (
+            compute_standings,
+            cross_check_standings,
+            validate_playoff_seeding,
+        )
+
+        resolved = self.resolved
+        week = self.week
+        logger = self.logger
+        store = self.ledger_store()
+        week_bundle = self.week_bundle
+        seeding = self.seeding
+
+        logger.debug("building the weekly models")
+        model = build_league_model(self.league_bundle)
+        week_model = build_week_model(week_bundle)
+        player_names = build_player_names(week_bundle)
+
+        if seeding is not None:
+            bracket_teams = (
+                model.format.playoff.bracket_teams
+                if model.format.playoff is not None
+                else None
+            )
+            seeding = validate_playoff_seeding(
+                seeding,
+                roster_ids=[roster.roster_id for roster in week_model.rosters],
+                bracket_teams=bracket_teams,
+                week=week,
+                playoff_week_start=week_model.playoff_week_start,
+            )
+
+        season = model.season
+        nfl_byes = bye_teams(season, week)
+        nfl_byes_next_week = bye_teams(season, week + 1)
+
+        # Cross-check before the Facts JSON is built (Story 5.11a). This is the one
+        # stats call facts/weekly.py::_build does not make itself, so the CLI owns it.
+        logger.debug("computing weekly standings + cross-check")
+        standings = compute_standings(week_model, model, seeding=seeding)
+        self.cross_check_passed = True
+        try:
+            cross_check_standings(standings, week_model)
+        except CrossCheckError as exc:
+            if self.post:
+                # A --post run must not ship an Issue whose numbers disagree with
+                # Sleeper's own season totals: hold (nothing rendered, written or
+                # posted), one-line alert, exit 1 — the same shape as the
+                # ContentSafetyError hold on the draft path.
+                raise
+            self.cross_check_passed = False
+            logger.warning("league %s cross-check failed: %s", resolved, _one_line(exc))
+            typer.echo(_one_line(exc), err=True)
+
+        # Durable writes begin only now that the week is final and any cross-check
+        # hold has resolved: the persisted-or-built player snapshot (FR-5), then the
+        # league's narrative memory, then (Story 5.12) the published ranks a prior
+        # confirmed week left behind — read here, never inside facts/ (AD-1).
+        players = get_player_snapshot(store, resolved, week, week_bundle)
+        self.previous_storylines = store.read_storylines(resolved)
+        previous_published_ranks = _read_previous_published_ranks(store, resolved, week, logger)
+
+        logger.debug("building the weekly Facts JSON")
+        self.doc = build_weekly_facts(
+            week_model,
+            model,
+            players,
+            player_names,
+            generated_at=datetime.now(tz=UTC),
+            nfl_byes=nfl_byes,
+            nfl_byes_next_week=nfl_byes_next_week,
+            previous_storylines=self.previous_storylines,
+            previous_published_ranks=previous_published_ranks,
+            playoff_seeding=seeding,
+        )
+        # The decoded Facts JSON, in two places below: the reissue's diff (against the
+        # previous confirmed run's snapshot) and the snapshot this run persists. Read
+        # ``generated_at`` here is a string, so the diff helper never sees it move.
+        self.facts_json = self.doc.model_dump(mode="json")
+
+    def narrate(self) -> None:
+        from commishdesk.narrate.weekly_template import WeeklySection
+
+        resolved = self.resolved
+        week = self.week
+        reason = self.reason
+        logger = self.logger
+
+        logger.debug("narrating the weekly Issue")
+        issue, self.published_ranks, self.nudge_justifications = _produce_weekly_issue(
+            self.doc,
+            resolved=resolved,
+            logger=logger,
+            reissue=reason is not None,
+            allow_content_hold=self.allow_content_hold,
+        )
+        if not self.cross_check_passed:
+            # Visible on every surface that reads the dateline (stdout, the text
+            # file, the HTML dump) — the same technique _render_and_write_issue uses
+            # to stamp the generation timestamp onto the draft-recap dateline.
+            issue = issue.model_copy(update={"dateline": f"UNVERIFIED — {issue.dateline}"})
+
+        # Story 5.11c: label the corrected Issue as a correction. The section is
+        # prepended, and ``render_weekly_discord_post`` sets any section outside the
+        # seven as the correction line under the title — the reason *and* the
+        # changed-numbers summary therefore reach stdout, the text/HTML/email files
+        # and the posted message alike.
+        #
+        # Gated on ``post`` too (review-loop 1, edge-case-hunter): ``run()`` already
+        # requires ``--post`` alongside ``--reason``, so a CLI-driven run never
+        # builds these phases with ``reason`` set and ``post`` false — but nothing
+        # in the constructor or the skeleton re-derives that invariant, so this
+        # hook cannot rely on it either. Without the guard, such a call would still label the
+        # local-only Issue a "Correction" and read/diff the Facts snapshot despite
+        # never checking the ledger for something to correct, and never posting or
+        # ledgering anything. ``reason`` is already the stripped text (validated and
+        # normalized in ``run()``).
+        if self.post and reason is not None:
+            correction = reason
+            summary = _weekly_facts_diff_summary(self.ledger_store(), resolved, week, self.facts_json)
+            logger.info(
+                "league %s week %s reissue (%s): %s",
+                resolved,
+                week,
+                correction,
+                summary,
+            )
+            issue = issue.model_copy(
+                update={
+                    "sections": [
+                        WeeklySection(
+                            heading="Correction",
+                            blocks=[f"Correction — {correction} — {summary}"],
+                        ),
+                        *issue.sections,
+                    ]
+                }
+            )
+        self.issue = issue
+
+    def persist_storylines(self) -> None:
+        from commishdesk.facts.storylines import advance_storylines
+
+        # epic-3-retro-item-35: narrative memory is durably updated only once the
+        # narratable Issue exists and any cross-check hold has resolved. Extended
+        # (step-04 review, blind-hunter): "resolved" means *passed* -- a
+        # cross-check failure without --post still ships an UNVERIFIED local
+        # Issue built from the mismatched numbers, but must not let those same
+        # numbers durably taint next week's storyline continuity. Computing
+        # next_storylines is pure and harmless either way; only the write is
+        # gated, mirroring how the draft-recap path already gates its write (not
+        # the computation) on success.
+        next_storylines = [
+            storyline.model_copy(update={"league_id": self.resolved})
+            for storyline in advance_storylines(
+                self.previous_storylines,
+                kind=self.kind,
+                week=self.week,
+                teams=self.doc.teams,
+                period=self.doc.period,
+            )
+        ]
+        if self.cross_check_passed:
+            self.ledger_store().write_storylines(self.resolved, next_storylines)
+
+    def render(self) -> None:
+        _render_and_write_weekly_issue(
+            self.issue,
+            doc=self.doc,
+            published_ranks=self.published_ranks,
+            nudge_justifications=self.nudge_justifications,
+            out_dir=self.out_dir,
+            resolved=self.resolved,
+            week=self.week,
+            logger=self.logger,
+        )
+
+    def discord_summary(self) -> str:
+        from commishdesk.render import render_weekly_discord_post
+
+        return render_weekly_discord_post(
+            _weekly_render_doc(self.doc, self.published_ranks, self.nudge_justifications), self.issue
+        )
+
+    def after_confirmed_send(self) -> None:
+        store = self.ledger_store()
+        published_ranks = self.published_ranks
+        # Story 5.11c: record this league-week's Facts JSON so a later reissue can
+        # say what changed. Written only after the post is confirmed, so a failed
+        # delivery never leaves a snapshot claiming the Issue went out.
+        snapshot = self.facts_json
+        if published_ranks:
+            snapshot = _stamp_nudge_justifications(self.facts_json, self.nudge_justifications)
+        _write_weekly_facts_snapshot(store, self.resolved, self.week, snapshot)
+        # Story 5.12: same ordering, same reason — the published rank is this
+        # week's "confirmed publish" evidence for the *next* week's lookback, so
+        # it is written only once the send is confirmed. A template run has no
+        # published ranks, so it leaves no file and the lookback walks past it.
+        if published_ranks:
+            _write_published_ranks(store, self.resolved, self.week, published_ranks, logger=self.logger)
+
+
 def _recap_one_league_weekly(
     resolved: str,
     week: int,
@@ -1492,255 +1919,19 @@ def _recap_one_league_weekly(
        An LLM Issue whose Power Rankings yield no parseable rank ships normally but
        persists nothing; the next week's lookback walks past it like a held week.
     """
-    from commishdesk.deliver.discord import webhook_id
-    from commishdesk.errors import CrossCheckError
-    from commishdesk.facts.storylines import advance_storylines
-    from commishdesk.facts.weekly import build_weekly_facts
-    from commishdesk.ingest import (
-        build_league_model,
-        build_player_names,
-        build_week_model,
-        bye_teams,
-        get_player_snapshot,
-    )
-    from commishdesk.narrate.weekly_template import WeeklySection
-    from commishdesk.stats.standings import (
-        compute_standings,
-        cross_check_standings,
-        validate_playoff_seeding,
-    )
-    from commishdesk.store import FileStore
-
-    weekly_kind: IssueKind = "weekly"
-    store = FileStore(_cache_dir())
-
-    # --post fails fast on a missing/blank/malformed webhook before any fetch or
-    # any work (mirrors _recap_one_league's draft fast-path). The Send Ledger then
-    # gates the run: a plain run short-circuits on an already-confirmed (league,
-    # week, kind="weekly") entry, while a reissue (Story 5.11c) requires one —
-    # there is nothing to correct otherwise.
-    webhook_url: str | None = None
-    recipient_id: str | None = None
-    if post:
-        webhook_url = (os.environ.get(_DISCORD_WEBHOOK_VAR) or "").strip()
-        if not webhook_url:
-            raise DeliveryError(
-                f"set {_DISCORD_WEBHOOK_VAR} to the league's Discord channel webhook URL before running --post"
-            )
-        recipient_id = webhook_id(webhook_url)
-        already_confirmed = {
-            entry.recipient
-            for entry in store.read_ledger(resolved, week)
-            if entry.channel == "discord" and entry.kind == weekly_kind
-        }
-        if reason is None:
-            if recipient_id in already_confirmed:
-                typer.echo(f"Discord post already confirmed for webhook {recipient_id} — skipped")
-                return
-        elif recipient_id not in already_confirmed:
-            raise CommishDeskError(
-                f"nothing to correct for league {resolved!r} week {week} — "
-                "no confirmed send for this league-week"
-            )
-
-    from commishdesk.adapters.sleeper import SleeperAdapter
-
-    logger.debug("fetching Sleeper week %s for league %s", week, resolved)
-    adapter = SleeperAdapter()
-    try:
-        week_bundle = adapter.fetch_week(resolved, week)
-        # Refuse before any stats work when Sleeper's own state says this week's
-        # games are not final yet (or the season has not started).
-        reason_not_final = _week_not_final_reason(week_bundle.get("nfl_state"), week)
-        if reason_not_final is not None:
-            raise CommishDeskError(
-                f"league {resolved!r}: cannot build a Week {week} recap — {reason_not_final}"
-            )
-        league_bundle = adapter.fetch(resolved)
-    finally:
-        adapter.close()
-
-    logger.debug("building the weekly models")
-    model = build_league_model(league_bundle)
-    week_model = build_week_model(week_bundle)
-    player_names = build_player_names(week_bundle)
-
-    if seeding is not None:
-        bracket_teams = (
-            model.format.playoff.bracket_teams
-            if model.format.playoff is not None
-            else None
-        )
-        seeding = validate_playoff_seeding(
-            seeding,
-            roster_ids=[roster.roster_id for roster in week_model.rosters],
-            bracket_teams=bracket_teams,
-            week=week,
-            playoff_week_start=week_model.playoff_week_start,
-        )
-
-    season = model.season
-    nfl_byes = bye_teams(season, week)
-    nfl_byes_next_week = bye_teams(season, week + 1)
-
-    # Cross-check before the Facts JSON is built (Story 5.11a). This is the one
-    # stats call facts/weekly.py::_build does not make itself, so the CLI owns it.
-    logger.debug("computing weekly standings + cross-check")
-    standings = compute_standings(week_model, model, seeding=seeding)
-    cross_check_passed = True
-    try:
-        cross_check_standings(standings, week_model)
-    except CrossCheckError as exc:
-        if post:
-            # A --post run must not ship an Issue whose numbers disagree with
-            # Sleeper's own season totals: hold (nothing rendered, written or
-            # posted), one-line alert, exit 1 — the same shape as the
-            # ContentSafetyError hold on the draft path.
-            raise
-        cross_check_passed = False
-        logger.warning("league %s cross-check failed: %s", resolved, _one_line(exc))
-        typer.echo(_one_line(exc), err=True)
-
-    # Durable writes begin only now that the week is final and any cross-check
-    # hold has resolved: the persisted-or-built player snapshot (FR-5), then the
-    # league's narrative memory, then (Story 5.12) the published ranks a prior
-    # confirmed week left behind — read here, never inside facts/ (AD-1).
-    players = get_player_snapshot(store, resolved, week, week_bundle)
-    previous_storylines = store.read_storylines(resolved)
-    previous_published_ranks = _read_previous_published_ranks(store, resolved, week, logger)
-
-    logger.debug("building the weekly Facts JSON")
-    doc = build_weekly_facts(
-        week_model,
-        model,
-        players,
-        player_names,
-        generated_at=datetime.now(tz=UTC),
-        nfl_byes=nfl_byes,
-        nfl_byes_next_week=nfl_byes_next_week,
-        previous_storylines=previous_storylines,
-        previous_published_ranks=previous_published_ranks,
-        playoff_seeding=seeding,
-    )
-    # The decoded Facts JSON, in two places below: the reissue's diff (against the
-    # previous confirmed run's snapshot) and the snapshot this run persists. Read
-    # ``generated_at`` here is a string, so the diff helper never sees it move.
-    facts_json = doc.model_dump(mode="json")
-
-    logger.debug("narrating the weekly Issue")
-    issue, published_ranks, nudge_justifications = _produce_weekly_issue(
-        doc,
-        resolved=resolved,
-        logger=logger,
-        reissue=reason is not None,
-        allow_content_hold=allow_content_hold,
-    )
-    if not cross_check_passed:
-        # Visible on every surface that reads the dateline (stdout, the text
-        # file, the HTML dump) — the same technique _render_and_write_issue uses
-        # to stamp the generation timestamp onto the draft-recap dateline.
-        issue = issue.model_copy(update={"dateline": f"UNVERIFIED — {issue.dateline}"})
-
-    # Story 5.11c: label the corrected Issue as a correction. The section is
-    # prepended, and ``render_weekly_discord_post`` sets any section outside the
-    # seven as the correction line under the title — the reason *and* the
-    # changed-numbers summary therefore reach stdout, the text/HTML/email files
-    # and the posted message alike.
-    #
-    # Gated on ``post`` too (review-loop 1, edge-case-hunter): ``run()`` already
-    # requires ``--post`` alongside ``--reason``, so a CLI-driven call never
-    # reaches this function with ``reason`` set and ``post`` false — but nothing
-    # here re-derives that invariant, and this function has no other caller to
-    # rely on it either. Without the guard, such a call would still label the
-    # local-only Issue a "Correction" and read/diff the Facts snapshot despite
-    # never checking the ledger for something to correct, and never posting or
-    # ledgering anything. ``reason`` is already the stripped text (validated and
-    # normalized in ``run()``).
-    if post and reason is not None:
-        correction = reason
-        summary = _weekly_facts_diff_summary(store, resolved, week, facts_json)
-        logger.info(
-            "league %s week %s reissue (%s): %s",
+    _run_recap_skeleton(
+        resolved,
+        _WeeklyRecapPhases(
             resolved,
             week,
-            correction,
-            summary,
-        )
-        issue = issue.model_copy(
-            update={
-                "sections": [
-                    WeeklySection(
-                        heading="Correction",
-                        blocks=[f"Correction — {correction} — {summary}"],
-                    ),
-                    *issue.sections,
-                ]
-            }
-        )
-
-    # epic-3-retro-item-35: narrative memory is durably updated only once the
-    # narratable Issue exists and any cross-check hold has resolved. Extended
-    # (step-04 review, blind-hunter): "resolved" means *passed* -- a
-    # cross-check failure without --post still ships an UNVERIFIED local
-    # Issue built from the mismatched numbers, but must not let those same
-    # numbers durably taint next week's storyline continuity. Computing
-    # next_storylines is pure and harmless either way; only the write is
-    # gated, mirroring how the draft-recap path already gates its write (not
-    # the computation) on success.
-    next_storylines = [
-        storyline.model_copy(update={"league_id": resolved})
-        for storyline in advance_storylines(
-            previous_storylines,
-            kind=weekly_kind,
-            week=week,
-            teams=doc.teams,
-            period=doc.period,
-        )
-    ]
-    if cross_check_passed:
-        store.write_storylines(resolved, next_storylines)
-
-    _render_and_write_weekly_issue(
-        issue,
-        doc=doc,
-        published_ranks=published_ranks,
-        nudge_justifications=nudge_justifications,
-        out_dir=out_dir,
-        resolved=resolved,
-        week=week,
-        logger=logger,
-    )
-
-    if post:
-        assert webhook_url is not None  # checked fail-fast at the top of this function
-        assert recipient_id is not None  # computed alongside webhook_url, same guard
-        from commishdesk.render import render_weekly_discord_post
-
-        _deliver_issue(
-            summary=render_weekly_discord_post(
-                _weekly_render_doc(doc, published_ranks, nudge_justifications), issue
-            ),
-            store=store,
-            resolved=resolved,
-            week=week,
-            kind=weekly_kind,
-            webhook_url=webhook_url,
-            recipient_id=recipient_id,
+            out_dir,
+            logger,
+            post=post,
             reason=reason,
-        )
-        # Story 5.11c: record this league-week's Facts JSON so a later reissue can
-        # say what changed. Written only after the post is confirmed, so a failed
-        # delivery never leaves a snapshot claiming the Issue went out.
-        snapshot = facts_json
-        if published_ranks:
-            snapshot = _stamp_nudge_justifications(facts_json, nudge_justifications)
-        _write_weekly_facts_snapshot(store, resolved, week, snapshot)
-        # Story 5.12: same ordering, same reason — the published rank is this
-        # week's "confirmed publish" evidence for the *next* week's lookback, so
-        # it is written only once the send is confirmed. A template run has no
-        # published ranks, so it leaves no file and the lookback walks past it.
-        if published_ranks:
-            _write_published_ranks(store, resolved, week, published_ranks, logger=logger)
+            seeding=seeding,
+            allow_content_hold=allow_content_hold,
+        ),
+    )
 
 
 def _issue_filename_stem(week: int, kind: IssueKind) -> str:
