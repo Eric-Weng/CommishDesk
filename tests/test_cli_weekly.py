@@ -22,6 +22,7 @@ Store) is covered here as well, for the same reason.
 from __future__ import annotations
 
 import json
+import logging
 import re
 from typing import Any
 
@@ -1630,6 +1631,61 @@ def test_weekly_regular_season_without_seeding_carries_no_note(
     picture = _snapshot_picture(store, "152", 10)
     assert picture["source"] == "derived" and picture["seeding_unconfirmed"] is False
     assert _SEEDING_NOTE not in result.stdout and _SEEDING_NOTE not in posted[0][1]
+
+
+def test_weekly_an_override_before_the_final_regular_week_is_ignored(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """epic-5-retro-item-85 / S6: a commissioner override supplied for a week
+    before ``playoff_week_start - 1`` (here week 10, ``playoff_week_start``
+    15) must not reorder the standings -- it is ignored, the run ships the
+    derived picture exactly as if no override had been supplied, and a
+    warning names the ignored value and the gate.
+
+    ``caplog`` alone cannot see this: the weekly command's own
+    ``configure_logging()`` call (mid-test, inside ``runner.invoke``) flips
+    the ``commishdesk`` logger to ``propagate=False`` *after* pytest's log
+    capture has already decided which loggers to attach to, so records from
+    ``commishdesk.stats.standings`` never reach the root handler caplog reads.
+    A handler attached directly to the emitting logger sidesteps that."""
+    records: list[logging.LogRecord] = []
+
+    class _Capture(logging.Handler):
+        def emit(self, record: logging.LogRecord) -> None:
+            records.append(record)
+
+    target_logger = logging.getLogger("commishdesk.stats.standings")
+    handler = _Capture(level=logging.WARNING)
+    target_logger.addHandler(handler)
+    try:
+        seeds = "12,7,3,1,9,5"
+        result, store, posted, _ = _seeded_run(
+            tmp_path,
+            monkeypatch,
+            seeding=seeds,
+            week=10,
+            league="157",
+            week_bundle=_load_fixture(_WEEK10),
+        )
+    finally:
+        target_logger.removeHandler(handler)
+
+    assert result.exit_code == 0, result.output
+    picture = _snapshot_picture(store, "157", 10)
+    assert picture["source"] == "derived"
+    assert picture["in_bracket"] != ["12", "7", "3", "1", "9", "5"]
+
+    warnings = [r for r in records if r.levelno == logging.WARNING]
+    assert warnings, "expected a warning naming the ignored override and the gate"
+    assert all(seeds in r.getMessage() for r in warnings)
+    assert all("14" in r.getMessage() for r in warnings)
+
+    # No side effects were skipped or blocked -- this is a normal successful
+    # run, not a refusal: the ledger, storylines and snapshot are all written.
+    assert store.read_ledger("157", 10) != []
+    assert store.read_storylines("157") != []
+    assert list(tmp_path.glob("commishdesk-*"))
+    assert posted != []
 
 
 def test_weekly_confirm_marks_the_picture_confirmed_and_drops_the_note(

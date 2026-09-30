@@ -856,7 +856,16 @@ def test_a_different_bracket_size_moves_the_lines() -> None:
 def test_a_commissioner_override_makes_stakes_agree_with_the_picture() -> None:
     """Story 5.15: with an override the picture, not the records, fixes bracket
     membership, so a 0-0 seed reads as clinched and a 20-0 team left out reads
-    as eliminated."""
+    as eliminated.
+
+    epic-5-retro-item-85 / S6: ``validate_playoff_seeding`` now gates a
+    commissioner override to ``playoff_week_start - 1`` onward, so through the
+    real pipeline this scenario can only arise at week 9 (``playoff_week_start
+    10``) or later -- never at week 7 as before. That same week is exactly
+    when ``stakes.py``'s own stand-down engages (there is no next
+    regular-season game left to preview), so the tags this test used to check
+    are empty here; the clinch/elimination assertions below -- this test's
+    actual point -- are unaffected by stand-down."""
     ids = sorted(_RECORDS, key=int)
     seeds = ["12", "2", "3", "4", "5", "6"]
     picture = PlayoffPicture(
@@ -868,19 +877,19 @@ def test_a_commissioner_override_makes_stakes_agree_with_the_picture() -> None:
         cut_line_after_rank=6,
         consolation=[rid for rid in ids if rid not in seeds],
     )
-    standings = _standings(_RECORDS, week=7, through=7).model_copy(
+    standings = _standings(_RECORDS, week=9, through=9).model_copy(
         update={"playoff_picture": picture}
     )
     week_model = WeekModel(
-        week=7,
+        week=9,
         rosters=[Roster(roster_id=rid) for rid in ids],
         matchups=[],
         transactions=[],
         playoff_week_start=10,
-        next_matchups=_pair_rows(_PAIRS, 8),
+        next_matchups=_pair_rows(_PAIRS, 10),
     )
     result = compute_next_week(
-        week_model, _league(), standings, _power(ids, week=7), {}, None
+        week_model, _league(), standings, _power(ids, week=9), {}, None
     )
     sides = _sides(result)
 
@@ -888,5 +897,6 @@ def test_a_commissioner_override_makes_stakes_agree_with_the_picture() -> None:
         assert sides[rid].clinched_playoff == (rid in picture.in_bracket)
         assert sides[rid].eliminated == (rid not in picture.in_bracket)
         assert sides[rid].clinched_bye == (rid in picture.byes)
-    assert "wildcard_race" not in _card_for(result, "6").stakes
-    assert "draft_position" in _card_for(result, "1").stakes
+    # Stand-down engages at the same week the override gate opens, so no tags ship.
+    assert _card_for(result, "6").stakes == []
+    assert _card_for(result, "1").stakes == []

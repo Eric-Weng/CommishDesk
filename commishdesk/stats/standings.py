@@ -38,7 +38,10 @@ derived order: a :class:`PlayoffSeeding` in ``"confirm"`` mode marks the picture
 ``"confirmed"``, and one in ``"override"`` mode reorders the standings (and so
 the picture) to the caller's seed order and marks it ``"commissioner"``. The
 commissioner override bypasses nothing else: the cross-check still runs against
-whatever fold the standings produced.
+whatever fold the standings produced. ``validate_playoff_seeding`` gates an
+``"override"`` to ``playoff_week_start - 1`` onward (epic-5-retro-item-85 /
+S6); a caller-side override before that week never reaches here -- it is
+ignored upstream and the derived order ships instead.
 
 **Cross-check.** ``cross_check_standings(standings, week)`` compares, for every
 roster in ``week.rosters``, the folded W-L-T against ``Roster``'s exactly and the
@@ -58,6 +61,7 @@ a bad seeding input, :class:`PlayoffSeedingError`).
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Sequence
 from dataclasses import dataclass
 
@@ -98,6 +102,11 @@ POINTS_FOR_ROUNDING_TOLERANCE = 0.005
 #: The one tiebreak key consulted after win percentage -- named so a reader (or
 #: a later story) never has to infer it. Surfaced as ``Standings.tiebreak``.
 TIEBREAK = "points_for"
+
+#: ``validate_playoff_seeding``'s one diagnosable side effect: a warning naming
+#: an ignored, too-early commissioner override (epic-5-retro-item-85 / S6). No
+#: file, clock, PRNG, or network access -- stdlib ``logging`` only.
+_logger = logging.getLogger("commishdesk.stats.standings")
 
 #: The fields ``cross_check_standings`` compares, in the order a mismatch is
 #: reported for a single roster.
@@ -290,16 +299,51 @@ def validate_playoff_seeding(
     *,
     roster_ids: Sequence[str],
     bracket_teams: int | None,
-) -> PlayoffSeeding:
+    week: int | None = None,
+    playoff_week_start: int | None = None,
+) -> PlayoffSeeding | None:
     """Validate a parsed seeding against a built league-week.
 
     Roster-membership and count checks run here, after the league and week
     models exist but before any storage write or LLM spend. A supplied value
-    for a league with no playoff format is rejected here too."""
+    for a league with no playoff format is rejected here too.
+
+    ``week`` / ``playoff_week_start`` (epic-5-retro-item-85 / S6) gate a
+    ``"override"`` seeding to the final regular-season week onward
+    (``playoff_week_start - 1``, the same idiom used by ``stakes.py``'s
+    ``_stand_down``/``_remaining_games`` and by ``standings.py``'s own
+    regular-season freeze): a commissioner override
+    supplied before that week is **ignored** -- treated as if none were
+    supplied (``None`` is returned, never raised) -- and a warning names the
+    ignored value and the gate, since ``COMMISHDESK_PLAYOFF_SEEDING`` is
+    deliberately sticky across scheduled runs and a stale value must not turn
+    into a recurring, unattended outage. Either argument left ``None`` (a
+    caller that has not been threaded through, or a league with no declared
+    ``playoff_week_start``) skips the gate entirely -- unchanged from before
+    this check existed. ``"confirm"`` and no-override callers are never
+    gated."""
     if bracket_teams is None:
         raise PlayoffSeedingError("cannot seed playoffs: league has no playoff format")
     if seeding.kind == "confirm":
         return seeding
+
+    if (
+        seeding.kind == "override"
+        and week is not None
+        and playoff_week_start is not None
+        and week < playoff_week_start - 1
+    ):
+        _logger.warning(
+            "ignoring commissioner playoff-seeding override %r at week %s: "
+            "an override is only honored at or after week %s "
+            "(playoff_week_start=%s - 1, the last regular-season week) -- "
+            "clear COMMISHDESK_PLAYOFF_SEEDING / --seeding until then",
+            ",".join(seeding.seed_roster_ids),
+            week,
+            playoff_week_start - 1,
+            playoff_week_start,
+        )
+        return None
 
     expected = min(bracket_teams, len(roster_ids))
     given = len(seeding.seed_roster_ids)

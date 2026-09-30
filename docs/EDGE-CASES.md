@@ -248,3 +248,28 @@ lead on — is never derived this way. The 0.1 band is below any reading a recap
 
 **Where this shows up.** A roster's history row for week `k` may read `luck` 0.1 off the
 season figure. Only the per-week rows can differ; `teams[].season.luck` is untouched.
+
+## A commissioner seeding override set before the final regular week is silently ignored (epic-5-retro-item-85 / S6)
+
+**What happens.** `stats/standings.py::validate_playoff_seeding` only honors a
+`source == "commissioner"` `--seeding` / `COMMISHDESK_PLAYOFF_SEEDING` override from the
+final regular-season week (`playoff_week_start - 1`) onward. A value supplied earlier is
+treated exactly as if none were supplied — the run ships the normal derived picture for
+that week, with `seeding_unconfirmed=False` like any other no-override regular-season
+week. The only trace is a `WARNING`-level log line naming the ignored value and the gate
+week.
+
+**Why this is accepted, not fixed.** `COMMISHDESK_PLAYOFF_SEEDING` is deliberately sticky
+across scheduled runs (see "Confirm or override playoff seeding" above), so a value left
+set after one week's use would otherwise reorder every following week's standings while
+the regular season is still live. Refusing the run outright would turn one forgotten
+variable into a recurring unattended outage of the newsletter, which is worse than the
+premature-override bug this closes — ignoring keeps the Issue shipping on time and
+correct, indistinguishable from a week with no override at all.
+
+**Where this shows up.** A commissioner who sets the override a few weeks early, expecting
+it to take effect immediately, sees no error and no seeded bracket — just the ordinary
+derived picture — until the final regular-season week arrives. The gate never raises
+`PlayoffSeedingError` for an early value, even a malformed one (wrong count, unknown
+roster id): it is discarded before those checks run, the same as any other ignored
+override.

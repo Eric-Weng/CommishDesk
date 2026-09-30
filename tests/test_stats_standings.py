@@ -604,6 +604,36 @@ def test_playoff_seeding_validate_accepts_confirm_when_a_bracket_exists() -> Non
     assert validate_playoff_seeding(confirm, roster_ids=["1", "2"], bracket_teams=4) is confirm
 
 
+def test_playoff_seeding_validate_gates_override_at_the_final_regular_week_boundary(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    from commishdesk.stats.standings import PlayoffSeeding, validate_playoff_seeding
+
+    roster_ids = [str(i) for i in range(1, 6)]
+    override = PlayoffSeeding(kind="override", seed_roster_ids=("4", "2", "3", "1"))
+
+    honored = validate_playoff_seeding(
+        override,
+        roster_ids=roster_ids,
+        bracket_teams=4,
+        week=9,
+        playoff_week_start=10,
+    )
+    assert honored is override
+
+    with caplog.at_level("WARNING", logger="commishdesk.stats.standings"):
+        gated = validate_playoff_seeding(
+            override,
+            roster_ids=roster_ids,
+            bracket_teams=4,
+            week=8,
+            playoff_week_start=10,
+        )
+    assert gated is None
+    assert "ignoring commissioner playoff-seeding override" in caplog.text
+    assert "week 9" in caplog.text
+
+
 def test_seeding_override_reorders_standings_and_picture() -> None:
     from commishdesk.stats.standings import PlayoffSeeding
 

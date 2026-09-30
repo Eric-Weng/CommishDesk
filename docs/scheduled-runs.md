@@ -39,7 +39,16 @@ replace the seeded order through a repository variable:
   shown.
 * Value `4,2,7,1,9,3` (or any comma-separated roster-id seed order): seeds 1
   through the bracket size are replaced in that order; the remaining rosters
-  keep derived order after the cut.
+  keep derived order after the cut -- but only from the last regular-season
+  week (`playoff_week_start - 1`) onward. A value supplied for an earlier
+  week is **ignored**, not applied and not refused: the run ships the normal
+  derived picture for that week exactly as if the variable were unset, and
+  logs a warning naming the ignored value and the gate week -- visible in the
+  triggering GitHub Actions run's log (Actions tab → the workflow run →
+  the `commishdesk` step's output). This keeps a
+  forgotten, still-set variable from silently reordering standings — and
+  turning into a recurring unattended outage — while the regular season is
+  still live (epic-5-retro-item-85 / S6).
 
 Set or clear the variable under **Settings → Secrets and variables → Actions →
 Variables → Repository variables**:
@@ -49,5 +58,7 @@ Variables → Repository variables**:
 
 Then re-run the weekly workflow by hand with `workflow_dispatch`. The variable
 applies to every scheduled run until it is cleared, so clear it once the
-playoffs are over: a stale value would keep reordering later weeks' standings.
-Do not commit real league ids or real seeding values anywhere in the repository.
+playoffs are over: from the final regular-season week onward, a stale value
+still reorders every later week's standings exactly as set — the ignore gate
+only protects weeks before that. Do not commit real league ids or real
+seeding values anywhere in the repository.

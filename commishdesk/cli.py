@@ -120,7 +120,9 @@ def run(
         envvar="COMMISHDESK_PLAYOFF_SEEDING",
         help=(
             "Playoff seeding: 'confirm', or a comma-separated list of roster ids "
-            "in seed order. Empty means no override."
+            "in seed order. Empty means no override. An override is only honored "
+            "from the final regular-season week onward; an earlier value is "
+            "ignored (logged, not applied)."
         ),
     ),
     llm: bool | None = typer.Option(
@@ -1458,6 +1460,11 @@ def _recap_one_league_weekly(
     derived playoff order. Validated once the league-week models exist (so a
     wrong roster id or count faults before any storage write, render, post or
     LLM spend) and threaded into both the standings call and the Facts builder.
+    ``week`` and ``week_model.playoff_week_start`` also ride into that
+    validation call (epic-5-retro-item-85 / S6), so a commissioner override
+    supplied before the final regular week is ignored rather than reordering
+    stakes while the regular season is still live -- see
+    ``validate_playoff_seeding``.
 
     Ordering (epic-3-retro-item-35, applied to the weekly kind from the start):
 
@@ -1566,6 +1573,8 @@ def _recap_one_league_weekly(
             seeding,
             roster_ids=[roster.roster_id for roster in week_model.rosters],
             bracket_teams=bracket_teams,
+            week=week,
+            playoff_week_start=week_model.playoff_week_start,
         )
 
     season = model.season
