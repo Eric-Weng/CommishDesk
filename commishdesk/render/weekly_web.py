@@ -4,7 +4,11 @@
 :class:`~commishdesk.narrate.weekly_template.WeeklyIssue` into one
 ``<!doctype html>`` string: the approved Story 5.13 design (Tuesday Morning
 theme, Editorial layout) with inline CSS, embedded fonts, hand-authored inline
-SVG and no external request. Story 5B.2 adds exactly one small inline script
+SVG and no external request. Story 6.0c (AD-40) moves the interaction script
+and its motion CSS behind the optional
+:class:`~commishdesk.render.enhancer.WebEnhancer` seam: without one the page
+is static, with zero ``<script>``; the history below describes the built-in
+enhancer the CLI passes. Story 5B.2 adds exactly one small inline script
 (reveal / draw-in motion); the page is complete and fully visible without it —
 the script only sets ``html.js-reveal`` and adds ``is-revealed`` as sections
 scroll into view. Story 5B.3 adds the power-rank bump chart (model trail +
@@ -73,6 +77,7 @@ from commishdesk.render._weekly_model import stake_label as _stake_label
 from commishdesk.render._weekly_model import team_label as _team_label
 from commishdesk.render._weekly_model import whole as _whole
 from commishdesk.render._weekly_model import winner_loser as _winner_loser
+from commishdesk.render.enhancer import WebEnhancer, validate_enhancer, validate_page
 from commishdesk.render.style import build_weekly_style
 from commishdesk.sections import heading_for
 
@@ -92,225 +97,6 @@ _L_BAR = 26
 _L_TOP = 30
 _L_NAME_MAX = 24
 
-
-# The single inline interaction layer for Story 5B.2 / 5B.3 / 5B.4 / 5B.5. The
-# page is already finished without script; this only adds the enabling class,
-# observes [data-reveal] elements, drives the power-rank bump chart's hover /
-# pin detail, previews a luck row on focus / tap, flips the standings all-play
-# view, and pins an expandable matchup / next-week card. It writes markup only
-# through createElement/textContent (no innerHTML/eval), and sets only
-# class/style state.
-_INTERACTION_SCRIPT = """(function () {
-  "use strict";
-  var root = document.documentElement;
-  root.classList.add("js-reveal");
-
-  var charts = document.querySelectorAll("[data-draw]");
-  Array.prototype.forEach.call(charts, function (chart) {
-    var drawIndex = 0;
-    Array.prototype.forEach.call(chart.children, function (child) {
-      if (child.tagName.toLowerCase() !== "title") {
-        child.style.setProperty("--draw-i", String(drawIndex));
-        drawIndex += 1;
-      }
-    });
-  });
-
-  Array.prototype.forEach.call(document.querySelectorAll("[data-luck-section]"), function (section) {
-    var preview = section.querySelector(".luck-preview");
-    Array.prototype.forEach.call(section.querySelectorAll(".luck-row[data-luck-preview]"), function (row) {
-      function selectRow() {
-        if (!preview) { return; }
-        preview.hidden = false;
-        preview.textContent = row.getAttribute("data-luck-preview") || "";
-      }
-      row.addEventListener("click", selectRow);
-      row.addEventListener("focus", function () {
-        row.classList.add("is-active");
-        selectRow();
-      });
-      row.addEventListener("blur", function () {
-        row.classList.remove("is-active");
-      });
-    });
-  });
-
-  Array.prototype.forEach.call(document.querySelectorAll("[data-standings]"), function (section) {
-    var toggle = section.querySelector(".standings-toggle");
-    if (!toggle) { return; }
-    Array.prototype.forEach.call(toggle.querySelectorAll("button[data-view]"), function (button) {
-      button.addEventListener("click", function () {
-        var allplay = button.getAttribute("data-view") === "allplay";
-        section.classList.toggle("is-allplay", allplay);
-        Array.prototype.forEach.call(toggle.querySelectorAll("button[data-view]"), function (node) {
-          node.classList.toggle("is-active", node === button);
-          node.setAttribute("aria-pressed", node === button ? "true" : "false");
-        });
-        Array.prototype.forEach.call(section.querySelectorAll(".rec-act, .legend-act"), function (node) {
-          node.setAttribute("aria-hidden", allplay ? "true" : "false");
-        });
-        Array.prototype.forEach.call(section.querySelectorAll(".rec-ap, .legend-ap"), function (node) {
-          node.setAttribute("aria-hidden", allplay ? "false" : "true");
-        });
-      });
-    });
-  });
-
-  Array.prototype.forEach.call(document.querySelectorAll(".card-expand"), function (button) {
-    var card = button.closest(".card");
-    if (!card) { return; }
-    function renderPinned() {
-      var pinned = card.classList.contains("is-pinned");
-      button.setAttribute("aria-expanded", pinned ? "true" : "false");
-      var state = button.querySelector(".card-expand-state");
-      if (state) {
-        state.textContent = pinned ? "Pinned open" : "";
-      }
-    }
-    button.addEventListener("click", function () {
-      card.classList.toggle("is-pinned");
-      renderPinned();
-    });
-    renderPinned();
-  });
-
-  Array.prototype.forEach.call(document.querySelectorAll("[data-bump-chart]"), function (bumpRoot) {
-    var detail = bumpRoot.querySelector("[data-bump-detail]");
-    var buttons = bumpRoot.querySelectorAll(".pw-hit[data-team]");
-    var lines = bumpRoot.querySelectorAll(".bump-team[data-team]");
-    var hoverTeam = null;
-    var pinnedTeam = null;
-
-    function clearDetail() {
-      while (detail.firstChild) {
-        detail.removeChild(detail.firstChild);
-      }
-    }
-
-    function showDefault() {
-      clearDetail();
-      var p = document.createElement("p");
-      p.className = "bd-default";
-      p.textContent = "Hover or select a team to inspect its ranks.";
-      detail.appendChild(p);
-    }
-
-    function showTeam(team, pinned) {
-      clearDetail();
-      var button = bumpRoot.querySelector('.pw-hit[data-team="' + CSS.escape(team) + '"]');
-      var name = button ? button.getAttribute("data-name") : team;
-      var heading = document.createElement("p");
-      heading.className = "bd-team";
-      heading.textContent = name + (pinned ? " \u00b7 Pinned open" : "");
-      detail.appendChild(heading);
-
-      var list = document.createElement("ul");
-      list.className = "bd-list";
-      Array.prototype.forEach.call(
-        bumpRoot.querySelectorAll('.bump-point.bump-model-dot[data-team="' + CSS.escape(team) + '"]'),
-        function (dot) {
-          var week = dot.getAttribute("data-week");
-          var model = dot.getAttribute("data-rank");
-          var published = dot.getAttribute("data-pub");
-          var line = document.createElement("li");
-          line.textContent = "Week " + week + ": model " + model + (published ? ", published " + published : "");
-          list.appendChild(line);
-        }
-      );
-      detail.appendChild(list);
-    }
-
-    function setActive() {
-      var active = pinnedTeam || hoverTeam;
-      var isPinned = pinnedTeam !== null;
-      Array.prototype.forEach.call(lines, function (line) {
-        var team = line.getAttribute("data-team");
-        line.classList.toggle("is-active", active === team);
-        line.classList.toggle("is-dim", active !== null && active !== team);
-      });
-      Array.prototype.forEach.call(buttons, function (button) {
-        var team = button.getAttribute("data-team");
-        button.classList.toggle("is-active", active === team);
-        button.classList.toggle("is-dim", active !== null && active !== team);
-        button.classList.toggle("is-pinned", isPinned && pinnedTeam === team);
-        button.setAttribute("aria-pressed", (isPinned && pinnedTeam === team) ? "true" : "false");
-        var state = button.querySelector(".hit-state");
-        if (state) {
-          state.textContent = (isPinned && pinnedTeam === team) ? "Pinned open" : "";
-        }
-      });
-      if (active !== null) {
-        showTeam(active, isPinned);
-      } else {
-        showDefault();
-      }
-    }
-
-    function bindTeamHover(element, team) {
-      element.addEventListener("mouseenter", function () {
-        if (pinnedTeam === null || pinnedTeam === team) {
-          hoverTeam = team;
-          setActive();
-        }
-      });
-      element.addEventListener("mouseleave", function () {
-        if (hoverTeam === team) {
-          hoverTeam = null;
-          setActive();
-        }
-      });
-    }
-
-    Array.prototype.forEach.call(buttons, function (button) {
-      var team = button.getAttribute("data-team");
-      if (!team) {
-        return;
-      }
-      bindTeamHover(button, team);
-      button.addEventListener("click", function () {
-        if (pinnedTeam === team) {
-          pinnedTeam = null;
-        } else {
-          pinnedTeam = team;
-        }
-        hoverTeam = null;
-        setActive();
-      });
-    });
-
-    Array.prototype.forEach.call(lines, function (line) {
-      var team = line.getAttribute("data-team");
-      if (team) {
-        bindTeamHover(line, team);
-      }
-    });
-
-    setActive();
-  });
-
-  var targets = document.querySelectorAll("[data-reveal]");
-  function show(target) {
-    target.classList.add("is-revealed");
-  }
-
-  if (!("IntersectionObserver" in window)) {
-    Array.prototype.forEach.call(targets, show);
-    return;
-  }
-
-  var observer = new IntersectionObserver(function (entries, obs) {
-    entries.forEach(function (entry) {
-      if (entry.isIntersecting) {
-        show(entry.target);
-        obs.unobserve(entry.target);
-      }
-    });
-  }, { rootMargin: "0px 0px -8% 0px", threshold: 0.1 });
-
-  Array.prototype.forEach.call(targets, function (target) {
-    observer.observe(target);
-  });
-})();"""
 
 
 # --------------------------------------------------------------------------- #
@@ -1365,7 +1151,7 @@ def _luck_section(ctx: _Ctx) -> str:
             )
         cells_html = "".join(cells)
         parts.append(
-            f'<g class="luck-row" role="button" tabindex="0" data-luck-preview="{preview}">'
+            f'<g class="luck-row" data-luck-preview="{preview}">'
             f"{cells_html}</g>"
         )
     aria = "Luck index: actual wins minus expected wins, most lucky to least"
@@ -1501,7 +1287,14 @@ def _transactions_section(ctx: _Ctx) -> str:
 # --------------------------------------------------------------------------- #
 
 
-def render_weekly_web(facts: WeeklyFacts, issue: WeeklyIssue, *, output_id: str, generated_at: str) -> str:
+def render_weekly_web(
+    facts: WeeklyFacts,
+    issue: WeeklyIssue,
+    *,
+    output_id: str,
+    generated_at: str,
+    enhancer: WebEnhancer | None = None,
+) -> str:
     """Render one self-contained ``<!doctype html>`` weekly Issue page.
 
     ``facts`` supplies every number and chart; ``issue`` supplies the narrated
@@ -1514,7 +1307,15 @@ def render_weekly_web(facts: WeeklyFacts, issue: WeeklyIssue, *, output_id: str,
     rankings, luck index and transaction desk are omitted entirely, the standings
     section stands down its playoff picture, and the section set used to pick
     the narrated prose is the four-section cold-start set.
+
+    Story 6.0c (AD-40): with ``enhancer=None`` the page is complete and static —
+    zero ``<script>``, no motion, no control that does nothing. An
+    :class:`~commishdesk.render.enhancer.WebEnhancer` adds its CSS at the end of
+    the one ``<style>`` and its JS in one ``<script>`` just before ``</body>``.
+    Both the enhancer's strings and the finished page are validated here;
+    a breach raises :class:`~commishdesk.render.enhancer.EnhancerRejected`.
     """
+    enhancement = validate_enhancer(enhancer) if enhancer is not None else None
     del output_id  # not rendered into the shareable page (parity with render_web)
     headings = section_headings_for_has_prior_week(facts.period.has_prior_week)
     cold_start = not facts.period.has_prior_week
@@ -1546,16 +1347,17 @@ def render_weekly_web(facts: WeeklyFacts, issue: WeeklyIssue, *, output_id: str,
         f"<title>{_esc(issue.title)}</title>",
         "<style>",
         build_weekly_style(),
+        *([enhancement[0]] if enhancement is not None and enhancement[0] else []),
         "</style>",
         "</head>",
         "<body>",
         '<main class="paper weekly_issue">',
         *[part for part in sections if part],
         "</main>",
-        "<script>",
-        _INTERACTION_SCRIPT,
-        "</script>",
+        *(["<script>", enhancement[1], "</script>"] if enhancement is not None else []),
         "</body>",
         "</html>",
     ]
-    return "\n".join(document) + "\n"
+    page = "\n".join(document) + "\n"
+    validate_page(page, enhanced=enhancement is not None)
+    return page

@@ -18,6 +18,13 @@ CSS-revealed detail panel (a pinned card holds it open; a bare card only
 reveals it while hovered), with the same reduced-motion zeroing applying to
 its states.
 
+Story 6.0c (AD-40) moves every motion and script-gated rule — the keyframes,
+the ``html.js-reveal`` rules, the luck row's control styling and the
+reduced-motion block — out of the weekly stylesheet into the built-in
+:class:`~commishdesk.render.enhancer.WebEnhancer`. What stays here is the
+complete static page: the bump chart's team buttons and hover detail panel are
+hidden and its layout is one column until an enhancer reveals them.
+
 Standard library only, credential-free. Numerals only: ``render`` emits digits in
 data contexts, so this module carries **no** copy of
 ``commishdesk.facts.leads._spell`` (spec 4.1 boundary).
@@ -695,23 +702,6 @@ body {{
 .mg-xl {{ width: 56px; height: 56px; border-radius: 18px; font-size: 23px; }}
 .mg-xxl {{ width: 64px; height: 64px; border-radius: 20px; font-size: 26px; }}
 svg.chart {{ display: block; max-width: 100%; height: auto; }}
-/* Story 5B.2 — reveal/draw-in motion. Hiding values only exist inside
-   @keyframes and are gated by the script-added html.js-reveal ancestor. */
-@keyframes reveal-in {{
-  from {{ opacity: 0; transform: translateY(12px); }}
-  to {{ opacity: 1; transform: translateY(0); }}
-}}
-@keyframes draw-in {{
-  from {{ opacity: 0; transform: translateY(4px); }}
-  to {{ opacity: 1; transform: translateY(0); }}
-}}
-html.js-reveal [data-reveal].is-revealed {{
-  animation: reveal-in 500ms cubic-bezier(.16, 1, .3, 1) both;
-}}
-html.js-reveal [data-reveal].is-revealed [data-draw] > *:not(title) {{
-  animation: draw-in 400ms cubic-bezier(.16, 1, .3, 1) both;
-  animation-delay: calc(var(--draw-i, 0) * 25ms);
-}}
 :focus-visible {{
   outline: 3px solid var(--emph);
   outline-offset: 3px;
@@ -722,24 +712,14 @@ svg .lbl-b {{ font-family: {FONT_MONO}; font-size: 18px; font-weight: 500; }}
 svg .lbl-big {{ font-family: {FONT_MONO}; font-size: 26px; font-weight: 500; fill: var(--ink); }}
 svg .name {{ font-family: {WEEKLY_FONT_BODY}; font-size: 14px; font-weight: 700; fill: var(--ink); }}
 
-/* Story 5B.4 -- luck row preview + grow-from-zero bars */
-.luck-row {{ cursor: pointer; outline: none; }}
+/* Story 5B.4 -- luck row preview + bar geometry (the row's button role, its
+   focus ring and the grow-from-zero motion come with the interaction layer) */
 .luck-row rect.luck-hit {{ fill: transparent; pointer-events: fill; }}
-.luck-row:focus-visible {{ outline: 3px solid var(--emph); outline-offset: 3px; }}
-.luck-row.is-active rect.luck-hit {{ stroke: var(--emph); stroke-width: 2; }}
 .luck-preview {{ margin: 14px 0 0; font-size: 15px; color: var(--ink-2); }}
 .luck-preview[hidden] {{ display: none; }}
 .luck-bar {{
   transform-box: fill-box;
   transform-origin: var(--luck-origin, left center);
-}}
-html.js-reveal [data-reveal].is-revealed .luck-bar {{
-  animation: luck-grow 500ms cubic-bezier(.16, 1, .3, 1) both;
-  animation-delay: calc(var(--draw-i, 0) * 25ms);
-}}
-@keyframes luck-grow {{
-  from {{ transform: scaleX(0); }}
-  to {{ transform: scaleX(var(--luck-len, 1)); }}
 }}
 
 /* lead */
@@ -877,8 +857,6 @@ html.js-reveal [data-reveal].is-revealed .luck-bar {{
 .card-expand:focus-visible {{ outline: 3px solid var(--emph); outline-offset: 3px; }}
 .card-expand-state {{ color: var(--emph); }}
 
-html.js-reveal .card-expand {{ display: inline-flex; }}
-
 .game-detail,
 .nw-detail {{
   position: absolute;
@@ -893,13 +871,6 @@ html.js-reveal .card-expand {{ display: inline-flex; }}
   font-size: 14px;
   line-height: 1.45;
 }}
-html.js-reveal .card:hover .game-detail,
-html.js-reveal .card:hover .nw-detail,
-html.js-reveal .card.is-pinned .game-detail,
-html.js-reveal .card.is-pinned .nw-detail {{
-  display: block;
-}}
-
 .game-side-detail + .game-side-detail {{
   margin-top: 12px;
   padding-top: 10px;
@@ -924,11 +895,6 @@ html.js-reveal .card.is-pinned .nw-detail {{
   color: var(--ink-3);
 }}
 
-html.js-reveal .card.is-pinned {{
-  border-color: var(--emph);
-  box-shadow: 0 0 0 2px var(--emph-wash), var(--shadow);
-}}
-
 /* standings and power */
 .table-card {{ padding: 30px; }}
 /* Story 5B.4 -- segmented all-play toggle and cross-fading row values */
@@ -937,7 +903,6 @@ html.js-reveal .card.is-pinned {{
   gap: 8px;
   margin: 0 0 16px;
 }}
-html.js-reveal .standings-toggle {{ display: flex; }}
 .toggle-btn {{
   display: inline-flex;
   align-items: center;
@@ -1074,7 +1039,7 @@ html.js-reveal .standings-toggle {{ display: flex; }}
 /* power-rank bump chart (Story 5B.3) */
 .bump-layout {{
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-columns: minmax(0, 1fr);
   gap: 22px;
   align-items: start;
 }}
@@ -1085,6 +1050,7 @@ html.js-reveal .standings-toggle {{ display: flex; }}
   gap: 14px;
 }}
 .bump-detail {{
+  display: none;
   min-height: 96px;
   border: 1px solid var(--line);
   border-radius: 14px;
@@ -1131,7 +1097,7 @@ html.js-reveal .standings-toggle {{ display: flex; }}
   margin-bottom: 6px;
 }}
 .pw-hits {{
-  display: flex;
+  display: none;
   flex-direction: column;
   gap: 8px;
 }}
@@ -1217,28 +1183,11 @@ html.js-reveal .standings-toggle {{ display: flex; }}
    path length (the ``--len`` custom property, computed in Python from the
    line's real points -- never a shared constant), staggered ~25ms per team
    via the same ``--draw-i`` the reveal/draw-in script already sets on every
-   ``[data-draw]`` chart's direct children (Story 5B.2). Undeclared outside
-   the ``html.js-reveal … .is-revealed`` rule below, so JS-off and
-   not-yet-revealed both default to a fully drawn, fully visible mark. */
+   ``[data-draw]`` chart's direct children (Story 5B.2). The draw-in itself
+   lives in the interaction layer (Story 6.0c), so the static page and a
+   not-yet-revealed mark both default to a fully drawn, fully visible mark. */
 .bump-team .bump-model {{
   stroke-dasharray: var(--len, 0);
-}}
-html.js-reveal [data-reveal].is-revealed .bump-team .bump-model {{
-  animation: bump-draw-line 400ms cubic-bezier(.16, 1, .3, 1) both;
-  animation-delay: calc(var(--draw-i, 0) * 25ms);
-}}
-html.js-reveal [data-reveal].is-revealed .bump-team .bump-point,
-html.js-reveal [data-reveal].is-revealed .bump-team .bump-pub-line {{
-  animation: bump-draw-point 400ms cubic-bezier(.16, 1, .3, 1) both;
-  animation-delay: calc(var(--draw-i, 0) * 25ms);
-}}
-@keyframes bump-draw-line {{
-  from {{ stroke-dashoffset: var(--len, 0); }}
-  to {{ stroke-dashoffset: 0; }}
-}}
-@keyframes bump-draw-point {{
-  from {{ opacity: 0; }}
-  to {{ opacity: 1; }}
 }}
 .bump-team.is-active .bump-model {{
   stroke: var(--emph);
@@ -1367,7 +1316,6 @@ footer p {{ margin: 0; }}
 @media (max-width: 900px) {{
   .lead {{ grid-template-columns: minmax(0, 1fr); }}
   .awards {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
-  .bump-layout {{ grid-template-columns: minmax(0, 1fr); }}
 }}
 @media (max-width: 560px) {{
   body {{ font-size: 16px; }}
@@ -1383,17 +1331,6 @@ footer p {{ margin: 0; }}
 """.strip()
 
 
-_REDUCED_MOTION_CSS = """
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: 0s !important;
-    animation-delay: 0s !important;
-    transition-duration: 0s !important;
-  }
-}
-""".strip()
-
-
 def build_weekly_style() -> str:
     """The weekly Issue's inline stylesheet (CSS text, no ``<style>`` tags):
     the embedded ``@font-face`` rules, the Tuesday Morning tokens in the same
@@ -1404,6 +1341,5 @@ def build_weekly_style() -> str:
             weekly_font_faces(),
             _themed_tokens(WEEKLY_LIGHT_TOKENS, WEEKLY_DARK_TOKENS),
             _WEEKLY_CSS,
-            _REDUCED_MOTION_CSS,
         ]
     )
