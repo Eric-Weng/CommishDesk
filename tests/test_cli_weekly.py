@@ -334,6 +334,11 @@ def test_weekly_happy_path_prints_sections_and_writes_files(
     assert "<h1>" not in body and "<h2>" not in body  # the dump's bare, unstyled headings
     assert body.count("<style>") == 1
     assert body.count("<script") == 1 and body.count("<script>") == 1
+    # Story 6.0c Part A: the CLI passes the built-in enhancer, so the written
+    # page carries its script verbatim, just before </body>.
+    from commishdesk.render._builtin_enhancer import BUILTIN_JS
+
+    assert body.endswith("<script>\n" + BUILTIN_JS + "\n</script>\n</body>\n</html>\n")
     assert "UNVERIFIED" not in body
     assert text_path.read_text(encoding="utf-8").strip()
 

@@ -21,7 +21,9 @@ run writes it in place of the generic dump. Story 5.14b adds the weekly email
 pair (:func:`~commishdesk.render.weekly_email.render_weekly_email`) and the
 designed Discord post
 (:func:`~commishdesk.render.discord.render_weekly_discord_post`), all three
-built on :mod:`commishdesk.render._weekly_model`. This module imports the narrator output type,
+built on :mod:`commishdesk.render._weekly_model`. Story 6.0c exports the
+weekly page's :class:`~commishdesk.render.enhancer.WebEnhancer` seam (AD-40)
+and its :class:`~commishdesk.render.enhancer.EnhancerRejected` error. This module imports the narrator output type,
 ``commishdesk.facts`` schema types (via ``render/web.py`` / ``render/email.py``),
 and the standard library only (AD-1).
 """
@@ -37,12 +39,15 @@ from commishdesk.narrate import Recap
 from commishdesk.render._body import _esc
 from commishdesk.render.discord import render_discord_summary, render_weekly_discord_post, utf16_len
 from commishdesk.render.email import EmailParts, render_email
+from commishdesk.render.enhancer import EnhancerRejected, WebEnhancer
 from commishdesk.render.web import render_web
 from commishdesk.render.weekly_email import render_weekly_email
 from commishdesk.render.weekly_web import render_weekly_web
 
 __all__ = [
     "EmailParts",
+    "EnhancerRejected",
+    "WebEnhancer",
     "narrated_text_to_html",
     "recap_to_html",
     "render_discord_summary",

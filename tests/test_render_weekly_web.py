@@ -35,6 +35,8 @@ from commishdesk.narrate.weekly_template import SECTION_HEADINGS, WeeklyIssue, W
 from commishdesk.render import _weekly_model as wm
 from commishdesk.render import render_weekly_web
 from commishdesk.render import style as style_mod
+from commishdesk.render._builtin_enhancer import BUILTIN_ENHANCER
+from commishdesk.render.enhancer import WebEnhancer
 from tests.conftest import REPO_ROOT
 
 FACTS_DIR = REPO_ROOT / "tests" / "fixtures" / "facts"
@@ -65,11 +67,24 @@ def _week01_raw() -> dict[str, Any]:
     )
 
 
-def _page(raw: dict[str, Any], issue: WeeklyIssue | None = None) -> str:
+def _page(
+    raw: dict[str, Any], issue: WeeklyIssue | None = None, *, enhancer: WebEnhancer | None = BUILTIN_ENHANCER
+) -> str:
+    """The page as the CLI writes it (Story 6.0c: with the built-in enhancer);
+    pass ``enhancer=None`` for the static page."""
     facts = WeeklyFacts.model_validate(raw)
     return render_weekly_web(
-        facts, issue or render_weekly_issue(facts.narration), output_id="x", generated_at=_STAMP
+        facts,
+        issue or render_weekly_issue(facts.narration),
+        output_id="x",
+        generated_at=_STAMP,
+        enhancer=enhancer,
     )
+
+
+def _static(raw: dict[str, Any], issue: WeeklyIssue | None = None) -> str:
+    """The static page: no enhancer, so no script and no motion (AD-40)."""
+    return _page(raw, issue, enhancer=None)
 
 
 def _body(page: str) -> str:
@@ -326,32 +341,38 @@ def test_render_is_deterministic() -> None:
     assert _page(_raw(published=True)) == _page(_raw(published=True))
 
 
-#: SHA-256 of the Story 5.14a page (commit 779de47) for the two committed
-#: fixtures — Story 5B.2 added the interaction layer's inline ``<script>`` and
-#: the reveal/draw-in CSS, which moved the hash. Story 5B.3 adds the
-#: power-rank bump chart (SVG, per-mark draw-in, hit targets, hover/pin CSS
-#: and JS), which moved it again. Story 5B.4 adds the luck focus / tap preview
-#: and grow-in bars plus the all-play standings toggle, which moved it again.
-#: Story 5B.5 adds the expandable matchup and next-week cards (in-card detail
-#: panel, pinned state, expand button), which moved it again. Change these
-#: only with a deliberate design change to the page, and regenerate them by
-#: running this test once and copying the printed digests.
+#: SHA-256 of the weekly page per committed fixture, static (no enhancer) and
+#: with the built-in enhancer the CLI passes. History: Story 5.14a's page
+#: (commit 779de47); Stories 5B.2-5B.5 grew the interaction script and CSS.
+#: Story 6.0c (AD-40, Eric 2026-09-30) moves the script and motion CSS behind
+#: the WebEnhancer seam: the motion CSS now sits at the end of ``<style>`` and
+#: the dead-control fixes change the markup, so tag N's built-in page is
+#: deliberately not byte-identical to v0.6.0's. The invariant that matters now
+#: is that Story 6.10's app-enhanced page is byte-identical to the "builtin"
+#: digests here. Change these only with a deliberate design change to the
+#: page, and regenerate them by running this test once and copying the
+#: printed digests.
 _GOLDEN_SHA256 = {
-    False: "c4dbb12ee6d5dd4ef9cc5e88e5ec6c2e10b327c5f713ef80a4c62018ac1f36ad",
-    True: "008985a8b23a0d27b181cbd82234dde187fb89af33053507daf9422a20a93167",
+    ("week10", "static"): "ea8ad8a3b2e46b0bc52048a427a7d688c323b6336201f7a57581882eabbf72e7",
+    ("week10", "builtin"): "b90526949b6aed5d4efcdf3a69836492cc0465c4e2b1375184640d3536477df1",
+    ("week10-published", "static"): "acf0ee8d57997c87b86586e5fb65cd6ac2a4bb1a52d6fb45c799f8acd38e568a",
+    ("week10-published", "builtin"): "d01ba59d1e9d3df2aa0f65bdfc7055f14d18c813e946ca7ca962102e14b04599",
+    ("week01", "static"): "c345d8653ba7045af7a342d42f2ee0bded7902a645961c3e0685333ef4786ad9",
+    ("week01", "builtin"): "ac487fbf2d260d3d1713146e537dd629bbf4a06e6f384096133ac52d0015f662",
 }
 
 
-@pytest.mark.parametrize("published", [False, True])
-def test_page_is_byte_identical_to_the_5_14a_golden(published: bool) -> None:
-    page = _page(_raw(published=published))
+@pytest.mark.parametrize(("fixture", "mode"), sorted(_GOLDEN_SHA256))
+def test_page_is_byte_identical_to_its_golden(fixture: str, mode: str) -> None:
+    raw = json.loads((FACTS_DIR / f"expected-weekly-facts-{fixture}.json").read_text(encoding="utf-8"))
+    page = _page(raw, enhancer=BUILTIN_ENHANCER if mode == "builtin" else None)
     actual = hashlib.sha256(page.encode("utf-8")).hexdigest()
-    expected = _GOLDEN_SHA256[published]
+    expected = _GOLDEN_SHA256[(fixture, mode)]
     assert actual == expected, (
-        f"rendered page hash changed (published={published}).\n"
+        f"rendered page hash changed ({fixture}, {mode}).\n"
         f"  actual   = {actual}\n"
         f"  expected = {expected}\n"
-        f"If this is a deliberate design change, set _GOLDEN_SHA256[{published}] "
+        f"If this is a deliberate design change, set _GOLDEN_SHA256[({fixture!r}, {mode!r})] "
         f"to the actual value above."
     )
 
@@ -377,9 +398,15 @@ def test_reduced_motion_query_zeroes_interaction_durations() -> None:
 
 
 def test_js_off_is_finished_and_visible_by_default() -> None:
-    page = _page(_raw())
+    """Story 6.0c: the static page (no enhancer) is the JS-off page -- zero
+    script, no motion rule, nothing hidden waiting to be revealed."""
+    page = _static(_raw())
     css = page.split("<style>", 1)[1].split("</style>", 1)[0]
-    body_without_script = _body(page).split("<script>", 1)[0]
+    body_without_script = _body(page)
+    assert "<script" not in page
+    assert "js-reveal" not in css
+    assert "@keyframes" not in css
+    assert "animation" not in css
     assert "data-reveal" in body_without_script
     assert 'style="opacity: 0' not in body_without_script
     assert "is-revealed" not in body_without_script
@@ -775,7 +802,14 @@ def test_luck_rows_are_focusable_and_carry_the_template_voice_preview() -> None:
 
     previews = re.findall(r'<g class="luck-row"[^>]*data-luck-preview="([^"]*)"', luck)
     assert previews
-    assert 'tabindex="0"' in luck
+    # Story 6.0c audit fix: the markup carries no button role / tabindex (a
+    # static page must not offer a control that does nothing); the built-in
+    # script makes each row a focusable button before binding it.
+    assert 'tabindex="0"' not in luck and 'role="button"' not in luck
+    script = _page(raw).split("<script>", 1)[1].split("</script>", 1)[0]
+    luck_block = script.split('".luck-row[data-luck-preview]"', 1)[1].split("addEventListener", 1)[0]
+    assert 'row.setAttribute("role", "button");' in luck_block
+    assert 'row.setAttribute("tabindex", "0");' in luck_block
     assert 'class="luck-hit"' in luck
     assert 'class="luck-preview" data-luck-preview hidden' in luck
 
@@ -1136,3 +1170,103 @@ def test_expandable_card_escapes_hostile_names_in_detail_markup() -> None:
     escaped = "&lt;script&gt;x&lt;/script&gt;"
     assert any(escaped in detail for detail in details)
     assert all("<script>x</script>" not in detail for detail in details)
+
+
+# --------------------------------------------------------------------------- #
+# Story 6.0c -- the static page (no enhancer) has no dead controls
+# --------------------------------------------------------------------------- #
+
+
+def _css_block(css: str, selector: str) -> str:
+    """The declarations of the first top-level rule whose selector is exactly *selector*."""
+    match = re.search(rf"(?m)^{re.escape(selector)} \{{([^}}]*)\}}", css)
+    assert match, selector
+    return match.group(1)
+
+
+@pytest.mark.parametrize("published", [False, True])
+def test_static_page_has_no_script_and_every_section_visible(published: bool) -> None:
+    raw = _raw(published=published)
+    static = _static(raw)
+    assert "<script" not in static
+    css = static.split("<style>", 1)[1].split("</style>", 1)[0]
+    assert "js-reveal" not in css and "@keyframes" not in css
+    assert "prefers-reduced-motion" not in css  # nothing moves, so nothing to zero
+    body = _body(static)
+    positions = [body.index(marker) for marker in _SECTION_ORDER]
+    assert positions == sorted(positions)
+    # The same Issue as the enhanced page: only the script differs in the body.
+    enhanced_body = _body(_page(raw)).split("\n<script>", 1)[0]
+    assert body == enhanced_body + "\n</body>\n</html>\n"
+
+
+def test_static_page_offers_no_control_that_does_nothing() -> None:
+    """AC: with no enhancer, no element is focusable or styled as a control
+    without doing something. Every ``<button>`` sits in a container the static
+    stylesheet hides (the bump chart's team list, the card expanders, the
+    all-play toggle), no element carries ``role="button"`` or ``tabindex``, and
+    the bump chart's "Hover or select" detail panel is hidden."""
+    page = _static(_raw(published=True))
+    css = page.split("<style>", 1)[1].split("</style>", 1)[0]
+    body = _body(page)
+
+    assert 'role="button"' not in body
+    assert "tabindex" not in body
+    assert "cursor: pointer" not in _css_block(css, ".luck-row rect.luck-hit")
+    assert ".luck-row {" not in css
+
+    assert "display: none;" in _css_block(css, ".pw-hits")
+    assert "display: none;" in _css_block(css, ".bump-detail")
+    assert "display: none;" in _css_block(css, ".card-expand")
+    assert "display: none;" in _css_block(css, ".standings-toggle")
+    assert "grid-template-columns: minmax(0, 1fr);" in _css_block(css, ".bump-layout")
+    assert "320px" not in _css_block(css, ".bump-layout")
+
+    buttons = re.findall(r'<button\b[^>]*class="([^"]*)"', body)
+    assert buttons
+    for cls in buttons:
+        assert cls in {"hit pw-hit", "card-expand"} or cls.startswith("toggle-btn"), cls
+    # Each hidden container really holds its buttons.
+    assert re.search(r'<div class="pw-hits" role="list"><button type="button" class="hit pw-hit"', body)
+    assert "Hover or select a team" in body.split('class="bump-detail"', 1)[1].split("</div>", 1)[0]
+
+
+def test_builtin_page_reveals_the_controls_the_static_page_hides() -> None:
+    """The built-in enhancer's CSS re-enables, under ``html.js-reveal``, exactly
+    the controls its script drives -- and keeps the bump chart single-column on
+    narrow screens (its two-column rule outranks the base media query)."""
+    page = _page(_raw(published=True))
+    css = page.split("<style>", 1)[1].split("</style>", 1)[0]
+    for rule in (
+        "html.js-reveal .pw-hits { display: flex; }",
+        "html.js-reveal .bump-detail { display: block; }",
+        "html.js-reveal .bump-layout { grid-template-columns: minmax(0, 1fr) 320px; }",
+        "html.js-reveal .card-expand { display: inline-flex; }",
+        "html.js-reveal .standings-toggle { display: flex; }",
+    ):
+        assert rule in css, rule
+    narrow = css.split("@media (max-width: 900px) {\n  html.js-reveal .bump-layout", 1)
+    assert len(narrow) == 2
+    assert css.index("html.js-reveal .bump-layout { grid-template-columns: minmax(0, 1fr) 320px; }") < len(narrow[0])
+
+
+def test_builtin_css_sits_at_the_end_of_the_one_style_element() -> None:
+    from commishdesk.render._builtin_enhancer import BUILTIN_CSS, BUILTIN_JS
+
+    page = _page(_raw())
+    assert page.count("<style>") == 1
+    css = page.split("<style>\n", 1)[1].split("\n</style>", 1)[0]
+    assert css == style_mod.build_weekly_style() + "\n" + BUILTIN_CSS
+    assert page.endswith("</main>\n<script>\n" + BUILTIN_JS + "\n</script>\n</body>\n</html>\n")
+
+
+def test_static_page_escapes_a_hostile_team_name() -> None:
+    """Matrix row: a hostile ``<svg onload=1>`` team name is escaped text, never
+    a tag, so the page-level validator does not reject it -- with or without
+    the enhancer."""
+    hostile = "<svg onload=1>"
+    raw = _raw(published=True)
+    raw["teams"][0]["team_name"] = hostile
+    for page in (_static(raw), _page(raw)):
+        assert hostile not in page
+        assert "&lt;svg onload=1&gt;" in page

@@ -2080,6 +2080,7 @@ def _render_and_write_weekly_issue(
     ranks-only payload; stamping the reasons here cannot make them in-world."""
     from commishdesk.narrate.weekly_template import weekly_issue_to_text
     from commishdesk.render import render_weekly_email, render_weekly_web, write_html_file, write_text_file
+    from commishdesk.render._builtin_enhancer import BUILTIN_ENHANCER
 
     stem = _issue_filename_stem(week, "weekly")
     text = weekly_issue_to_text(issue)
@@ -2093,6 +2094,9 @@ def _render_and_write_weekly_issue(
             issue,
             output_id=resolved,
             generated_at=str(doc.generated_at),
+            # Story 6.0c Part A: self-hosted output keeps the Story 5B
+            # interaction layer at tag N; Part B removes the built-in.
+            enhancer=BUILTIN_ENHANCER,
         ),
         Path(out_dir) / f"commishdesk-{resolved}-{stem}.html",
     )
