@@ -74,6 +74,7 @@ from commishdesk.render._weekly_model import team_label as _team_label
 from commishdesk.render._weekly_model import whole as _whole
 from commishdesk.render._weekly_model import winner_loser as _winner_loser
 from commishdesk.render.style import build_weekly_style
+from commishdesk.sections import heading_for
 
 __all__ = ["render_weekly_web"]
 
@@ -823,7 +824,7 @@ _HEROES = {
 
 
 def _lead_section(ctx: _Ctx) -> str:
-    blocks = ctx.blocks("The Lead")
+    blocks = ctx.blocks(heading_for("lead"))
     lead = wm.choose_lead(ctx.facts)
     awards = _awards(ctx)
     if lead is None:
@@ -913,7 +914,7 @@ def _game_card(ctx: _Ctx, matchup: WeeklyMatchup) -> str:
 
 def _around_section(ctx: _Ctx) -> str:
     games = ctx.facts.matchups.this_week
-    blocks = ctx.blocks("Around the League")
+    blocks = ctx.blocks(heading_for("around_league"))
     if not games:
         return ""
     cards = "".join(_game_card(ctx, matchup) for matchup in games)
@@ -1040,7 +1041,7 @@ def _standings_section(ctx: _Ctx) -> str:
     note = ""
     if picture is not None and picture.seeding_unconfirmed:
         note = '<p class="seeding-note">Seeding unconfirmed — derived from the standings.</p>'
-    prose_heading = "Standings" if cold_start else "Standings and the Playoff Picture"
+    prose_heading = heading_for("standings", cold_start=cold_start)
     return (
         '<section class="card table-card" data-standings aria-label="Standings" data-reveal>'
         f'{_head("Standings", title, "good")}'
@@ -1280,7 +1281,7 @@ def _power_section(ctx: _Ctx) -> str:
         f'{_head("Power rankings", "Where the model and the desk land", "emph")}'
         f"{bump}"
         f'{head}<div class="power">{"".join(items)}</div>'
-        f"{_prose(ctx.blocks('Power Rankings'))}</section>"
+        f"{_prose(ctx.blocks(heading_for("power")))}</section>"
     )
 
 
@@ -1373,7 +1374,7 @@ def _luck_section(ctx: _Ctx) -> str:
         '<section class="card luck-card" data-luck-section aria-label="The luck index" data-reveal>'
         f'{_head("The luck index", "Who the schedule favoured", "notable")}{svg}'
         '<p class="luck-preview" data-luck-preview hidden></p>'
-        f"{_prose(ctx.blocks('The Luck Index'))}</section>"
+        f"{_prose(ctx.blocks(heading_for("luck")))}</section>"
     )
 
 
@@ -1433,7 +1434,7 @@ def _next_week_section(ctx: _Ctx) -> str:
     return (
         f'<section aria-label="Next week" data-reveal>{_head("Next week", "Next week" + chr(8217) + "s games", "bad")}'
         f'{shared_line}{byes_line}<div class="grid3">{body}</div>'
-        f"{_prose(ctx.blocks('Next Week'))}</section>"
+        f"{_prose(ctx.blocks(heading_for("next_week")))}</section>"
     )
 
 
@@ -1491,7 +1492,7 @@ def _transactions_section(ctx: _Ctx) -> str:
         f'<section aria-label="The transaction desk" data-reveal>'
         f'{_head("The transaction desk", "What moved on the wire", "good")}'
         f'<div class="grid3">{"".join(cards)}</div>'
-        f"{_prose(ctx.blocks('The Transaction Desk'))}</section>"
+        f"{_prose(ctx.blocks(heading_for("transactions")))}</section>"
     )
 
 

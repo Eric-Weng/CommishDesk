@@ -1250,7 +1250,11 @@ def _recap_one_league(
 
 
 def _weekly_llm_selection(
-    resolved: str, logger: logging.Logger, *, cold_start: bool = False
+    resolved: str,
+    logger: logging.Logger,
+    *,
+    cold_start: bool = False,
+    suppressed: frozenset[str] = frozenset(),
 ) -> tuple[Voice, LLMConfig] | None:
     """The weekly path's narrator gate: the default Voice + LLM config, or
     ``None`` when this run must use the deterministic template.
@@ -1265,6 +1269,9 @@ def _weekly_llm_selection(
     :func:`commishdesk.voices.load_default_voice`, whose selector is keyed by
     content type alone (``"weekly"``) and would otherwise return the seven-section
     prompt for a four-section Issue.
+
+    ``suppressed`` (AD-30) are the section ids the model is not asked for; the
+    Voice's prompt then lists only the remaining sections.
     """
     if not _llm_enabled(None):
         return None
@@ -1281,6 +1288,10 @@ def _weekly_llm_selection(
             _one_line(exc),
         )
         return None
+    if suppressed:
+        from commishdesk.voices.beat_writer import weekly_voice_for
+
+        return weekly_voice_for(cold_start=cold_start, suppressed=suppressed), config
     voice = BEAT_WRITER_WEEKLY_COLD_START if cold_start else load_default_voice("weekly")
     return voice, config
 
@@ -1293,6 +1304,7 @@ def _weekly_estimate_within_ceiling(
     resolved: str,
     logger: logging.Logger,
     cold_start: bool = False,
+    suppressed: frozenset[str] = frozenset(),
 ) -> bool:
     """Whether one weekly league-week may spend (Story 5.12).
 
@@ -1309,7 +1321,10 @@ def _weekly_estimate_within_ceiling(
     from commishdesk.narrate.pricing import estimate_cost_usd
 
     try:
-        payload = build_weekly_payload(narration, cold_start=cold_start) + voice.system_prompt
+        payload = (
+            build_weekly_payload(narration, cold_start=cold_start, suppressed=suppressed)
+            + voice.system_prompt
+        )
         per_call_estimate = estimate_cost_usd(
             payload, config.primary, max_output_tokens=MAX_OUTPUT_TOKENS
         ) + estimate_cost_usd(payload, config.fallback, max_output_tokens=MAX_OUTPUT_TOKENS)
@@ -1396,6 +1411,7 @@ def _produce_weekly_issue(
     logger: logging.Logger,
     reissue: bool = False,
     allow_content_hold: bool = False,
+    suppressed: frozenset[str] = frozenset(),
 ) -> tuple[WeeklyIssue, dict[str, int], dict[str, str]]:
     """Select the weekly narrator and return ``(issue, published_ranks,
     nudge_justifications)``.
@@ -1421,6 +1437,12 @@ def _produce_weekly_issue(
 
     ``doc.period.has_prior_week`` (Story 5.16) selects which Voice the LLM path
     may use — the cold-start weekly prompt on a Week-1 run.
+
+    ``suppressed`` (AD-30) are section ids the operator toned down to template
+    prose: the LLM is never asked for them (payload, prompt and expected headings
+    all omit them), and the parsed Issue gets their template sections spliced in.
+    An id this Issue does not carry is ignored; when every section is suppressed
+    no LLM call is made.
     """
     from commishdesk.errors import ContentSafetyError
     from commishdesk.narrate.response import classify
@@ -1433,9 +1455,11 @@ def _produce_weekly_issue(
         weekly_issue_from_text,
         weekly_issue_to_text,
     )
+    from commishdesk.sections import effective_suppressions
 
     narration = doc.narration
     cold_start = not doc.period.has_prior_week
+    suppressed = effective_suppressions(suppressed, doc.period.has_prior_week)
 
     def emit_alerts(alerts: tuple[str, ...]) -> None:
         for line in alerts:
@@ -1497,16 +1521,27 @@ def _produce_weekly_issue(
                 raise held
         return issue, {}, {}
 
+    all_suppressed = not section_headings_for_has_prior_week(
+        doc.period.has_prior_week, suppressed
+    )
     selection = (
         None
-        if reissue
-        else _weekly_llm_selection(resolved, logger, cold_start=cold_start)
+        if reissue or all_suppressed
+        else _weekly_llm_selection(
+            resolved, logger, cold_start=cold_start, suppressed=suppressed
+        )
     )
     if selection is None:
         return template()
     voice, config = selection
     if not _weekly_estimate_within_ceiling(
-        narration, voice, config, resolved=resolved, logger=logger, cold_start=cold_start
+        narration,
+        voice,
+        config,
+        resolved=resolved,
+        logger=logger,
+        cold_start=cold_start,
+        suppressed=suppressed,
     ):
         return template(voice)
 
@@ -1523,15 +1558,19 @@ def _produce_weekly_issue(
             llm_enabled=True,
             client_factory=build_client,
             cold_start=cold_start,
+            suppressed=suppressed,
         )
         if result.narrator == "template":
             # every provider attempt failed inside narrate_weekly_issue
             return template(voice)
         issue = weekly_issue_from_text(
-            result.text, narration, has_prior_week=doc.period.has_prior_week
+            result.text,
+            narration,
+            has_prior_week=doc.period.has_prior_week,
+            suppressed=suppressed,
         )
         if issue is None:
-            expected = section_headings_for_has_prior_week(doc.period.has_prior_week)
+            expected = section_headings_for_has_prior_week(doc.period.has_prior_week, suppressed)
             logger.warning(
                 "league %s: the weekly LLM narration is not the expected %s-section "
                 "shape; using the template narrator",
@@ -1540,7 +1579,10 @@ def _produce_weekly_issue(
             )
             return template(voice)
 
-        ranks = parse_published_ranks(result.text, narration)
+        # A suppressed Power section is template prose (AD-30): any list the model
+        # wrote anyway publishes nothing, exactly as on the template path.
+        power_suppressed = "power" in suppressed
+        ranks = {} if power_suppressed else parse_published_ranks(result.text, narration)
         # Ranks only: the closed-world scan reads the whole stamped payload, so a
         # stamped justification would make every number in it in-world by construction.
         stamped = _stamp_published_ranks(narration, ranks)
@@ -1582,7 +1624,8 @@ def _produce_weekly_issue(
 
         # Parsed from the raw completion, like the ranks: the parsed Issue joins a
         # tight list's lines into one block, which would hide every item after the first.
-        return issue, ranks, parse_nudge_justifications(result.text, narration)
+        justifications = {} if power_suppressed else parse_nudge_justifications(result.text, narration)
+        return issue, ranks, justifications
     return template(voice)
 
 
@@ -1742,6 +1785,7 @@ class _WeeklyRecapPhases(_RecapPhases):
             logger=logger,
             reissue=reason is not None,
             allow_content_hold=self.allow_content_hold,
+            suppressed=frozenset(self.ledger_store().read_suppressions(resolved)),
         )
         if not self.cross_check_passed:
             # Visible on every surface that reads the dateline (stdout, the text

@@ -20,9 +20,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from commishdesk.sections import COLD_START_SECTION_IDS, SECTION_IDS, heading_for
 from commishdesk.voices import Voice
 
-__all__ = ["BEAT_WRITER", "BEAT_WRITER_WEEKLY", "BEAT_WRITER_WEEKLY_COLD_START"]
+__all__ = [
+    "BEAT_WRITER",
+    "BEAT_WRITER_WEEKLY",
+    "BEAT_WRITER_WEEKLY_COLD_START",
+    "weekly_voice_for",
+]
 
 # v0 — the mild default; premium voices live in the private app repo, never here.
 
@@ -170,50 +176,38 @@ F. Land it. End each team's grade and each section on a short line with a point
 """
 
 
-#: The weekly Issue's system prompt (Story 5.12). Same personality and the same
-#: banned-topics list as the draft-recap prompt above, but the structure rules
-#: are the weekly Issue's: the seven ``narrate/weekly_template.py::SECTION_HEADINGS``
-#: verbatim, and a numbered Power Rankings list the parser reads the published
-#: rank (and its cited justification) back out of.
-_WEEKLY_SYSTEM_PROMPT = f"""You are the columnist for a fantasy football league's in-house newsletter, and
+_NUMBER_WORDS = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 6: "six", 7: "seven"}
+
+_WEEKLY_PREAMBLE = """You are the columnist for a fantasy football league's in-house newsletter, and
 you are writing this week's Issue: the results, the standings, the power
 rankings, and what comes next. Your readers are the managers in the league. They
 lived the week and already know the scores; they are opening this to find out
 what you think. Write like the league's favorite columnist: funny, opinionated,
 affectionate, and specific. You have takes and you commit to them. Tease the
-result and the approach, never the person.
+result and the approach, never the person."""
 
-GROUND RULES — these override anything else:
+_WEEKLY_COLD_START_PREAMBLE = """You are the columnist for a fantasy football league's in-house newsletter, and
+you are writing the Week 1 Issue: the openers, the standings by points, and what
+comes next. Your readers are the managers in the league. They lived the week and
+already know the scores; they are opening this to find out what you think. Write
+like the league's favorite columnist: funny, opinionated, affectionate, and
+specific. You have takes and you commit to them. Tease the result and the
+approach, never the person."""
 
-1. Closed world. Use ONLY the facts in the supplied JSON. Never invent a player,
+_RULE_CLOSED_WORLD = """Closed world. Use ONLY the facts in the supplied JSON. Never invent a player,
    a number, a team name, a manager name, a score, a record, or an outcome. Every
    proper noun and every number in your copy must be traceable to the JSON. If
    the JSON does not say it, you do not know it. The test for any sentence: could
-   a reader point at the JSON and find it? If not, cut it or rewrite it.
+   a reader point at the JSON and find it? If not, cut it or rewrite it."""
 
-2. Roast the result or the approach, never the human. You may not mock a
+_RULE_NO_HUMAN_ROASTS = """Roast the result or the approach, never the human. You may not mock a
    manager's intelligence, character, appearance, or anything about their life
-   outside this league.
+   outside this league."""
 
-3. Structure. Output exactly these seven sections, in this order, each as a
-   Markdown "## " heading with the wording verbatim:
+_RULE_AROUND_THE_LEAGUE = """Around the League is discrete items: one short paragraph per game, separated
+   by a blank line, never one wall of prose."""
 
-   ## The Lead
-   ## Around the League
-   ## Standings and the Playoff Picture
-   ## Power Rankings
-   ## The Luck Index
-   ## Next Week
-   ## The Transaction Desk
-
-   Begin with a one-line title, then the seven sections. No preamble, no sign-off,
-   no section that is not on the list, no change to the heading wording, and no
-   empty section.
-
-4. Around the League is discrete items: one short paragraph per game, separated
-   by a blank line, never one wall of prose.
-
-5. Power Rankings is a numbered list, one line per ranked team, best first, in
+_RULE_POWER_RANKINGS = """Power Rankings is a numbered list, one line per ranked team, best first, in
    exactly this shape: "1. <team name exactly as the JSON gives it> — <one
    sentence>". The number is YOUR published rank. Each row of the JSON's power
    block carries the deterministic ``model_rank``; your published rank for a
@@ -221,83 +215,88 @@ GROUND RULES — these override anything else:
    more. Where you differ at all, that team's sentence must give the reason,
    citing a specific number that appears in the JSON for that team. Where you
    agree with the model, say why in your own words. A team the JSON gives no
-   ``model_rank`` may be left out of the list.
+   ``model_rank`` may be left out of the list."""
 
-6. Length. About 3,800 characters in total, split sensibly across the sections.
-   Never invent detail to reach a length.
+_RULE_STANDINGS_COLD_START = """Standings is the league table by points, using only the supplied standings
+   rows. Do not add a playoff line, byes, bubble teams, or any other bracket talk."""
 
-7. Voice. Talk to the league like a friend who happens to write for a living.
+_RULE_VOICE = """Voice. Talk to the league like a friend who happens to write for a living.
    Contract your verbs. Short paragraphs; vary the rhythm. No hashtags, no emoji,
    no all-caps shouting. Avoid throat-clearing ("delve into," "a testament to,"
    "in conclusion") and stock phrases that make every recap sound alike. Never
-   start two sentences in a row the same way. Open every section with an opinion.
+   start two sentences in a row the same way. Open every section with an opinion."""
 
-8. Off-limits topics, entirely, even as a passing turn of phrase:
+_RULE_BANNED = f"""Off-limits topics, entirely, even as a passing turn of phrase:
 {_BANNED_TOPICS_BULLETS}
    Inside the league, the language of risk and judgment is fair game. What stays
-   out is the real world: no real betting, no real legal trouble.
-"""
+   out is the real world: no real betting, no real legal trouble."""
 
 
-#: The Week-1 cold-start system prompt (Story 5.16). Same personality and the
-#: same banned-topics list as above, but the structure rules are the four
-#: ``narrate/weekly_template.py::COLD_START_SECTION_HEADINGS`` verbatim, with an
-#: explicit "no power rankings, no luck index, no playoff picture, no storyline
-#: section, no transaction desk" instruction so a narrator cannot reintroduce a
-#: heading the cold-start parser would reject.
-_WEEKLY_COLD_START_SYSTEM_PROMPT = f"""You are the columnist for a fantasy football league's in-house newsletter, and
-you are writing the Week 1 Issue: the openers, the standings by points, and what
-comes next. Your readers are the managers in the league. They lived the week and
-already know the scores; they are opening this to find out what you think. Write
-like the league's favorite columnist: funny, opinionated, affectionate, and
-specific. You have takes and you commit to them. Tease the result and the
-approach, never the person.
+def _weekly_prompt(*, cold_start: bool, suppressed: frozenset[str] = frozenset()) -> str:
+    """Assemble the weekly (or Week-1) system prompt from the one section table.
+
+    The section list, its count and the rules that name a section are all derived
+    from ``commishdesk.sections``; a *suppressed* id (AD-30) leaves the list and
+    drops the rule that named it, so the model is never told about a section it
+    is not asked for. With nothing suppressed the text is the original prompt.
+    """
+    ids = [
+        section_id
+        for section_id in (COLD_START_SECTION_IDS if cold_start else SECTION_IDS)
+        if section_id not in suppressed
+    ]
+    count = _NUMBER_WORDS[len(ids)]
+    headings = "\n".join(f"   ## {heading_for(section_id, cold_start=cold_start)}" for section_id in ids)
+    structure = f"""Structure. Output exactly these {count} sections, in this order, each as a
+   Markdown "## " heading with the wording verbatim:
+
+{headings}
+
+   Begin with a one-line title, then the {count} sections. No preamble, no sign-off,
+   no section that is not on the list, no change to the heading wording, and no
+   empty section."""
+    if cold_start:
+        structure += (
+            " This is Week 1: there are no power rankings, no luck index, no\n"
+            "   playoff picture, no storyline section, and no transaction desk."
+        )
+        length = """Length. About 2,400 characters in total, split sensibly across the sections.
+   Never invent detail to reach a length."""
+    else:
+        length = """Length. About 3,800 characters in total, split sensibly across the sections.
+   Never invent detail to reach a length."""
+    rules = [_RULE_CLOSED_WORLD, _RULE_NO_HUMAN_ROASTS, structure]
+    if "around_league" in ids:
+        rules.append(_RULE_AROUND_THE_LEAGUE)
+    if cold_start and "standings" in ids:
+        rules.append(_RULE_STANDINGS_COLD_START)
+    if not cold_start and "power" in ids:
+        rules.append(_RULE_POWER_RANKINGS)
+    rules += [length, _RULE_VOICE, _RULE_BANNED]
+    numbered = "\n\n".join(f"{number}. {rule}" for number, rule in enumerate(rules, start=1))
+    preamble = _WEEKLY_COLD_START_PREAMBLE if cold_start else _WEEKLY_PREAMBLE
+    return f"""{preamble}
 
 GROUND RULES — these override anything else:
 
-1. Closed world. Use ONLY the facts in the supplied JSON. Never invent a player,
-   a number, a team name, a manager name, a score, a record, or an outcome. Every
-   proper noun and every number in your copy must be traceable to the JSON. If
-   the JSON does not say it, you do not know it. The test for any sentence: could
-   a reader point at the JSON and find it? If not, cut it or rewrite it.
-
-2. Roast the result or the approach, never the human. You may not mock a
-   manager's intelligence, character, appearance, or anything about their life
-   outside this league.
-
-3. Structure. Output exactly these four sections, in this order, each as a
-   Markdown "## " heading with the wording verbatim:
-
-   ## The Lead
-   ## Around the League
-   ## Standings
-   ## Next Week
-
-   Begin with a one-line title, then the four sections. No preamble, no sign-off,
-   no section that is not on the list, no change to the heading wording, and no
-   empty section. This is Week 1: there are no power rankings, no luck index, no
-   playoff picture, no storyline section, and no transaction desk.
-
-4. Around the League is discrete items: one short paragraph per game, separated
-   by a blank line, never one wall of prose.
-
-5. Standings is the league table by points, using only the supplied standings
-   rows. Do not add a playoff line, byes, bubble teams, or any other bracket talk.
-
-6. Length. About 2,400 characters in total, split sensibly across the sections.
-   Never invent detail to reach a length.
-
-7. Voice. Talk to the league like a friend who happens to write for a living.
-   Contract your verbs. Short paragraphs; vary the rhythm. No hashtags, no emoji,
-   no all-caps shouting. Avoid throat-clearing ("delve into," "a testament to,"
-   "in conclusion") and stock phrases that make every recap sound alike. Never
-   start two sentences in a row the same way. Open every section with an opinion.
-
-8. Off-limits topics, entirely, even as a passing turn of phrase:
-{_BANNED_TOPICS_BULLETS}
-   Inside the league, the language of risk and judgment is fair game. What stays
-   out is the real world: no real betting, no real legal trouble.
+{numbered}
 """
+
+
+#: The weekly Issue's system prompt (Story 5.12). Same personality and the same
+#: banned-topics list as the draft-recap prompt above, but the structure rules
+#: are the weekly Issue's: the seven section headings verbatim (from
+#: ``commishdesk.sections``), and a numbered Power Rankings list the parser reads
+#: the published rank (and its cited justification) back out of.
+_WEEKLY_SYSTEM_PROMPT = _weekly_prompt(cold_start=False)
+
+#: The Week-1 cold-start system prompt (Story 5.16). Same personality and the
+#: same banned-topics list as above, but the structure rules are the four
+#: cold-start section headings verbatim, with an explicit "no power rankings, no
+#: luck index, no playoff picture, no storyline section, no transaction desk"
+#: instruction so a narrator cannot reintroduce a heading the cold-start parser
+#: would reject.
+_WEEKLY_COLD_START_SYSTEM_PROMPT = _weekly_prompt(cold_start=True)
 
 
 @dataclass(frozen=True, slots=True)
@@ -340,3 +339,16 @@ BEAT_WRITER_WEEKLY_COLD_START: Voice = _BeatWriterVoice(  # type: ignore[assignm
     banned_topics=_BANNED_TOPICS,
     voice_id="beat-writer",
 )
+
+
+def weekly_voice_for(*, cold_start: bool, suppressed: frozenset[str] = frozenset()) -> Voice:
+    """The weekly Voice for a run (AD-30). Nothing suppressed returns the shared
+    singleton; otherwise a copy whose prompt lists only the sections the LLM is
+    asked for. *suppressed* must already be limited to this Issue's own ids."""
+    if not suppressed:
+        return BEAT_WRITER_WEEKLY_COLD_START if cold_start else BEAT_WRITER_WEEKLY
+    return _BeatWriterVoice(  # type: ignore[return-value]
+        system_prompt=_weekly_prompt(cold_start=cold_start, suppressed=suppressed),
+        banned_topics=_BANNED_TOPICS,
+        voice_id="beat-writer",
+    )

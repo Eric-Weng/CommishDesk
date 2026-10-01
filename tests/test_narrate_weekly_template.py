@@ -619,8 +619,12 @@ def test_module_imports_only_the_facts_schema_and_the_standard_library() -> None
         elif isinstance(node, ast.ImportFrom) and node.module is not None and node.level == 0:
             dotted.add(node.module)
     roots = {name.split(".")[0] for name in dotted}
-    assert roots <= {"__future__", "pydantic", "commishdesk", "re"}, roots
-    assert {name for name in dotted if name.startswith("commishdesk")} == {"commishdesk.facts.schema"}
+    assert roots <= {"__future__", "pydantic", "commishdesk", "re", "collections"}, roots
+    # Story 6.0b: the one section id/heading table (stdlib only) is the other allowed import.
+    assert {name for name in dotted if name.startswith("commishdesk")} == {
+        "commishdesk.facts.schema",
+        "commishdesk.sections",
+    }
 
 
 def test_module_reads_no_network_store_render_or_ingest_module() -> None:

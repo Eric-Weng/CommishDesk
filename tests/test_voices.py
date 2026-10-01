@@ -167,7 +167,10 @@ def test_voices_zone_module_keeps_the_v0_marker_and_imports_only_the_local_proto
             if module.startswith("commishdesk"):
                 # only the zone package itself (the local Voice protocol) or a
                 # sibling module inside it
-                assert module == "commishdesk.voices" or module.startswith("commishdesk.voices."), (
+                # Story 6.0b: the stdlib-only section id/heading table is shared.
+                assert module in ("commishdesk.voices", "commishdesk.sections") or module.startswith(
+                    "commishdesk.voices."
+                ), (
                     src_path.name,
                     module,
                 )
