@@ -36,6 +36,7 @@ from commishdesk.render import _weekly_model as wm
 from commishdesk.render._body import _esc, _plain
 from commishdesk.render.email import EmailParts, _document
 from commishdesk.render.style import WEEKLY_DARK_TOKENS, WEEKLY_LIGHT_TOKENS
+from commishdesk.sections import heading_for
 
 __all__ = ["render_weekly_email"]
 
@@ -1304,16 +1305,16 @@ def render_weekly_email(facts: WeeklyFacts, issue: WeeklyIssue, *, generated_at:
 
     built = [
         *_notices(issue, headings),
-        _lead(facts, blocks("The Lead")),
-        _results(facts, blocks("Around the League")),
+        _lead(facts, blocks(heading_for("lead"))),
+        _results(facts, blocks(heading_for("around_league"))),
         _standings(
             facts,
-            blocks("Standings" if cold_start else "Standings and the Playoff Picture"),
+            blocks(heading_for("standings", cold_start=cold_start)),
         ),
-        _power(facts, blocks("Power Rankings")) if not cold_start else None,
-        _luck(facts, blocks("The Luck Index")) if not cold_start else None,
-        _next_week(facts, blocks("Next Week")),
-        _transactions(facts, blocks("The Transaction Desk")) if not cold_start else None,
+        _power(facts, blocks(heading_for("power"))) if not cold_start else None,
+        _luck(facts, blocks(heading_for("luck"))) if not cold_start else None,
+        _next_week(facts, blocks(heading_for("next_week"))),
+        _transactions(facts, blocks(heading_for("transactions"))) if not cold_start else None,
     ]
     sections = [section for section in built if section is not None]
 

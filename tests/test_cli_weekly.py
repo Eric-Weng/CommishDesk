@@ -1976,3 +1976,115 @@ def test_weekly_week01_post_after_a_draft_recap_is_not_blocked_and_is_idempotent
     assert second.exit_code == 0, second.output
     assert len(posted) == 1  # idempotent: the confirmed weekly entry blocks a double post
     assert [e.kind for e in store.read_ledger("904", 1)] == ["draft_recap", "weekly"]
+
+
+# --------------------------------------------------------------------------- #
+# Story 6.0b — per-section template fallback (AD-30)
+# --------------------------------------------------------------------------- #
+
+
+class _HeadingEchoClient:
+    """Writes one plain paragraph under each ``## `` heading the Voice's prompt
+    lists, so the Issue only has the sections the LLM was actually asked for."""
+
+    def __init__(self) -> None:
+        self.calls: list[str] = []
+        self.prompts: list[str] = []
+
+    def generate(self, payload: str, voice: object) -> str:
+        self.calls.append(payload)
+        prompt = getattr(voice, "system_prompt", "")
+        self.prompts.append(prompt)
+        headings = re.findall(r"^   ## (.+)$", prompt, flags=re.MULTILINE)
+        return "A Title\n\n" + "\n\n".join(f"## {h}\n\nA plain voiced paragraph." for h in headings)
+
+
+def _suppression_run(
+    monkeypatch: pytest.MonkeyPatch, tmp_path, ids: list[str], league: str
+) -> tuple[_HeadingEchoClient, str]:
+    _stub_adapter(monkeypatch)
+    client = _HeadingEchoClient()
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+    monkeypatch.setenv("COMMISHDESK_COST_CEILING_USD", "100")
+    monkeypatch.setattr("commishdesk.narrate.llm.build_client", lambda cfg: client)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+    leagues = tmp_path / "cache" / "commishdesk" / "leagues"
+    leagues.mkdir(parents=True)
+    quoted = ", ".join(f'"{i}"' for i in ids)
+    (leagues / f"{league}.toml").write_text(f"suppress_sections = [{quoted}]\n", encoding="utf-8")
+    result = runner.invoke(app, ["--league", league, "--week", "17", "--out-dir", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    text = (tmp_path / f"commishdesk-{league}-weekly-week17.txt").read_text(encoding="utf-8")
+    return client, text
+
+
+def test_weekly_suppressed_power_is_template_prose_and_never_asked_of_the_llm(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    client, text = _suppression_run(monkeypatch, tmp_path, ["power"], "610")
+    assert len(client.calls) == 1
+    assert "power" not in json.loads(client.calls[0])
+    assert "Power Rankings" not in client.prompts[0]
+    assert _issue_headings(text) == list(WEEKLY_SECTION_HEADINGS)
+    power = text.split("## Power Rankings")[1].split("## ")[0]
+    assert "points a week" in power and "A plain voiced paragraph." not in power
+    assert text.count("A plain voiced paragraph.") == len(WEEKLY_SECTION_HEADINGS) - 1
+
+
+def test_weekly_all_sections_suppressed_is_the_pure_template_with_no_llm_call(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from commishdesk.sections import SECTION_IDS
+
+    client, text = _suppression_run(monkeypatch, tmp_path, list(SECTION_IDS), "611")
+    assert client.calls == []
+    assert _issue_headings(text) == list(WEEKLY_SECTION_HEADINGS)
+    assert "A plain voiced paragraph." not in text
+
+
+def test_weekly_suppressed_power_publishes_no_ranks_the_model_wrote_anyway(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A model that writes a nudged Power Rankings list although ``power`` is
+    suppressed: the template's Power prose wins, and its ranks and reasons are
+    neither rendered nor persisted, exactly as on the template path."""
+    _stub_adapter(monkeypatch)
+    voice = _stub_weekly_voice(monkeypatch, nudge=1)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+    # Record a voiced, nudged completion with every section in it...
+    first = runner.invoke(app, ["--league", "613", "--week", "17", "--out-dir", str(tmp_path / "a")])
+    assert first.exit_code == 0, first.output
+    full = voice.generate(voice.calls[0], voice.voices[0])
+    assert "## Power Rankings" in full
+
+    # ...then replay it for a league that suppresses Power.
+    class _ReplayClient:
+        def generate(self, payload: str, voice: object) -> str:
+            return full
+
+    monkeypatch.setattr("commishdesk.narrate.llm.build_client", lambda cfg: _ReplayClient())
+    _stub_post_discord_text(monkeypatch)
+    monkeypatch.setenv("COMMISHDESK_DISCORD_WEBHOOK_URL", _FAKE_WEBHOOK_URL)
+    leagues = tmp_path / "cache" / "commishdesk" / "leagues"
+    leagues.mkdir(parents=True)
+    (leagues / "614.toml").write_text('suppress_sections = ["power"]\n', encoding="utf-8")
+    result = runner.invoke(
+        app, ["--league", "614", "--week", "17", "--post", "--out-dir", str(tmp_path / "b")]
+    )
+    assert result.exit_code == 0, result.output
+    assert FileStore(tmp_path / "cache" / "commishdesk").read_published_rank("614", 17) is None
+    body = (tmp_path / "b" / "commishdesk-614-weekly-week17.html").read_text(encoding="utf-8")
+    assert "Nudged" not in body
+
+
+def test_weekly_a_bad_suppress_sections_config_fails_naming_league_and_id(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _stub_adapter(monkeypatch)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+    leagues = tmp_path / "cache" / "commishdesk" / "leagues"
+    leagues.mkdir(parents=True)
+    (leagues / "612.toml").write_text('suppress_sections = ["bogus"]\n', encoding="utf-8")
+    result = runner.invoke(app, ["--league", "612", "--week", "17", "--out-dir", str(tmp_path)])
+    assert result.exit_code != 0
+    assert "612" in result.output and "bogus" in result.output

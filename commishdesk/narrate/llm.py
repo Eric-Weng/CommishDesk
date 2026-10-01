@@ -42,7 +42,7 @@ from __future__ import annotations
 
 import logging
 import os
-from collections.abc import Callable, Iterator, Mapping, Sequence
+from collections.abc import Callable, Collection, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
@@ -56,8 +56,10 @@ from commishdesk.narrate.template import recap_to_text, render_draft_recap
 from commishdesk.narrate.weekly_template import (
     cold_start_standings,
     render_weekly_issue,
+    section_headings_for_has_prior_week,
     weekly_issue_to_text,
 )
+from commishdesk.sections import effective_suppressions
 from commishdesk.voices import Voice
 
 if TYPE_CHECKING:
@@ -155,7 +157,23 @@ def build_narration_payload(narration: Narration) -> str:
     return narration.model_dump_json()
 
 
-def build_weekly_payload(narration: WeeklyNarration, *, cold_start: bool = False) -> str:
+#: Payload fields that exist only to feed one suppressed section (AD-30), so the
+#: model is not shown data for a section it is not asked to write. Sections that
+#: share data with the rest of the Issue (lead, around the league, standings,
+#: next week) keep their fields.
+_SUPPRESSED_PAYLOAD_FIELDS: dict[str, str] = {
+    "power": "power",
+    "luck": "luck",
+    "transactions": "transactions",
+}
+
+
+def build_weekly_payload(
+    narration: WeeklyNarration,
+    *,
+    cold_start: bool = False,
+    suppressed: Collection[str] = frozenset(),
+) -> str:
     """Serialize the weekly ``narration`` projection to JSON for the model.
 
     Same contract as :func:`build_narration_payload`, for the standalone weekly
@@ -167,9 +185,18 @@ def build_weekly_payload(narration: WeeklyNarration, *, cold_start: bool = False
     ``power``, ``luck`` and ``storyline_candidates`` from the model payload and
     orders ``standings`` by points with positional ranks. Warm payload bytes stay
     unchanged.
+
+    ``suppressed`` (AD-30) is the set of section ids the model is not asked for;
+    the fields that fed only those sections are dropped. An id this Issue does
+    not carry is ignored, and an empty set leaves the bytes unchanged.
     """
+    dropped = {
+        _SUPPRESSED_PAYLOAD_FIELDS[section_id]
+        for section_id in effective_suppressions(suppressed, not cold_start)
+        if section_id in _SUPPRESSED_PAYLOAD_FIELDS
+    }
     if not cold_start:
-        return narration.model_dump_json()
+        return narration.model_dump_json(exclude=dropped) if dropped else narration.model_dump_json()
     cold = narration.model_copy(update={"standings": cold_start_standings(narration.standings)})
     return cold.model_dump_json(
         exclude={"playoff_picture", "transactions", "power", "luck", "storyline_candidates"}
@@ -586,6 +613,7 @@ def narrate_weekly_with_llm(
     *,
     client_factory: Callable[[LLMModelConfig], LLMClient] = build_client,
     cold_start: bool = False,
+    suppressed: Collection[str] = frozenset(),
 ) -> tuple[str, _LLMNarrator]:
     """The weekly counterpart of :func:`narrate_with_llm` (Story 5.12).
 
@@ -596,7 +624,7 @@ def narrate_weekly_with_llm(
     the weekly path too.
     """
     try:
-        payload = build_weekly_payload(narration, cold_start=cold_start)
+        payload = build_weekly_payload(narration, cold_start=cold_start, suppressed=suppressed)
     except Exception as exc:  # a malformed projection is a narrator fault, not a crash
         raise NarratorError("could not serialize the weekly narration payload") from exc
 
@@ -744,6 +772,7 @@ def narrate_weekly_issue(
     llm_enabled: bool,
     client_factory: Callable[[LLMModelConfig], LLMClient] = build_client,
     cold_start: bool = False,
+    suppressed: Collection[str] = frozenset(),
 ) -> NarrationResult:
     """The weekly counterpart of :func:`narrate_draft_recap` (Story 5.12).
 
@@ -757,8 +786,15 @@ def narrate_weekly_issue(
 
     ``cold_start=True`` (Story 5.16) propagates to :func:`narrate_weekly_with_llm`
     so the payload omits the sections a Week-1 Issue does not carry.
+
+    ``suppressed`` (AD-30) names section ids the model is never asked for: their
+    data leaves the payload, and when every section of the Issue is suppressed no
+    call is made at all. The returned text then lacks those sections; the caller
+    splices template prose back in through
+    :func:`~commishdesk.narrate.weekly_template.weekly_issue_from_text`.
     """
-    if llm_enabled:
+    all_suppressed = not section_headings_for_has_prior_week(not cold_start, suppressed)
+    if llm_enabled and not all_suppressed:
         try:
             text, tag = narrate_weekly_with_llm(
                 narration,
@@ -766,6 +802,7 @@ def narrate_weekly_issue(
                 config,
                 client_factory=client_factory,
                 cold_start=cold_start,
+                suppressed=suppressed,
             )
         except (NarratorError, ValidationError) as exc:
             _LOGGER.warning("weekly llm narrator unavailable; using template narrator: %s", exc)

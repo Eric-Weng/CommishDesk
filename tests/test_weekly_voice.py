@@ -391,6 +391,31 @@ def test_cold_start_voice_prompt_names_only_the_four_cold_start_headings() -> No
     assert "no transaction desk" in prompt
 
 
+@pytest.mark.parametrize(
+    ("cold_start", "golden"),
+    [(False, "beat-writer-weekly.txt"), (True, "beat-writer-weekly-cold-start.txt")],
+)
+def test_default_weekly_prompts_are_the_pre_table_text_byte_for_byte(cold_start: bool, golden: str) -> None:
+    """Story 6.0b assembles both weekly prompts from the section table; with
+    nothing suppressed they must stay the literal text they were before it."""
+    from commishdesk.voices.beat_writer import weekly_voice_for
+
+    expected = (REPO_ROOT / "tests" / "fixtures" / "prompts" / golden).read_text(encoding="utf-8")
+    assert weekly_voice_for(cold_start=cold_start).system_prompt == expected
+
+
+def test_cold_start_prompt_with_standings_suppressed_drops_its_heading_and_rule() -> None:
+    from commishdesk.voices.beat_writer import weekly_voice_for
+
+    prompt = weekly_voice_for(cold_start=True, suppressed=frozenset({"standings"})).system_prompt
+    assert "exactly these three sections" in prompt
+    assert "## Standings" not in prompt
+    assert "Do not add a playoff line" not in prompt
+    for heading in COLD_START_SECTION_HEADINGS:
+        if heading != "Standings":
+            assert f"## {heading}" in prompt, heading
+
+
 def test_parse_nudge_justifications_captures_only_deviating_rows() -> None:
     from commishdesk.narrate.weekly_template import parse_nudge_justifications
 

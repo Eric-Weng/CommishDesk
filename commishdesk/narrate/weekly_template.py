@@ -53,6 +53,7 @@ derivation of ``has_prior_week`` for narrators and renderers.
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 
 from pydantic import BaseModel, ConfigDict
 
@@ -64,6 +65,14 @@ from commishdesk.facts.schema import (
     WeeklyNarrationPlayoff,
     WeeklyNarrationPower,
     WeeklyNarrationStanding,
+)
+from commishdesk.sections import (
+    COLD_START_SECTION_IDS,
+    SECTION_IDS,
+    effective_suppressions,
+    heading_for,
+    id_for_heading,
+    section_ids_for,
 )
 
 __all__ = [
@@ -99,6 +108,12 @@ class WeeklySection(_Frozen):
     heading: str
     blocks: list[str] = []
 
+    @property
+    def section_id(self) -> str | None:
+        """The permanent id behind this heading (AD-30), or ``None`` for a section
+        outside the seven (a reissue's Correction)."""
+        return id_for_heading(self.heading)
+
 
 class WeeklyIssue(_Frozen):
     """A rendered weekly Issue: a masthead title, a one-line dateline, and the
@@ -109,25 +124,15 @@ class WeeklyIssue(_Frozen):
     sections: list[WeeklySection] = []
 
 
-#: The seven reference sections, in order — this module's own section set, and
-#: the shape :func:`weekly_issue_from_text` requires of a narrated Issue.
-SECTION_HEADINGS: tuple[str, ...] = (
-    "The Lead",
-    "Around the League",
-    "Standings and the Playoff Picture",
-    "Power Rankings",
-    "The Luck Index",
-    "Next Week",
-    "The Transaction Desk",
-)
+#: The seven reference sections' display headings, in order — derived from the
+#: one id table in :mod:`commishdesk.sections`; the shape
+#: :func:`weekly_issue_from_text` requires of a narrated Issue.
+SECTION_HEADINGS: tuple[str, ...] = tuple(heading_for(section_id) for section_id in SECTION_IDS)
 
 #: The four sections a Week-1 Issue carries (Story 5.16). Power, luck,
 #: storylines, playoff picture and the transaction desk stand down entirely.
-COLD_START_SECTION_HEADINGS: tuple[str, ...] = (
-    "The Lead",
-    "Around the League",
-    "Standings",
-    "Next Week",
+COLD_START_SECTION_HEADINGS: tuple[str, ...] = tuple(
+    heading_for(section_id, cold_start=True) for section_id in COLD_START_SECTION_IDS
 )
 
 #: The week at which all-play / expected-wins / luck become meaningful. The
@@ -137,18 +142,33 @@ COLD_START_SECTION_HEADINGS: tuple[str, ...] = (
 _MEANINGFUL_FROM_WEEK = 2
 
 
-def section_headings_for_has_prior_week(has_prior_week: bool) -> tuple[str, ...]:
+def section_headings_for_has_prior_week(
+    has_prior_week: bool, suppressed: Iterable[str] | None = None
+) -> tuple[str, ...]:
     """The Issue's section set for a weekly run.
 
     ``has_prior_week=False`` is the Story 5.16 cold-start marker: four sections,
     no Power/Luck/playoff/transaction headings. ``True`` keeps the seven-section
     warm set.
+
+    *suppressed* (AD-30) is a set of section ids the LLM is not asked for: their
+    headings are left out. An id outside this Issue's own set is ignored, and
+    ``None`` / empty returns the full set.
     """
-    return SECTION_HEADINGS if has_prior_week else COLD_START_SECTION_HEADINGS
+    if not suppressed:
+        return SECTION_HEADINGS if has_prior_week else COLD_START_SECTION_HEADINGS
+    dropped = effective_suppressions(suppressed, has_prior_week)
+    return tuple(
+        heading_for(section_id, cold_start=not has_prior_week)
+        for section_id in section_ids_for(has_prior_week)
+        if section_id not in dropped
+    )
 
 
 def section_headings_for_narration(
-    narration: WeeklyNarration, has_prior_week: bool | None = None
+    narration: WeeklyNarration,
+    has_prior_week: bool | None = None,
+    suppressed: Iterable[str] | None = None,
 ) -> tuple[str, ...]:
     """The section set for *narration*, through the shared cold-start switch.
 
@@ -158,7 +178,7 @@ def section_headings_for_narration(
     """
     if has_prior_week is None:
         has_prior_week = narration.league.week >= _MEANINGFUL_FROM_WEEK
-    return section_headings_for_has_prior_week(has_prior_week)
+    return section_headings_for_has_prior_week(has_prior_week, suppressed)
 
 
 # --------------------------------------------------------------------------- #
@@ -241,8 +261,8 @@ def render_weekly_issue(
     narrator does not see it (it is not part of the ``narration`` projection).
     """
     title, dateline = _masthead(narration)
-    headings = section_headings_for_narration(narration, has_prior_week)
-    if headings == COLD_START_SECTION_HEADINGS:
+    cold_start = section_headings_for_narration(narration, has_prior_week) == COLD_START_SECTION_HEADINGS
+    if cold_start:
         sections = [
             _lead_section(narration),
             _around_section(narration, include_storylines=False),
@@ -337,7 +357,11 @@ def _split_sections(text: str) -> list[WeeklySection] | None:
 
 
 def weekly_issue_from_text(
-    text: str, narration: WeeklyNarration, *, has_prior_week: bool | None = None
+    text: str,
+    narration: WeeklyNarration,
+    *,
+    has_prior_week: bool | None = None,
+    suppressed: Iterable[str] | None = None,
 ) -> WeeklyIssue | None:
     """Parse a narrated weekly Issue's Markdown back into a :class:`WeeklyIssue`.
 
@@ -348,21 +372,38 @@ def weekly_issue_from_text(
     and any extra section the narrator added is dropped warm, rejected cold. The
     masthead is rebuilt from *narration*, never taken from the text.
 
+    *suppressed* (AD-30) names section ids the narrator was never asked for: the
+    expected set shrinks by those headings, and each suppressed section is
+    spliced in from :func:`render_weekly_issue` (template prose, its numbers
+    intact) so the returned Issue always carries the full canonical set. A
+    completion that writes a suppressed heading anyway has it ignored warm
+    (the template's wins) and is rejected cold, like any other extra section.
+
     ``None`` when the text is not the expected shape — the caller then degrades
     to the template narrator rather than shipping a malformed dump.
     """
     sections = _split_sections(text)
     if sections is None:
         return None
-    headings = section_headings_for_narration(narration, has_prior_week)
+    if has_prior_week is None:
+        has_prior_week = narration.league.week >= _MEANINGFUL_FROM_WEEK
+    cold_start = not has_prior_week
+    dropped = effective_suppressions(suppressed, has_prior_week)
+    full = section_headings_for_has_prior_week(has_prior_week)
+    headings = section_headings_for_has_prior_week(has_prior_week, dropped)
     by_heading = {section.heading: section for section in sections}
     if any(not by_heading.get(name, WeeklySection(heading=name, blocks=[])).blocks for name in headings):
         return None
-    if headings == COLD_START_SECTION_HEADINGS:
+    if cold_start:
         # A cold-start completion must not reintroduce a stood-down section.
-        if {section.heading for section in sections} != set(COLD_START_SECTION_HEADINGS):
+        if {section.heading for section in sections} != set(headings):
             return None
-    ordered = [by_heading[name] for name in headings]
+    template_by_heading = (
+        {section.heading: section for section in render_weekly_issue(narration, has_prior_week=has_prior_week).sections}
+        if dropped
+        else {}
+    )
+    ordered = [by_heading[name] if name in headings else template_by_heading[name] for name in full]
     title, dateline = _masthead(narration)
     return WeeklyIssue(title=title, dateline=dateline, sections=ordered)
 
@@ -376,7 +417,7 @@ def _power_section_lines(text: str) -> list[str]:
     for line in text.splitlines():
         match = _ATX_LINE.match(line)
         if match is not None:
-            inside = match.group(1).strip() == "Power Rankings"
+            inside = match.group(1).strip() == heading_for("power")
             continue
         if inside:
             lines.append(line)
@@ -464,7 +505,7 @@ def _lead_section(narration: WeeklyNarration) -> WeeklySection:
     for candidate in narration.lead_candidates:
         if candidate.hook:
             blocks.append(candidate.hook)
-    return WeeklySection(heading="The Lead", blocks=blocks)
+    return WeeklySection(heading=heading_for("lead"), blocks=blocks)
 
 
 def _game_family(game: WeeklyNarrationGame) -> str:
@@ -519,7 +560,7 @@ def _around_section(
                 blocks.append(hook)
     if not blocks:
         blocks.append(_NO_GAMES)
-    return WeeklySection(heading="Around the League", blocks=blocks)
+    return WeeklySection(heading=heading_for("around_league"), blocks=blocks)
 
 
 def _standings_line(row: WeeklyNarrationStanding) -> str:
@@ -571,7 +612,7 @@ def _standings_section(
         blocks.append(_NO_STANDINGS)
     if not cold_start:
         blocks.append(_playoff_block(narration.playoff_picture))
-    heading = "Standings" if cold_start else "Standings and the Playoff Picture"
+    heading = heading_for("standings", cold_start=cold_start)
     return WeeklySection(heading=heading, blocks=blocks)
 
 
@@ -588,7 +629,7 @@ def _power_section(narration: WeeklyNarration) -> WeeklySection:
     blocks = [_power_line(row) for row in rows]
     if not blocks:
         blocks.append(_NO_POWER)
-    return WeeklySection(heading="Power Rankings", blocks=blocks)
+    return WeeklySection(heading=heading_for("power"), blocks=blocks)
 
 
 def _luck_line(row: WeeklyNarrationLuck) -> str:
@@ -605,7 +646,7 @@ def _luck_section(narration: WeeklyNarration) -> WeeklySection:
     blocks = [_luck_line(row) for row in narration.luck if row.luck is not None]
     if not blocks:
         blocks.append(_NO_LUCK)
-    return WeeklySection(heading="The Luck Index", blocks=blocks)
+    return WeeklySection(heading=heading_for("luck"), blocks=blocks)
 
 
 #: `stats/stakes.py`'s tag vocabulary (`_TAG_ORDER`), in human words — a copy,
@@ -648,14 +689,14 @@ def _next_week_section(narration: WeeklyNarration) -> WeeklySection:
     blocks.extend(_next_week_card(card) for card in narration.next_week)
     if not blocks:
         blocks.append(_NO_SCHEDULE)
-    return WeeklySection(heading="Next Week", blocks=blocks)
+    return WeeklySection(heading=heading_for("next_week"), blocks=blocks)
 
 
 def _transactions_section(narration: WeeklyNarration) -> WeeklySection:
     """A quiet week is one deliberate line, never an empty heading."""
     desk = narration.transactions
     if desk.this_week_count == 0 and desk.recent_trade_count == 0:
-        return WeeklySection(heading="The Transaction Desk", blocks=[_QUIET_WIRE])
+        return WeeklySection(heading=heading_for("transactions"), blocks=[_QUIET_WIRE])
     blocks = [
         f"{_count(desk.this_week_count, 'move').capitalize()} this week.",
         f"{_count(desk.recent_trade_count, 'trade').capitalize()} in the recent window.",
@@ -667,4 +708,4 @@ def _transactions_section(narration: WeeklyNarration) -> WeeklySection:
         blocks.append(line + ".")
     elif not desk.complete:
         blocks.append("The trade history is incomplete, so the market is hard to read.")
-    return WeeklySection(heading="The Transaction Desk", blocks=blocks)
+    return WeeklySection(heading=heading_for("transactions"), blocks=blocks)

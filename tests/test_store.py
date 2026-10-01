@@ -564,6 +564,7 @@ def test_store_is_abstract() -> None:
     assert Store.__abstractmethods__ == frozenset(
         {
             "read_config",
+            "read_suppressions",
             "read_ledger",
             "append_ledger_entry",
             "read_storylines",
@@ -690,6 +691,7 @@ def test_store_api_names_are_cloud_neutral() -> None:
     public = [name for name in vars(Store) if not name.startswith("_")]
     assert set(public) == {
         "read_config",
+        "read_suppressions",
         "read_ledger",
         "append_ledger_entry",
         "read_storylines",
@@ -714,3 +716,42 @@ def test_store_module_source_has_no_cloud_tokens() -> None:
     src = (ENGINE_ROOT / "store.py").read_text(encoding="utf-8").lower()
     for token in CLOUD_NAME_TOKENS:
         assert not re.search(rf"\b{re.escape(token)}\b", src), token
+
+
+# --- read suppressions (Story 6.0b, AD-30) ---------------------------------
+
+
+def _write_config(tmp_path: Path, league_id: str, text: str) -> None:
+    (tmp_path / "leagues").mkdir(exist_ok=True)
+    (tmp_path / "leagues" / f"{league_id}.toml").write_text(text, encoding="utf-8")
+
+
+def test_read_suppressions_is_empty_when_config_or_key_is_absent(tmp_path: Path) -> None:
+    assert _store(tmp_path).read_suppressions("1") == set()
+    _write_config(tmp_path, "1", "name = \"Test League\"\n")
+    assert _store(tmp_path).read_suppressions("1") == set()
+
+
+def test_read_suppressions_returns_the_listed_section_ids(tmp_path: Path) -> None:
+    _write_config(tmp_path, "1", "suppress_sections = [\"power\", \"luck\", \"power\"]\n")
+    assert _store(tmp_path).read_suppressions("1") == {"power", "luck"}
+
+
+def test_read_suppressions_unknown_id_raises_naming_league_and_id(tmp_path: Path) -> None:
+    _write_config(tmp_path, "77", "suppress_sections = [\"power\", \"x\"]\n")
+    with pytest.raises(StoreError) as excinfo:
+        _store(tmp_path).read_suppressions("77")
+    assert "77" in str(excinfo.value) and "x" in str(excinfo.value)
+
+
+@pytest.mark.parametrize("value", ["\"power\"", "3", "[1]", "{ power = true }"])
+def test_read_suppressions_non_list_or_non_string_raises(tmp_path: Path, value: str) -> None:
+    _write_config(tmp_path, "9", f"suppress_sections = {value}\n")
+    with pytest.raises(StoreError, match="9"):
+        _store(tmp_path).read_suppressions("9")
+
+
+def test_read_suppressions_unparseable_config_still_raises(tmp_path: Path) -> None:
+    _write_config(tmp_path, "1", "suppress_sections = = broken")
+    with pytest.raises(StoreError):
+        _store(tmp_path).read_suppressions("1")

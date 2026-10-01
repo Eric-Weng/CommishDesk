@@ -66,6 +66,7 @@ from pydantic import AfterValidator, BaseModel, Field, PlainSerializer, TypeAdap
 from commishdesk.errors import StoreError
 from commishdesk.facts.schema import Storyline
 from commishdesk.ingest.model import PlayerSnapshot
+from commishdesk.sections import SECTION_IDS
 
 __all__ = ["IssueKind", "LedgerEntry", "Storyline", "Claim", "PlayerSnapshot", "Store", "FileStore"]
 
@@ -193,6 +194,13 @@ class Store(ABC):
         missing or unparseable."""
 
     @abstractmethod
+    def read_suppressions(self, league_id: str) -> set[str]:
+        """Return the section ids the operator has toned down to template prose
+        for this league (AD-30): ``set()`` when none. Every id is one of
+        :data:`commishdesk.sections.SECTION_IDS`; a malformed value or an unknown
+        id raises ``StoreError`` naming the league."""
+
+    @abstractmethod
     def read_ledger(self, league_id: str, week: int) -> list[LedgerEntry]:
         """Return the ledger entries for one league-week (empty if none),
         ordered by ``sent_at`` ascending."""
@@ -314,6 +322,19 @@ class FileStore(Store):
                 return tomllib.load(handle)
         except (OSError, tomllib.TOMLDecodeError) as exc:
             raise StoreError(f"cannot read league config for {league_id!r}") from exc
+
+    def read_suppressions(self, league_id: str) -> set[str]:
+        if not self._file("leagues", league_id, ".toml").exists():
+            return set()
+        raw = self.read_config(league_id).get("suppress_sections")
+        if raw is None:
+            return set()
+        if not isinstance(raw, list):
+            raise StoreError(f"suppress_sections for league {league_id!r} must be a list of section ids")
+        for section_id in raw:
+            if not isinstance(section_id, str) or section_id not in SECTION_IDS:
+                raise StoreError(f"unknown section id {section_id!r} in suppress_sections for league {league_id!r}")
+        return set(raw)
 
     def read_ledger(self, league_id: str, week: int) -> list[LedgerEntry]:
         path = self._file("ledger", league_id, ".jsonl")

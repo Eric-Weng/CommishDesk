@@ -44,6 +44,7 @@ from commishdesk.narrate import Recap
 from commishdesk.narrate.weekly_template import WeeklyIssue, section_headings_for_has_prior_week
 from commishdesk.render import _weekly_model as wm
 from commishdesk.render._body import _plain, _sections_from_llm, _sections_from_recap
+from commishdesk.sections import heading_for
 
 __all__ = ["render_discord_summary", "render_weekly_discord_post", "utf16_len"]
 
@@ -208,11 +209,11 @@ def _clip_text(text: str, budget: int) -> str:
 def _weekly_lead(facts: WeeklyFacts, issue: WeeklyIssue) -> _Block | None:
     lead = wm.choose_lead(facts)
     if lead is not None and lead.hook:
-        text = _lead_sentence([("The Lead", [lead.hook])])
+        text = _lead_sentence([(heading_for("lead"), [lead.hook])])
         chair = " 🪑" if lead.kind == "lineup_loss" else ""
         return _Block(f"**{_md(text)}**{chair}", 0)
-    blocks = next((list(s.blocks) for s in issue.sections if s.heading == "The Lead"), [])
-    text = _lead_sentence([("The Lead", blocks)])
+    blocks = next((list(s.blocks) for s in issue.sections if s.heading == heading_for("lead")), [])
+    text = _lead_sentence([(heading_for("lead"), blocks)])
     return _Block(f"**{_md(text)}**", 0) if text else None
 
 
