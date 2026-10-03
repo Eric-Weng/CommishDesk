@@ -19,7 +19,7 @@ from pathlib import Path
 import pytest
 
 from commishdesk.deliver import SendReport, send_issue
-from commishdesk.errors import DeliveryError, StoreError
+from commishdesk.errors import DeliveryError, StoreError, SuppressedRecipientError
 from commishdesk.store import FileStore, LedgerEntry
 from tests.conftest import REPO_ROOT
 
@@ -493,3 +493,56 @@ def test_ledger_module_imports_only_stdlib_and_commishdesk() -> None:
     external = roots - sys.stdlib_module_names
     assert external <= {"commishdesk"}, external
     assert "httpx" not in roots
+
+
+# --------------------------------------------------------------------------- #
+# Story 6.9 — a suppressed recipient is a durable ``skipped`` entry
+# --------------------------------------------------------------------------- #
+
+
+class _SuppressingSender:
+    """Raises ``SuppressedRecipientError`` for chosen recipients, records the rest."""
+
+    def __init__(self, suppressed: set[str]) -> None:
+        self.calls: list[str] = []
+        self._suppressed = suppressed
+
+    def __call__(self, recipient: str, content: str) -> None:
+        self.calls.append(recipient)
+        if recipient in self._suppressed:
+            raise SuppressedRecipientError("recipient is suppressed")
+
+
+def test_suppressed_recipient_writes_a_skipped_entry_and_the_run_continues(tmp_path: Path) -> None:
+    store = _store(tmp_path)
+    sender = _SuppressingSender({"c2"})
+    report = send_issue(
+        store,
+        league_id="42",
+        week=3,
+        channel="email",
+        kind="weekly",
+        recipients={"c1": "x", "c2": "x", "c3": "x"},
+        sender=sender,
+        now=_now,
+    )
+    assert report.delivered == ("c1", "c3")
+    assert report.skipped == ("c2",)
+    assert report.failed == ()
+    statuses = {e.recipient: e.status for e in store.read_ledger("42", 3)}
+    assert statuses == {"c1": "confirmed", "c2": "skipped", "c3": "confirmed"}
+
+
+def test_skipped_entry_counts_as_done_on_resume(tmp_path: Path) -> None:
+    store = _store(tmp_path)
+    kwargs = dict(league_id="42", week=3, channel="email", kind="weekly", recipients={"c1": "x", "c2": "x"}, now=_now)
+    send_issue(store, sender=_SuppressingSender({"c2"}), **kwargs)  # type: ignore[arg-type]
+    again = _SuppressingSender({"c2"})
+    report = send_issue(store, sender=again, **kwargs)  # type: ignore[arg-type]
+    assert again.calls == []
+    assert report.skipped == ("c1", "c2")
+    assert len(store.read_ledger("42", 3)) == 2
+
+
+def test_suppressed_recipient_error_is_a_delivery_error() -> None:
+    assert issubclass(SuppressedRecipientError, DeliveryError)

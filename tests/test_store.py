@@ -755,3 +755,34 @@ def test_read_suppressions_unparseable_config_still_raises(tmp_path: Path) -> No
     _write_config(tmp_path, "1", "suppress_sections = = broken")
     with pytest.raises(StoreError):
         _store(tmp_path).read_suppressions("1")
+
+
+def test_ledger_entry_accepts_skipped_status_and_round_trips(tmp_path: Path) -> None:
+    store = _store(tmp_path)
+    store.append_ledger_entry(
+        LedgerEntry(
+            league_id="1", week=2, channel="email", recipient="c1", kind="weekly",
+            status="skipped", sent_at=datetime(2026, 9, 1, tzinfo=UTC),
+        )
+    )
+    (entry,) = store.read_ledger("1", 2)
+    assert entry.status == "skipped"
+
+
+def test_old_ledger_line_still_parses_next_to_a_skipped_line(tmp_path: Path) -> None:
+    (tmp_path / "ledger").mkdir()
+    old = (
+        '{"league_id":"1","week":1,"channel":"discord","recipient":"webhook-1",'
+        '"status":"confirmed","sent_at":"2026-09-01T00:00:00Z","reason":null}\n'
+    )
+    new = (
+        '{"league_id":"1","week":1,"channel":"email","recipient":"c1","kind":"weekly",'
+        '"status":"skipped","sent_at":"2026-09-02T00:00:00Z","reason":null}\n'
+    )
+    (tmp_path / "ledger" / "1.jsonl").write_text(old + new, encoding="utf-8")
+    assert [e.status for e in _store(tmp_path).read_ledger("1", 1)] == ["confirmed", "skipped"]
+
+
+def test_claim_id_is_optional_and_defaults_to_none() -> None:
+    assert Claim(league_id="1", roster_id="2", email="a@b.co").claim_id is None
+    assert Claim(league_id="1", roster_id="2", email="a@b.co", claim_id="01ABC").claim_id == "01ABC"
