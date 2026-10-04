@@ -49,6 +49,7 @@ def test_builds_issue_web_and_email_from_a_store(tmp_path: Path) -> None:
     built = build_weekly_issue(store, "L1", 17, adapter=adapter, suppressions=set())
     assert built.week == 17 and built.league_id == "L1"
     assert built.web_html.lstrip().lower().startswith("<!doctype html>")
+    assert "<script" not in built.web_html  # enhancer=None -> static page
     assert built.email.html and built.email.text
     assert built.issue.sections
     assert built.league_bundle["league"]

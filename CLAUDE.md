@@ -27,6 +27,9 @@ not in git history, not "temporarily":
 - **Premium voices** — the public repo ships **at most one** `Voice` file, the mild
   "beat writer" default (it lands in Story 3.3; a test enforces the ceiling of one).
   Additional voices are a paid feature and live in the private app repo.
+- **The interaction/animation layer** (the `WebEnhancer` payload: JS and motion CSS) —
+  premium; lives in the private app (Story 6.10). The engine ships the seam
+  (`render/enhancer.py`) and zero implementations; a test enforces it.
 - **Auth / accounts / login** — there is no account system anywhere in this product,
   ever. No signup form, no session code, no password/OAuth handling in this repo.
 - **Billing / payments** — no Stripe, no payment links, no entitlement state, no price
@@ -150,6 +153,8 @@ self-hosters inherit them and CI enforces them.
   narrower docstring, correct under AD-2 (everything downstream of `facts/` may read
   the Facts JSON) but recorded here so a future change to that import surface has a
   standard to be checked against, not just a docstring to edit in isolation.
+  `render_weekly_web` also accepts an optional app-supplied `WebEnhancer`
+  (`render/enhancer.py`, validated and inlined; AD-40); with none the page is static.
 - **The Facts JSON is the one published contract (AD-2).** Everything downstream of
   `facts/` reads the Facts JSON and nothing else. Schema is Pydantic v2 in
   `facts/schema.py`; `schema_version` is semver (additive keys → minor, shape change →
@@ -282,6 +287,8 @@ checkpoints. Do not treat "keep going" as the default.
 | --- | --- | --- |
 | ingest / stats / facts / narrate / render / deliver / CLI | `commishdesk` (here) | MVP → v1 |
 | `FileStore`, extension protocols, fixtures, invariant tests | `commishdesk` (here) | MVP |
+| Interaction/animation layer (JS + motion CSS) | `../commishdesk-app` | Epic 6 (6.10) |
+| `render/` markup, static fallbacks, `WebEnhancer` seam and validators | `commishdesk` (here) | Epic 6 (6.0c) |
 | `leagues/` config + weekly cron + R2 public bucket (thin) | `commishdesk` (here) | Epic 4B (optional) |
 | Astro site, TS Worker, D1, `HostedStore`, claims, email delivery | `../commishdesk-app` | Epic 6 (v1) |
 | Auth, billing, chip-in, personal pages, 2nd platform adapter | `../commishdesk-app` | v3 |

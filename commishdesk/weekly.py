@@ -800,7 +800,6 @@ def build_weekly_issue(
     including a week that is not final (nothing is written then).
     """
     from commishdesk.render import render_weekly_email, render_weekly_web
-    from commishdesk.render._builtin_enhancer import BUILTIN_ENHANCER
 
     log = logger or logging.getLogger(f"{LOGGER_NAME}.weekly")
     if not 1 <= week <= 18:
@@ -846,7 +845,7 @@ def build_weekly_issue(
         issue,
         output_id=league_id,
         generated_at=generated_at,
-        enhancer=BUILTIN_ENHANCER if enhancer is None else enhancer,
+        enhancer=enhancer,
     )
     email = render_weekly_email(render_doc, issue, generated_at=generated_at)
     return WeeklyIssueBuild(
