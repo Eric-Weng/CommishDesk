@@ -140,6 +140,7 @@ __all__ = [
     "OptimalLineupError",
     "SchemaValidationError",
     "StoreError",
+    "SuppressedRecipientError",
 ]
 
 
@@ -220,6 +221,17 @@ class DeliveryError(CommishDeskError):
     """An Issue could not be posted to a delivery channel (wrapped at the call
     site in ``commishdesk/deliver/discord.py``; the webhook token is never in the
     message)."""
+
+
+class SuppressedRecipientError(DeliveryError):
+    """The delivery channel refused one recipient because it is suppressed (a
+    bounce, complaint or unsubscribe the provider tracks). Story 6.9, AD-31.
+
+    A :class:`DeliveryError` subtype so a caller that does not know about it still
+    treats it as a per-recipient failure. :func:`commishdesk.deliver.send_issue`
+    records it as a durable ``skipped`` ledger entry instead of a failure, so the
+    recipient is not retried on resume. The message must never carry an address.
+    """
 
 
 class IngestError(CommishDeskError):

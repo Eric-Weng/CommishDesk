@@ -11,8 +11,9 @@ Guarantees every ``Store`` implementation makes:
   visible to an immediately-following read on the same object, in the same
   process, with no flush or reopen step required of the caller.
 * **The send ledger is append-only.** ``append_ledger_entry`` only ever adds a
-  line; there is no update or delete. Entries are always ``status="confirmed"`` —
-  the ledger records sends that happened, never pending intent (AD-10).
+  line; there is no update or delete. Entries are ``status="confirmed"`` (the send
+  happened) or ``"skipped"`` (a suppressed recipient, Story 6.9) — the ledger
+  records settled sends, never pending intent (AD-10).
 * **Storyline writes are whole-set replacements.** ``write_storylines`` replaces
   the league's entire storyline set; the facts builder owns their maintenance
   (AD-14). A league that has never been written reads back as ``[]``.
@@ -142,7 +143,11 @@ IssueKind = Literal["draft_recap", "weekly"]
 
 
 class LedgerEntry(BaseModel):
-    """One confirmed delivery, appended to the send ledger and never mutated.
+    """One settled delivery, appended to the send ledger and never mutated.
+
+    ``status`` is ``"confirmed"`` (the send happened) or ``"skipped"`` (the
+    channel refused a suppressed recipient, Story 6.9); both count as done on a
+    resume. Defaults to ``"confirmed"`` so every older ledger line still parses.
 
     ``kind`` distinguishes *what* Issue was sent — e.g. a draft recap vs. a
     future weekly recap — so two different kinds can share the same
@@ -156,7 +161,7 @@ class LedgerEntry(BaseModel):
     channel: str
     recipient: str
     kind: IssueKind = "draft_recap"
-    status: Literal["confirmed"] = "confirmed"
+    status: Literal["confirmed", "skipped"] = "confirmed"
     sent_at: UtcDateTime
     # Why this delivery was a deliberate re-issue; ``None`` for a first send (AD-10).
     reason: str | None = None
@@ -170,6 +175,8 @@ class Claim(BaseModel):
     email: str
     confirmed: bool = False
     claimed_at: UtcDateTime | None = None
+    # Opaque, platform-neutral claim id (Story 6.9); ``None`` for a store that has none.
+    claim_id: str | None = None
 
 
 _LEDGER_LINE = TypeAdapter(LedgerEntry)

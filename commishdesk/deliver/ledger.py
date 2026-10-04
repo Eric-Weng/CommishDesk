@@ -43,7 +43,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import get_args
 
-from commishdesk.errors import DeliveryError
+from commishdesk.errors import DeliveryError, SuppressedRecipientError
 from commishdesk.logconfig import LOGGER_NAME
 from commishdesk.store import IssueKind, LedgerEntry, Store
 
@@ -68,7 +68,9 @@ class SendReport:
 
     Purely a return value — not persisted, no ``schema_version`` (cf. the record
     models in ``store.py``). ``delivered`` and ``skipped`` are recipient ids;
-    ``failed`` pairs each recipient with a one-line message.
+    ``failed`` pairs each recipient with a one-line message. ``skipped`` holds both
+    recipients already settled in the ledger and recipients the channel refused as
+    suppressed (the latter now carry a ``skipped`` ledger entry).
     """
 
     delivered: tuple[str, ...] = ()
@@ -105,6 +107,10 @@ def send_issue(
     * otherwise ``sender(recipient, content)`` is called, and **only if it
       returns** a ``confirmed`` :class:`~commishdesk.store.LedgerEntry` is
       appended with ``sent_at = now()`` and the given ``reason``.
+
+    A ``sender`` raising :class:`~commishdesk.errors.SuppressedRecipientError`
+    (Story 6.9) gets a ``skipped`` ledger entry instead of a failure; a ``skipped``
+    entry counts as done on a resume, like a ``confirmed`` one.
 
     A ``sender`` raising :class:`~commishdesk.errors.DeliveryError` is caught,
     recorded in ``failed``, and the loop continues — that recipient gets no
@@ -176,6 +182,24 @@ def send_issue(
 
         try:
             sender(recipient, content)
+        except SuppressedRecipientError:
+            # The channel refused a suppressed recipient (Story 6.9): record a
+            # durable ``skipped`` entry so a resume does not retry it, and go on.
+            store.append_ledger_entry(
+                LedgerEntry(
+                    league_id=league_id,
+                    week=week,
+                    channel=channel,
+                    recipient=recipient,
+                    kind=kind,
+                    status="skipped",
+                    sent_at=stamp,
+                    reason=reason,
+                )
+            )
+            _logger.info("recipient %s on %s (%s) week %s is suppressed; skipped", recipient, channel, kind, week)
+            skipped.append(recipient)
+            continue
         except DeliveryError as exc:
             message = str(exc) or exc.__class__.__name__
             _logger.warning(
