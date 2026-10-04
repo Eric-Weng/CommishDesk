@@ -7,8 +7,8 @@ theme, Editorial layout) with inline CSS, embedded fonts, hand-authored inline
 SVG and no external request. Story 6.0c (AD-40) moves the interaction script
 and its motion CSS behind the optional
 :class:`~commishdesk.render.enhancer.WebEnhancer` seam: without one the page
-is static, with zero ``<script>``; the history below describes the built-in
-enhancer the CLI passes. Story 5B.2 adds exactly one small inline script
+is static, with zero ``<script>``; the history below describes the interaction layer the
+app now supplies. Story 5B.2 adds exactly one small inline script
 (reveal / draw-in motion); the page is complete and fully visible without it —
 the script only sets ``html.js-reveal`` and adds ``is-revealed`` as sections
 scroll into view. Story 5B.3 adds the power-rank bump chart (model trail +

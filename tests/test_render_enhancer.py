@@ -3,14 +3,14 @@
 Every row of the spec's I/O matrix with a test-only fake enhancer: a valid
 fake lands its CSS at the end of the one ``<style>`` and its JS in the one
 ``<script>``; each pair-level rule (JS and CSS) and each page-level rule
-raises :class:`EnhancerRejected` naming the rule; the built-in passes its own
-validation; and a structural guard that no ``src`` module other than
-``render/_builtin_enhancer.py`` defines an enhancer.
+raises :class:`EnhancerRejected` naming the rule; and a structural guard that
+no ``src`` module defines an enhancer (Part B removed the built-in).
 """
 
 from __future__ import annotations
 
 import ast
+import importlib.util
 import json
 from typing import Any
 
@@ -20,7 +20,6 @@ from commishdesk.facts.schema import WeeklyFacts
 from commishdesk.narrate.weekly_template import render_weekly_issue
 from commishdesk.render import EnhancerRejected, WebEnhancer, render_weekly_web
 from commishdesk.render import style as style_mod
-from commishdesk.render._builtin_enhancer import BUILTIN_CSS, BUILTIN_ENHANCER, BUILTIN_JS
 from commishdesk.render.enhancer import validate_enhancer, validate_page
 from tests.conftest import REPO_ROOT
 
@@ -77,18 +76,6 @@ def test_no_enhancer_is_static_with_zero_scripts() -> None:
     assert "js-reveal" not in css
 
 
-def test_builtin_enhancer_carries_todays_script_and_motion() -> None:
-    page = _render(BUILTIN_ENHANCER)
-    assert page.count("<script>") == 1
-    script = page.split("<script>\n", 1)[1].split("\n</script>", 1)[0]
-    assert script == BUILTIN_JS
-    assert 'root.classList.add("js-reveal");' in script
-    assert "IntersectionObserver" in script
-    assert page.split("<style>\n", 1)[1].split("\n</style>", 1)[0].endswith(BUILTIN_CSS)
-    assert BUILTIN_CSS.rstrip().endswith("}\n}")  # the reduced-motion block closes it
-    assert "@media (prefers-reduced-motion: reduce)" in BUILTIN_CSS
-
-
 def test_fake_valid_enhancer_lands_its_css_last_and_its_js_in_the_one_script() -> None:
     fake = _Fake()
     page = _render(fake)
@@ -96,12 +83,17 @@ def test_fake_valid_enhancer_lands_its_css_last_and_its_js_in_the_one_script() -
     assert css == style_mod.build_weekly_style() + "\n" + fake.css()
     assert page.count("<script") == 1
     assert page.endswith("</main>\n<script>\n" + fake.js() + "\n</script>\n</body>\n</html>\n")
-    assert "js-reveal" not in page  # nothing of the built-in leaks in
+    assert "js-reveal" not in page  # nothing of the old built-in leaks in
+
+
+def test_fake_passes_pair_validation_and_is_a_webenhancer() -> None:
+    fake = _Fake()
+    assert validate_enhancer(fake) == (fake.css(), fake.js())
+    assert isinstance(fake, WebEnhancer)
 
 
 def test_same_facts_and_enhancer_give_identical_bytes() -> None:
     assert _render(_Fake()) == _render(_Fake())
-    assert _render(BUILTIN_ENHANCER) == _render(BUILTIN_ENHANCER)
 
 
 @pytest.mark.parametrize(
@@ -163,7 +155,7 @@ def test_non_string_halves_are_rejected() -> None:
 def test_hostile_team_name_is_escaped_text_not_rejected() -> None:
     raw = _raw()
     raw["teams"][0]["team_name"] = "<svg onload=1>"
-    for enhancer in (None, BUILTIN_ENHANCER):
+    for enhancer in (None, _Fake()):
         page = _render(enhancer, raw)
         assert "<svg onload=1>" not in page
         assert "&lt;svg onload=1&gt;" in page
@@ -207,13 +199,8 @@ def test_page_rules_ignore_escaped_text_and_script_or_style_bodies() -> None:
     validate_page(_SHELL.format(css='.a::after { content: "<iframe>"; }', body=body), enhanced=True)
 
 
-def test_builtin_passes_its_own_pair_validation() -> None:
-    assert validate_enhancer(BUILTIN_ENHANCER) == (BUILTIN_CSS, BUILTIN_JS)
-    assert isinstance(BUILTIN_ENHANCER, WebEnhancer)
-
-
 # --------------------------------------------------------------------------- #
-# Structural: the public engine defines no enhancer but the private built-in
+# Structural: the public engine defines no enhancer
 # --------------------------------------------------------------------------- #
 
 
@@ -232,13 +219,18 @@ def _defines_enhancer(tree: ast.Module) -> bool:
     return False
 
 
-def test_only_the_builtin_module_defines_a_webenhancer() -> None:
+def test_no_src_module_defines_a_webenhancer() -> None:
     found = sorted(
         path.relative_to(PKG_ROOT).as_posix()
         for path in PKG_ROOT.rglob("*.py")
         if "__pycache__" not in path.parts and _defines_enhancer(ast.parse(path.read_text(encoding="utf-8")))
     )
-    assert found == ["render/_builtin_enhancer.py"]
+    assert found == []
+
+
+def test_old_bundled_enhancer_module_is_gone() -> None:
+    # The parent package is already imported at module top, so find_spec resolves cleanly.
+    assert importlib.util.find_spec("commishdesk.render._built" + "in_enhancer") is None
 
 
 def test_the_structural_check_sees_a_fake() -> None:

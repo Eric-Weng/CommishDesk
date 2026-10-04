@@ -20,7 +20,7 @@ its states.
 
 Story 6.0c (AD-40) moves every motion and script-gated rule — the keyframes,
 the ``html.js-reveal`` rules, the luck row's control styling and the
-reduced-motion block — out of the weekly stylesheet into the built-in
+reduced-motion block — out of the weekly stylesheet into the app-supplied
 :class:`~commishdesk.render.enhancer.WebEnhancer`. What stays here is the
 complete static page: the bump chart's team buttons and hover detail panel are
 hidden and its layout is one column until an enhancer reveals them.

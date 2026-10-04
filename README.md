@@ -4,7 +4,7 @@
 
 **An automated weekly newspaper for a Sleeper fantasy football league.** Deterministic
 statistics computed in code, written up in a warm factual voice, delivered to the group
-chat and to inboxes every week, plus an interactive league page. The job is narrow: give
+chat and to inboxes every week, plus a league page. The job is narrow: give
 the league something to argue about every week.
 
 The engine is open source (AGPL-3.0) and self-hostable. **It runs with zero
@@ -67,10 +67,15 @@ uv run pytest -q
 | stats | `commishdesk/stats/` | Deterministic statistics — all-play, luck / expected wins, coaching efficiency, power-model score, blowout detection, draft grades. No model, no clock, no network. |
 | facts | `commishdesk/facts/` | Emit a versioned, self-validated **Facts JSON** — the single contract every narrator and renderer reads. |
 | narrate | `commishdesk/narrate/` | Turn the Facts JSON into prose. The **template narrator** (zero credentials, deterministic) is the floor; the **LLM narrator** (one model call, a voice) is an opt-in layer. Content safety runs on both. |
-| render | `commishdesk/render/` | One content model, three surfaces — a self-contained interactive web page, a dark-mode-safe email with a plain-text alternative, a Discord post with a rendered image. |
+| render | `commishdesk/render/` | One content model, three surfaces — a self-contained static web page, a dark-mode-safe email with a plain-text alternative, a Discord post with a rendered image. |
 | deliver | `commishdesk/deliver/` | Idempotent delivery via a Send Ledger — each recipient gets each Issue exactly once. **At MVP this is Discord-webhook delivery only.** Email delivery (double opt-in, claims, unsubscribe) is a hosted-service concern that lives in the private app repo from Epic 6 onward, not in this engine. |
 
 Everything downstream of `facts/` reads the Facts JSON and nothing else.
+
+> **Self-hosted pages are static.** The weekly web page the engine writes is complete but
+> has no animation or scripts. The interaction layer is a hosted-product feature supplied
+> through the `WebEnhancer` seam. To keep the animated self-hosted page, pin the last tag
+> that still bundles it (`v0.7.0`).
 
 ## Extending it
 

@@ -35,7 +35,6 @@ from commishdesk.narrate.weekly_template import SECTION_HEADINGS, WeeklyIssue, W
 from commishdesk.render import _weekly_model as wm
 from commishdesk.render import render_weekly_web
 from commishdesk.render import style as style_mod
-from commishdesk.render._builtin_enhancer import BUILTIN_ENHANCER
 from commishdesk.render.enhancer import WebEnhancer
 from tests.conftest import REPO_ROOT
 
@@ -68,10 +67,9 @@ def _week01_raw() -> dict[str, Any]:
 
 
 def _page(
-    raw: dict[str, Any], issue: WeeklyIssue | None = None, *, enhancer: WebEnhancer | None = BUILTIN_ENHANCER
+    raw: dict[str, Any], issue: WeeklyIssue | None = None, *, enhancer: WebEnhancer | None = None
 ) -> str:
-    """The page as the CLI writes it (Story 6.0c: with the built-in enhancer);
-    pass ``enhancer=None`` for the static page."""
+    """The page as the CLI writes it: static (no enhancer) unless one is given."""
     facts = WeeklyFacts.model_validate(raw)
     return render_weekly_web(
         facts,
@@ -294,8 +292,7 @@ def test_page_is_self_contained() -> None:
     page = _page(_raw(published=True))
     assert page.startswith("<!doctype html>") and page.endswith("\n") and "\r" not in page
     assert page.count("<style>") == 1
-    assert page.count("<script") == 1
-    assert page.count("<script>") == 1
+    assert "<script" not in page
     lowered = page.lower()
     for banned in ("<link", "@import", "src=", "http"):
         assert banned not in lowered, banned
@@ -341,31 +338,23 @@ def test_render_is_deterministic() -> None:
     assert _page(_raw(published=True)) == _page(_raw(published=True))
 
 
-#: SHA-256 of the weekly page per committed fixture, static (no enhancer) and
-#: with the built-in enhancer the CLI passes. History: Story 5.14a's page
-#: (commit 779de47); Stories 5B.2-5B.5 grew the interaction script and CSS.
-#: Story 6.0c (AD-40, Eric 2026-09-30) moves the script and motion CSS behind
-#: the WebEnhancer seam: the motion CSS now sits at the end of ``<style>`` and
-#: the dead-control fixes change the markup, so tag N's built-in page is
-#: deliberately not byte-identical to v0.6.0's. The invariant that matters now
-#: is that Story 6.10's app-enhanced page is byte-identical to the "builtin"
-#: digests here. Change these only with a deliberate design change to the
-#: page, and regenerate them by running this test once and copying the
-#: printed digests.
+#: SHA-256 of the static weekly page per committed fixture. History: Story
+#: 5.14a's page (commit 779de47); Stories 5B.2-5B.5 grew the interaction script
+#: and CSS; Story 6.0c (AD-40) moved them behind the WebEnhancer seam and Part B
+#: removed the engine's copy, so the engine's page is the static one. Change
+#: these only with a deliberate design change to the page, and regenerate them
+#: by running this test once and copying the printed digests.
 _GOLDEN_SHA256 = {
     ("week10", "static"): "ea8ad8a3b2e46b0bc52048a427a7d688c323b6336201f7a57581882eabbf72e7",
-    ("week10", "builtin"): "b90526949b6aed5d4efcdf3a69836492cc0465c4e2b1375184640d3536477df1",
     ("week10-published", "static"): "acf0ee8d57997c87b86586e5fb65cd6ac2a4bb1a52d6fb45c799f8acd38e568a",
-    ("week10-published", "builtin"): "d01ba59d1e9d3df2aa0f65bdfc7055f14d18c813e946ca7ca962102e14b04599",
     ("week01", "static"): "c345d8653ba7045af7a342d42f2ee0bded7902a645961c3e0685333ef4786ad9",
-    ("week01", "builtin"): "ac487fbf2d260d3d1713146e537dd629bbf4a06e6f384096133ac52d0015f662",
 }
 
 
 @pytest.mark.parametrize(("fixture", "mode"), sorted(_GOLDEN_SHA256))
 def test_page_is_byte_identical_to_its_golden(fixture: str, mode: str) -> None:
     raw = json.loads((FACTS_DIR / f"expected-weekly-facts-{fixture}.json").read_text(encoding="utf-8"))
-    page = _page(raw, enhancer=BUILTIN_ENHANCER if mode == "builtin" else None)
+    page = _page(raw)
     actual = hashlib.sha256(page.encode("utf-8")).hexdigest()
     expected = _GOLDEN_SHA256[(fixture, mode)]
     assert actual == expected, (
@@ -375,26 +364,6 @@ def test_page_is_byte_identical_to_its_golden(fixture: str, mode: str) -> None:
         f"If this is a deliberate design change, set _GOLDEN_SHA256[({fixture!r}, {mode!r})] "
         f"to the actual value above."
     )
-
-
-def test_interaction_script_is_csp_safe() -> None:
-    page = _page(_raw())
-    assert page.count("<script") == 1
-    script = page.split("<script>", 1)[1].split("</script>", 1)[0]
-    assert "eval(" not in script
-    assert "innerHTML" not in script.lower()
-    assert "document.write" not in script.lower()
-    assert not re.search(r"\son[a-z]+\s*=", script, flags=re.IGNORECASE)
-
-
-def test_reduced_motion_query_zeroes_interaction_durations() -> None:
-    page = _page(_raw())
-    css = page.split("<style>", 1)[1].split("</style>", 1)[0]
-    assert "@media (prefers-reduced-motion: reduce)" in css
-    block = css.split("@media (prefers-reduced-motion: reduce)", 1)[1].split("}", 1)[0]
-    assert "animation-duration: 0s" in block
-    assert "animation-delay: 0s" in block
-    assert "transition-duration: 0s" in block
 
 
 def test_js_off_is_finished_and_visible_by_default() -> None:
@@ -412,34 +381,6 @@ def test_js_off_is_finished_and_visible_by_default() -> None:
     assert "is-revealed" not in body_without_script
     assert not re.search(r'\[data-reveal\][^{}]*\{[^}]*opacity\s*:\s*0', css)
     assert not re.search(r'\[data-reveal\][^{}]*\{[^}]*visibility\s*:\s*hidden', css)
-
-
-def test_normal_scroll_js_and_motion_on_reveals_once_and_draws_in() -> None:
-    """I/O matrix row: "Normal scroll, JS+motion on" — each section reveals on
-    first entry only (never re-fires scrolling back up), and each chart's
-    marks draw in with the approved stagger/easing."""
-    page = _page(_raw())
-    script = page.split("<script>", 1)[1].split("</script>", 1)[0]
-    css = page.split("<style>", 1)[1].split("</style>", 1)[0]
-
-    # Fires once, never re-triggers scrolling back up: an IntersectionObserver
-    # that unobserves the element as soon as it has been revealed.
-    assert "IntersectionObserver" in script
-    observer_body = script.split("new IntersectionObserver(", 1)[1]
-    assert "unobserve(" in observer_body
-
-    # Each chart's own marks draw in within the approved 350-450ms window,
-    # with the approved easing curve.
-    match = re.search(r"animation:\s*draw-in\s+(\d+)ms\s+cubic-bezier\(([^)]+)\)", css)
-    assert match, "expected a draw-in animation rule in the interaction CSS"
-    duration_ms = int(match.group(1))
-    assert 350 <= duration_ms <= 450
-    assert match.group(2).replace(" ", "") == ".16,1,.3,1"
-
-    # The stagger: a per-element index drives a ~25ms-multiplied delay via a
-    # CSS custom property, set from the child's index in the script.
-    assert re.search(r"animation-delay:\s*calc\(var\(--draw-i,\s*0\)\s*\*\s*25ms\)", css)
-    assert 'setProperty("--draw-i"' in script
 
 
 def test_keyboard_only_nav_shows_a_visible_focus_outline() -> None:
@@ -553,27 +494,7 @@ def test_bump_chart_hostile_team_name_is_escaped_everywhere() -> None:
     assert escaped in power
     assert f'data-name="{escaped}"' in power  # legend chip, read via getAttribute + textContent only
     assert f"<title>{escaped} week 10" in power  # dot/diamond tooltip
-    script = page.split("<script>", 1)[1].split("</script>", 1)[0]
-    assert "innerHTML" not in script.lower()
-
-
-def test_bump_chart_keyboard_pin_is_button_driven_with_a_distinct_pinned_label() -> None:
-    """Matrix row: keyboard-only nav -- Tab to a legend chip (a native
-    <button>, so Enter/Space fires a click for free) pins that team with a
-    "Pinned open" label and its own ``.is-pinned`` state, distinct from the
-    hover-only ``.is-active`` state (interaction-decisions.md: the two must
-    never share their only signal)."""
-    page = _page(_raw(published=True))
-    assert '<button type="button" class="hit pw-hit"' in page
-    script = page.split("<script>", 1)[1].split("</script>", 1)[0]
-    assert 'addEventListener("click"' in script
-    assert '"Pinned open"' in script
-    assert 'classList.toggle("is-pinned"' in script
-    assert 'classList.toggle("is-active"' in script
-    css = page.split("<style>", 1)[1].split("</style>", 1)[0]
-    assert ".hit.is-pinned" in css
-    assert ".hit.is-active" in css
-    assert not re.search(r":hover\s*\.is-pinned|\.is-pinned[^{}]*:hover", css)
+    assert "<script" not in page
 
 
 def test_bump_chart_hit_targets_are_wide_and_layered_under_each_mark() -> None:
@@ -589,23 +510,12 @@ def test_bump_chart_hit_targets_are_wide_and_layered_under_each_mark() -> None:
     assert re.search(r'<circle class="bump-hit"[^>]*/><circle class="bump-point bump-model-dot"', body)
 
 
-def test_bump_chart_lines_draw_in_via_their_own_traced_path_length() -> None:
-    """epic-5B-context.md: draw-in dash length is computed from each line's
-    own traced path, not a shared constant; 350-450ms, ~25ms/team stagger,
-    the approved easing -- matching 5B.2's other charts' timing."""
-    page = _page(_raw(published=True))
-    body = _body(page)
-    css = page.split("<style>", 1)[1].split("</style>", 1)[0]
-
+def test_bump_chart_lines_carry_their_own_traced_path_length() -> None:
+    """Draw-in dash length is computed from each line's own traced path, not a
+    shared constant; the motion itself belongs to the app's enhancer."""
+    body = _body(_page(_raw(published=True)))
     lens = {m for m in re.findall(r'class="bump-model" style="--len:([\d.]+)"', body)}
     assert len(lens) > 1  # every team's line has its own length, not one shared value
-
-    match = re.search(r"animation:\s*bump-draw-line\s+(\d+)ms\s+cubic-bezier\(([^)]+)\)", css)
-    assert match, "expected a bump-draw-line animation rule"
-    assert 350 <= int(match.group(1)) <= 450
-    assert match.group(2).replace(" ", "") == ".16,1,.3,1"
-    assert re.search(r"animation-delay:\s*calc\(var\(--draw-i,\s*0\)\s*\*\s*25ms\)", css)
-    assert re.search(r"@keyframes bump-draw-line\s*\{[^}]*stroke-dashoffset:\s*var\(--len", css)
 
 
 def test_bump_chart_marks_are_fully_drawn_by_default_not_stuck_mid_dash() -> None:
@@ -614,9 +524,8 @@ def test_bump_chart_marks_are_fully_drawn_by_default_not_stuck_mid_dash() -> Non
     the ``@keyframes`` it animates, never as a static/base property."""
     page = _page(_raw(published=True))
     css = page.split("<style>", 1)[1].split("</style>", 1)[0]
-    assert css.count("stroke-dashoffset") == 2  # the keyframe's from/to only
-    body_without_script = _body(page).split("<script>", 1)[0]
-    assert "stroke-dashoffset" not in body_without_script
+    assert "stroke-dashoffset" not in css  # the keyframe moved to the app's enhancer
+    assert "stroke-dashoffset" not in _body(page)
 
 
 # --------------------------------------------------------------------------- #
@@ -803,13 +712,9 @@ def test_luck_rows_are_focusable_and_carry_the_template_voice_preview() -> None:
     previews = re.findall(r'<g class="luck-row"[^>]*data-luck-preview="([^"]*)"', luck)
     assert previews
     # Story 6.0c audit fix: the markup carries no button role / tabindex (a
-    # static page must not offer a control that does nothing); the built-in
+    # static page must not offer a control that does nothing); an enhancer's
     # script makes each row a focusable button before binding it.
     assert 'tabindex="0"' not in luck and 'role="button"' not in luck
-    script = _page(raw).split("<script>", 1)[1].split("</script>", 1)[0]
-    luck_block = script.split('".luck-row[data-luck-preview]"', 1)[1].split("addEventListener", 1)[0]
-    assert 'row.setAttribute("role", "button");' in luck_block
-    assert 'row.setAttribute("tabindex", "0");' in luck_block
     assert 'class="luck-hit"' in luck
     assert 'class="luck-preview" data-luck-preview hidden' in luck
 
@@ -829,12 +734,7 @@ def test_luck_bar_reveal_is_a_single_grow_from_the_zero_line() -> None:
     css = page.split("<style>", 1)[1].split("</style>", 1)[0]
     body = _body(page)
 
-    assert "@keyframes luck-grow" in css
-    # The whole keyframes rule: its closing brace sits at the start of a line.
-    block = css.split("@keyframes luck-grow", 1)[1].split("\n}", 1)[0]
-    assert "infinite" not in block
-    assert "transform: scaleX(0)" in block
-    assert "transform: scaleX(var(--luck-len, 1))" in block
+    assert "@keyframes" not in css  # the grow keyframes live in the app's enhancer
     assert 'class="luck-bar"' in body
     assert "--luck-len:1" in body
     assert "transform-origin: var(--luck-origin, left center)" in css
@@ -881,9 +781,7 @@ def test_standings_toggle_hidden_by_default_css_only() -> None:
     """I/O matrix row: "JavaScript off" — no toggle control renders. The
     mechanism is CSS-only: ``.standings-toggle`` is ``display: none`` in a
     rule that is not itself gated behind the reduced-motion media query (or
-    otherwise inert), and the only override that makes it visible is scoped
-    under the script-added ``html.js-reveal`` ancestor class, which the page
-    never gets when JS doesn't run."""
+    otherwise inert); the engine ships no override that shows it."""
     raw = _raw()
     facts = WeeklyFacts.model_validate(raw)
     assert any(team.season.all_play is not None for team in facts.teams)  # eligible fixture
@@ -899,7 +797,7 @@ def test_standings_toggle_hidden_by_default_css_only() -> None:
     toggle_block = css_before_reduced_motion.split(".standings-toggle {", 1)[1].split("}", 1)[0]
     assert "display: none" in toggle_block
 
-    assert "html.js-reveal .standings-toggle { display: flex; }" in css_before_reduced_motion
+    assert "js-reveal" not in css
 
 
 def test_all_play_toggle_stands_down_when_no_team_has_all_play() -> None:
@@ -1054,41 +952,6 @@ def test_week01_standings_ranks_are_positional() -> None:
 # --------------------------------------------------------------------------- #
 
 
-def test_expandable_card_hover_preview_is_css_only() -> None:
-    page = _page(_raw(published=True))
-    css = page.split("<style>", 1)[1].split("</style>", 1)[0]
-    assert "html.js-reveal .card:hover .game-detail" in css
-    assert "html.js-reveal .card:hover .nw-detail" in css
-
-    script = page.split("<script>", 1)[1].split("</script>", 1)[0]
-    card_block = script.split('querySelectorAll(".card-expand")', 1)[1].split(
-        'querySelectorAll("[data-bump-chart]")', 1
-    )[0]
-    assert "mouseenter" not in card_block
-    assert "mouseleave" not in card_block
-
-
-def test_expandable_card_pin_has_its_own_button_label_and_state() -> None:
-    page = _page(_raw(published=True))
-    body = _body(page)
-    assert 'class="card-expand"' in body
-    assert 'aria-expanded="false"' in body
-
-    script = page.split("<script>", 1)[1].split("</script>", 1)[0]
-    card_block = script.split('querySelectorAll(".card-expand")', 1)[1].split(
-        'querySelectorAll("[data-bump-chart]")', 1
-    )[0]
-    assert 'addEventListener("click"' in card_block
-    assert 'classList.toggle("is-pinned"' in card_block
-    assert 'setAttribute("aria-expanded"' in card_block
-    assert '"Pinned open"' in card_block
-
-    css = page.split("<style>", 1)[1].split("</style>", 1)[0]
-    assert "html.js-reveal .card.is-pinned .game-detail" in css
-    assert "html.js-reveal .card.is-pinned .nw-detail" in css
-    assert "html.js-reveal .card.is-pinned" in css
-
-
 def test_game_detail_omits_bench_regret_when_none() -> None:
     raw = _raw(published=True)
     for team in raw["teams"]:
@@ -1118,19 +981,6 @@ def test_next_week_detail_shows_stakes_only_when_no_bye_impact() -> None:
     assert all('class="d-k">On bye<' not in detail for detail in details)
 
 
-def test_expandable_card_states_snap_under_reduced_motion() -> None:
-    page = _page(_raw(published=True))
-    css = page.split("<style>", 1)[1].split("</style>", 1)[0]
-
-    motion = css.split("@media (prefers-reduced-motion: reduce)", 1)[1].split("}", 1)[0]
-    assert "animation-duration: 0s" in motion
-    assert "transition-duration: 0s" in motion
-
-    story_css = css.split("/* Story 5B.5", 1)[1].split("/* standings and power */", 1)[0]
-    assert "transition:" not in story_css
-    assert "animation:" not in story_css
-
-
 def test_expand_controls_are_hidden_without_the_script_gate() -> None:
     page = _page(_raw(published=True))
     body_without_script = _body(page).split("<script>", 1)[0]
@@ -1142,8 +992,7 @@ def test_expand_controls_are_hidden_without_the_script_gate() -> None:
     assert ".card-expand {" in base_css
     expand_block = base_css.split(".card-expand {", 1)[1].split("}", 1)[0]
     assert "display: none;" in expand_block
-    assert "html.js-reveal .card-expand {" in base_css
-    assert "display: inline-flex;" in base_css
+    assert "js-reveal" not in base_css
 
 
 def test_expandable_card_escapes_hostile_names_in_detail_markup() -> None:
@@ -1195,9 +1044,6 @@ def test_static_page_has_no_script_and_every_section_visible(published: bool) ->
     body = _body(static)
     positions = [body.index(marker) for marker in _SECTION_ORDER]
     assert positions == sorted(positions)
-    # The same Issue as the enhanced page: only the script differs in the body.
-    enhanced_body = _body(_page(raw)).split("\n<script>", 1)[0]
-    assert body == enhanced_body + "\n</body>\n</html>\n"
 
 
 def test_static_page_offers_no_control_that_does_nothing() -> None:
@@ -1229,35 +1075,6 @@ def test_static_page_offers_no_control_that_does_nothing() -> None:
     # Each hidden container really holds its buttons.
     assert re.search(r'<div class="pw-hits" role="list"><button type="button" class="hit pw-hit"', body)
     assert "Hover or select a team" in body.split('class="bump-detail"', 1)[1].split("</div>", 1)[0]
-
-
-def test_builtin_page_reveals_the_controls_the_static_page_hides() -> None:
-    """The built-in enhancer's CSS re-enables, under ``html.js-reveal``, exactly
-    the controls its script drives -- and keeps the bump chart single-column on
-    narrow screens (its two-column rule outranks the base media query)."""
-    page = _page(_raw(published=True))
-    css = page.split("<style>", 1)[1].split("</style>", 1)[0]
-    for rule in (
-        "html.js-reveal .pw-hits { display: flex; }",
-        "html.js-reveal .bump-detail { display: block; }",
-        "html.js-reveal .bump-layout { grid-template-columns: minmax(0, 1fr) 320px; }",
-        "html.js-reveal .card-expand { display: inline-flex; }",
-        "html.js-reveal .standings-toggle { display: flex; }",
-    ):
-        assert rule in css, rule
-    narrow = css.split("@media (max-width: 900px) {\n  html.js-reveal .bump-layout", 1)
-    assert len(narrow) == 2
-    assert css.index("html.js-reveal .bump-layout { grid-template-columns: minmax(0, 1fr) 320px; }") < len(narrow[0])
-
-
-def test_builtin_css_sits_at_the_end_of_the_one_style_element() -> None:
-    from commishdesk.render._builtin_enhancer import BUILTIN_CSS, BUILTIN_JS
-
-    page = _page(_raw())
-    assert page.count("<style>") == 1
-    css = page.split("<style>\n", 1)[1].split("\n</style>", 1)[0]
-    assert css == style_mod.build_weekly_style() + "\n" + BUILTIN_CSS
-    assert page.endswith("</main>\n<script>\n" + BUILTIN_JS + "\n</script>\n</body>\n</html>\n")
 
 
 def test_static_page_escapes_a_hostile_team_name() -> None:

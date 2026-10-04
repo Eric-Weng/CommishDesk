@@ -19,8 +19,7 @@ Whatever an enhancer supplies is validated at render time, twice:
 
 Every refusal raises :class:`EnhancerRejected` naming the rule it broke.
 
-The public engine ships no enhancer of its own apart from the private
-``_builtin_enhancer`` kept for one tag (Story 6.0c Part A, removed in Part B).
+The public engine ships no enhancer of its own; the hosted app supplies it.
 
 **Pipeline fence (AD-1).** Standard library only.
 """
@@ -36,8 +35,7 @@ __all__ = ["EnhancerRejected", "WebEnhancer", "validate_enhancer", "validate_pag
 
 @runtime_checkable
 class WebEnhancer(Protocol):
-    # AD-40: the hosted app supplies the one implementation; the engine ships none
-    # (Story 6.0c Part A keeps a private built-in for one tag).
+    # AD-40: the hosted app supplies the one implementation; the engine ships none.
     def css(self) -> str: ...
 
     def js(self) -> str: ...
