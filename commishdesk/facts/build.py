@@ -119,8 +119,15 @@ def build_draft_recap_facts(
     consensus_as_of: str | None = None,
     provisional: bool = True,
     previous_storylines: Sequence[Storyline] = (),
+    enforce_narration_cap: bool = True,
 ) -> DraftRecapFacts:
     """Merge the four stage results into a validated :class:`DraftRecapFacts`.
+
+    ``enforce_narration_cap`` (default ``True``) applies the AD-14 reduction
+    ladder and its terminal :class:`NarrationCapError`. The cap exists to bound
+    LLM spend (I3), so a caller on the template / no-LLM path (I4, the onboarding
+    sample) passes ``False`` and gets the full, unreduced narration; the cap is
+    then simply not relevant because nothing is sent to a model.
 
     Pure / deterministic / offline. ``generated_at`` is a ``datetime`` (rendered
     to UTC ISO 8601, ms precision, ``Z``-suffixed — consistent with :func:`_iso`)
@@ -158,6 +165,7 @@ def build_draft_recap_facts(
             team_rows,
             lead_candidates,
             storyline_candidates,
+            enforce_cap=enforce_narration_cap,
         )
         doc = DraftRecapFacts(
             generated_at=generated_at_str,
@@ -195,6 +203,12 @@ def build_draft_recap_facts(
     except (ValidationError, KeyError, AttributeError, TypeError, ValueError) as exc:
         raise SchemaValidationError(_violation_message(exc)) from exc
     return doc
+
+
+class NarrationCapError(SchemaValidationError):
+    """The draft-recap narration is still over :data:`NARRATION_TOKEN_CAP` after
+    the whole reduction ladder. A distinct subclass so an LLM-path caller can
+    degrade to the template narrator instead of failing the run."""
 
 
 def _violation_message(exc: Exception, *, document: str = "draft_recap") -> str:
@@ -615,6 +629,8 @@ def _narration(
     team_rows: list[TeamRow],
     lead_candidates: list[LeadCandidate],
     storyline_candidates: list[StorylineCandidate],
+    *,
+    enforce_cap: bool = True,
 ) -> Narration:
     ordered = sorted(pick_rows, key=lambda r: r.pick_no)
     round1 = [r for r in ordered if r.round == 1]
@@ -684,7 +700,7 @@ def _narration(
         lead_candidates=lead_candidates,
         storyline_candidates=storyline_candidates,
     )
-    return _apply_narration_cap(narration)
+    return _apply_narration_cap(narration) if enforce_cap else narration
 
 
 def _apply_narration_cap(narration: Narration) -> Narration:
@@ -732,7 +748,7 @@ def _apply_narration_cap(narration: Narration) -> Narration:
     if _within_cap(narration):
         return narration
 
-    raise SchemaValidationError(
+    raise NarrationCapError(
         f"draft_recap narration cannot be reduced under NARRATION_TOKEN_CAP "
         f"({len(narration.model_dump_json())} > {NARRATION_TOKEN_CAP})"
     )

@@ -903,17 +903,38 @@ class _DraftRecapPhases(_RecapPhases):
         grades = compute_draft_grades(model, consensus)
 
         self.logger.debug("building Facts JSON")
-        self.doc = build_draft_recap_facts(
-            model,
-            board,
-            consensus,
-            grades,
-            generated_at=self.generated_at,
-            draft_id=model.draft.id,
-            consensus_source_name=consensus_source_name,
-            consensus_as_of=consensus_as_of,
-            previous_storylines=self.previous_storylines,
-        )
+
+        def _build_doc(*, enforce_narration_cap: bool):
+            return build_draft_recap_facts(
+                model,
+                board,
+                consensus,
+                grades,
+                generated_at=self.generated_at,
+                draft_id=model.draft.id,
+                consensus_source_name=consensus_source_name,
+                consensus_as_of=consensus_as_of,
+                previous_storylines=self.previous_storylines,
+                enforce_narration_cap=enforce_narration_cap,
+            )
+
+        # The token cap bounds what is *sent to an LLM* (I3); the template narrator
+        # (I4 -- the onboarding sample, --no-llm) sends nothing, so it is not capped.
+        # An LLM run whose facts stay over the cap after the AD-14 ladder degrades to
+        # the template narrator (story 3.5 tiered response) rather than failing.
+        from commishdesk.facts.build import NarrationCapError
+
+        try:
+            self.doc = _build_doc(enforce_narration_cap=self.llm_enabled)
+        except NarrationCapError as exc:
+            self.logger.warning(
+                "league %s: facts exceed the narration token cap after reduction (%s); "
+                "using the template narrator instead of the LLM",
+                resolved,
+                exc,
+            )
+            self.llm_enabled = False
+            self.doc = _build_doc(enforce_narration_cap=False)
 
         # Epic-3-retro-item-35 / AC2: computing the next storyline set is pure (no
         # store I/O) and safe to do here; the actual ``store.write_storylines``

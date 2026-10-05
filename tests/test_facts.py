@@ -1626,3 +1626,91 @@ def test_team_value_and_reach_picks_carry_their_board_slot() -> None:
     extremes = [e for t in narration.teams for e in (t.best_value_pick, t.biggest_reach_pick) if e is not None]
     assert extremes
     assert all(e.board_label == labels[e.pick_no] for e in extremes)
+
+
+# --------------------------------------------------------------------------- #
+# 6-11 carry-over — the narration cap bounds LLM spend only (I3), never the
+# template / onboarding path (I4)
+# --------------------------------------------------------------------------- #
+
+
+def _large_league_args() -> tuple[LeagueModel, BoardMetrics, ConsensusMetrics, DraftGrades]:
+    """16 rosters x 40 rounds: ``narration.players`` alone is over the cap and
+    no ladder tier touches it (the closed-world check needs it)."""
+    picks = [_pick(n, str(((n - 1) % 16) + 1), "RB", name=f"Synthetic Player Number {n}") for n in range(1, 641)]
+    league = LeagueModel(
+        league_id="BIG",
+        name="Big League",
+        season=2025,
+        format=_fmt(team_count=16),
+        teams=[Team(roster_id=str(r), manager=f"mgr{r}") for r in range(1, 17)],
+        picks=picks,
+        draft=Draft(id="dbig", rounds=40),
+    )
+    board = compute_board_metrics(league)
+    consensus = compute_consensus_metrics(league, {})
+    grades = compute_draft_grades(league, consensus)
+    return league, board, consensus, grades
+
+
+def test_large_league_template_path_builds_without_the_cap() -> None:
+    from commishdesk.facts.schema import NARRATION_TOKEN_CAP
+
+    league, board, consensus, grades = _large_league_args()
+    doc = build_draft_recap_facts(
+        league, board, consensus, grades, generated_at=GENERATED_AT, enforce_narration_cap=False
+    )
+    assert len(doc.narration.model_dump_json()) > NARRATION_TOKEN_CAP
+    assert len(doc.narration.players) == 640  # nothing trimmed
+
+
+def test_large_league_llm_path_raises_a_distinct_cap_error_never_ships_oversize() -> None:
+    from commishdesk.facts.build import NarrationCapError
+
+    league, board, consensus, grades = _large_league_args()
+    with pytest.raises(NarrationCapError) as excinfo:
+        build_draft_recap_facts(league, board, consensus, grades, generated_at=GENERATED_AT)
+    assert isinstance(excinfo.value, SchemaValidationError)
+    assert "NARRATION_TOKEN_CAP" in str(excinfo.value)
+
+
+def test_small_league_is_identical_with_or_without_the_cap() -> None:
+    league, board, consensus, grades = _minimal()
+    capped = build_draft_recap_facts(league, board, consensus, grades, generated_at=GENERATED_AT)
+    uncapped = build_draft_recap_facts(
+        league, board, consensus, grades, generated_at=GENERATED_AT, enforce_narration_cap=False
+    )
+    assert capped.model_dump_json() == uncapped.model_dump_json()
+
+
+def test_cli_llm_run_over_the_cap_degrades_to_the_template_narrator(monkeypatch, caplog) -> None:
+    """The LLM-path phase object catches the cap error, logs the reason, and
+    flips to the template narrator (no model call is then possible)."""
+    import logging
+    from pathlib import Path
+
+    from commishdesk import cli
+    from commishdesk.facts import build as build_mod
+
+    monkeypatch.setattr(build_mod, "NARRATION_TOKEN_CAP", 50)
+    logger = logging.getLogger("commishdesk.test")
+    phases = cli._DraftRecapPhases(
+        "demo",
+        Path("."),
+        logger,
+        demo_id="demo",
+        demo_source_name="x",
+        demo_as_of="2025-01-01",
+        voice=None,
+        llm_config=None,
+        llm_enabled=True,
+        allow_content_hold=False,
+        post=False,
+    )
+    phases.fetch(None)  # demo path forces the template narrator ...
+    phases.llm_enabled = True  # ... so re-arm the LLM path to exercise the degrade
+    with caplog.at_level(logging.WARNING, logger="commishdesk.test"):
+        phases.build()
+    assert phases.llm_enabled is False
+    assert any("template narrator" in r.message for r in caplog.records)
+    assert phases.doc.narration.players  # the full facts exist for the template path

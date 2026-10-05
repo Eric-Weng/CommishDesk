@@ -2216,3 +2216,20 @@ def test_spend_is_still_reported_when_the_issue_is_held(tmp_path: Path, monkeypa
     result = runner.invoke(app, ["--league", "105", "--draft-recap", "--out-dir", str(tmp_path)])
     assert result.exit_code == 1
     assert "actual LLM spend: " in result.output
+
+
+def test_demo_draft_recap_succeeds_even_when_facts_exceed_the_cap(tmp_path: Path, monkeypatch) -> None:
+    """6-11 carry-over / I4: the template (onboarding) path is not bounded by the
+    LLM spend cap, and no model client is ever constructed."""
+    from commishdesk.facts import build as build_mod
+    from commishdesk.narrate import llm as llm_mod
+
+    monkeypatch.setattr(build_mod, "NARRATION_TOKEN_CAP", 50)
+
+    def _boom(*_a, **_k):
+        raise AssertionError("an LLM client was constructed on the template path")
+
+    monkeypatch.setattr(llm_mod, "build_client", _boom, raising=False)
+    result = runner.invoke(app, ["--league", "demo", "--draft-recap", "--out-dir", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    assert (tmp_path / "commishdesk-demo-draft-recap.html").exists()
