@@ -133,9 +133,37 @@ _WIDTH = 640
 #: Luck bars: at most this many ``█`` in the text/plain part.
 LUCK_BAR_MAX = 11
 
-_DISPLAY = "'Bricolage Grotesque','Helvetica Neue',Helvetica,Arial,sans-serif"
-_SANS = "'DM Sans','Helvetica Neue',Helvetica,Arial,sans-serif"
-_MONO = "'IBM Plex Mono','Courier New',Courier,monospace"
+#: Story 6-11 (Gmail ~102 KB clip): the stacks are repeated on every text cell, so
+#: they are written compactly. Multi-word family names are unquoted (valid CSS), the
+#: Apple-only ``Helvetica Neue`` is dropped (``Helvetica`` resolves the same face on
+#: Apple, ``Arial`` elsewhere) and ``Courier`` (a bitmap face on Windows) is dropped
+#: behind ``Courier New``. The webfonts are never loaded in email, so only the system
+#: fallbacks ever render.
+_DISPLAY = "Bricolage Grotesque,Helvetica,Arial,sans-serif"
+_SANS = "DM Sans,Helvetica,Arial,sans-serif"
+_MONO = "IBM Plex Mono,Courier New,monospace"
+
+_STYLE_ATTR = re.compile(r'style="([^"]*)"')
+
+
+def _dedupe_declarations(html: str) -> str:
+    """Drop a CSS declaration repeated verbatim inside one ``style`` attribute.
+
+    Identical declarations cascade to the same value, so removing the later copy
+    changes no rendering; it only recovers bytes (Story 6-11, Gmail clip). Order
+    of the surviving declarations is untouched."""
+
+    def _fix(match: re.Match[str]) -> str:
+        seen: set[str] = set()
+        kept: list[str] = []
+        for decl in match.group(1).split(";"):
+            if decl and decl in seen:
+                continue
+            seen.add(decl)
+            kept.append(decl)
+        return 'style="' + ";".join(kept) + '"'
+
+    return _STYLE_ATTR.sub(_fix, html)
 
 
 def _text_map() -> dict[str, str]:
@@ -1338,6 +1366,7 @@ def render_weekly_email(facts: WeeklyFacts, issue: WeeklyIssue, *, generated_at:
         + "".join(section.html for section in sections)
         + footer
     )
+    rows = _dedupe_declarations(rows)
     html_doc = _document(
         _esc(issue.title),
         _esc(preheader),
