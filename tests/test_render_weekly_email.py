@@ -919,3 +919,11 @@ def test_no_style_attribute_repeats_a_declaration() -> None:
     for style in re.findall(r'style="([^"]*)"', html):
         decls = [d for d in style.split(";") if d]
         assert len(decls) == len(set(decls)), style
+
+
+def test_dedupe_keeps_the_last_copy_so_an_override_still_wins() -> None:
+    dedupe = we._dedupe_declarations
+    assert dedupe('<p style="margin:0;margin-top:4px;margin:0">') == '<p style="margin-top:4px;margin:0">'
+    assert dedupe('<p style="color:red;color:red;">') == '<p style="color:red;">'
+    url = '<p style="background:url(a;b);x:1;x:1">'
+    assert dedupe(url) == url

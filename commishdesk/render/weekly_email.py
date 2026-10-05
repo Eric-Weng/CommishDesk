@@ -149,18 +149,19 @@ _STYLE_ATTR = re.compile(r'style="([^"]*)"')
 def _dedupe_declarations(html: str) -> str:
     """Drop a CSS declaration repeated verbatim inside one ``style`` attribute.
 
-    Identical declarations cascade to the same value, so removing the later copy
-    changes no rendering; it only recovers bytes (Story 6-11, Gmail clip). Order
-    of the surviving declarations is untouched."""
+    The LAST copy is kept: with ``a;b;a`` the final ``a`` wins over ``b`` (a
+    shorthand such as ``margin:0`` after ``margin-top:4px`` resets it), so dropping
+    the later copy would change rendering while dropping the earlier one cannot.
+    Relative order of the survivors is untouched. Styles containing ``(`` (``url(``
+    / ``;`` inside a function) are left alone, as a plain ``;`` split is unsafe."""
 
     def _fix(match: re.Match[str]) -> str:
-        seen: set[str] = set()
-        kept: list[str] = []
-        for decl in match.group(1).split(";"):
-            if decl and decl in seen:
-                continue
-            seen.add(decl)
-            kept.append(decl)
+        style = match.group(1)
+        if "(" in style:
+            return match.group(0)
+        decls = style.split(";")
+        last = {decl: i for i, decl in enumerate(decls) if decl}
+        kept = [d for i, d in enumerate(decls) if not d or last[d] == i]
         return 'style="' + ";".join(kept) + '"'
 
     return _STYLE_ATTR.sub(_fix, html)
