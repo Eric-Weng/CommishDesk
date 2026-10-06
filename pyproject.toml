@@ -1,6 +1,6 @@
 [project]
 name = "commishdesk"
-version = "0.8.0"
+version = "0.8.1"
 description = "An automated weekly newspaper for a Sleeper fantasy football league — open-source, zero-credential engine."
 readme = "README.md"
 requires-python = ">=3.12"
