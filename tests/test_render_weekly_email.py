@@ -64,7 +64,10 @@ def _parts(raw: dict[str, Any], issue: WeeklyIssue | None = None) -> EmailParts:
 
 
 def _label_html(label: str) -> str:
-    return f'text-transform:uppercase;color:{we.EMPH_TEXT};font-weight:bold;">{label}</td>'
+    # Story 6-11: the eyebrow cell's font rules moved to a head class (its inline style is
+    # now just the text colour, followed by a generated ``tN`` class), so the stable
+    # handle on a section's label cell is its text
+    return f">{label}</td>"
 
 
 def _section(html: str, label: str) -> str:
@@ -108,27 +111,51 @@ def test_week10_is_a_640px_table_layout_with_no_unsafe_construct() -> None:
         assert len(re.findall(rf"<{tag}[ >]", html)) == html.count(f"</{tag}>"), tag
 
 
-def test_the_head_style_block_only_carries_progressive_enhancement() -> None:
-    """The base style block carries layout only (``<style>`` is a progressive
-    enhancement, never the sole copy of a style that matters); the dark-mode
-    block is a value swap on inline literals."""
+def _head_style(html: str) -> str:
+    return html.rsplit("<style>", 1)[1].split("</style>", 1)[0]
+
+
+def test_the_head_style_block_carries_the_font_classes_and_the_dark_swap_only() -> None:
+    """Story 6-11 (relaxes 5-14c "inline is truth"): repeated font / spacing rules live
+    in generated head classes; the layout tweaks and the dark-mode value swap stay;
+    the dark block is still colour-only."""
     html = _parts(_raw()).html
-    head_style = html.rsplit("<style>", 1)[1].split("</style>", 1)[0]
-    # the base styling is inline; the head block adds no font rules
-    assert "font-family:" not in head_style
-    # progressive enhancement: a width tweak…
+    head_style = _head_style(html)
     assert "@media only screen and (max-width:660px)" in head_style
     assert ".container{width:100%!important;}" in head_style
     assert ".px{padding-left:20px!important;padding-right:20px!important;}" in head_style
-    # …and a dark-mode colour swap targeting the literal inline values
-    dark = head_style.split("@media (prefers-color-scheme: dark)", 1)[1]
-    # text, fill and border are mapped separately; the unanchored ``[style*="color:X"]``
-    # form would also match ``background-color:X`` (the original dark-mode bug)
+    # the fonts moved into head classes (webfont name, then Arial / the generic)
+    base, dark = head_style.split("@media (prefers-color-scheme: dark)", 1)
+    assert "font-family:IBM Plex Mono,monospace" in base
+    assert "font-family:DM Sans,Arial,sans-serif" in base
+    assert "font-family:Bricolage Grotesque,Arial,sans-serif" in base
+    assert "Helvetica" not in html and "Courier" not in html
+    # the dark block still swaps literal colours only
     assert '[style*=";color:' in dark and '[style*="background-color:' in dark
     assert '[style*="solid ' in dark
     assert '[style*="color:' not in dark
     for decl in ("font-family:", "line-height:", "margin:", "padding:"):
         assert decl not in dark, decl
+
+
+def test_hoisted_classes_are_defined_used_and_leave_a_minimal_inline_fallback() -> None:
+    """Every generated ``tN`` class used in the body is defined in the head and every
+    defined one is used; a cell that took a class keeps its text colour, its fill, its
+    borders and padding, and its widths inline for clients that drop head styles."""
+    html = _parts(_raw()).html
+    head = _head_style(html)
+    body = html.split("</head>", 1)[1]
+    defined = set(re.findall(r"\.(t\d+)\{", head))
+    used = {c for attr in re.findall(r'class="([^"]*)"', body) for c in attr.split() if re.fullmatch(r"t\d+", c)}
+    assert defined and defined == used
+    # at most a handful of one-off cells keep a font rule inline (a group used twice is hoisted)
+    inline_fonts = re.findall(r'style="[^"]*font-family:[^"]*"', body)
+    assert len(inline_fonts) <= 16
+    # the fallback: a title cell and a team-name cell still carry colour and padding inline
+    team_cell = r'<td [^>]*style="[^"]*padding:12px 6px;[^"]*color:#1F2140;[^"]*" class="t\d+">Two Minute Drill</td>'
+    assert re.search(team_cell, body)
+    # and no cell lost its fill: bgcolor attrs and background-color declarations still pair up
+    assert body.count("bgcolor=") >= 100 and body.count("background-color:") >= body.count("bgcolor=")
 
 
 def test_sections_render_in_the_required_order() -> None:
@@ -191,15 +218,32 @@ def test_text_part_carries_every_html_section_heading_prose_and_data() -> None:
         assert f"\n\n{label.upper()}\n" in parts.text, label
     facts = WeeklyFacts.model_validate(raw)
     issue = render_weekly_issue(facts.narration)
-    for section in issue.sections:  # the narrated prose reaches the text part
-        for block in section.blocks:
-            assert block in parts.text, block[:40]
+    # Story 6-11: the narrated prose reaches the text part only where the email keeps
+    # it: the whole lead, the trend lines after the per-game sentences, and nothing of
+    # the per-row / per-card sentences under the tables
+    by_heading = {section.heading: section.blocks for section in issue.sections}
+    games = len(raw["matchups"]["this_week"])
+    kept = [*by_heading["The Lead"], *by_heading["Around the League"][games:]]
+    dropped = [
+        *by_heading["Around the League"][:games],
+        *by_heading["Standings and the Playoff Picture"],
+        *by_heading["Power Rankings"],
+        *by_heading["The Luck Index"],
+        *by_heading["Next Week"],
+        *by_heading["The Transaction Desk"],
+    ]
+    assert len(kept) > 5 and len(dropped) > 40
+    for block in kept:
+        assert block in parts.text and _esc(block) in parts.html, block[:40]
+    for block in dropped:
+        assert block not in parts.text and _esc(block) not in parts.html, block[:40]
     for data in (
         "started 119.97 · left on bench 108.86 · opponent 126.03",
         "--- playoff line ---",
         "Coach of the week: Two Minute Drill, 99.2%",
         "Yardage Yaks 126.03 over Kneel-Down Koalas 119.97",
         "Flea Flicker Union · Waiver · Add Jalen Nailor WR; Drop Tyrod Taylor QB · FAAB $25",
+        "1 move · 1 trade",
     ):
         assert data in parts.text, data
 
@@ -330,7 +374,7 @@ def test_a_single_blowout_reads_wasnt_close() -> None:
 
 def test_luck_bars_sit_on_the_side_and_colour_of_their_sign() -> None:
     section = _section(_parts(_raw()).html, "The luck index")
-    rows = section.split('<td class="lname"')[1:]
+    rows = section.split('<td class="lname')[1:]
     seen = set()
     for row in rows:
         sign = re.search(r">([−+])\d+\.\d</td>", row).group(1)  # type: ignore[union-attr]
@@ -344,9 +388,46 @@ def test_luck_bars_sit_on_the_side_and_colour_of_their_sign() -> None:
     assert seen == {"+", "−"}
 
 
-def test_standings_bye_and_bubble_chips_match_the_facts() -> None:
-    section = _section(_parts(_raw()).html, "Standings")
-    assert len(re.findall(r">Bye<", section)) == 2 and len(re.findall(r">Bubble<", section)) == 4
+def _with_start_week(start: int | None) -> dict[str, Any]:
+    raw = _raw()  # week 10
+    if start is None:
+        raw["league"]["format"]["playoff"] = None
+    else:
+        raw["league"]["format"]["playoff"]["start_week"] = start
+    return raw
+
+
+_BRACKET = "The bracket takes 6 teams."
+_PER_ROW = re.compile(r"points for, model rank")
+
+
+def test_standings_chips_subtitle_and_bracket_summary_show_only_inside_the_playoff_window() -> None:
+    """Story 6-11: week 10 with the playoffs at week 15 is 5 weeks out, so the table
+    stands alone (no chips, the plain subtitle, no bracket summary); from 4 weeks out,
+    and through the playoff weeks, the chips, the subtitle and the summary come back.
+    The playoff line stays either way."""
+    outside = _parts(_raw())
+    assert we.PLAYOFF_WINDOW_WEEKS == 4
+    section = _section(outside.html, "Standings")
+    assert ">Bye<" not in section and ">Bubble<" not in section
+    assert ">The table</div>" in section and "make it" not in section
+    assert _BRACKET not in outside.html and _BRACKET not in outside.text
+    assert "[BYE]" not in outside.text and "[BUBBLE]" not in outside.text
+    assert "Playoff line" in section and "--- playoff line ---" in outside.text
+    for start in (14, 12, 10, 8):  # 4 weeks out, closer, the first playoff week, past it
+        inside = _parts(_with_start_week(start))
+        section = _section(inside.html, "Standings")
+        assert len(re.findall(r">Bye<", section)) == 2 and len(re.findall(r">Bubble<", section)) == 4, start
+        assert ">Six make it, two get byes</div>" in section, start
+        assert _BRACKET in section and _BRACKET in inside.text, start
+        assert inside.text.count("[BYE]") == 2 and inside.text.count("[BUBBLE]") == 4, start
+        assert "Playoff line" in section, start
+    # a league that declares no playoff shape has no window to be inside
+    none = _parts(_with_start_week(None))
+    assert ">Bye<" not in none.html and _BRACKET not in none.text
+    # the per-row sentences are gone in and out of the window
+    for parts in (outside, _parts(_with_start_week(14))):
+        assert not _PER_ROW.search(parts.html) and not _PER_ROW.search(parts.text)
 
 
 def test_luck_index_uses_block_bars_in_text_and_table_cells_in_html() -> None:
@@ -442,7 +523,7 @@ def test_every_top_level_row_keeps_the_28px_gutter() -> None:
     html = _parts(_raw(published=True)).html
     rows = _TOP_ROW.findall(html)
     # the render once lost the gutter after the lead: no row may
-    assert len(rows) >= 20
+    assert len(rows) >= 17  # fewer than before 6-11: the per-row prose rows are gone
     for padding in rows:
         assert _lr(padding) == ("28px", "28px"), padding
     # each section heading (eyebrow dash + title) sits inside a gutter row
@@ -453,7 +534,7 @@ def test_every_top_level_row_keeps_the_28px_gutter() -> None:
 
 def test_prose_paragraphs_are_padded_ink2_body_text_inside_the_gutter() -> None:
     html = _parts(_raw()).html
-    para = "Screen Pass Syndicate beat Bubble-Screen Bobcats, 183.14 to 154.38."
+    para = "Bubble-Screen Bobcats has lost six straight."  # a kept trend line
     at = html.index(para)
     row = _TOP_ROW.match(html, html.rfind('<tr><td class="px"', 0, at))
     assert row is not None and _lr(row.group(1)) == ("28px", "28px")
@@ -467,13 +548,16 @@ _SPACER = '<tr><td height="12" style="height:12px;font-size:0;line-height:12px;"
 
 
 def test_game_cards_are_bordered_rounded_cards_with_the_chip_inside() -> None:
-    results = _section(_parts(_raw()).html, "Around the league")
+    html = _parts(_raw()).html
+    head = _head_style(html)
+    assert "border-radius:12px;" in head
+    results = _section(html, "Around the league")
     cards = results.split(_CARD_OPEN)[1:]
     assert len(cards) == 6
     tagged = 0
     for card in cards:
         body = card.split(_SPACER, 1)[0]  # everything up to the 12px gap is the card
-        assert body.startswith("border-radius:12px;padding:0;")
+        assert body.startswith('padding:0;" class="t')  # radius moved to a head class
         assert body.endswith("</td></tr></table></td></tr>")  # the card's own cell closes last
         assert "W</td>" in body and "L</td>" in body
         for word in ("Blowout", "Week high", "Nail-biter"):
@@ -481,7 +565,7 @@ def test_game_cards_are_bordered_rounded_cards_with_the_chip_inside() -> None:
                 tagged += 1
                 # under the loser row, padded left to clear the monogram
                 assert body.index("L</td>") < body.index(f">{word}</td>")
-                assert "margin-top:10px;padding-left:38px;" in body
+                assert 'padding-left:38px;"' in body and "margin-top:10px" in head
     assert tagged == 4  # two blowouts, week high, nail-biter
     assert results.count(_SPACER) == 6  # 12px between cards, nothing else between them
     # the cards sit in a table inside the section wrapper's gutter
@@ -618,7 +702,7 @@ def test_narrow_client_rules_stack_columns_and_hide_the_standings_bar() -> None:
     assert ".stack{display:block!important;width:100%!important;" in head
     assert ".gap,.hide{display:none!important;}" in head
     assert ".fw{width:100%!important;" in head
-    assert html.count('class="stack"') == 4 + 4  # four tiles, four award cards
+    assert len(re.findall(r'class="stack(?: t\d+)?"', html)) == 4 + 4  # four tiles, four award cards
     assert 'class="hide"' in html and 'class="fw"' in html
 
 
@@ -681,26 +765,33 @@ def test_standings_have_one_row_per_team_with_fixed_right_aligned_numeral_column
     assert len(re.findall(r'<td bgcolor="#[0-9A-F]{6}" width="30" style="[^"]*width:30px;', section)) == len(teams)
 
 
-def test_power_is_one_row_per_team_with_fixed_rank_score_and_delta_columns() -> None:
+def test_power_is_one_row_per_team_with_fixed_rank_and_delta_columns_and_no_model_score() -> None:
+    """Story 6-11: the ``model 0.87`` figure ("means nothing to readers") is cut from
+    the table and the text; rank order and the movement arrows stay."""
     raw = _raw(published=True)
-    section = _section(_parts(raw).html, "Power rankings")
+    parts = _parts(raw)
+    section = _section(parts.html, "Power rankings")
     n = len(raw["narration"]["power"])
     assert len(re.findall(r'width="34" style="background-color:[^"]*width:34px;', section)) == n
-    score = re.findall(r'<td bgcolor="#[0-9A-F]{6}" (width="50" align="right" style="[^"]*")', section)
-    assert len(score) == n and all("width:50px;" in c for c in score)
     delta = re.findall(r'<td bgcolor="#[0-9A-F]{6}" (width="44" align="right" style="[^"]*")', section)
     assert len(delta) == n and all("width:44px;" in c for c in delta)
-    assert section.count(">MODEL</div>") == n
-    # nudge notes span the four columns instead of adding a fifth
-    assert section.count('colspan="4"') == 2
+    assert 'width="50"' not in section and "MODEL" not in section
+    assert not re.search(r"model \d\.\d\d|>\d\.\d\d<", section)
+    assert not re.search(r"model \d\.\d\d", parts.text)
+    # the movement arrows and the rank order survive
+    assert "▲" in section and "▼" in section
+    assert re.search(r"^ ?1\. .* — \d+-\d+(-\d+)?( [▲▼]\d+)?$", parts.text, re.M)
+    # nudge notes span the three columns instead of adding a fourth
+    assert section.count('colspan="3"') == 2 and 'colspan="4"' not in section
 
 
 def test_luck_is_one_row_per_team_with_fixed_name_and_value_columns_and_a_split_bar() -> None:
     raw = _raw()
     section = _section(_parts(raw).html, "The luck index")
     n = len(raw["teams"])
-    assert len(re.findall(r'<td class="lname" width="150" style="width:150px;', section)) == n
-    assert len(re.findall(r'<td width="44" align="right" style="width:44px;[^"]*">[−+]\d+\.\d</td>', section)) == n
+    assert len(re.findall(r'<td class="lname t\d+" width="150" style="width:150px;', section)) == n
+    value = r'<td width="44" align="right" style="width:44px;[^"]*"(?: class="t\d+")?>[−+]\d+\.\d</td>'
+    assert len(re.findall(value, section)) == n
     # each bar is a two-sided track around one centre rule
     assert section.count("border-left:1px solid") == n
     assert section.count('<td width="50%"') == 2 * n
@@ -781,8 +872,9 @@ def test_long_names_on_a_16_team_league_wrap_and_keep_numeral_columns_fixed() ->
             if re.search(r'width="\d+"|width:\d+px', opener.group(1)):
                 # only the board's own fixed cells: the luck index's 150px name column and
                 # the 250px award cards (a name there wraps inside the card)
-                assert opener.group(0).startswith(('<td class="lname" width="150" style="width:150px;',
-                                                   '<td class="stack" width="250" ')), opener.group(0)
+                assert re.match(
+                    r'<td class="(?:lname|stack)(?: t\d+)?" width="(?:150|250)" ', opener.group(0)
+                ), opener.group(0)
     # nowrap is for chips only, never for a cell holding a name
     for match in re.finditer(r"<td[^>]*white-space:nowrap[^>]*>([^<]*)<", html):
         assert all(name not in match.group(1) for name in names)
@@ -794,11 +886,11 @@ def test_long_names_on_a_16_team_league_wrap_and_keep_numeral_columns_fixed() ->
     assert len(re.findall(r'width="44" align="right"', standings)) == 16
     assert len(re.findall(r'width="46" align="right"', standings)) == 16
     power = _section(html, "Power rankings")
-    assert len(re.findall(r'width="50" align="right" style="[^"]*width:50px;', power)) == 16
     assert len(re.findall(r'width="44" align="right" style="[^"]*width:44px;', power)) == 16
     luck = _section(html, "The luck index")
-    assert len(re.findall(r'<td class="lname" width="150" style="width:150px;', luck)) == 16
-    assert len(re.findall(r'<td width="44" align="right" style="width:44px;[^"]*">[−+]\d+\.\d</td>', luck)) == 16
+    assert len(re.findall(r'<td class="lname t\d+" width="150" style="width:150px;', luck)) == 16
+    value = r'<td width="44" align="right" style="width:44px;[^"]*"(?: class="t\d+")?>[−+]\d+\.\d</td>'
+    assert len(re.findall(value, luck)) == 16
     assert _section(html, "Next week").count('<td width="46%" valign="top"') == 16
 
 
@@ -851,6 +943,10 @@ def test_week01_email_standings_rows_are_ordered_by_points_for() -> None:
 
 
 def test_week01_prose_sections_match_the_cold_start_set() -> None:
+    """The cold-start heading set is read as cards, never as a second notice section:
+    a narrated block under the cold-start Standings heading does not become a
+    "Standings" notice, and (Story 6-11) the standings table keeps no per-row prose,
+    so the block reaches neither part."""
     raw = _week01_raw()
     facts = WeeklyFacts.model_validate(raw)
     issue = render_weekly_issue(facts.narration)
@@ -859,12 +955,12 @@ def test_week01_prose_sections_match_the_cold_start_set() -> None:
         s.model_copy(update={"blocks": [marker]}) if s.heading == "Standings" else s
         for s in issue.sections
     ]
+    assert any(s.heading == "Standings" for s in sections)
     parts = _parts(raw, issue.model_copy(update={"sections": sections}))
-    # in the standings card, not a second "Standings" notice section
-    assert marker in _section(parts.html, "Standings")
-    lines = parts.text.splitlines()
-    assert lines.count("STANDINGS") == 1
-    assert parts.text.index("Standings by points") < parts.text.index(marker) < parts.text.index("NEXT WEEK")
+    assert marker not in parts.html and marker not in parts.text
+    assert len(re.findall(_label_html("Standings"), parts.html)) == 1
+    assert parts.text.splitlines().count("STANDINGS") == 1
+    assert "Standings by points" in parts.text
 
 
 def test_week01_email_standings_ranks_are_positional() -> None:
@@ -881,12 +977,9 @@ def test_week01_email_standings_ranks_are_positional() -> None:
 #: footer (~3 KB) still leaves it below Gmail's ~102 KB clip.
 GMAIL_CLIP_BUDGET = 95_000
 
-#: Measured regression ceilings for the cases that do NOT yet meet the budget. They
-#: pin today's size so it cannot grow; they are not the goal. The goal is
-#: ``GMAIL_CLIP_BUDGET`` (see deferred-work.md, Story 6-11 Gmail clip entry).
-_WEEK10_PRE_6_11_BYTES = 112_696  # week-10 fixture before the compaction
-_WEEK10_CEILING = 108_000
-_LONG_NAME_16_TEAM_CEILING = 132_000
+#: The week-10 fixture (12 teams) has to leave real headroom, not just fit: it was
+#: 106,871 bytes before the 6-11 trim (PR #93 base) and is ~72 KB now.
+_WEEK10_BUDGET = 85_000
 
 
 def _size(html: str) -> int:
@@ -897,15 +990,20 @@ def test_cold_start_email_is_under_the_gmail_clip_budget() -> None:
     assert _size(_parts(_week01_raw()).html) < GMAIL_CLIP_BUDGET
 
 
-def test_week10_email_is_smaller_than_before_the_compaction_and_does_not_grow() -> None:
-    size = _size(_parts(_raw()).html)
-    assert size < _WEEK10_PRE_6_11_BYTES
-    assert size <= _WEEK10_CEILING
+def test_week10_email_is_well_under_the_gmail_clip_budget() -> None:
+    assert _size(_parts(_raw()).html) < _WEEK10_BUDGET
+    assert _size(_parts(_raw(published=True)).html) < _WEEK10_BUDGET
 
 
-def test_sixteen_team_long_name_email_does_not_grow() -> None:
+def test_sixteen_team_long_name_email_is_under_the_gmail_clip_budget() -> None:
     raw, _ = _long_name_raw()
-    assert _size(_parts(raw).html) <= _LONG_NAME_16_TEAM_CEILING
+    assert _size(_parts(raw).html) < GMAIL_CLIP_BUDGET
+
+
+def test_inside_the_playoff_window_the_week10_email_still_leaves_headroom() -> None:
+    """The chips and the bracket summary come back near the playoffs; that is the
+    largest week-10 shape, and it must still fit with room for the app footer."""
+    assert _size(_parts(_with_start_week(14)).html) < _WEEK10_BUDGET
 
 
 def test_email_output_is_deterministic_and_keeps_the_plain_text_part() -> None:
@@ -927,3 +1025,125 @@ def test_dedupe_keeps_the_last_copy_so_an_override_still_wins() -> None:
     assert dedupe('<p style="color:red;color:red;">') == '<p style="color:red;">'
     url = '<p style="background:url(a;b);x:1;x:1">'
     assert dedupe(url) == url
+
+
+# --------------------------------------------------------------------------- #
+# Story 6-11 trim: prose cuts, the transaction counts, the top-links marker, style classes
+# --------------------------------------------------------------------------- #
+
+
+def test_the_per_row_and_per_card_prose_is_cut_from_both_parts() -> None:
+    parts = _parts(_raw())
+    for needle in (
+        "topped the scoring",  # per-game sentence
+        "points for, model rank",  # per-standings-row sentence
+        "points a week.",  # per-power-row sentence
+        "wins earned, luck",  # per-luck-row sentence
+        "power ranks",  # per-next-week-card sentence
+        "On the line:",  # per-card stake sentence (the shared row says "On the line in every game")
+        "Eight moves",
+        "move this week.",  # "N moves this week." trailing prose
+        "in the recent window",
+    ):
+        assert needle not in parts.html and needle not in parts.text, needle
+    # what stays: the three trend lines, the cards' tag, the single shared stake row
+    for trend in (
+        "No-Huddle Narwhals has run the league's worst luck",
+        "Yardage Yaks has run the league's best luck",
+        "Bubble-Screen Bobcats has lost six straight.",
+    ):
+        assert trend in parts.text and _esc(trend) in parts.html, trend
+    assert parts.text.count("On the line in every game") == 1
+    assert "[Game of the week]" in parts.text
+
+
+def test_the_transaction_counts_fold_into_the_section_subtitle() -> None:
+    raw = _raw()
+    desk = _section(_parts(raw).html, "The transaction desk")
+    assert ">1 move · 1 trade</div>" in desk and "One move, one trade" not in desk
+    raw["narration"]["transactions"].update(this_week_count=8, recent_trade_count=0)
+    parts = _parts(raw)
+    assert ">8 moves · 0 trades</div>" in _section(parts.html, "The transaction desk")
+    assert "THE TRANSACTION DESK\n8 moves · 0 trades\nThis week:" in parts.text
+
+
+def test_the_top_links_marker_is_one_inert_comment_under_the_masthead() -> None:
+    """The app (batch/footer.py) builds the signed per-Reader links after render; the
+    engine only reserves the spot, once, between the masthead and the stat tiles."""
+    assert we.TOP_LINKS_MARKER == "<!--commishdesk:top-links-->"
+    for raw in (_raw(), _week01_raw()):
+        parts = _parts(raw)
+        assert parts.html.count(we.TOP_LINKS_MARKER) == 1
+        at = parts.html.index(we.TOP_LINKS_MARKER)
+        assert parts.html.index(">Commishdesk</div>") < at < parts.html.index(">High<")
+        assert "top-links" not in parts.text
+        assert parts.html.replace(we.TOP_LINKS_MARKER, "").count("<!--") == 1  # the mso block only
+
+
+def test_hoisting_never_moves_a_colour_fill_border_padding_or_width_into_the_head() -> None:
+    html = _parts(_raw()).html
+    classes = _head_style(html).split("@media", 1)[0]
+    rules = re.findall(r"\.t\d+\{([^}]*)\}", classes)
+    assert rules
+    for rule in rules:
+        for decl in rule.split(";"):
+            if decl:
+                assert decl.split(":", 1)[0] in we._HOIST_PROPS, decl
+    assert not re.search(r"(?:^|;)(?:color|background-color|border|padding|width|height):", ";".join(rules))
+
+
+def test_every_text_and_fill_colour_left_inline_still_matches_a_dark_selector() -> None:
+    """The dark swap keys on the inline literals; hoisting must leave every one of
+    them where its attribute selector can see it."""
+    html = _parts(_raw(published=True)).html
+    text_map, fill_map = we._text_map(), we._background_map()
+    seen_text = seen_fill = 0
+    for style in re.findall(r'style="([^"]*)"', html):
+        for colour in re.findall(r"(?:^|;)color:(#[0-9A-F]{6})", style):
+            if colour in text_map:
+                seen_text += 1
+                assert f";color:{colour}" in style or style.startswith(f"color:{colour}"), style
+        for colour in re.findall(r"background-color:(#[0-9A-F]{6})", style):
+            if colour in fill_map:
+                seen_fill += 1
+                assert f"background-color:{colour}" in style
+        if f"background-color:{we.NOTABLE};" in style and f"color:{we.INK};" in style:
+            assert f"background-color:{we.NOTABLE};color:{we.INK}" in style  # the amber header rule's context
+    assert seen_text > 100 and seen_fill > 100
+
+
+def test_hoist_styles_groups_repeats_leaves_singletons_and_keeps_the_rest_inline() -> None:
+    hoist = we._hoist_styles
+    html = (
+        '<td style="font-size:11px;color:#111111;padding:1px;">a</td>'
+        '<td class="px" style="padding:2px;font-size:11px;color:#222222;">b</td>'
+        '<td style="font-size:99px;color:#333333;">once</td>'
+        '<td style="font-size:0;line-height:4px;">bar</td><td style="font-size:0;line-height:4px;">bar</td>'
+        '<td style="background:url(x;y);font-size:11px;">u</td><td style="background:url(x;y);font-size:11px;">u</td>'
+    )
+    out, css = hoist(html)
+    assert css == ".t0{font-size:11px;}"
+    assert '<td style="color:#111111;padding:1px;" class="t0">a</td>' in out
+    assert '<td class="px t0" style="padding:2px;color:#222222;">b</td>' in out
+    assert '<td style="font-size:99px;color:#333333;">once</td>' in out  # a group used once stays inline
+    assert out.count('<td style="font-size:0;line-height:4px;">bar</td>') == 2  # collapsed cells stay
+    assert out.count('<td style="background:url(x;y);font-size:11px;">u</td>') == 2  # url(...) untouched
+    assert hoist(html) == (out, css)  # deterministic
+
+
+def test_hoisted_html_with_its_classes_is_byte_identical_between_runs() -> None:
+    a = _parts(_raw(published=True)).html
+    b = _parts(_raw(published=True)).html
+    assert a == b and _head_style(a) == _head_style(b)
+
+
+def test_every_dark_text_colour_has_its_start_anchored_selector_and_the_head_fits_gmails_limit() -> None:
+    """Hoisting leaves some text styles starting with ``color:``, which only the
+    ``[style^=...]`` half of the text selector matches; and Gmail ignores a head
+    ``<style>`` block over ~16 KB, so the whole block (classes + dark swap) stays under."""
+    for raw in (_raw(published=True), _long_name_raw()[0]):
+        head = _head_style(_parts(raw).html)
+        dark = head.split("@media (prefers-color-scheme: dark){", 1)[1]
+        for light in we._text_map():
+            assert f'[style^="color:{light}"]' in dark and f'[style*=";color:{light}"]' in dark, light
+        assert len(head) < 16_000, len(head)

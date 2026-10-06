@@ -12,6 +12,12 @@ A ``prefers-color-scheme: dark`` override in the head style block rewrites the
 literal inline colours via ``[style*=...]`` selectors — no CSS custom property
 is emitted, and the light values stay inline as the fallback.
 
+Story 6-11 (Gmail clips a message over ~102 KB): repeated font and spacing rules
+are hoisted into generated head classes (:func:`_hoist_styles`) while colours,
+fills, borders, padding and widths stay inline; the model score, the per-row prose
+under the tables and (outside the last weeks before the playoffs) the bye/bubble
+chips are cut from this email.
+
 Story 5.15 adds an unconfirmed-seeding note above the standings table when the
 Facts playoff picture carries ``seeding_unconfirmed`` — one line in each part.
 
@@ -38,7 +44,12 @@ from commishdesk.render.email import EmailParts, _document
 from commishdesk.render.style import WEEKLY_DARK_TOKENS, WEEKLY_LIGHT_TOKENS
 from commishdesk.sections import heading_for
 
-__all__ = ["render_weekly_email"]
+__all__ = ["TOP_LINKS_MARKER", "render_weekly_email"]
+
+#: Story 6-11: an HTML comment right under the masthead. The per-Reader links (signed
+#: unsubscribe / report links) are built by the app after render, so the engine only
+#: reserves the spot; unused it is an inert comment. The app swaps it for a table row.
+TOP_LINKS_MARKER = "<!--commishdesk:top-links-->"
 
 # --------------------------------------------------------------------------- #
 # Palette — literal hex from Tuesday Morning light, with a dark enhancement
@@ -133,15 +144,13 @@ _WIDTH = 640
 #: Luck bars: at most this many ``█`` in the text/plain part.
 LUCK_BAR_MAX = 11
 
-#: Story 6-11 (Gmail ~102 KB clip): the stacks are repeated on every text cell, so
-#: they are written compactly. Multi-word family names are unquoted (valid CSS), the
-#: Apple-only ``Helvetica Neue`` is dropped (``Helvetica`` resolves the same face on
-#: Apple, ``Arial`` elsewhere) and ``Courier`` (a bitmap face on Windows) is dropped
-#: behind ``Courier New``. The webfonts are never loaded in email, so only the system
-#: fallbacks ever render.
-_DISPLAY = "Bricolage Grotesque,Helvetica,Arial,sans-serif"
-_SANS = "DM Sans,Helvetica,Arial,sans-serif"
-_MONO = "IBM Plex Mono,Courier New,monospace"
+#: Story 6-11 (Gmail ~102 KB clip): the stacks are written compactly. Multi-word
+#: family names are unquoted (valid CSS); ``Helvetica`` and ``Courier`` are dropped, so
+#: each stack is the webfont name, then ``Arial`` or the generic ``monospace``. The
+#: webfonts are never loaded in email, so only the system fallbacks ever render.
+_DISPLAY = "Bricolage Grotesque,Arial,sans-serif"
+_SANS = "DM Sans,Arial,sans-serif"
+_MONO = "IBM Plex Mono,monospace"
 
 _STYLE_ATTR = re.compile(r'style="([^"]*)"')
 
@@ -165,6 +174,80 @@ def _dedupe_declarations(html: str) -> str:
         return 'style="' + ";".join(kept) + '"'
 
     return _STYLE_ATTR.sub(_fix, html)
+
+
+#: Story 6-11: properties moved out of inline ``style`` into head classes. Everything a
+#: client needs to stay legible without head styles stays inline: ``color`` (text),
+#: ``background-color`` / ``bgcolor`` (fills), borders, padding, and every width.
+_HOIST_PROPS = frozenset(
+    {
+        "font-family",
+        "font-size",
+        "font-weight",
+        "letter-spacing",
+        "text-transform",
+        "line-height",
+        "margin-top",
+        "white-space",
+        "border-radius",
+    }
+)
+_COLLAPSED_CELL = frozenset({"font-size:0", "font-size:1px"})
+_OPEN_TAG = re.compile(r'<[a-z]+\s[^>]*?style="[^"]*"[^>]*>')
+_CLASS_ATTR = re.compile(r'\sclass="([^"]*)"')
+_STYLE_IN_TAG = re.compile(r'\sstyle="[^"]*"')
+
+
+def _hoist_styles(html: str) -> tuple[str, str]:
+    """Move repeated font / spacing declarations into head classes.
+
+    For each element the hoistable declarations (``_HOIST_PROPS``) form one group; a
+    group seen on two or more elements becomes a class ``tN`` (numbered in order of
+    first appearance, so the output is deterministic) and leaves the inline style,
+    which keeps its remaining declarations in their original order. A group used once
+    stays inline (a class would cost more than it saves). Returns the rewritten HTML
+    and the CSS rules for the head."""
+    groups: dict[str, int] = {}
+
+    def split(tag: str) -> tuple[str, str] | None:
+        style = re.search(r'style="([^"]*)"', tag)
+        if style is None or "(" in style.group(1):
+            return None
+        decls = [d for d in style.group(1).split(";") if d]
+        if _COLLAPSED_CELL & set(decls):
+            return None  # bar / spacer cells: their zero font size must survive without head styles
+        hoisted = [d for d in decls if d.split(":", 1)[0] in _HOIST_PROPS]
+        if not hoisted:
+            return None
+        kept = [d for d in decls if d.split(":", 1)[0] not in _HOIST_PROPS]
+        return ";".join(hoisted), ";".join(kept)
+
+    for tag in _OPEN_TAG.findall(html):
+        parts = split(tag)
+        if parts is not None:
+            groups[parts[0]] = groups.get(parts[0], 0) + 1
+
+    names: dict[str, str] = {}
+
+    def rewrite(match: re.Match[str]) -> str:
+        tag = match.group(0)
+        parts = split(tag)
+        if parts is None or groups[parts[0]] < 2:
+            return tag
+        group, kept = parts
+        name = names.setdefault(group, f"t{len(names)}")
+        style_attr = f' style="{kept};"' if kept else ""
+        cls = _CLASS_ATTR.search(tag)
+        if cls is not None:  # a layout class already there (px, stack, lname ...): extend it
+            tag = tag.replace(cls.group(0), f' class="{cls.group(1)} {name}"', 1)
+            return _STYLE_IN_TAG.sub(lambda _m: style_attr, tag, count=1)
+        # no class yet: the new one follows the style attribute, so every attribute
+        # before it keeps its position
+        return _STYLE_IN_TAG.sub(lambda _m: f'{style_attr} class="{name}"', tag, count=1)
+
+    out = _OPEN_TAG.sub(rewrite, html)
+    css = "".join(f".{name}{{{group};}}" for group, name in names.items())
+    return out, css
 
 
 def _text_map() -> dict[str, str]:
@@ -262,8 +345,8 @@ _STYLE_BLOCK = (
 )
 
 
-def _build_style_block() -> str:
-    return _STYLE_BLOCK + "\n" + _dark_overrides()
+def _build_style_block(class_css: str = "") -> str:
+    return class_css + _STYLE_BLOCK + "\n" + _dark_overrides()
 
 
 class _Section(NamedTuple):
@@ -784,7 +867,9 @@ def _results(facts: WeeklyFacts, blocks: list[str]) -> _Section | None:
                 + (f" [{tag[0]}]" if tag else "")
             )
 
-    prose_html, prose_lines = _prose(blocks)
+    # Story 6-11: the per-game sentences (one leading block per game) repeat the
+    # cards; only the trend lines that follow them stay.
+    prose_html, prose_lines = _prose(blocks[len(games) :])
     _add_prose(text, prose_lines)
 
     html = _section_header("Around the league", _results_title(games))
@@ -799,11 +884,25 @@ def _results(facts: WeeklyFacts, blocks: list[str]) -> _Section | None:
 # --------------------------------------------------------------------------- #
 
 
+#: Story 6-11: the bye/bubble chips, the "who makes it" subtitle and the bracket
+#: summary only earn their bytes close to the playoffs.
+PLAYOFF_WINDOW_WEEKS = 4
+
+
+def _in_playoff_window(facts: WeeklyFacts) -> bool:
+    """True from ``PLAYOFF_WINDOW_WEEKS`` weeks before the playoffs start (and
+    through them). A league that declares no playoff shape, or Week 1, is outside."""
+    playoff = facts.league.format.playoff
+    if playoff is None or not facts.period.has_prior_week:
+        return False
+    return playoff.start_week - facts.week <= PLAYOFF_WINDOW_WEEKS
+
+
 def _standings_title(facts: WeeklyFacts) -> str:
     if not facts.period.has_prior_week:
         return "Standings by points"
     playoff = facts.league.format.playoff
-    if facts.standings.playoff_picture is not None and playoff is not None:
+    if _in_playoff_window(facts) and facts.standings.playoff_picture is not None and playoff is not None:
         title = f"{wm.spell(playoff.bracket_teams).capitalize()} make it"
         if playoff.byes:
             title += f", {wm.spell(playoff.byes)} get {'a bye' if playoff.byes == 1 else 'byes'}"
@@ -817,8 +916,9 @@ def _standings(facts: WeeklyFacts, blocks: list[str]) -> _Section | None:
     if not order:
         return None
     picture = None if cold_start else facts.standings.playoff_picture
-    byes = set(picture.byes) if picture else set()
-    bubble = set(picture.bubble) if picture else set()
+    window = _in_playoff_window(facts)
+    byes = set(picture.byes) if picture and window else set()
+    bubble = set(picture.bubble) if picture and window else set()
     cut = picture.cut_line_after_rank if picture else None
     max_pf = max(team.season.points_for for team in order)
     text: list[str] = [_standings_title(facts)]
@@ -904,7 +1004,10 @@ def _standings(facts: WeeklyFacts, blocks: list[str]) -> _Section | None:
             text.append("--- playoff line ---")
 
     table = _table("border-collapse:separate;border-spacing:0;") + "".join(rows) + "</table>"
-    prose_html, prose_lines = _prose(blocks)
+    # Story 6-11: the per-row sentences repeat the table. Inside the playoff window the
+    # last block (the bracket summary) stays; at cold start there is none.
+    kept = blocks[-1:] if window and picture is not None else []
+    prose_html, prose_lines = _prose(kept)
     _add_prose(text, prose_lines)
     html = _section_header("Standings", _standings_title(facts))
     if picture is not None and picture.seeding_unconfirmed:
@@ -931,7 +1034,6 @@ def _power(facts: WeeklyFacts, blocks: list[str]) -> _Section | None:
         team = row.team
         power = team.season.power
         rec = wm.record(team.season.record.w, team.season.record.l, team.season.record.t)
-        score = f"{power.model_score:.2f}" if power.model_score is not None else "–"
         rank = str(row.published) if row.published is not None else "–"
         delta = power.week_delta
         arrow_html = ""
@@ -940,7 +1042,7 @@ def _power(facts: WeeklyFacts, blocks: list[str]) -> _Section | None:
             arrow_text = f"▲{delta}" if delta > 0 else f"▼{-delta}"
             arrow_html = " " + _mono(arrow_text, GOOD_TEXT if delta > 0 else BAD_TEXT)
         name = wm.team_label(team)
-        text.append(f"{rank:>2}. {name} — {rec} · model {score}{' ' + arrow_text if arrow_text else ''}")
+        text.append(f"{rank:>2}. {name} — {rec}{' ' + arrow_text if arrow_text else ''}")
 
         table_rows.append(
             "<tr>"
@@ -951,10 +1053,6 @@ def _power(facts: WeeklyFacts, blocks: list[str]) -> _Section | None:
             f'padding:14px 6px;"><div style="font-family:{_SANS};font-weight:bold;font-size:15px;'
             f'color:{INK};">{_esc(name)}</div><div style="font-family:{_MONO};font-size:11px;'
             f'color:{INK2};margin-top:4px;">{_esc(rec)}</div></td>'
-            f'<td bgcolor="{CARD}" width="50" align="right" style="background-color:{CARD};width:50px;'
-            f'border-top:1px solid {LINE};padding:14px 6px;font-family:{_MONO};font-size:14px;'
-            f'font-weight:bold;color:{INK};">{_esc(score)}<div style="font-size:9px;'
-            f'letter-spacing:.1em;color:{INK2};font-weight:normal;">MODEL</div></td>'
             f'<td bgcolor="{CARD}" width="44" align="right" style="background-color:{CARD};width:44px;'
             f'border-top:1px solid {LINE};padding:14px 14px 14px 6px;font-family:{_MONO};'
             f'font-size:12px;">{arrow_html}</td></tr>'
@@ -967,7 +1065,7 @@ def _power(facts: WeeklyFacts, blocks: list[str]) -> _Section | None:
             chip = f"{'▲ Nudged up' if up else '▼ Nudged down'} · model #{row.model}"
             reason = row.reason
             table_rows.append(
-                f'<tr><td bgcolor="{bg}" colspan="4" style="background-color:{bg};'
+                f'<tr><td bgcolor="{bg}" colspan="3" style="background-color:{bg};'
                 f'padding:12px 16px 14px 52px;">'
                 f'<div style="font-family:{_MONO};font-size:10px;letter-spacing:.1em;'
                 f'text-transform:uppercase;font-weight:bold;color:{fg};">{_esc(chip)}</div>'
@@ -976,7 +1074,8 @@ def _power(facts: WeeklyFacts, blocks: list[str]) -> _Section | None:
             )
             text.append(f"    {chip}" + (f" — {reason}" if reason else ""))
 
-    prose_html, prose_lines = _prose(blocks)
+    # Story 6-11: the per-team power sentences repeat the table; nothing is kept.
+    prose_html, prose_lines = _prose([])
     _add_prose(text, prose_lines)
 
     table = (
@@ -1058,7 +1157,8 @@ def _luck(facts: WeeklyFacts, blocks: list[str]) -> _Section | None:
             f'{bar}</tr></table></td></tr>'
         )
 
-    prose_html, prose_lines = _prose(blocks)
+    # Story 6-11: the per-team luck sentences repeat the bars; nothing is kept.
+    prose_html, prose_lines = _prose([])
     _add_prose(text, prose_lines)
     table = _table() + "".join(html_rows) + "</table>"
     html = _section_header("The luck index", "Who the schedule favoured", "Wins minus expected wins.")
@@ -1181,7 +1281,9 @@ def _next_week(facts: WeeklyFacts, blocks: list[str]) -> _Section | None:
             + "</table></td></tr>"
         )
 
-    prose_html, prose_lines = _prose(blocks)
+    # Story 6-11: the per-card sentences repeat the cards; the shared "On the line"
+    # row and the NFL-bye row above are the only prose.
+    prose_html, prose_lines = _prose([])
     _add_prose(text, prose_lines)
     html = _section_header("Next week", "Byes, wildcards and a division race")
     if shared_line or byes_line:
@@ -1293,9 +1395,16 @@ def _transactions(facts: WeeklyFacts, blocks: list[str]) -> _Section | None:
         cards.append(_tcard(heading, body))
         text.extend(lines)
 
-    prose_html, prose_lines = _prose(blocks)
+    # Story 6-11: the trailing sentences are replaced by the counts in the subtitle.
+    desk = facts.narration.transactions
+    counts = (
+        f"{desk.this_week_count} {'move' if desk.this_week_count == 1 else 'moves'} · "
+        f"{desk.recent_trade_count} {'trade' if desk.recent_trade_count == 1 else 'trades'}"
+    )
+    text.insert(0, counts)
+    prose_html, prose_lines = _prose([])
     _add_prose(text, prose_lines)
-    html = _section_header("The transaction desk", "One move, one trade")
+    html = _section_header("The transaction desk", "The wire", counts)
     html += _tr(_table() + "".join(cards) + "</table>", "0 28px")
     if prose_html:
         html += _tr(prose_html, "0 28px")
@@ -1363,11 +1472,13 @@ def render_weekly_email(facts: WeeklyFacts, issue: WeeklyIssue, *, generated_at:
 
     rows = (
         _masthead(facts)
+        + TOP_LINKS_MARKER
         + _tiles(facts)
         + "".join(section.html for section in sections)
         + footer
     )
     rows = _dedupe_declarations(rows)
+    rows, class_css = _hoist_styles(rows)
     html_doc = _document(
         _esc(issue.title),
         _esc(preheader),
@@ -1375,7 +1486,7 @@ def render_weekly_email(facts: WeeklyFacts, issue: WeeklyIssue, *, generated_at:
         body_bg=PAPER,
         sheet_bg=PAPER,
         width=_WIDTH,
-        style_block=_build_style_block(),
+        style_block=_build_style_block(class_css),
         container_extra="border-radius:14px;table-layout:fixed;",
     )
 
