@@ -871,3 +871,59 @@ def test_week01_email_standings_ranks_are_positional() -> None:
     parts = _parts(_week01_raw())
     table = parts.text.split("Standings by points\n", 1)[1].split("\n\n", 1)[0]
     assert [int(line.split(".", 1)[0]) for line in table.splitlines()] == list(range(1, 13))
+
+
+# --------------------------------------------------------------------------- #
+# Story 6-11 carry-over: Gmail clips a message over ~102 KB (F6)
+# --------------------------------------------------------------------------- #
+
+#: The size the weekly email HTML should stay under so the app-added per-Reader
+#: footer (~3 KB) still leaves it below Gmail's ~102 KB clip.
+GMAIL_CLIP_BUDGET = 95_000
+
+#: Measured regression ceilings for the cases that do NOT yet meet the budget. They
+#: pin today's size so it cannot grow; they are not the goal. The goal is
+#: ``GMAIL_CLIP_BUDGET`` (see deferred-work.md, Story 6-11 Gmail clip entry).
+_WEEK10_PRE_6_11_BYTES = 112_696  # week-10 fixture before the compaction
+_WEEK10_CEILING = 108_000
+_LONG_NAME_16_TEAM_CEILING = 132_000
+
+
+def _size(html: str) -> int:
+    return len(html.encode("utf-8"))
+
+
+def test_cold_start_email_is_under_the_gmail_clip_budget() -> None:
+    assert _size(_parts(_week01_raw()).html) < GMAIL_CLIP_BUDGET
+
+
+def test_week10_email_is_smaller_than_before_the_compaction_and_does_not_grow() -> None:
+    size = _size(_parts(_raw()).html)
+    assert size < _WEEK10_PRE_6_11_BYTES
+    assert size <= _WEEK10_CEILING
+
+
+def test_sixteen_team_long_name_email_does_not_grow() -> None:
+    raw, _ = _long_name_raw()
+    assert _size(_parts(raw).html) <= _LONG_NAME_16_TEAM_CEILING
+
+
+def test_email_output_is_deterministic_and_keeps_the_plain_text_part() -> None:
+    first, second = _parts(_raw()), _parts(_raw())
+    assert first.html == second.html and first.text == second.text
+    assert first.text.strip() and "THE LEAD" in first.text
+
+
+def test_no_style_attribute_repeats_a_declaration() -> None:
+    html = _parts(_raw()).html
+    for style in re.findall(r'style="([^"]*)"', html):
+        decls = [d for d in style.split(";") if d]
+        assert len(decls) == len(set(decls)), style
+
+
+def test_dedupe_keeps_the_last_copy_so_an_override_still_wins() -> None:
+    dedupe = we._dedupe_declarations
+    assert dedupe('<p style="margin:0;margin-top:4px;margin:0">') == '<p style="margin-top:4px;margin:0">'
+    assert dedupe('<p style="color:red;color:red;">') == '<p style="color:red;">'
+    url = '<p style="background:url(a;b);x:1;x:1">'
+    assert dedupe(url) == url
