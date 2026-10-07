@@ -3,10 +3,13 @@ estimator, so ``commishdesk/cli.py`` can price a narration attempt before it
 happens (FR-21's "one command ... tells me what it cost").
 
 :func:`estimate_cost_usd` is a single-call estimator: it prices *one* call to
-*one* model against *one* payload. The multiplier for "how many billable
-attempts can one run actually make" (the ``regenerate`` tier's one re-narration)
-and "which of the two selectable models" (primary vs. fallback) both live at the
-``cli.py`` call site — not here (Spec Change Log, Loopback 1).
+*one* model against *one* payload. The per-league sum ("how many billable
+attempts can one league-week make", primary plus fallback, plus the verifier)
+lives in :func:`narration_worst_case_usd`; the call-count constants
+:data:`MAX_BILLABLE_NARRATION_ATTEMPTS` and :data:`MAX_BILLABLE_VERIFICATION_CALLS`
+are defined here once, and ``cli.py`` and ``weekly.py`` import them.
+:func:`league_worst_case_usd` is the payload-free form (AD-45, AD-46): the most one
+league-week can cost at a ladder level, before any Facts exist.
 
 **Worst-case, not expected-value.** ``input_tokens = ceil(len(payload) / CHARS_PER_TOKEN)`` — the
 same char-proxy approximation style as ``facts.schema.NARRATION_TOKEN_CAP`` — and
@@ -38,19 +41,27 @@ Import fence (AD-1): stdlib + :mod:`commishdesk.errors` +
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime
 
 from commishdesk.errors import CostCeilingExceededError
-from commishdesk.llmconfig import LLMModelConfig
+from commishdesk.llmconfig import LLMConfig, LLMModelConfig, load_llm_config
 
 __all__ = [
+    "BILLING_LEVELS",
+    "CHARS_PER_TOKEN",
+    "FREE_LEVELS",
+    "MAX_BILLABLE_NARRATION_ATTEMPTS",
+    "MAX_BILLABLE_VERIFICATION_CALLS",
     "MODEL_PRICES",
     "PRICING_REVIEW_INTERVAL_DAYS",
     "PRICING_UPDATED",
     "ModelPrice",
+    "config_for_level",
     "estimate_cost_usd",
     "is_pricing_stale",
+    "league_worst_case_usd",
+    "narration_worst_case_usd",
 ]
 
 
@@ -169,3 +180,124 @@ def estimate_cost_usd(
         (input_tokens / 1000) * price.input_usd_per_1k
         + (max_output_tokens / 1000) * price.output_usd_per_1k
     )
+
+
+#: Per league-week, at most two narration *attempts* can each yield one
+#: successful, fully-billed completion: the initial attempt, and the single
+#: ``regenerate``-tier re-narration permitted (I3 reconciliation,
+#: epic-3-retro-item-44 / sprint-status.yaml: "at most one successful generation
+#: per narration attempt, at most two narration attempts per league-week").
+#: ``RETRY_CAP``-driven transient retries never produce a billed completion, so
+#: they need no multiplier here. The one definition (AD-46).
+MAX_BILLABLE_NARRATION_ATTEMPTS = 2
+
+#: Per league-week, at most one claim-verification call (content-safety P1).
+#: ``_produce_issue`` verifies only the prose it is about to ship, and both of its
+#: LLM ship paths return through that one check — so a regeneration never buys a
+#: second verification, and member count never enters into it.
+MAX_BILLABLE_VERIFICATION_CALLS = 1
+
+#: Ladder levels (``policy/operator.toml``, AD-43) at which the engine bills.
+BILLING_LEVELS = frozenset({"normal", "no_new_activations", "budget_model"})
+
+#: Ladder levels with zero LLM calls.
+FREE_LEVELS = frozenset({"template", "discord_only", "stop"})
+
+
+def narration_worst_case_usd(
+    payload: str,
+    voice_prompt: str,
+    config: LLMConfig,
+    *,
+    attempts: int | None = None,
+    verifier_calls: int | None = None,
+) -> float:
+    """The worst-case USD for one league-week's paid calls: *payload* plus the
+    voice's system prompt as input.
+
+    Primary AND fallback both billed — a non-transient failure on the primary
+    can fall through to the fallback within one narration attempt — times
+    :data:`MAX_BILLABLE_NARRATION_ATTEMPTS`, plus the claim verifier times
+    :data:`MAX_BILLABLE_VERIFICATION_CALLS` when ``config.verifier`` is set. An
+    unpriced model raises :class:`~commishdesk.errors.CostCeilingExceededError`.
+    *attempts* / *verifier_calls* default to the two constants; a caller that
+    re-exports them under its own name (``cli.py``) passes its own so a test can
+    patch them there.
+    """
+    from commishdesk.narrate.llm import MAX_OUTPUT_TOKENS
+
+    n_attempts = MAX_BILLABLE_NARRATION_ATTEMPTS if attempts is None else attempts
+    n_verifier = MAX_BILLABLE_VERIFICATION_CALLS if verifier_calls is None else verifier_calls
+
+    priced = payload + voice_prompt
+    per_call = estimate_cost_usd(
+        priced, config.primary, max_output_tokens=MAX_OUTPUT_TOKENS
+    ) + estimate_cost_usd(priced, config.fallback, max_output_tokens=MAX_OUTPUT_TOKENS)
+    estimate = per_call * n_attempts
+    if config.verifier is not None:
+        from commishdesk.narrate.verify import EXTRACTOR_VOICE
+
+        # The claim verifier reads the finished prose — at most one completion
+        # long, so MAX_OUTPUT_TOKENS tokens at CHARS_PER_TOKEN — plus its own
+        # system prompt; its reply is priced at the same output ceiling.
+        verifier_input = (
+            "x" * int(MAX_OUTPUT_TOKENS * CHARS_PER_TOKEN) + EXTRACTOR_VOICE.system_prompt
+        )
+        estimate += (
+            estimate_cost_usd(
+                verifier_input, config.verifier, max_output_tokens=MAX_OUTPUT_TOKENS
+            )
+            * n_verifier
+        )
+    return estimate
+
+
+def config_for_level(config: LLMConfig, level: str) -> LLMConfig | None:
+    """The config the engine narrates with at ladder *level*, or ``None`` when
+    the level makes no LLM call (``template`` and beyond).
+
+    ``budget_model`` swaps the fallback in as the primary (AD-43) — a config
+    change, so no model id is edited under ``narrate/``. Raises
+    :class:`ValueError` for a level that is not on the ladder.
+    """
+    if level in FREE_LEVELS:
+        return None
+    if level == "budget_model":
+        return replace(config, primary=config.fallback)
+    if level in BILLING_LEVELS:
+        return config
+    raise ValueError(f"unknown ladder level {level!r}")
+
+
+def league_worst_case_usd(level: str, config: LLMConfig | None = None) -> float:
+    """The most one league-week can cost at ladder *level*, with no Facts at hand
+    (AD-45, AD-46).
+
+    Input is the largest payload the engine can send — ``NARRATION_TOKEN_CAP``
+    characters (``facts/build.py`` refuses a larger one) plus the longest voice
+    system prompt — priced at :data:`CHARS_PER_TOKEN`; output at
+    ``MAX_OUTPUT_TOKENS``. ``template``, ``discord_only`` and ``stop`` return
+    ``0.0``; an unknown level raises :class:`ValueError`. *config* defaults to
+    ``load_llm_config()``.
+    """
+    if level not in BILLING_LEVELS | FREE_LEVELS:
+        raise ValueError(f"unknown ladder level {level!r}")
+    if level in FREE_LEVELS:
+        return 0.0
+    effective = config_for_level(config if config is not None else load_llm_config(), level)
+    assert effective is not None  # billing levels always carry a config
+    from commishdesk.facts.schema import NARRATION_TOKEN_CAP
+    from commishdesk.voices.beat_writer import (
+        BEAT_WRITER,
+        BEAT_WRITER_WEEKLY,
+        BEAT_WRITER_WEEKLY_COLD_START,
+    )
+
+    longest_prompt = max(
+        (
+            v.system_prompt
+            for v in (BEAT_WRITER, BEAT_WRITER_WEEKLY, BEAT_WRITER_WEEKLY_COLD_START)
+        ),
+        key=len,
+    )
+    return narration_worst_case_usd("x" * NARRATION_TOKEN_CAP, longest_prompt, effective)
