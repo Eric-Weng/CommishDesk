@@ -136,6 +136,7 @@ __all__ = [
     "CrossCheckMismatch",
     "DeliveryError",
     "IngestError",
+    "MailIdentityError",
     "NarratorError",
     "OptimalLineupError",
     "SchemaValidationError",
@@ -236,6 +237,15 @@ class SuppressedRecipientError(DeliveryError):
 
 class IngestError(CommishDeskError):
     """A raw platform bundle could not be turned into a valid ``LeagueModel``."""
+
+
+class MailIdentityError(CommishDeskError):
+    """The transactional and bulk sending identities are blank or the same (I7).
+
+    Raised by :func:`commishdesk.deliver.identity.mail_identities`. Deliberately not
+    a :class:`DeliveryError` subtype: ``send_issue`` swallows those per recipient,
+    and a misconfigured identity must stop the run. The message names the domain,
+    never an address."""
 
 
 class NarratorError(CommishDeskError):
