@@ -10,21 +10,34 @@ ceiling on output — never an average), the unknown-model fail-closed raise, th
 from __future__ import annotations
 
 import ast
+import dataclasses
 import sys
 from datetime import date, timedelta
+from pathlib import Path
 
 import pytest
 
 from commishdesk.errors import CostCeilingExceededError
-from commishdesk.llmconfig import _DEFAULT_FALLBACK, _DEFAULT_PRIMARY, LLMModelConfig
+from commishdesk.llmconfig import (
+    _DEFAULT_FALLBACK,
+    _DEFAULT_PRIMARY,
+    LLMConfig,
+    LLMModelConfig,
+    load_llm_config,
+)
 from commishdesk.narrate.pricing import (
     CHARS_PER_TOKEN,
+    MAX_BILLABLE_NARRATION_ATTEMPTS,
+    MAX_BILLABLE_VERIFICATION_CALLS,
     MODEL_PRICES,
     PRICING_REVIEW_INTERVAL_DAYS,
     PRICING_UPDATED,
     ModelPrice,
+    config_for_level,
     estimate_cost_usd,
     is_pricing_stale,
+    league_worst_case_usd,
+    narration_worst_case_usd,
 )
 from tests.conftest import REPO_ROOT
 
@@ -241,3 +254,126 @@ def test_chars_per_token_is_conservative_against_measured_billing() -> None:
     characters a token. A worst-case estimator must never price input at fewer
     tokens than the provider actually bills."""
     assert 0 < CHARS_PER_TOKEN <= 2.85
+
+
+# --------------------------------------------------------------------------- #
+# Story 7.2 -- the payload-free worst case (AD-45, AD-46)
+# --------------------------------------------------------------------------- #
+
+
+def _longest_prompt() -> str:
+    from commishdesk.voices.beat_writer import (
+        BEAT_WRITER,
+        BEAT_WRITER_WEEKLY,
+        BEAT_WRITER_WEEKLY_COLD_START,
+    )
+
+    return max(
+        (v.system_prompt for v in (BEAT_WRITER, BEAT_WRITER_WEEKLY, BEAT_WRITER_WEEKLY_COLD_START)),
+        key=len,
+    )
+
+
+def _expected_worst_case(config: LLMConfig) -> float:
+    from commishdesk.facts.schema import NARRATION_TOKEN_CAP
+    from commishdesk.narrate.llm import MAX_OUTPUT_TOKENS
+    from commishdesk.narrate.verify import EXTRACTOR_VOICE
+
+    payload = "x" * NARRATION_TOKEN_CAP + _longest_prompt()
+    one = estimate_cost_usd(payload, config.primary, max_output_tokens=MAX_OUTPUT_TOKENS)
+    two = estimate_cost_usd(payload, config.fallback, max_output_tokens=MAX_OUTPUT_TOKENS)
+    total = (one + two) * 2
+    if config.verifier is not None:
+        verifier_input = "x" * int(MAX_OUTPUT_TOKENS * CHARS_PER_TOKEN) + EXTRACTOR_VOICE.system_prompt
+        total += estimate_cost_usd(verifier_input, config.verifier, max_output_tokens=MAX_OUTPUT_TOKENS)
+    return total
+
+
+def test_call_count_constants_have_one_definition() -> None:
+    import commishdesk.cli as cli_mod
+    import commishdesk.weekly as weekly_mod
+
+    assert MAX_BILLABLE_NARRATION_ATTEMPTS == 2
+    assert MAX_BILLABLE_VERIFICATION_CALLS == 1
+    assert cli_mod._MAX_BILLABLE_NARRATION_ATTEMPTS is MAX_BILLABLE_NARRATION_ATTEMPTS
+    assert cli_mod._MAX_BILLABLE_VERIFICATION_CALLS is MAX_BILLABLE_VERIFICATION_CALLS
+    assert weekly_mod.MAX_BILLABLE_NARRATION_ATTEMPTS is MAX_BILLABLE_NARRATION_ATTEMPTS
+    for mod in (cli_mod, weekly_mod):
+        tree = ast.parse(Path(mod.__file__).read_text(encoding="utf-8"))
+        assigned = {
+            t.id
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Assign | ast.AnnAssign)
+            for t in (node.targets if isinstance(node, ast.Assign) else [node.target])
+            if isinstance(t, ast.Name)
+        }
+        assert not {"_MAX_BILLABLE_NARRATION_ATTEMPTS", "_MAX_BILLABLE_VERIFICATION_CALLS"} & assigned
+
+
+@pytest.mark.parametrize("level", ["normal", "no_new_activations"])
+def test_billing_levels_price_primary_fallback_and_verifier(level: str) -> None:
+    config = load_llm_config({})
+    assert config.verifier is not None
+    got = league_worst_case_usd(level)
+    assert got > 0.0
+    assert got == pytest.approx(_expected_worst_case(config))
+    assert league_worst_case_usd(level, config) == got
+
+
+def test_budget_model_prices_the_fallback_in_both_slots() -> None:
+    config = load_llm_config({})
+    swapped = dataclasses.replace(config, primary=config.fallback)
+    assert league_worst_case_usd("budget_model", config) == pytest.approx(
+        league_worst_case_usd("normal", swapped)
+    )
+    assert config_for_level(config, "budget_model") == swapped
+    assert config_for_level(config, "normal") is config
+
+
+@pytest.mark.parametrize("level", ["template", "discord_only", "stop"])
+def test_no_llm_levels_cost_nothing(level: str) -> None:
+    assert league_worst_case_usd(level) == 0.0
+    assert config_for_level(load_llm_config({}), level) is None
+
+
+def test_no_verifier_drops_the_verifier_term() -> None:
+    config = load_llm_config({})
+    bare = dataclasses.replace(config, verifier=None)
+    with_verifier = league_worst_case_usd("normal", config)
+    without = league_worst_case_usd("normal", bare)
+    assert 0.0 < without < with_verifier
+    assert without == pytest.approx(_expected_worst_case(bare))
+
+
+@pytest.mark.parametrize("level", ["bogus", "", "Normal"])
+def test_unknown_level_raises_value_error_naming_it(level: str) -> None:
+    with pytest.raises(ValueError, match=repr(level)):
+        league_worst_case_usd(level)
+    with pytest.raises(ValueError):
+        config_for_level(load_llm_config({}), level)
+
+
+def test_unpriced_model_still_fails_closed() -> None:
+    config = dataclasses.replace(
+        load_llm_config({}), primary=LLMModelConfig("anthropic", "not-a-priced-model")
+    )
+    with pytest.raises(CostCeilingExceededError):
+        league_worst_case_usd("normal", config)
+    with pytest.raises(CostCeilingExceededError):
+        league_worst_case_usd("budget_model", dataclasses.replace(config, fallback=config.primary))
+
+
+def test_worst_case_is_an_upper_bound_on_any_real_payload_estimate() -> None:
+    """The CLI prices the real payload with the same helper; the payload-free figure
+    must never be lower, even for a very large league."""
+    from commishdesk.facts.schema import NARRATION_TOKEN_CAP
+    from commishdesk.narrate import build_narration_payload
+    from tests.test_invariants import _i3_narration
+
+    config = load_llm_config({})
+    voice_prompt = _longest_prompt()
+    bound = league_worst_case_usd("normal", config)
+    for n_teams in (4, 12, 150):
+        payload = build_narration_payload(_i3_narration(n_teams))
+        assert len(payload) <= NARRATION_TOKEN_CAP
+        assert narration_worst_case_usd(payload, voice_prompt, config) <= bound

@@ -173,7 +173,109 @@ def test_I2() -> None:
     pytest.skip("pending Epic 7")
 
 
-def test_I3() -> None:
+def _i3_narration(n_teams: int = 12):  # type: ignore[no-untyped-def]
+    from commishdesk.facts.schema import (
+        HeadlineNumbers,
+        Narration,
+        NarrationLeague,
+        NarrationTeam,
+        PositionalRunsSummary,
+        QBRunSummary,
+        RBRunSummary,
+        Superlatives,
+        TERunSummary,
+    )
+
+    return Narration(
+        league=NarrationLeague(name="L", season="2025", scoring_label="PPR"),
+        headline_numbers=HeadlineNumbers(picks_total=n_teams, first_window_rb_count=0),
+        superlatives=Superlatives(),
+        teams=[
+            NarrationTeam(manager=f"m{i}", roster_id=str(i), pick_count=1, grade="B")
+            for i in range(n_teams)
+        ],
+        positional_runs=PositionalRunsSummary(
+            QB=QBRunSummary(total=0, by_end_round3=0),
+            RB=RBRunSummary(total=0, in_round1=0),
+            TE=TERunSummary(total=0),
+        ),
+    )
+
+
+def _i3_six_section_text(extra: list[str]) -> str:
+    from commishdesk.narrate import SECTION_HEADINGS
+
+    lines = ["Trench Warfare Draft Recap", ""]
+    for heading in SECTION_HEADINGS:
+        lines += [f"## {heading}", "", "nothing here is worth flagging at all.", ""]
+    return "\n".join(lines + extra)
+
+
+def _i3_through_produce_issue(  # type: ignore[no-untyped-def]
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    narrate_generate,
+    verifier_text: str | None,
+    llm_enabled: bool = True,
+):
+    """Drive ``cli._produce_issue`` with fake clients on both the narration and the
+    verifier path. *narrate_generate(model_cfg)* runs per narration ``generate`` and
+    returns text or raises; the verifier answers *verifier_text* (``None`` -> the
+    verifier is switched off). Returns ``(issue, narration_calls, verifier_calls)``;
+    each list holds one entry per ``generate`` invocation."""
+    import dataclasses
+    import logging
+    import types
+
+    import commishdesk.cli as cli_mod
+    import commishdesk.narrate.llm as llm_mod
+    from commishdesk.llmconfig import load_llm_config
+    from commishdesk.narrate.verify import EXTRACTOR_VOICE
+
+    narration_calls: list[str] = []
+    verifier_calls: list[str] = []
+    config = load_llm_config({})
+    if verifier_text is None:
+        config = dataclasses.replace(config, verifier=None)
+
+    class _Client:
+        def __init__(self, cfg: object) -> None:
+            self._cfg = cfg
+
+        def generate(self, payload: str, voice: object) -> str:
+            if voice is EXTRACTOR_VOICE:
+                verifier_calls.append("v")
+                assert verifier_text is not None
+                return verifier_text
+            narration_calls.append(f"{self._cfg.provider}:{self._cfg.model_id}")  # type: ignore[attr-defined]
+            return narrate_generate(self._cfg)
+
+    original = llm_mod.narrate_draft_recap
+
+    class _Voice:
+        system_prompt = "beat writer"
+        banned_topics: frozenset[str] = frozenset()
+
+    with monkeypatch.context() as patch:  # undone per call, so calls never stack
+        patch.setattr(
+            llm_mod,
+            "narrate_draft_recap",
+            lambda *a, **k: original(*a, **{**k, "client_factory": _Client}),
+        )
+        patch.setattr(llm_mod, "build_client", _Client)
+        issue = cli_mod._produce_issue(
+            types.SimpleNamespace(narration=_i3_narration()),
+            _Voice(),
+            config if llm_enabled else None,
+            llm_enabled=llm_enabled,
+            logger=logging.getLogger("test_I3"),
+            resolved="1",
+            allow_content_hold=False,
+        )
+    return issue, narration_calls, verifier_calls
+
+
+def test_I3(monkeypatch: pytest.MonkeyPatch) -> None:
     """I3 — LLM cost per league-week is exactly one call. Regardless of member
     count. The Recap is generated once per league and reused for every recipient.
 
@@ -309,6 +411,72 @@ def test_I3() -> None:
     )
     assert len(sites) == 1, sites
     assert sites[0].startswith("narrate/llm.py:"), sites
+
+    # AD-46 / I3 through the CLI's own driver (_produce_issue): the exported bound,
+    # not a hand-counted one, caps the billed calls in every failure shape.
+    from commishdesk.narrate.llm import RETRY_CAP, _TransientProviderError
+    from commishdesk.narrate.pricing import (
+        MAX_BILLABLE_NARRATION_ATTEMPTS,
+        MAX_BILLABLE_VERIFICATION_CALLS,
+    )
+
+    # each narration attempt can bill primary AND fallback once; the verifier is separate
+    narration_bound = MAX_BILLABLE_NARRATION_ATTEMPTS * 2
+    verifier_bound = MAX_BILLABLE_VERIFICATION_CALLS
+
+    # 1) always-failing client (non-transient): both providers once, then the template
+    def _boom(cfg: object) -> str:
+        raise RuntimeError("provider is down")
+
+    issue, n_calls, v_calls = _i3_through_produce_issue(
+        monkeypatch, narrate_generate=_boom, verifier_text='{"claims": []}'
+    )
+    assert issue.narrator == "template"
+    assert len(n_calls) <= narration_bound
+    assert len(v_calls) == 0
+
+    # 2) always-regenerating client: more unfixable hallucinations than the free
+    #    repair accepts, every time -> one regeneration, then the template.
+    regenerating = _i3_six_section_text(
+        [f"Zebediah Fortescue{c} drafted {40 + i} running backs." for i, c in enumerate("ABCDEFGHIJ")]
+    )
+    issue, n_calls, v_calls = _i3_through_produce_issue(
+        monkeypatch, narrate_generate=lambda cfg: regenerating, verifier_text='{"claims": []}'
+    )
+    assert issue.narrator == "template"
+    assert len(n_calls) == MAX_BILLABLE_NARRATION_ATTEMPTS  # initial + one regeneration
+    assert len(n_calls) <= narration_bound
+    assert len(v_calls) == 0  # nothing shipped, so nothing verified
+
+    # 3) a clean completion: one narration call, at most the bounded verifier calls
+    clean = _i3_six_section_text([])
+    issue, n_calls, v_calls = _i3_through_produce_issue(
+        monkeypatch, narrate_generate=lambda cfg: clean, verifier_text='{"claims": []}'
+    )
+    assert issue.narrator == "llm-primary"
+    assert len(n_calls) == 1
+    assert 1 <= len(v_calls) <= verifier_bound
+
+    # 4) transient faults: at most 1 + RETRY_CAP attempts per provider, none billed
+    def _transient(cfg: object) -> str:
+        raise _TransientProviderError("503")
+
+    issue, n_calls, v_calls = _i3_through_produce_issue(
+        monkeypatch, narrate_generate=_transient, verifier_text=None
+    )
+    assert issue.narrator == "template"
+    per_provider = {m: n_calls.count(m) for m in set(n_calls)}
+    assert len(per_provider) == 2, per_provider
+    assert all(n == 1 + RETRY_CAP for n in per_provider.values()), per_provider
+    assert not v_calls
+
+    # 5) a narration-cache hit (the batch's R2 cache, AD-11) reaches the engine as
+    #    llm_enabled=False: it bills nothing and still runs the deterministic checks
+    issue, n_calls, v_calls = _i3_through_produce_issue(
+        monkeypatch, narrate_generate=_boom, verifier_text='{"claims": []}', llm_enabled=False
+    )
+    assert issue.narrator == "template"
+    assert n_calls == [] and v_calls == []
 
 
 def test_I4(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -461,12 +629,56 @@ def test_generation_headroom_ordering_and_season_rollover() -> None:
     assert rolled.league_ids == ("b",)
 
 
-def test_I6() -> None:
+def test_I6(monkeypatch: pytest.MonkeyPatch) -> None:
     """I6 — Total run cost is computed before any spend.
     The weekly job derives its complete work list, prices it, then runs fully or not at
     all. Over the configured ceiling → hard abort + operator alert, zero spend. No code
     path discovers an overrun mid-run."""
-    pytest.skip("pending Epic 7")
+    import dataclasses
+    import logging
+    import types
+
+    import commishdesk.cli as cli_mod
+    import commishdesk.narrate.llm as llm_mod
+    from commishdesk.errors import CostCeilingExceededError
+    from commishdesk.llmconfig import load_llm_config
+    from commishdesk.narrate.pricing import league_worst_case_usd
+
+    # the payload-free price is a positive number the batch can compare to a ceiling
+    worst = league_worst_case_usd("normal")
+    assert worst > 0.0
+
+    calls = {"n": 0}
+
+    class _Client:
+        def __init__(self, cfg: object) -> None:
+            pass
+
+        def generate(self, payload: str, voice: object) -> str:
+            calls["n"] += 1
+            return "paid"
+
+    original = llm_mod.narrate_draft_recap
+
+    def _counting(*a: object, **k: object) -> object:
+        calls["n"] += 1
+        return original(*a, **{**k, "client_factory": _Client})  # type: ignore[arg-type]
+
+    monkeypatch.setattr(llm_mod, "build_client", _Client)
+    monkeypatch.setattr(llm_mod, "narrate_draft_recap", _counting)
+
+    # a ceiling below the estimate: the CLI's pre-spend check refuses, zero paid calls
+    config = dataclasses.replace(load_llm_config({}), cost_ceiling_usd=worst / 1000)
+    phases = object.__new__(cli_mod._DraftRecapPhases)
+    phases.logger = logging.getLogger("test_I6")  # type: ignore[misc]
+    phases.resolved = "1"  # type: ignore[misc]
+    phases.llm_config = config  # type: ignore[misc]
+    phases.llm_enabled = True  # type: ignore[misc]
+    phases.voice = types.SimpleNamespace(system_prompt="beat writer", banned_topics=frozenset())  # type: ignore[misc]
+    phases.doc = types.SimpleNamespace(narration=_i3_narration())  # type: ignore[misc]
+    with pytest.raises(CostCeilingExceededError):
+        phases.narrate()
+    assert calls["n"] == 0
 
 
 def test_I7() -> None:

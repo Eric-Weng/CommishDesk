@@ -28,6 +28,7 @@ from typing import TYPE_CHECKING, Any
 
 from commishdesk.errors import CommishDeskError, StoreError
 from commishdesk.logconfig import LOGGER_NAME
+from commishdesk.narrate.pricing import MAX_BILLABLE_NARRATION_ATTEMPTS
 
 if TYPE_CHECKING:
     from commishdesk.facts.schema import Storyline, WeeklyFacts, WeeklyNarration
@@ -47,14 +48,6 @@ __all__ = [
 #: Environment variables whose presence selects the LLM narrator on the weekly path.
 _LLM_KEY_VARS = ("ANTHROPIC_API_KEY", "LLM_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY")
 
-#: Per league-week, at most two narration *attempts* can each yield one
-#: successful, fully-billed completion: the initial attempt, and the single
-#: ``regenerate``-tier re-narration permitted (I3 reconciliation,
-#: epic-3-retro-item-44 / sprint-status.yaml: "at most one successful generation
-#: per narration attempt, at most two narration attempts per league-week").
-#: ``RETRY_CAP``-driven transient retries never produce a billed completion, so
-#: they need no multiplier here.
-_MAX_BILLABLE_NARRATION_ATTEMPTS = 2
 
 #: The blob-cache namespace a league-week's Facts JSON snapshot lives under.
 _WEEKLY_FACTS_NAMESPACE = "weekly-facts-snapshot"
@@ -285,7 +278,7 @@ def weekly_estimate_within_ceiling(
     Mirrors :func:`_recap_one_league`'s pre-call worst-case estimate — the same
     payload the narrator will actually send (via ``build_weekly_payload``, plus
     the voice's system prompt), both providers summed, times
-    :data:`_MAX_BILLABLE_NARRATION_ATTEMPTS` — but a failing check **degrades**
+    :data:`MAX_BILLABLE_NARRATION_ATTEMPTS` — but a failing check **degrades**
     rather than raising: the scheduled weekly run falls back to the template
     narrator, and :class:`~commishdesk.errors.CostCeilingExceededError` never
     reaches it. An unpriced model fails the same way (``estimate_cost_usd`` raises
@@ -310,7 +303,7 @@ def weekly_estimate_within_ceiling(
         )
         return False
 
-    estimate = per_call_estimate * _MAX_BILLABLE_NARRATION_ATTEMPTS
+    estimate = per_call_estimate * MAX_BILLABLE_NARRATION_ATTEMPTS
     if estimate > config.cost_ceiling_usd:
         logger.warning(
             "league %s: estimated weekly LLM cost %s exceeds the ceiling %s — "

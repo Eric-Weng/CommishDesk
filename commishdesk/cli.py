@@ -31,8 +31,13 @@ from commishdesk.errors import (
     DeliveryError,
 )
 from commishdesk.logconfig import configure_logging, log_context
+from commishdesk.narrate.pricing import (
+    MAX_BILLABLE_NARRATION_ATTEMPTS as _MAX_BILLABLE_NARRATION_ATTEMPTS,
+)
+from commishdesk.narrate.pricing import (
+    MAX_BILLABLE_VERIFICATION_CALLS as _MAX_BILLABLE_VERIFICATION_CALLS,
+)
 from commishdesk.weekly import (
-    _MAX_BILLABLE_NARRATION_ATTEMPTS,
     compute_weekly_facts,
     fetch_weekly_bundles,
     persist_weekly_storylines,
@@ -294,12 +299,6 @@ def run(
 #: The Discord channel webhook the MVP delivers to. A secret — read from the
 #: process environment only, never a file or a committed ``leagues/*.toml``.
 _DISCORD_WEBHOOK_VAR = "COMMISHDESK_DISCORD_WEBHOOK_URL"
-
-#: Per league-week, at most one claim-verification call (content-safety P1).
-#: ``_produce_issue`` verifies only the prose it is about to ship, and both of its
-#: LLM ship paths return through that one check — so a regeneration never buys a
-#: second verification, and member count never enters into it.
-_MAX_BILLABLE_VERIFICATION_CALLS = 1
 
 
 @app.command("verify-webhook")
@@ -969,12 +968,11 @@ class _DraftRecapPhases(_RecapPhases):
             assert llm_config is not None  # loaded before the loop whenever llm_enabled holds
             assert voice is not None  # loaded alongside llm_config, same guard
             from commishdesk.narrate import (
-                MAX_OUTPUT_TOKENS,
                 build_narration_payload,
-                estimate_cost_usd,
                 is_pricing_stale,
             )
             from commishdesk.narrate import pricing as narrate_pricing
+            from commishdesk.narrate.pricing import narration_worst_case_usd
 
             if is_pricing_stale():
                 logger.warning(
@@ -985,41 +983,15 @@ class _DraftRecapPhases(_RecapPhases):
                     narrate_pricing.PRICING_REVIEW_INTERVAL_DAYS,
                 )
 
-            # Priced for length only — this concatenation is never sent anywhere as
-            # a real payload. Both AnthropicClient.generate and GoogleClient.generate
-            # (narrate/llm.py) send voice.system_prompt as the system message on
-            # every real call, so the worst-case bound must count it too, or it is
-            # not actually a worst-case bound.
-            payload = build_narration_payload(doc.narration) + voice.system_prompt
-            # Worst case: primary AND fallback both billed — a non-transient
-            # failure on the primary (e.g. a truncated max_tokens completion) can
-            # fall through to the fallback within the same narration attempt, so
-            # the ceiling must sum the two per-call costs, not take whichever
-            # model is pricier alone. Times the two narration attempts one
-            # league-week can actually bill (the initial attempt plus the one
-            # permitted regeneration — see _MAX_BILLABLE_NARRATION_ATTEMPTS).
-            # max_output_tokens is imported from narrate.llm (via the narrate
-            # package re-export), not duplicated, so the two can never silently
-            # desync.
-            per_call_estimate = estimate_cost_usd(
-                payload, llm_config.primary, max_output_tokens=MAX_OUTPUT_TOKENS
-            ) + estimate_cost_usd(payload, llm_config.fallback, max_output_tokens=MAX_OUTPUT_TOKENS)
-            estimate = per_call_estimate * _MAX_BILLABLE_NARRATION_ATTEMPTS
-            if llm_config.verifier is not None:
-                from commishdesk.narrate.pricing import CHARS_PER_TOKEN
-                from commishdesk.narrate.verify import EXTRACTOR_VOICE
-
-                # The claim verifier reads the finished prose — at most one completion
-                # long, so MAX_OUTPUT_TOKENS tokens at the estimator's CHARS_PER_TOKEN — plus its own
-                # system prompt, and its reply is priced at the same output ceiling.
-                # Priced for length only, like the narration payload above; an
-                # unpriced verifier model fails closed here by name, as an unpriced
-                # narrator does.
-                verifier_input = "x" * int(MAX_OUTPUT_TOKENS * CHARS_PER_TOKEN) + EXTRACTOR_VOICE.system_prompt
-                estimate += (
-                    estimate_cost_usd(verifier_input, llm_config.verifier, max_output_tokens=MAX_OUTPUT_TOKENS)
-                    * _MAX_BILLABLE_VERIFICATION_CALLS
-                )
+            # Worst-case bound (payload + voice prompt, primary and fallback, both
+            # narration attempts, verifier): see narration_worst_case_usd.
+            estimate = narration_worst_case_usd(
+                build_narration_payload(doc.narration),
+                voice.system_prompt,
+                llm_config,
+                attempts=_MAX_BILLABLE_NARRATION_ATTEMPTS,
+                verifier_calls=_MAX_BILLABLE_VERIFICATION_CALLS,
+            )
             typer.echo(f"estimated cost: {_fmt_usd(estimate)} (ceiling {_fmt_usd(llm_config.cost_ceiling_usd)})")
             if estimate > llm_config.cost_ceiling_usd:
                 raise CostCeilingExceededError(
