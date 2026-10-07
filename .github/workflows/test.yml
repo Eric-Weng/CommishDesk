@@ -63,3 +63,19 @@ jobs:
           python-version: "3.12"
       - run: uv run --frozen ruff check .
       - run: uv run --frozen mypy commishdesk
+
+  # The real onnxruntime + tokenizers path (Story 7.3), against the committed tiny
+  # fixture model. The default `test:` job runs without the extra and skips these.
+  l4:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7  # v10.2.0
+        with:
+          version: "0.12.6"
+          enable-cache: true
+          python-version: "3.12"
+      - run: uv run --frozen --extra l4 pytest tests/test_narrate_l4_runtime.py

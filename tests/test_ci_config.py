@@ -1012,7 +1012,12 @@ def test_no_yaml_parser_is_importable_or_declared() -> None:
     retro P3: ``ruamel`` imports as ``ruamel.yaml`` (invisible to ``find_spec("yaml")``)
     so it gets its own import check, and the table capture no longer truncates on ``[``.
     """
-    assert importlib.util.find_spec("yaml") is None, "a YAML parser is importable"
+    # The opt-in ``l4`` extra (Story 7.3) pulls ``pyyaml`` transitively (tokenizers ->
+    # huggingface-hub); that is the extra's own dependency, not a declared one, so it is
+    # tolerated only while ``tokenizers`` itself is installed. The declared-deps scan below
+    # still forbids naming a YAML parser anywhere in pyproject.toml.
+    if importlib.util.find_spec("tokenizers") is None:
+        assert importlib.util.find_spec("yaml") is None, "a YAML parser is importable"
     assert importlib.util.find_spec("ruamel") is None, "ruamel.yaml is importable"
 
     text = (REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8")

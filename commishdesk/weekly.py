@@ -33,6 +33,7 @@ from commishdesk.narrate.pricing import MAX_BILLABLE_NARRATION_ATTEMPTS
 if TYPE_CHECKING:
     from commishdesk.facts.schema import Storyline, WeeklyFacts, WeeklyNarration
     from commishdesk.llmconfig import LLMConfig
+    from commishdesk.narrate.l4 import L4Scorer
     from commishdesk.narrate.weekly_template import WeeklyIssue
     from commishdesk.render import EmailParts, WebEnhancer
     from commishdesk.stats.standings import PlayoffSeeding
@@ -379,9 +380,10 @@ def produce_weekly_issue(
     reissue: bool = False,
     allow_content_hold: bool = False,
     suppressed: frozenset[str] = frozenset(),
-) -> tuple[WeeklyIssue, dict[str, int], dict[str, str]]:
+    l4: L4Scorer | None = None,
+) -> tuple[WeeklyIssue, dict[str, int], dict[str, str], tuple[str, ...]]:
     """Select the weekly narrator and return ``(issue, published_ranks,
-    nudge_justifications)``.
+    nudge_justifications, l4_reverted)``.
 
     The template narrator's rendered Issue is itself gated on content safety
     (Story 5.11's retro finding S11): ``template()`` runs ``check_narration`` +
@@ -410,6 +412,15 @@ def produce_weekly_issue(
     all omit them), and the parsed Issue gets their template sections spliced in.
     An id this Issue does not carry is ignored; when every section is suppressed
     no LLM call is made.
+
+    ``l4`` (AD-12 L4, AD-47) is an optional classifier handed in by the caller. When
+    given, an LLM-narrated Issue that passed the L2/L3 gate is screened section by
+    section: a section at or above the threshold is replaced by its template section,
+    its id is logged at warning and returned as ``l4_reverted`` (a Power hit also
+    empties the published ranks and nudge justifications, like a suppressed Power
+    section). A classifier that cannot score raises
+    :class:`~commishdesk.narrate.l4.L4UnavailableError`; unscreened LLM prose is never
+    returned. Template and degrade results are never screened and report ``()``.
     """
     from commishdesk.errors import ContentSafetyError
     from commishdesk.narrate.response import classify
@@ -453,7 +464,7 @@ def produce_weekly_issue(
         )
         return None
 
-    def template(voice: Voice | None = None) -> tuple[WeeklyIssue, dict[str, int], dict[str, str]]:
+    def template(voice: Voice | None = None) -> tuple[WeeklyIssue, dict[str, int], dict[str, str], tuple[str, ...]]:
         """The deterministic weekly narrator, gated like the draft path's
         ``_template_issue`` (except that a suppress-tier finding holds rather
         than trimming sections — see below): ``check_narration`` runs on the rendered
@@ -485,7 +496,7 @@ def produce_weekly_issue(
             held = _hold(reasons)
             if held is not None:
                 raise held
-        return issue, {}, {}
+        return issue, {}, {}, ()
 
     all_suppressed = not section_headings_for_has_prior_week(
         doc.period.has_prior_week, suppressed
@@ -591,7 +602,26 @@ def produce_weekly_issue(
         # Parsed from the raw completion, like the ranks: the parsed Issue joins a
         # tight list's lines into one block, which would hide every item after the first.
         justifications = {} if power_suppressed else parse_nudge_justifications(result.text, narration)
-        return issue, ranks, justifications
+        reverted: tuple[str, ...] = ()
+        if l4 is not None:
+            from commishdesk.narrate.l4 import screen_weekly_issue
+
+            issue, reverted = screen_weekly_issue(
+                issue,
+                narration,
+                l4,
+                has_prior_week=doc.period.has_prior_week,
+                suppressed=suppressed,
+            )
+            for section_id in reverted:
+                logger.warning(
+                    "league %s: weekly section %s over the L4 threshold; replaced with template text",
+                    resolved,
+                    section_id,
+                )
+            if "power" in reverted:
+                ranks, justifications = {}, {}
+        return issue, ranks, justifications, reverted
     return template(voice)
 
 
@@ -820,7 +850,7 @@ def build_weekly_issue(
         hold_on_cross_check=hold_on_cross_check,
         logger=log,
     )
-    issue, ranks, justifications = produce_weekly_issue(
+    issue, ranks, justifications, _l4_reverted = produce_weekly_issue(
         built.doc,
         resolved=league_id,
         logger=log,

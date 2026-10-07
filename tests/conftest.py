@@ -40,6 +40,8 @@ _KNOWN_SKIP_PREFIXES = (
     "phase-0 golden is a private planning artifact",  # test_facts.py
     "private raw Sleeper export not present",  # test_fixtures.py
     "COMMISHDESK_LIVE_LLM is unset",  # test_voices.py -- opt-in live voice eval
+    "the l4 extra is not installed",  # test_narrate_l4_runtime.py / _cases.py -- real onnxruntime + tokenizers
+    "COMMISHDESK_L4_MODEL is unset",  # test_narrate_l4_cases.py -- opt-in real-model measurement
 )
 
 #: The ``pytest.skip(...)`` reason string in a skip report's ``longrepr`` is

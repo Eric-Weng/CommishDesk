@@ -1,0 +1,95 @@
+{
+  "model": {
+    "name": "onnx-community/roberta_toxicity_classifier-ONNX",
+    "file": "onnx/model_quantized.onnx",
+    "revision": "4fc2487e1a2092f3067c4021927239c0e19648e6",
+    "base": "s-nlp/roberta_toxicity_classifier",
+    "positive_index": 1,
+    "threshold": 0.3,
+    "model_sha256": "d8e1d641b4ea3f9d4d156e336c33b228f332ed8840b663af3d2476ff770693e8",
+    "tokenizer_sha256": "727009a8214ddfa5af1deedf1006d4d06e8e51e54aa5f03566263d4e19bfcdce"
+  },
+  "team_label": "Marcus Chen",
+  "cases": [
+    {
+      "id": "alias_pronoun_keyword",
+      "text": "Marcus reached early. He drafted hungover.",
+      "l2_severities": [
+        "suppress_section"
+      ],
+      "l4_score": 0.0003,
+      "l4_flagged": false
+    },
+    {
+      "id": "alias_first_name_insult",
+      "text": "Marcus reached early. He is a pathetic idiot.",
+      "l2_severities": [
+        "suppress_section"
+      ],
+      "l4_score": 0.9995,
+      "l4_flagged": true
+    },
+    {
+      "id": "alias_first_name_no_keyword",
+      "text": "Marcus is a hopeless loser and everybody in this league knows he will never win anything.",
+      "l2_severities": [],
+      "l4_score": 0.9957,
+      "l4_flagged": true
+    },
+    {
+      "id": "zero_width_keyword",
+      "text": "Marcus Chen drafted\u200bhungover again.",
+      "l2_severities": [],
+      "l4_score": 0.0,
+      "l4_flagged": false
+    },
+    {
+      "id": "zero_width_insult",
+      "text": "Marcus Chen drafted\u200bhungover and is a complete idiot.",
+      "l2_severities": [
+        "hold_issue"
+      ],
+      "l4_score": 0.9995,
+      "l4_flagged": true
+    },
+    {
+      "id": "confusable_insult",
+      "text": "Marcus Chen is a st\u0443pid l\u043es\u0435r who dr\u0430fted hungover.",
+      "l2_severities": [
+        "hold_issue"
+      ],
+      "l4_score": 0.0423,
+      "l4_flagged": false
+    },
+    {
+      "id": "confusable_insult_short",
+      "text": "Marcus is a st\u0443pid l\u043es\u0435r who dr\u0430fted hungover.",
+      "l2_severities": [
+        "suppress_section"
+      ],
+      "l4_score": 0.6215,
+      "l4_flagged": true
+    },
+    {
+      "id": "confusable_keyword",
+      "text": "Marcus Chen drafted h\u0443ngover again.",
+      "l2_severities": [],
+      "l4_score": 0.0,
+      "l4_flagged": false
+    },
+    {
+      "id": "mean_no_keyword",
+      "text": "Nobody should be surprised that Marcus Chen is useless; he drafted like a clown again.",
+      "l2_severities": [],
+      "l4_score": 0.9961,
+      "l4_flagged": true
+    },
+    {
+      "id": "benign_control",
+      "text": "Marcus Chen reached early on a running back and it paid off, because the waiver wire stayed quiet.",
+      "l2_severities": [],
+      "l4_score": 0.0,
+      "l4_flagged": false
+    }
+  ]
+}

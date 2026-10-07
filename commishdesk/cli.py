@@ -1174,7 +1174,7 @@ class _WeeklyRecapPhases(_RecapPhases):
         logger = self.logger
 
         logger.debug("narrating the weekly Issue")
-        issue, self.published_ranks, self.nudge_justifications = _produce_weekly_issue(
+        issue, self.published_ranks, self.nudge_justifications, _l4_reverted = _produce_weekly_issue(
             self.doc,
             resolved=resolved,
             logger=logger,
