@@ -19,7 +19,7 @@ import inspect
 import re
 import subprocess
 import sys
-from datetime import UTC
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -130,18 +130,26 @@ def test_I1() -> None:
     The Generation Set is *derived* from verified-channel state by exactly one
     constructor. No other code path may add a league to a run."""
     from commishdesk import generation
-    from commishdesk.generation import GenerationSet, build_generation_set
-
-    # empty in -> empty out; 10k harvested ids, none activated -> empty out, zero work
-    assert build_generation_set([]).league_ids == ()
-    assert (
-        build_generation_set(
-            (str(n) for n in range(10_000)), is_activated=lambda _id: False
-        ).league_ids
-        == ()
+    from commishdesk.generation import (
+        ClaimFacts,
+        GenerationPolicy,
+        GenerationSet,
+        LeagueFacts,
+        build_generation_set,
     )
-    assert isinstance(build_generation_set(["77", "77"]), GenerationSet)
-    assert build_generation_set(["77", "77"]).league_ids == ("77",)
+
+    policy = GenerationPolicy(max_active_leagues=5, allow_new=True)
+    epoch = datetime(2026, 1, 1, tzinfo=UTC)
+
+    # empty in -> empty out; 10k harvested ids, none eligible -> empty out, zero work
+    assert build_generation_set([], policy).league_ids == ()
+    harvested = [LeagueFacts(str(n), epoch, onboarded=False) for n in range(10_000)]
+    assert build_generation_set(harvested, policy).league_ids == ()
+    unclaimed = [LeagueFacts(str(n), epoch, onboarded=True) for n in range(100)]
+    assert build_generation_set(unclaimed, policy).league_ids == ()
+    dup = [LeagueFacts("77", epoch, True, (ClaimFacts(confirmed=True),))] * 2
+    assert isinstance(build_generation_set(dup, policy), GenerationSet)
+    assert build_generation_set(dup, policy).league_ids == ("77",)
 
     # exactly one module in the package constructs GenerationSet(...)
     pkg_root = Path(generation.__file__).resolve().parent
@@ -394,7 +402,63 @@ def test_I5() -> None:
     Zero opens and zero clicks for N consecutive weeks → automatic deactivation until
     re-engaged; a deactivated league generates no Issues and no spend; status is computed
     live from engagement history, never stored as a flag."""
-    pytest.skip("pending Epic 7")
+    from commishdesk.generation import (
+        ClaimFacts,
+        GenerationPolicy,
+        GenerationSet,
+        LeagueFacts,
+        Reason,
+        SendFacts,
+        build_generation_set,
+    )
+
+    t0 = datetime(2026, 9, 1, tzinfo=UTC)
+    sends = tuple(SendFacts(t0 + timedelta(days=7 * i), "email") for i in range(6))
+    claims = (ClaimFacts(confirmed=True),)
+    policy = GenerationPolicy(max_active_leagues=5, allow_new=True)
+
+    def run(engaged: datetime | None) -> GenerationSet:
+        facts = LeagueFacts("L", t0, True, claims, sends, engaged)
+        return build_generation_set([facts], policy)
+
+    # six emailed Issues, no engagement -> deactivated: no Issue, no spend
+    decayed = run(None)
+    assert decayed.league_ids == () and decayed.excluded == (("L", Reason.DECAYED),)
+    # one click after the 6th-most-recent send reactivates; status is derived, not stored
+    assert run(sends[0].sent_at + timedelta(seconds=1)).league_ids == ("L",)
+    assert run(None).league_ids == ()
+    # fewer than six emailed Issues is never decayed
+    short = LeagueFacts("L", t0, True, claims, sends[:5], None)
+    assert build_generation_set([short], policy).league_ids == ("L",)
+
+
+def test_generation_headroom_ordering_and_season_rollover() -> None:
+    from commishdesk.generation import (
+        ClaimFacts,
+        GenerationPolicy,
+        LeagueFacts,
+        SendFacts,
+        build_generation_set,
+    )
+
+    t0 = datetime(2026, 9, 1, tzinfo=UTC)
+    claims = (ClaimFacts(confirmed=True),)
+
+    def lg(lid: str, day: int, sent: bool = False) -> LeagueFacts:
+        sends = (SendFacts(t0, "email"),) if sent else ()
+        return LeagueFacts(lid, t0 + timedelta(days=day), True, claims, sends)
+
+    # headroom: oldest created_at first; incumbents always stay
+    got = build_generation_set(
+        [lg("young", 9), lg("old", 1), lg("inc", 5, True)],
+        GenerationPolicy(max_active_leagues=2),
+    )
+    assert got.league_ids == ("inc", "old")
+    # season rollover: new-season facts carry no sends; incumbents (with sends) keep slots
+    rolled = build_generation_set(
+        [lg("a", 1), lg("b", 2, True)], GenerationPolicy(max_active_leagues=1)
+    )
+    assert rolled.league_ids == ("b",)
 
 
 def test_I6() -> None:

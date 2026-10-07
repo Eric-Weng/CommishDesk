@@ -431,11 +431,13 @@ def _run_draft_recap(
         DEMO_CONSENSUS_SOURCE_NAME,
         DEMO_LEAGUE_ID,
     )
-    from commishdesk.generation import build_generation_set
+    from commishdesk.generation import GenerationPolicy, build_generation_set, cli_facts
 
     # I1 / AD-6: the run list is derived by the one Generation Set constructor —
     # no other code path adds a league to a run.
-    run_list = build_generation_set([league]).league_ids
+    run_list = build_generation_set(
+        cli_facts(league), GenerationPolicy(max_active_leagues=1, allow_new=True)
+    ).league_ids
     if not run_list:
         raise CommishDeskError(f"league {league!r} is not activated for a run")
 
@@ -532,12 +534,14 @@ def _run_weekly(
     scheduled run silently falls back to the deterministic template. The cost
     machinery itself lives in :func:`_weekly_estimate_within_ceiling`.
     """
-    from commishdesk.generation import build_generation_set
+    from commishdesk.generation import GenerationPolicy, build_generation_set, cli_facts
     from commishdesk.stats.standings import parse_playoff_seeding
 
     parsed_seeding = parse_playoff_seeding(seeding)
 
-    run_list = build_generation_set([league]).league_ids
+    run_list = build_generation_set(
+        cli_facts(league), GenerationPolicy(max_active_leagues=1, allow_new=True)
+    ).league_ids
     if not run_list:
         raise CommishDeskError(f"league {league!r} is not activated for a run")
 
