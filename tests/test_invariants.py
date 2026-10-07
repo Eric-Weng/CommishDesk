@@ -166,11 +166,62 @@ def test_I1() -> None:
     assert builders == ["generation.py"], builders
 
 
-def test_I2() -> None:
+def test_I2(tmp_path: Path) -> None:
     """I2 — An address receives at most one unsolicited message, ever.
     One pending confirmation per address, globally, for its lifetime; a second request
     for the same address is a silent no-op with a byte-identical response."""
-    pytest.skip("pending Epic 7")
+    from commishdesk.deliver import send_issue
+    from commishdesk.generation import (
+        ClaimFacts,
+        GenerationPolicy,
+        LeagueFacts,
+        build_generation_set,
+    )
+    from commishdesk.store import FileStore
+
+    # a league with no confirmed claim never reaches the deliver path
+    epoch = datetime(2026, 1, 1, tzinfo=UTC)
+    policy = GenerationPolicy(max_active_leagues=5, allow_new=True)
+    unconfirmed = (
+        ClaimFacts(confirmed=False),
+        ClaimFacts(confirmed=True, unsubscribed=True),
+        ClaimFacts(confirmed=True, revoked=True),
+    )
+    facts = [LeagueFacts("9", epoch, True, unconfirmed)]
+    assert build_generation_set(facts, policy).league_ids == ()
+
+    # the deliver path sends only to the recipients it is handed (the confirmed claims)
+    store = FileStore(tmp_path)
+    sent: list[str] = []
+    recipients = {"a@x.test": "issue", "b@x.test": "issue"}
+
+    def run() -> object:
+        return send_issue(
+            store,
+            league_id="42",
+            week=3,
+            channel="email",
+            recipients=recipients,
+            sender=lambda to, _content: sent.append(to),
+        )
+
+    first = run()
+    assert sorted(sent) == ["a@x.test", "b@x.test"]
+    assert first.delivered == ("a@x.test", "b@x.test")  # type: ignore[attr-defined]
+    ledger_len = len(store.read_ledger("42", 3))
+    assert ledger_len == 2
+
+    # a repeat send is a ledger no-op
+    again = run()
+    assert sorted(sent) == ["a@x.test", "b@x.test"]
+    assert again.delivered == ()  # type: ignore[attr-defined]
+    assert again.skipped == ("a@x.test", "b@x.test")  # type: ignore[attr-defined]
+    assert len(store.read_ledger("42", 3)) == ledger_len
+
+    # no bulk interface: a per-recipient mapping, never a list of addresses
+    params = inspect.signature(send_issue).parameters
+    assert "recipients" in params
+    assert not {"to", "bcc", "cc", "addresses", "emails", "bulk"} & set(params)
 
 
 def _i3_narration(n_teams: int = 12):  # type: ignore[no-untyped-def]
@@ -685,7 +736,20 @@ def test_I7() -> None:
     """I7 — Transactional and bulk mail use separate sending identities.
     Confirmations on one subdomain, newsletters on another, so a reputation hit on one
     cannot take down the other."""
-    pytest.skip("pending Epic 7")
+    from commishdesk.deliver.identity import mail_identities
+    from commishdesk.errors import MailIdentityError
+
+    ids = mail_identities("news.x.test", "mail.x.test")
+    assert ids.transactional != ids.bulk
+
+    for same in ("Mail.X.test", "Digest <a@mail.x.test>", "mail.x.test.", " mail.x.test "):
+        with pytest.raises(MailIdentityError):
+            mail_identities("mail.x.test", same)
+    for blank in ("", "   ", "a@", "Name <>"):
+        with pytest.raises(MailIdentityError):
+            mail_identities("news.x.test", blank)
+        with pytest.raises(MailIdentityError):
+            mail_identities(blank, "mail.x.test")
 
 
 # invariant → FR-49 epic number
