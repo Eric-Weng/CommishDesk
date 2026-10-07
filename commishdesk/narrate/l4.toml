@@ -1,0 +1,14 @@
+# L4 classifier settings (AD-12 / AD-47). Version-controlled and shipped as package
+# data beside safety_lists.toml; commishdesk/narrate/l4.py is the only reader.
+#
+# threshold      A section scoring at or above this (inclusive) is replaced by its
+#                template section. Probability in [0, 1] of the positive class.
+# positive_index Index of the "unsafe" class in the model's logits (softmax over the
+#                logits; with a single logit the score is its sigmoid).
+# max_length     Tokens per section; longer input is truncated before scoring.
+# Measured against onnx-community/roberta_toxicity_classifier-ONNX (onnx/model_quantized.onnx,
+# revision 4fc2487e1a2092f3067c4021927239c0e19648e6): benign newsletter prose scored <= 0.07,
+# toxic sentences >= 0.62; 0.3 sits between them (tests/fixtures/l4/cases.json).
+threshold = 0.3
+positive_index = 1
+max_length = 256

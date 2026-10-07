@@ -31,6 +31,13 @@ llm = [
     "anthropic>=0.40",
     "google-genai>=0.3",
 ]
+# Opt-in L4 classifier (Epic 7, AD-12 / AD-47): a local ONNX toxicity model scoring
+# each LLM-narrated weekly section. The engine never downloads a model; the caller
+# supplies the model directory. Absent from a default install.
+l4 = [
+    "onnxruntime",
+    "tokenizers",
+]
 
 [project.urls]
 Repository = "https://github.com/Eric-Weng/CommishDesk"

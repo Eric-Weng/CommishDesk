@@ -268,6 +268,27 @@ def test_py_typed_marker_ships_in_the_wheel(tmp_path: Path) -> None:
         assert "commishdesk/py.typed" in zf.namelist()
 
 
+def test_data_files_ship_in_the_wheel(tmp_path: Path) -> None:
+    """The narrate data files (L2 lists, the L4 settings) are package data: a source-tree
+    file the build backend drops would only fail on an installed copy (item 39)."""
+    uv = _find_uv()
+    if uv is None:
+        pytest.skip("uv not available")
+    result = subprocess.run(
+        [uv, "build", "--wheel", "--out-dir", str(tmp_path)],
+        cwd=PYPROJECT.parent,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    wheels = list(tmp_path.glob("*.whl"))
+    assert len(wheels) == 1, wheels
+    with zipfile.ZipFile(wheels[0]) as zf:
+        names = set(zf.namelist())
+    assert "commishdesk/narrate/safety_lists.toml" in names
+    assert "commishdesk/narrate/l4.toml" in names
+
+
 def test_tools_and_tests_do_not_ship_in_the_wheel(tmp_path: Path) -> None:
     """``tools/`` (the anonymizer) and ``tests/`` (the fixtures) are repo-only.
     A fixture bundle or a helper script in the installed package would be dead
@@ -307,11 +328,19 @@ def test_runtime_dependency_allowlist() -> None:
     # the two *direct* provider SDKs for the opt-in narrator (AD-15: no aggregator/proxy).
     # Nothing else may appear, in `llm` or in a new group.
     optional = project.get("optional-dependencies", {})
-    assert set(optional) <= {"llm"}, f"unexpected optional-dependency group(s): {set(optional)}"
+    # Story 7.3 adds the second, `l4` — the local ONNX classifier runtime (AD-47).
+    assert set(optional) <= {"llm", "l4"}, f"unexpected optional-dependency group(s): {set(optional)}"
     llm_names = {
         re.split(r"[<>=!~ \[]", spec, maxsplit=1)[0].strip().lower()
         for spec in optional.get("llm", [])
     }
     assert llm_names <= {"anthropic", "google-genai"}, (
         f"[project.optional-dependencies].llm has unexpected deps: {llm_names}"
+    )
+    l4_names = {
+        re.split(r"[<>=!~ \[]", spec, maxsplit=1)[0].strip().lower()
+        for spec in optional.get("l4", [])
+    }
+    assert l4_names <= {"onnxruntime", "tokenizers"}, (
+        f"[project.optional-dependencies].l4 has unexpected deps: {l4_names}"
     )

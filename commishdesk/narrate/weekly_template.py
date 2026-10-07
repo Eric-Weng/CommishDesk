@@ -84,6 +84,7 @@ __all__ = [
     "parse_published_ranks",
     "cold_start_standings",
     "render_weekly_issue",
+    "revert_sections_to_template",
     "section_headings_for_has_prior_week",
     "section_headings_for_narration",
     "weekly_issue_from_text",
@@ -406,6 +407,38 @@ def weekly_issue_from_text(
     ordered = [by_heading[name] if name in headings else template_by_heading[name] for name in full]
     title, dateline = _masthead(narration)
     return WeeklyIssue(title=title, dateline=dateline, sections=ordered)
+
+
+def revert_sections_to_template(
+    issue: WeeklyIssue,
+    narration: WeeklyNarration,
+    section_ids: Iterable[str],
+    *,
+    has_prior_week: bool | None = None,
+) -> WeeklyIssue:
+    """A copy of a finished *issue* whose sections named by *section_ids* carry the
+    template narrator's prose (the AD-30 splice, applied after the fact).
+
+    Each named section is replaced in place by the same-id section of
+    :func:`render_weekly_issue`; every other section, the masthead and any section
+    outside the seven (a reissue's Correction) are untouched. An id the Issue does
+    not carry is ignored. The spliced text is the template's own, already gated by
+    the template path, so it is not re-run through ``check_narration``.
+    """
+    if has_prior_week is None:
+        has_prior_week = narration.league.week >= _MEANINGFUL_FROM_WEEK
+    wanted = effective_suppressions(section_ids, has_prior_week)
+    if not wanted:
+        return issue
+    template_by_id = {
+        section.section_id: section
+        for section in render_weekly_issue(narration, has_prior_week=has_prior_week).sections
+    }
+    sections = [
+        template_by_id[sid] if (sid := section.section_id) is not None and sid in wanted else section
+        for section in issue.sections
+    ]
+    return issue.model_copy(update={"sections": sections})
 
 
 def _power_section_lines(text: str) -> list[str]:
