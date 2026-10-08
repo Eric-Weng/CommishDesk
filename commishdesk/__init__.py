@@ -1,3 +1,3 @@
 """CommishDesk — a zero-credential engine that builds a weekly newspaper for a fantasy league."""
 
-__version__ = "0.9.0"
+__version__ = "0.10.0"
