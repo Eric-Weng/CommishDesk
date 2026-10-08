@@ -677,6 +677,7 @@ class WeeklyIssueBuild:
     league_bundle: Mapping[str, Any]
     generated_at: str
     cross_check_passed: bool
+    l4_reverted: tuple[str, ...] = ()
 
 
 def fetch_weekly_bundles(adapter: Any, league_id: str, week: int) -> tuple[Mapping[str, Any], Mapping[str, Any]]:
@@ -806,6 +807,7 @@ def build_weekly_issue(
     allow_content_hold: bool = False,
     hold_on_cross_check: bool = True,
     enhancer: WebEnhancer | None = None,
+    l4: L4Scorer | None = None,
     logger: logging.Logger | None = None,
 ) -> WeeklyIssueBuild:
     """Build one league-week's weekly Issue from *store* and return it, writing no Issue file.
@@ -814,7 +816,10 @@ def build_weekly_issue(
     / ``close``); when ``None`` the default adapter is opened and closed here. ``suppressions``
     are the section ids toned down to template prose (AD-30), read once by the caller per run;
     ``None`` reads them from the store. The narrator is chosen from the environment exactly as
-    on the CLI (template unless a provider key and a budget are present). A cross-check failure
+    on the CLI (template unless a provider key and a budget are present). ``l4`` is an optional
+    classifier for LLM-narrated sections (see :func:`produce_weekly_issue`); the section ids it
+    reverted to template text come back as ``WeeklyIssueBuild.l4_reverted``, and a scorer failure
+    raises ``L4UnavailableError`` (fail closed). A cross-check failure
     raises ``CrossCheckError`` unless ``hold_on_cross_check`` is false. Narrative memory
     (storylines) is advanced before returning; call :func:`record_published_weekly` once the
     Issue is durably published.
@@ -850,12 +855,13 @@ def build_weekly_issue(
         hold_on_cross_check=hold_on_cross_check,
         logger=log,
     )
-    issue, ranks, justifications, _l4_reverted = produce_weekly_issue(
+    issue, ranks, justifications, l4_reverted = produce_weekly_issue(
         built.doc,
         resolved=league_id,
         logger=log,
         allow_content_hold=allow_content_hold,
         suppressed=suppressed,
+        l4=l4,
     )
     if not built.cross_check_passed:
         issue = issue.model_copy(update={"dateline": f"UNVERIFIED — {issue.dateline}"})
@@ -885,6 +891,7 @@ def build_weekly_issue(
         league_bundle=league_bundle,
         generated_at=generated_at,
         cross_check_passed=built.cross_check_passed,
+        l4_reverted=tuple(l4_reverted),
     )
 
 
