@@ -122,3 +122,53 @@ def test_cross_check_mismatch_unheld_is_unverified_and_writes_no_storylines(tmp_
     )
     assert built.issue.dateline.startswith("UNVERIFIED — ")
     assert store.read_storylines("L1") == []
+
+
+class _Scorer:
+    def score(self, text: str) -> float:
+        return 0.0
+
+
+def _spy_produce(monkeypatch: pytest.MonkeyPatch, outcome: Any) -> dict[str, Any]:
+    """Replace ``produce_weekly_issue`` with a spy: records ``l4``, then returns or raises *outcome*."""
+    import commishdesk.weekly as weekly
+
+    real = weekly.produce_weekly_issue
+    seen: dict[str, Any] = {}
+
+    def _spy(doc: Any, **kwargs: Any) -> Any:
+        seen["l4"] = kwargs.get("l4")
+        if isinstance(outcome, Exception):
+            raise outcome
+        issue, ranks, justifications, _ = real(doc, **{**kwargs, "l4": None})
+        return issue, ranks, justifications, outcome
+
+    monkeypatch.setattr(weekly, "produce_weekly_issue", _spy)
+    return seen
+
+
+def test_l4_scorer_is_passed_through_and_reverted_ids_are_exposed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    scorer = _Scorer()
+    seen = _spy_produce(monkeypatch, ("luck", "power"))
+    built = build_weekly_issue(FileStore(tmp_path), "L1", 17, adapter=_Adapter(), suppressions=set(), l4=scorer)
+    assert seen["l4"] is scorer
+    assert built.l4_reverted == ("luck", "power")
+
+
+def test_no_l4_scorer_reverts_nothing(tmp_path: Path) -> None:
+    built = build_weekly_issue(FileStore(tmp_path), "L1", 17, adapter=_Adapter(), suppressions=set())
+    assert built.l4_reverted == ()
+
+
+def test_a_failing_l4_scorer_fails_closed_and_writes_nothing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from commishdesk.narrate.l4 import L4UnavailableError
+
+    _spy_produce(monkeypatch, L4UnavailableError("scorer failed"))
+    store = FileStore(tmp_path)
+    with pytest.raises(L4UnavailableError):
+        build_weekly_issue(store, "L1", 17, adapter=_Adapter(), suppressions=set(), l4=_Scorer())
+    assert list(tmp_path.rglob("*.html")) == []
