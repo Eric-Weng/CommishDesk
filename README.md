@@ -59,6 +59,11 @@ uv run commishdesk --league demo --draft-recap
 uv run pytest -q
 ```
 
+A fictional twelve-team season ships inside the package as data, in `commishdesk/demo_season/`
+(`load_league_bundle()` and `load_week_bundle(week)`, weeks 1-12, no network). It is invented end
+to end and never a League; `tools/build_demo_season.py` authors it from a fixed seed and
+`tools/check_demo_names.py` checks its names against a real NFL player list.
+
 ## What it does
 
 | Stage | Package | Responsibility |
