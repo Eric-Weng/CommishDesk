@@ -31,6 +31,8 @@ This module imports only stdlib + ``commishdesk.ingest`` + ``commishdesk.stats``
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 from commishdesk.ingest import LeagueModel
 from commishdesk.stats import BoardMetrics, ConsensusMetrics, DraftGrades
 
@@ -272,7 +274,10 @@ Every ``kind`` a detector below emits must appear here."""
 
 
 def build_weekly_lead_candidates(
-    teams: list[WeeklyTeam], period: WeeklyPeriod
+    teams: list[WeeklyTeam],
+    period: WeeklyPeriod,
+    *,
+    recent_kinds: Sequence[str] = (),
 ) -> list[LeadCandidate]:
     """Ranked lead angles for the weekly recap (Story 5.9).
 
@@ -281,6 +286,12 @@ def build_weekly_lead_candidates(
     renumbered ``1..N``. Returns ``[]`` only when no roster played a game this
     week — the ``week_high_score`` floor otherwise guarantees at least one angle,
     so a ``lineup_loss`` read is never buried behind a single high score (FR-14).
+
+    ``recent_kinds`` are the angles the league's last Issues led on. An angle that
+    just led steps behind the fresh ones (the kind priority still orders each
+    group), so a season rotates its leads instead of opening on the same story
+    every week; when every fired angle is recent, or none is, the plain priority
+    order stands. ``lineup_loss`` still leads any week that has not just used it.
     """
     angles = [
         _lineup_loss(teams),
@@ -290,6 +301,7 @@ def build_weekly_lead_candidates(
     ]
     fired = [a for a in angles if a is not None]
     fired.sort(key=lambda a: WEEKLY_LEAD_KIND_PRIORITY.index(a.kind))
+    fired = [a for a in fired if a.kind not in recent_kinds] + [a for a in fired if a.kind in recent_kinds]
     return [a.model_copy(update={"rank": i}) for i, a in enumerate(fired, start=1)]
 
 
