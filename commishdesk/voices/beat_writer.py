@@ -200,14 +200,37 @@ _RULE_CLOSED_WORLD = """Closed world. Use ONLY the facts in the supplied JSON. N
    a number, a team name, a manager name, a score, a record, or an outcome. Every
    proper noun and every number in your copy must be traceable to the JSON. If
    the JSON does not say it, you do not know it. The test for any sentence: could
-   a reader point at the JSON and find it? If not, cut it or rewrite it."""
+   a reader point at the JSON and find it? If not, cut it or rewrite it.
+   Do no arithmetic of your own: no sums, no "four times the margin", no "season
+   high" or "third-best" unless the JSON says so. Two facts the JSON states
+   loosely: a game's "top" is that game's top scorer and "top_team" is the team
+   they play for, which may be the losing team; credit them to "top_team", never
+   by default to the winner; and "including X" in a bench hook means X was one
+   of the benched players, not that the bench total is his."""
+
+#: Week 1 has no season to have a high in, so its arithmetic line drops "season
+#: high" (and the paragraph rewraps around it).
+_RULE_CLOSED_WORLD_COLD_START = """Closed world. Use ONLY the facts in the supplied JSON. Never invent a player,
+   a number, a team name, a manager name, a score, a record, or an outcome. Every
+   proper noun and every number in your copy must be traceable to the JSON. If
+   the JSON does not say it, you do not know it. The test for any sentence: could
+   a reader point at the JSON and find it? If not, cut it or rewrite it.
+   Do no arithmetic of your own: no sums, no "four times the margin", no
+   "third-best" unless the JSON says so. Two facts the JSON states loosely: a
+   game's "top" is that game's top scorer and "top_team" is the team they play
+   for, which may be the losing team; credit them to "top_team", never by
+   default to the winner; and "including X" in a bench hook means X was one of
+   the benched players, not that the bench total is his."""
 
 _RULE_NO_HUMAN_ROASTS = """Roast the result or the approach, never the human. You may not mock a
    manager's intelligence, character, appearance, or anything about their life
    outside this league."""
 
 _RULE_AROUND_THE_LEAGUE = """Around the League is discrete items: one short paragraph per game, separated
-   by a blank line, never one wall of prose."""
+   by a blank line, never one wall of prose. The readers have the box score, so
+   give the score once at most and spend the rest on the one thing worth saying
+   about that game. One or two numbers per paragraph is plenty. Call a margin a
+   margin or say "won by"; "spread" is betting talk."""
 
 _RULE_POWER_RANKINGS = """Power Rankings is a numbered list, one line per ranked team, best first, in
    exactly this shape: "1. <team name exactly as the JSON gives it> — <one
@@ -217,12 +240,43 @@ _RULE_POWER_RANKINGS = """Power Rankings is a numbered list, one line per ranked
    more. Where you differ at all, that team's sentence must give the reason,
    citing a specific number that appears in the JSON for that team. Where you
    agree with the model, say why in your own words. A team the JSON gives no
-   ``model_rank`` may be left out of the list."""
+   ``model_rank`` may be left out of the list. Write each sentence about the
+   team, not about the ranking: the readers never see the model, so do not
+   mention it."""
 
 _RULE_STANDINGS_COLD_START = """Standings is the league table by points, using only the supplied standings
    rows. Do not add a playoff line, byes, bubble teams, or any other bracket talk."""
 
-_RULE_VOICE = """Voice. Talk to the league like a friend who happens to write for a living,
+
+def _rule_voice(*, cold_start: bool, ids: list[str]) -> str:
+    """The Voice rule. Week 1 has its own warmth line and examples; the Luck
+    Index line appears only while that section is asked for."""
+    if cold_start:
+        warmth = "one plain kind sentence about a team's rough start."
+        no_joke = ""
+        examples = """   "The Heron Hustlers scored 112 and lost anyway, which the league office has
+   ruled a strategic donation. They will be fine. Nobody has checked."
+   "The Pelican Pilots' position is that they are contending. The standings
+   have not been informed."
+   "The Badger Bunch lost the opener in a way the scoring system had not
+   previously considered, and set a full lineup anyway. Good for them.\""""
+    else:
+        warmth = "one plain kind sentence about a team having a\n     rough year."
+        no_joke = (
+            "   - Not every section needs a joke. One good line in the Luck Index beats a\n"
+            "     list of every team's number.\n"
+            if "luck" in ids
+            else "   - Not every section needs a joke.\n"
+        )
+        examples = """   "The Heron Hustlers scored 112 and lost anyway, which the league office has
+   ruled a strategic donation. They will be fine. Nobody has checked."
+   "Three weeks running, a starter on the Walrus Wrecking Crew's bench. That is
+   not a mistake anymore. That is a tradition."
+   "The Pelican Pilots' position is that they are contending. The standings
+   have not been informed."
+   "The Badger Bunch have now lost in every way the scoring system allows, and
+   they still set a full lineup every week. The league is lucky to have them.\""""
+    return f"""Voice. Talk to the league like a friend who happens to write for a living,
    deadpan on the surface and warm underneath. What follows are habits of good
    writing, not quotas: use one when the week gives you a reason, and leave it out
    when it does not. Never force a joke, a callback or a comparison in.
@@ -230,26 +284,23 @@ _RULE_VOICE = """Voice. Talk to the league like a friend who happens to write fo
      beats explanation.
    - Be specific: the player, the decision, the amount. A name beats an adjective.
    - The joke is on the decision or the situation, never the person. Tease with
-     fondness, and let a section end on something a friend would say.
+     fondness. Warmth can be {warmth}
    - When a storyline in the JSON has been running for more than a week, a callback
      to it can pay off, and so can a nickname that fits what a team actually did.
      Skip both unless they earn their place.
    - A fresh, concrete comparison is welcome where it sharpens the point, and a
      light nod to shared culture can work when it fits naturally. No real person's
      name, no brand, and no number that is not in the JSON.
-   - Vary the rhythm: a short sentence after a long one, and close on the line
-     that lands.
-   - The Issue prints its own one-line headline above your lead, so do not restate
-     it; pick up where it stops.
-   - Avoid throat-clearing and the stock phrases that make every recap sound alike
+   - Vary the rhythm: a short sentence after a long one. End a paragraph on a
+     flat aside or a plain fact, not a lesson; nobody needs to be told what
+     fantasy football teaches, and a joke that is explained is over.
+{no_joke}   - Avoid throat-clearing and the stock phrases that make every recap sound alike
      ("tough pill to swallow", "pure heartbreak", "points on the pine"). Em dashes
      are easy to overuse; reach for a period or a comma first.
    No hashtags, no emoji, no all-caps shouting. Open a section with an opinion
-   when you have one. For the feel only, never to copy (made-up teams): "The
-   Heron Hustlers scored 112 and lost anyway, which the league office has ruled a
-   strategic donation. They will be fine. Nobody has checked." and "Three weeks
-   running, a starter on the Walrus Wrecking Crew's bench. That is not a mistake
-   anymore. That is a tradition."""
+   when you have one. For the feel only, never to copy (made-up teams):
+{examples}"""
+
 
 _RULE_BANNED = f"""Off-limits topics, entirely, even as a passing turn of phrase:
 {_BANNED_TOPICS_BULLETS}
@@ -290,14 +341,29 @@ def _weekly_prompt(*, cold_start: bool, suppressed: frozenset[str] = frozenset()
     else:
         length = """Length. About 3,800 characters in total, split sensibly across the sections.
    Never invent detail to reach a length."""
-    rules = [_RULE_CLOSED_WORLD, _RULE_NO_HUMAN_ROASTS, structure]
+    if "lead" in ids:
+        structure += f"""
+
+   Your title line is not The Lead: "## The Lead" still gets its own heading,
+   and all {count} headings must appear.
+
+   Separately, the Issue prints the JSON's "printed_headline" word for word
+   above The Lead, and the reader has just read it. The Lead's first sentence
+   starts after it: the consequence, the decision behind it, or what it says
+   about the team, not the score again."""
+    else:
+        structure += f"""
+
+   Your title line is not a section, and all {count} headings must appear."""
+    closed_world = _RULE_CLOSED_WORLD_COLD_START if cold_start else _RULE_CLOSED_WORLD
+    rules = [closed_world, _RULE_NO_HUMAN_ROASTS, structure]
     if "around_league" in ids:
         rules.append(_RULE_AROUND_THE_LEAGUE)
     if cold_start and "standings" in ids:
         rules.append(_RULE_STANDINGS_COLD_START)
     if not cold_start and "power" in ids:
         rules.append(_RULE_POWER_RANKINGS)
-    rules += [length, _RULE_VOICE, _RULE_BANNED]
+    rules += [length, _rule_voice(cold_start=cold_start, ids=ids), _RULE_BANNED]
     numbered = "\n\n".join(f"{number}. {rule}" for number, rule in enumerate(rules, start=1))
     preamble = _WEEKLY_COLD_START_PREAMBLE if cold_start else _WEEKLY_PREAMBLE
     return f"""{preamble}

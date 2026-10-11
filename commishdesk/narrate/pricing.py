@@ -81,10 +81,18 @@ class ModelPrice:
 #: (:class:`~commishdesk.errors.CostCeilingExceededError`) in
 #: :func:`estimate_cost_usd`.
 MODEL_PRICES: dict[str, ModelPrice] = {
-    # Sonnet-class list pricing: ~$3 / ~$15 per *million* tokens, i.e. $0.003 /
-    # $0.015 per 1k.
+    # CORRECTED 2026-10-11: $2 / $10 per *million* tokens, i.e. $0.002 / $0.010
+    # per 1k. The earlier $3 / $15 entry was stale and overstated cost.
     "anthropic:claude-sonnet-5": ModelPrice(
-        input_usd_per_1k=0.003, output_usd_per_1k=0.015
+        input_usd_per_1k=0.002, output_usd_per_1k=0.010
+    ),
+    # Added 2026-10-11: $2 / $10 per 1M, i.e. $0.002 / $0.010 per 1k.
+    "anthropic:claude-sonnet-5-5": ModelPrice(
+        input_usd_per_1k=0.002, output_usd_per_1k=0.010
+    ),
+    # Added 2026-10-11: $1 / $5 per 1M, i.e. $0.001 / $0.005 per 1k.
+    "anthropic:claude-haiku-4-5": ModelPrice(
+        input_usd_per_1k=0.001, output_usd_per_1k=0.005
     ),
     # CORRECTED 2026-09-13, direct from Google's own pricing page (paid tier,
     # per 1M tokens): $1.50 input / $9.00 output (output explicitly "including
@@ -115,7 +123,7 @@ MODEL_PRICES: dict[str, ModelPrice] = {
 }
 
 #: ISO date the table above was last checked against live provider pricing.
-PRICING_UPDATED = "2026-09-14"
+PRICING_UPDATED = "2026-10-11"
 
 #: How many days may pass before an un-refreshed table logs a staleness warning.
 PRICING_REVIEW_INTERVAL_DAYS = 90

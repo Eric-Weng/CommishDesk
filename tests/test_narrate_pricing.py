@@ -68,10 +68,19 @@ def test_model_prices_match_the_provider_price_pages_literally() -> None:
     test. google:gemini-3.5-flash was actually WRONG in this table before
     this date -- $0.075 / $0.30 per 1k, roughly 20x / 30x under real price
     ($1.50 / $9.00 per 1M) -- caught only by comparing against the source,
-    not by any test already in this file."""
+    not by any test already in this file. The Anthropic rows were corrected
+    on 2026-10-11 (sonnet-5 had been $3 / $15 per 1M; it lists at $2 / $10)."""
     sonnet = MODEL_PRICES["anthropic:claude-sonnet-5"]
-    assert sonnet.input_usd_per_1k == pytest.approx(0.003)
-    assert sonnet.output_usd_per_1k == pytest.approx(0.015)
+    assert sonnet.input_usd_per_1k == pytest.approx(0.002)
+    assert sonnet.output_usd_per_1k == pytest.approx(0.010)
+
+    sonnet_55 = MODEL_PRICES["anthropic:claude-sonnet-5-5"]
+    assert sonnet_55.input_usd_per_1k == pytest.approx(0.002)
+    assert sonnet_55.output_usd_per_1k == pytest.approx(0.010)
+
+    haiku_45 = MODEL_PRICES["anthropic:claude-haiku-4-5"]
+    assert haiku_45.input_usd_per_1k == pytest.approx(0.001)
+    assert haiku_45.output_usd_per_1k == pytest.approx(0.005)
 
     flash_35 = MODEL_PRICES["google:gemini-3.5-flash"]
     assert flash_35.input_usd_per_1k == pytest.approx(0.0015)

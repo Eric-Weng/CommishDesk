@@ -24,6 +24,7 @@ is.
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 
 import pytest
@@ -463,3 +464,50 @@ def test_load_default_voice_rejects_an_unknown_content_type() -> None:
 
     with pytest.raises(ValueError):
         load_default_voice("weeky")  # type: ignore[arg-type]
+
+
+# --------------------------------------------------------------------------- #
+# Weekly voice v3: the derived heading count and the two new payload fields
+# --------------------------------------------------------------------------- #
+
+_COUNT_WORDS = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7}
+
+
+@pytest.mark.parametrize(
+    ("cold_start", "suppressed"),
+    [
+        (False, frozenset()),
+        (False, frozenset({"luck"})),
+        (False, frozenset({"power", "luck"})),
+        (False, frozenset({"transactions", "standings", "next_week"})),
+        (False, frozenset({"lead"})),
+        (True, frozenset()),
+        (True, frozenset({"standings"})),
+        (True, frozenset({"next_week", "around_league"})),
+    ],
+)
+def test_all_n_headings_matches_the_listed_headings(cold_start: bool, suppressed: frozenset[str]) -> None:
+    from commishdesk.voices.beat_writer import weekly_voice_for
+
+    prompt = weekly_voice_for(cold_start=cold_start, suppressed=suppressed).system_prompt
+    listed = [line for line in prompt.splitlines() if line.startswith("   ## ")]
+    counts = re.findall(r"all (\w+) headings must appear", prompt)
+    assert len(counts) == 1, counts
+    assert _COUNT_WORDS[counts[0]] == len(listed)
+    assert f"exactly these {counts[0]} sections" in prompt
+    if "lead" in suppressed:
+        assert "printed_headline" not in prompt
+    else:
+        assert '"printed_headline" word for word' in prompt
+    if not cold_start and "luck" in suppressed:
+        assert "Luck Index" not in prompt
+
+
+@pytest.mark.parametrize("cold_start", [False, True])
+def test_weekly_prompt_points_at_top_team_and_printed_headline(cold_start: bool) -> None:
+    from commishdesk.voices.beat_writer import weekly_voice_for
+
+    prompt = weekly_voice_for(cold_start=cold_start).system_prompt
+    assert 'credit them to "top_team"' in prompt
+    assert '"printed_headline"' in prompt
+    assert '"spread" is betting talk' in prompt

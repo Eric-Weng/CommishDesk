@@ -1227,12 +1227,16 @@ def _weekly_narration(
         winner_pts = game.home_points if winner == game.home_roster_id else game.away_points
         loser_pts = game.away_points if winner == game.home_roster_id else game.home_points
         top = None
+        top_team = None
         best = None
         for player in game.headline_players:
             if best is None or player.points > best.points:
                 best = player
         if best is not None:
             top = best.name
+            # The game's top scorer may play for the loser; name their side so the
+            # narrator never has to guess.
+            top_team = labels.get(best.roster_id)
         games.append(
             WeeklyNarrationGame(
                 matchup_id=game.matchup_id,
@@ -1242,6 +1246,7 @@ def _weekly_narration(
                 loser_pts=loser_pts,
                 margin=game.margin,
                 top=top,
+                top_team=top_team,
             )
         )
 
@@ -1340,10 +1345,20 @@ def _weekly_narration(
             this_week_count=len(transactions_block.this_week),
             recent_trade_count=len(transactions_block.recent_trades),
         ),
+        printed_headline=_printed_headline(lead_candidates),
         lead_candidates=lead_candidates,
         storyline_candidates=storyline_candidates,
     )
     return _apply_weekly_narration_cap(narration)
+
+
+def _printed_headline(lead_candidates: list[LeadCandidate]) -> str | None:
+    """The hook the renderer prints above The Lead: the lowest-``rank`` candidate
+    with a non-empty hook, else ``None``. This inlines
+    ``render/_weekly_model.py::choose_lead`` (``facts/`` must not import
+    ``render/``); keep the two rules identical."""
+    leads = sorted(lead_candidates, key=lambda candidate: candidate.rank)
+    return next((candidate.hook for candidate in leads if candidate.hook), None)
 
 
 def _apply_weekly_narration_cap(narration: WeeklyNarration) -> WeeklyNarration:

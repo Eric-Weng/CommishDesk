@@ -1,6 +1,6 @@
 {
   "_derived_from": "Story 5.8 oracle. build_weekly_facts() over week10-blowout.json (the anonymized week-10 fixture); generated_at pinned to '2026-09-07T00:00:00Z'; nfl_byes_next_week={IND, NO}.",
-  "schema_version": "0.9.0",
+  "schema_version": "0.10.0",
   "generated_at": "2026-09-07T00:00:00Z",
   "provisional": true,
   "issue_type": "weekly",
@@ -5893,7 +5893,8 @@
         "loser": "Bubble-Screen Bobcats",
         "loser_pts": 154.38,
         "margin": 28.76,
-        "top": "Mac Jones"
+        "top": "Mac Jones",
+        "top_team": "Bubble-Screen Bobcats"
       },
       {
         "matchup_id": 2,
@@ -5902,7 +5903,8 @@
         "loser": "Nickel Newts",
         "loser_pts": 91.77,
         "margin": 138.19,
-        "top": "De'Von Achane"
+        "top": "De'Von Achane",
+        "top_team": "Flea Flicker Union"
       },
       {
         "matchup_id": 3,
@@ -5911,7 +5913,8 @@
         "loser": "No-Huddle Narwhals",
         "loser_pts": 117.13,
         "margin": 55.1,
-        "top": "Ladd McConkey"
+        "top": "Ladd McConkey",
+        "top_team": "No-Huddle Narwhals"
       },
       {
         "matchup_id": 4,
@@ -5920,7 +5923,8 @@
         "loser": "Overtime Otters",
         "loser_pts": 114.69,
         "margin": 132.51,
-        "top": "Jonathan Taylor"
+        "top": "Jonathan Taylor",
+        "top_team": "Backpedal Buffalo"
       },
       {
         "matchup_id": 5,
@@ -5929,7 +5933,8 @@
         "loser": "Stiff-Arm Stags",
         "loser_pts": 112.37,
         "margin": 129.66,
-        "top": "Jahmyr Gibbs"
+        "top": "Jahmyr Gibbs",
+        "top_team": "Two Minute Drill"
       },
       {
         "matchup_id": 6,
@@ -5938,7 +5943,8 @@
         "loser": "Kneel-Down Koalas",
         "loser_pts": 119.97,
         "margin": 6.06,
-        "top": "Jared Goff"
+        "top": "Jared Goff",
+        "top_team": "Yardage Yaks"
       }
     ],
     "standings": [
@@ -6421,6 +6427,7 @@
       "this_week_count": 1,
       "recent_trade_count": 1
     },
+    "printed_headline": "Kneel-Down Koalas lost by 6.06 with 108.86 on the bench, including TreVeyon Henderson.",
     "lead_candidates": [
       {
         "rank": 1,
