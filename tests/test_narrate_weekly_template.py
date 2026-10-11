@@ -348,6 +348,17 @@ def test_weekly_issue_from_text_parses_a_valid_cold_start_completion() -> None:
     assert all(s.blocks for s in issue.sections)
 
 
+def test_a_title_line_before_the_first_section_is_not_a_section_at_week_one() -> None:
+    narration = _cold_start_narration()
+    text = "# The Jet-Sweep Jackals Week 1 Ledger" + "\n\n" + _cold_start_completion()
+    issue = weekly_template.weekly_issue_from_text(text, narration)
+    assert issue is not None
+    assert [s.heading for s in issue.sections] == list(COLD_START_SECTION_HEADINGS)
+    # only a title line before the first ``##`` is exempt: a ``#`` heading later is still a section
+    later = _cold_start_completion() + "\n\n# Extra\n\nSomething."
+    assert weekly_template.weekly_issue_from_text(later, narration) is None
+
+
 def test_weekly_issue_from_text_rejects_a_warm_completion_at_week_one() -> None:
     warm = "\n\n".join(f"## {h}\n\nSomething happened." for h in SECTION_HEADINGS)
     assert weekly_template.weekly_issue_from_text(warm, _cold_start_narration()) is None
