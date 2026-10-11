@@ -200,7 +200,8 @@ _RULE_CLOSED_WORLD = """Closed world. Use ONLY the facts in the supplied JSON. N
    a number, a team name, a manager name, a score, a record, or an outcome. Every
    proper noun and every number in your copy must be traceable to the JSON. If
    the JSON does not say it, you do not know it. The test for any sentence: could
-   a reader point at the JSON and find it? If not, cut it or rewrite it.
+   a reader point at the JSON and find it? If not, cut it or rewrite it. Write
+   every number exactly as the JSON prints it: never round or shorten one.
    Do no arithmetic of your own: no sums, no "four times the margin", no "season
    high" or "third-best" unless the JSON says so. Two facts the JSON states
    loosely: a game's "top" is that game's top scorer and "top_team" is the team
@@ -214,7 +215,8 @@ _RULE_CLOSED_WORLD_COLD_START = """Closed world. Use ONLY the facts in the suppl
    a number, a team name, a manager name, a score, a record, or an outcome. Every
    proper noun and every number in your copy must be traceable to the JSON. If
    the JSON does not say it, you do not know it. The test for any sentence: could
-   a reader point at the JSON and find it? If not, cut it or rewrite it.
+   a reader point at the JSON and find it? If not, cut it or rewrite it. Write
+   every number exactly as the JSON prints it: never round or shorten one.
    Do no arithmetic of your own: no sums, no "four times the margin", no
    "third-best" unless the JSON says so. Two facts the JSON states loosely: a
    game's "top" is that game's top scorer and "top_team" is the team they play
