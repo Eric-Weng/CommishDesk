@@ -1301,3 +1301,34 @@ def test_name_source_dispatches_by_narration_shape(narration: Narration) -> None
     assert safety._name_source(narration) == safety._manager_names(narration)
     weekly = _weekly_narration(["Marcus"])
     assert safety._name_source(weekly) == safety._weekly_team_names(weekly)
+
+
+@pytest.mark.parametrize(
+    ("token", "form"),
+    [
+        ("109.80", "109.8"),
+        ("109.8", "109.8"),
+        (".500", "0.5"),
+        ("0.5", "0.5"),
+        ("113.60", "113.6"),
+        ("7.00", "7"),
+        ("007", "7"),
+    ],
+)
+def test_numeric_form_is_the_number_without_padding_zeros(token: str, form: str) -> None:
+    assert safety._numeric_form(token) == form
+
+
+@pytest.mark.parametrize("token", ["WR1", "12-team", "4.5/PPR", "1.2.3", "", "abc"])
+def test_numeric_form_leaves_non_decimals_alone(token: str) -> None:
+    assert safety._numeric_form(token) is None
+
+
+def test_a_padding_zero_on_a_payload_number_is_not_a_hallucination_but_a_different_number_is(
+    narration: Narration,
+) -> None:
+    decimals = sorted(t for t in safety._payload_tokens(narration) if "." in t and safety._numeric_form(t) == t)
+    assert decimals, "the fixture carries no decimal to pad"
+    real = decimals[0]
+    assert not safety._closed_world(f"They scored {real}0 on the day.", narration)
+    assert safety._closed_world(f"They scored {real}1 on the day.", narration) == [f"{real}1"]
