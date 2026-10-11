@@ -1453,7 +1453,10 @@ def test_weekly_cold_start_call_sends_the_cold_start_payload() -> None:
 
 def test_google_http_options_are_accepted_by_the_real_sdk_model(monkeypatch: pytest.MonkeyPatch) -> None:
     """The fake client accepts anything; the real ``HttpOptions`` forbids unknown fields (``retries`` was rejected)."""
-    types = pytest.importorskip("google.genai.types")
+    try:
+        from google.genai import types
+    except ImportError:
+        pytest.skip("the google-genai SDK is not installed (no CI job installs it)")
     sink: dict[str, list[dict[str, object]]] = {}
     _install_fake_genai(monkeypatch, sink=sink)
     GoogleClient("m", env={"GEMINI_API_KEY": "k"}, endpoint="https://gw/google", timeout=30).generate("{}", FakeVoice())

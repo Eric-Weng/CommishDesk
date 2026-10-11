@@ -41,6 +41,7 @@ _KNOWN_SKIP_PREFIXES = (
     "private raw Sleeper export not present",  # test_fixtures.py
     "COMMISHDESK_LIVE_LLM is unset",  # test_voices.py -- opt-in live voice eval
     "the l4 extra is not installed",  # test_narrate_l4_runtime.py / _cases.py -- real onnxruntime + tokenizers
+    "the google-genai SDK is not installed",  # test_narrate_llm.py -- real-SDK HttpOptions check, run locally
     "COMMISHDESK_L4_MODEL is unset",  # test_narrate_l4_cases.py -- opt-in real-model measurement
 )
 
