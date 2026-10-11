@@ -1309,7 +1309,8 @@ def test_a_lead_angle_that_just_led_steps_behind_the_fresh_ones(monkeypatch: pyt
     assert order(()) == ["lineup_loss", "closest_game", "week_high_score"]  # unchanged without history
     assert order(("lineup_loss",)) == ["closest_game", "week_high_score", "lineup_loss"]
     assert order(("closest_game", "lineup_loss")) == ["week_high_score", "lineup_loss", "closest_game"]
-    assert order(("lineup_loss", "closest_game", "week_high_score")) == ["lineup_loss", "closest_game", "week_high_score"]
+    everything = ("lineup_loss", "closest_game", "week_high_score")
+    assert order(everything) == list(everything)  # all recent: the plain priority order stands
 
 
 def test_recent_lead_kinds_reads_the_last_two_persisted_snapshots(tmp_path: Path) -> None:
