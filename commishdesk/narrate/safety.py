@@ -1121,10 +1121,16 @@ def _closed_world(text: str, narration: Narration | WeeklyNarration) -> list[str
             if upper not in awarded and not (len(upper) == 1 and upper in _GRADE_SCALE_LETTERS):
                 unknown.append(trimmed)
             continue
+        # ".500" ("back to .500", "a .500 team") tokenises as "500" because _TOKEN starts on a
+        # word character; the idiom for an even record is not a number the payload must hold.
+        before = text[max(match.start() - 2, 0) : match.start()]
+        dotted_500 = before.endswith(".") and not before[:-1].isdigit()
         for token in _split_token(raw):
             if not any(ch.isdigit() for ch in token):
                 continue
             if _POSITION_RANK.match(token):
+                continue
+            if token == "500" and dotted_500:
                 continue
             if token.lower() in payload:
                 continue

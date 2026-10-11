@@ -1332,3 +1332,16 @@ def test_a_padding_zero_on_a_payload_number_is_not_a_hallucination_but_a_differe
     real = decimals[0]
     assert not safety._closed_world(f"They scored {real}0 on the day.", narration)
     assert safety._closed_world(f"They scored {real}1 on the day.", narration) == [f"{real}1"]
+
+
+@pytest.mark.parametrize(
+    "prose",
+    ["Back to .500 at last.", "A .500 team, at best.", "They sit at (.500).", "Anything over .500. Fine."],
+)
+def test_the_dot_500_idiom_is_not_a_hallucination(narration: Narration, prose: str) -> None:
+    assert safety._closed_world(prose, narration) == []
+
+
+@pytest.mark.parametrize("prose", ["They scored 500 points.", "A $500 bye bonus.", "Up 1.500 on the week."])
+def test_a_bare_500_is_still_flagged(narration: Narration, prose: str) -> None:
+    assert safety._closed_world(prose, narration)
