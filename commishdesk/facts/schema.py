@@ -151,7 +151,7 @@ __all__ = [
     "WeeklyWeekPoints",
 ]
 
-SCHEMA_VERSION = "0.9.0"
+SCHEMA_VERSION = "0.10.0"
 """Semver contract version. Additive key -> minor bump; shape change -> major.
 ``0.4.0`` -> ``0.5.0`` (Story 5.8): the empty ``WeeklyFacts`` placeholder becomes
 the real weekly document and its ``WeeklyNarration``; ``DraftRecapFacts.weekly``
@@ -162,7 +162,9 @@ adds ``StorylineCandidate.weeks_running`` additively. ``0.6.0`` -> ``0.7.0``
 / ``WeeklyNarrationPower.nudge_justification`` additively. ``0.7.0`` -> ``0.8.0``
 (Story 5.15) adds ``WeeklyPlayoffPicture.seeding_unconfirmed`` and
 ``WeeklyNarrationPlayoff.seeding_unconfirmed`` additively. ``0.8.0`` -> ``0.9.0``
-(Story 5B.3) adds ``WeeklyHistoryRow.published_rank`` additively."""
+(Story 5B.3) adds ``WeeklyHistoryRow.published_rank`` additively. ``0.9.0`` ->
+``0.10.0`` (weekly voice v3) adds ``WeeklyNarrationGame.top_team`` and
+``WeeklyNarration.printed_headline`` additively."""
 
 _ISSUE_TYPE: Literal["draft_recap"] = "draft_recap"
 _IssueType = Literal["draft_recap", "weekly"]
@@ -1191,7 +1193,8 @@ class WeeklyNarrationLeague(_Doc):
 
 class WeeklyNarrationGame(_Doc):
     """One narrated game: the winner / loser labels, their points, the margin,
-    and the game's top scorer label."""
+    the game's top scorer label, and ``top_team``, the label of the team that top
+    scorer plays for (it may be the loser). ``top_team`` was added at ``0.10.0``."""
 
     matchup_id: int | None = None
     winner: str | None = None
@@ -1200,6 +1203,7 @@ class WeeklyNarrationGame(_Doc):
     loser_pts: float
     margin: float
     top: str | None = None
+    top_team: str | None = None
 
 
 class WeeklyNarrationStanding(_Doc):
@@ -1291,7 +1295,12 @@ class WeeklyNarration(_Doc):
     """The sanitized weekly projection the narrator sees — ids resolved to a
     ``team`` label (``team_name or manager or "Roster <id>"``), with the
     ``roster_id`` always alongside. No free prose. Held under
-    :data:`NARRATION_TOKEN_CAP` by ``facts/weekly.py``'s reduction ladder."""
+    :data:`NARRATION_TOKEN_CAP` by ``facts/weekly.py``'s reduction ladder.
+
+    ``printed_headline`` (added at ``0.10.0``) is the hook the renderer prints
+    above The Lead: the lowest-``rank`` lead candidate with a non-empty hook
+    (the ``render/_weekly_model.py::choose_lead`` rule), or ``None`` when no
+    candidate has one. The prompt tells the narrator not to restate it."""
 
     league: WeeklyNarrationLeague
     week_shape: str
@@ -1303,6 +1312,7 @@ class WeeklyNarration(_Doc):
     next_week: list[WeeklyNarrationNextWeek] = []
     next_week_nfl_byes: list[str] | None = None
     transactions: WeeklyNarrationTransactions
+    printed_headline: str | None = None
     lead_candidates: list[LeadCandidate] = []
     storyline_candidates: list[StorylineCandidate] = []
 

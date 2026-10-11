@@ -1,6 +1,6 @@
 {
   "_derived_from": "Story 5.16 oracle. build_weekly_facts() over week01-openers.json (the anonymized Week-1 fixture); generated_at pinned to '2026-09-07T00:00:00Z'; nfl_byes_next_week=None.",
-  "schema_version": "0.9.0",
+  "schema_version": "0.10.0",
   "generated_at": "2026-09-07T00:00:00Z",
   "provisional": true,
   "issue_type": "weekly",
@@ -6957,7 +6957,8 @@
         "loser": "Bubble-Screen Bobcats",
         "loser_pts": 119.65,
         "margin": 44.46,
-        "top": "Travis Etienne"
+        "top": "Travis Etienne",
+        "top_team": "Bubble-Screen Bobcats"
       },
       {
         "matchup_id": 2,
@@ -6966,7 +6967,8 @@
         "loser": "Chip-Block Chinchillas",
         "loser_pts": 123.35,
         "margin": 48.36,
-        "top": "Lamar Jackson"
+        "top": "Lamar Jackson",
+        "top_team": "Backpedal Buffalo"
       },
       {
         "matchup_id": 3,
@@ -6975,7 +6977,8 @@
         "loser": "Overtime Otters",
         "loser_pts": 141.35,
         "margin": 63.44,
-        "top": "Justin Herbert"
+        "top": "Justin Herbert",
+        "top_team": "No-Huddle Narwhals"
       },
       {
         "matchup_id": 4,
@@ -6984,7 +6987,8 @@
         "loser": "Kneel-Down Koalas",
         "loser_pts": 179.14,
         "margin": 4.25,
-        "top": "Josh Allen"
+        "top": "Josh Allen",
+        "top_team": "Kneel-Down Koalas"
       },
       {
         "matchup_id": 5,
@@ -6993,7 +6997,8 @@
         "loser": "Yardage Yaks",
         "loser_pts": 92.1,
         "margin": 104.48,
-        "top": "Derrick Henry"
+        "top": "Derrick Henry",
+        "top_team": "Stiff-Arm Stags"
       },
       {
         "matchup_id": 6,
@@ -7002,7 +7007,8 @@
         "loser": "Screen Pass Syndicate",
         "loser_pts": 142.29,
         "margin": 90.57,
-        "top": "Zay Flowers"
+        "top": "Zay Flowers",
+        "top_team": "Flea Flicker Union"
       }
     ],
     "standings": [
@@ -7482,6 +7488,7 @@
       "this_week_count": 136,
       "recent_trade_count": 23
     },
+    "printed_headline": "Kneel-Down Koalas lost by 4.25 with 20.85 on the bench, including Zach Ertz.",
     "lead_candidates": [
       {
         "rank": 1,

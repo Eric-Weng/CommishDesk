@@ -201,7 +201,7 @@ def _synthetic(
 def test_week10_build_validates_and_has_twelve_teams() -> None:
     doc = _week10_facts()
     assert isinstance(doc, WeeklyFacts)
-    assert doc.schema_version == "0.9.0" == SCHEMA_VERSION
+    assert doc.schema_version == "0.10.0" == SCHEMA_VERSION
     assert doc.issue_type == "weekly"
     assert doc.week == 10
     assert len(doc.teams) == 12
@@ -1324,3 +1324,107 @@ def test_recent_lead_kinds_reads_the_last_two_persisted_snapshots(tmp_path: Path
     assert recent_lead_kinds(store, "L", 2) == ["lineup_loss"]
     assert recent_lead_kinds(store, "L", 1) == []
     assert recent_lead_kinds(store, "other", 4) == []
+
+
+# --------------------------------------------------------------------------- #
+# Weekly voice v3 (schema 0.10.0): games[].top_team and printed_headline
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.parametrize(
+    "fixture_name",
+    [
+        "week01-openers.json",
+        "week02-nailbiter.json",
+        "week05-trade.json",
+        "week08-median.json",
+        "week10-blowout.json",
+        "week10-superflex.json",
+        "week17-playoffs.json",
+    ],
+)
+def test_every_top_scorer_names_the_team_he_plays_for(fixture_name: str) -> None:
+    """Acceptance: across the demo season, every game with a top scorer has a
+    ``top_team`` that is that game's winner or loser, and it is the label of the
+    roster the headline player actually belongs to."""
+    doc = _weekly_facts(fixture_name)
+    labels = {row.roster_id: row.team for row in doc.narration.standings}
+    by_matchup = {game.matchup_id: game for game in doc.matchups.this_week}
+    for game in doc.narration.games:
+        if game.top is None:
+            assert game.top_team is None
+            continue
+        assert game.top_team is not None
+        assert game.top_team in {game.winner, game.loser}
+        source = by_matchup[game.matchup_id]
+        best = max(source.headline_players, key=lambda p: p.points)
+        assert game.top_team == labels[best.roster_id]
+
+
+def test_a_top_scorer_on_the_losing_side_is_credited_to_the_loser() -> None:
+    """I/O row: the game's best headline player belongs to the losing roster, so
+    ``top`` is that player and ``top_team`` is the loser's label."""
+    doc = _week10_facts()
+    on_loser = [g for g in doc.narration.games if g.top is not None and g.top_team == g.loser]
+    assert on_loser, "the week-10 fixture has a game whose top scorer lost"
+    game = next(g for g in on_loser if g.top == "Mac Jones")
+    assert game.top_team == "Bubble-Screen Bobcats" == game.loser
+    assert game.winner == "Screen Pass Syndicate"
+
+
+def test_a_game_without_headline_players_has_no_top_or_top_team() -> None:
+    """I/O row: no started player with an id on either side -> ``headline_players``
+    is empty, and ``top`` / ``top_team`` are both null."""
+    week_model, league, players, names = _synthetic(4, week=3, playoff_week_start=10)
+    bare = [
+        m.model_copy(update={"starters": [], "starters_points": [], "players_points": {}})
+        if m.week == 3 and m.matchup_id == 1
+        else m
+        for m in week_model.matchups
+    ]
+    week_model = week_model.model_copy(update={"matchups": bare})
+    doc = build_weekly_facts(week_model, league, players, names, generated_at=GENERATED_AT)
+    source = next(g for g in doc.matchups.this_week if g.matchup_id == 1)
+    assert source.headline_players == []
+    game = next(g for g in doc.narration.games if g.matchup_id == 1)
+    assert game.top is None
+    assert game.top_team is None
+    other = next(g for g in doc.narration.games if g.matchup_id == 2)
+    assert other.top is not None and other.top_team is not None
+
+
+def test_printed_headline_is_the_lowest_ranked_lead_with_a_hook() -> None:
+    """I/O row: ranks 2 (hook) and 1 (empty hook) -> the rank-2 hook; no hooked
+    lead -> ``None``. Same rule as ``render/_weekly_model.py::choose_lead``."""
+    from commishdesk.facts.schema import LeadCandidate
+    from commishdesk.facts.weekly import _printed_headline
+
+    leads = [
+        LeadCandidate(rank=2, kind="closest_game", hook="The closest game of the week."),
+        LeadCandidate(rank=1, kind="lineup_loss", hook=""),
+        LeadCandidate(rank=3, kind="week_high_score", hook="A third hook."),
+    ]
+    assert _printed_headline(leads) == "The closest game of the week."
+    assert _printed_headline([LeadCandidate(rank=1, kind="lineup_loss", hook=None)]) is None
+    assert _printed_headline([]) is None
+
+
+@pytest.mark.parametrize("fixture_name", ["week01-openers.json", "week10-blowout.json", "week17-playoffs.json"])
+def test_printed_headline_is_what_the_renderer_prints(fixture_name: str) -> None:
+    from commishdesk.render._weekly_model import choose_lead
+
+    doc = _weekly_facts(fixture_name)
+    lead = choose_lead(doc)
+    assert doc.narration.printed_headline == (lead.hook if lead is not None else None)
+
+
+def test_week01_payload_carries_printed_headline_and_top_team() -> None:
+    """I/O row: the cold-start payload exclusions do not drop the new fields."""
+    from commishdesk.narrate.llm import build_weekly_payload
+
+    doc = _week01_facts()
+    payload = json.loads(build_weekly_payload(doc.narration, cold_start=True))
+    assert payload["printed_headline"]
+    assert payload["printed_headline"] == doc.narration.printed_headline
+    assert all("top_team" in game for game in payload["games"])
+    assert any(game["top_team"] for game in payload["games"])

@@ -186,7 +186,10 @@ politics_religion = [
 # excised rather than withholding the Issue from twelve people.
 gambling = [
   '\bthe (betting )?line on\b',
-  '\bpoint spread\b',
+  # Not after "<digit>-": "a 31.41-point spread" is margin talk, not a betting
+  # line. "A three-point spread" still matches, on purpose. \u2010 is the hyphen
+  # NFKC turns a non-breaking hyphen (U+2011) into.
+  '(?<!\d[-\u2010])\bpoint spread\b',
   '\bmoneyline\b',
   '\bover/under\b',
   '\bparlay\b',

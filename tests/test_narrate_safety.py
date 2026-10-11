@@ -1345,3 +1345,37 @@ def test_the_dot_500_idiom_is_not_a_hallucination(narration: Narration, prose: s
 @pytest.mark.parametrize("prose", ["They scored 500 points.", "A $500 bye bonus.", "Up 1.500 on the week."])
 def test_a_bare_500_is_still_flagged(narration: Narration, prose: str) -> None:
     assert safety._closed_world(prose, narration)
+
+
+# --------------------------------------------------------------------------- #
+# Weekly voice v3: margin talk is not a point spread
+# --------------------------------------------------------------------------- #
+
+
+def _spread_findings(text: str, narration: WeeklyNarration) -> list[str]:
+    return [f.matched for f in check_narration(text, narration).findings if "spread" in f.matched.lower()]
+
+
+@pytest.mark.parametrize(
+    "prose",
+    [
+        "They won by a 31.41-point spread.",
+        "They won by a 31-point spread.",
+        "They won by a 31‑point spread.",  # non-breaking hyphen, NFKC -> U+2010
+    ],
+)
+def test_a_numeric_margin_called_a_spread_is_not_gambling(weekly_narration: WeeklyNarration, prose: str) -> None:
+    """Margin talk ("a 31.41-point spread") is not a betting line; a whole Issue
+    used to drop to the template on it."""
+    assert _spread_findings(prose, weekly_narration) == []
+
+
+@pytest.mark.parametrize(
+    "prose",
+    ["Check the point spread on Sunday.", "A three-point spread is not a forecast."],
+)
+def test_betting_talk_about_a_point_spread_is_still_gambling(weekly_narration: WeeklyNarration, prose: str) -> None:
+    report = check_narration(prose, weekly_narration)
+    hits = [f for f in report.findings if "spread" in f.matched.lower()]
+    assert hits, report.findings
+    assert all(f.category == "banned_topic" for f in hits)
