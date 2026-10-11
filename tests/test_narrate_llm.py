@@ -633,7 +633,7 @@ def test_timeout_is_converted_to_ms_for_the_google_sdk_client(
     GoogleClient("m", env={"GEMINI_API_KEY": "k"}, timeout=30.0).generate(
         "{}", FakeVoice()
     )
-    assert sink["client"][0]["http_options"] == {"retries": 0, "timeout": 30000}
+    assert sink["client"][0]["http_options"] == {"retry_options": {"attempts": 1}, "timeout": 30000}
 
 
 def test_google_sub_millisecond_timeout_floors_to_one_ms(
@@ -657,7 +657,7 @@ def test_google_endpoint_and_timeout_merge_into_one_http_options(
         "m", endpoint="https://gw/google", env={"GOOGLE_API_KEY": "k"}, timeout=30.0
     ).generate("{}", FakeVoice())
     assert sink["client"][0]["http_options"] == {
-        "retries": 0,
+        "retry_options": {"attempts": 1},
         "base_url": "https://gw/google",
         "timeout": 30000,
     }
@@ -695,7 +695,7 @@ def test_google_client_disables_the_sdk_retry_loop(monkeypatch: pytest.MonkeyPat
     sink: dict[str, list[dict[str, object]]] = {}
     _install_fake_genai(monkeypatch, sink=sink)
     GoogleClient("m", env={"GEMINI_API_KEY": "k"}).generate("{}", FakeVoice())
-    assert sink["client"][0]["http_options"]["retries"] == 0
+    assert sink["client"][0]["http_options"]["retry_options"] == {"attempts": 1}
 
 
 # --------------------------------------------------------------------------- #
@@ -1025,7 +1025,7 @@ def test_google_adapter_generates_with_each_accepted_key(
     assert out == "gemini recap"
     assert sink["client"][0]["api_key"] == "g-secret"
     # the SDK's own retry loop is off; nothing else is set without an endpoint
-    assert sink["client"][0]["http_options"] == {"retries": 0}
+    assert sink["client"][0]["http_options"] == {"retry_options": {"attempts": 1}}
     gen = sink["generate"][0]
     assert gen["model"] == "gemini-x"
     assert gen["contents"] == "PAYLOAD"
@@ -1054,7 +1054,7 @@ def test_google_adapter_forwards_endpoint_as_http_options(
     GoogleClient("m", endpoint="https://gw/google", env={"GOOGLE_API_KEY": "k"}).generate(
         "{}", FakeVoice()
     )
-    assert sink["client"][0]["http_options"] == {"retries": 0, "base_url": "https://gw/google"}
+    assert sink["client"][0]["http_options"] == {"retry_options": {"attempts": 1}, "base_url": "https://gw/google"}
 
 
 @pytest.mark.parametrize("reply", ["", "  \n "])
@@ -1449,3 +1449,12 @@ def test_weekly_cold_start_call_sends_the_cold_start_payload() -> None:
     payload, _ = primary.calls[0]
     assert payload == build_weekly_payload(narration, cold_start=True)
     assert payload != build_weekly_payload(narration)
+
+
+def test_google_http_options_are_accepted_by_the_real_sdk_model(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The fake client accepts anything; the real ``HttpOptions`` forbids unknown fields (``retries`` was rejected)."""
+    types = pytest.importorskip("google.genai.types")
+    sink: dict[str, list[dict[str, object]]] = {}
+    _install_fake_genai(monkeypatch, sink=sink)
+    GoogleClient("m", env={"GEMINI_API_KEY": "k"}, endpoint="https://gw/google", timeout=30).generate("{}", FakeVoice())
+    types.HttpOptions(**sink["client"][0]["http_options"])  # type: ignore[arg-type]

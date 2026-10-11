@@ -476,9 +476,10 @@ class GoogleClient:
                 "no Google API key (set GEMINI_API_KEY or GOOGLE_API_KEY)"
             )
 
-        # ``retries`` is always present: the engine owns the retry policy
-        # (RETRY_CAP) and the SDK's own loop is turned off underneath it.
-        http_options: dict[str, object] = {"retries": _SDK_MAX_RETRIES}
+        # ``retry_options`` is always present: the engine owns the retry policy
+        # (RETRY_CAP) and the SDK's own loop is turned off underneath it
+        # (``attempts`` counts the first try, so 1 means no SDK retry).
+        http_options: dict[str, object] = {"retry_options": {"attempts": _SDK_MAX_RETRIES + 1}}
         if self.endpoint is not None:
             http_options["base_url"] = self.endpoint
         if self.timeout is not None:
