@@ -333,6 +333,8 @@ def _split_sections(text: str) -> list[WeeklySection] | None:
 
     for line in text.split("\n"):
         match = _ATX_LINE.match(line)
+        if match is not None and heading is None and line.lstrip().startswith("# "):
+            continue  # a ``# `` title line before the first ``## `` section is the masthead, not a section
         if match is not None:
             saw_heading = True
             flush()
