@@ -1028,6 +1028,24 @@ def _split_token(raw: str) -> list[str]:
     return parts
 
 
+_PLAIN_DECIMAL = re.compile(r"^\d*\.?\d+$")
+
+
+def _numeric_form(token: str) -> str | None:
+    """The canonical spelling of a plain decimal (``109.80`` and ``109.8`` -> ``109.8``;
+    ``.500`` and ``0.5`` -> ``0.5``), or ``None`` for a token that is not one.
+
+    The same number written with padding zeros is not a different number, so it must
+    not read as a fabrication; ``109.08`` and ``1.01`` stay different from ``109.8`` and ``1.0``.
+    """
+    if not _PLAIN_DECIMAL.match(token):
+        return None
+    whole, _, frac = token.partition(".")
+    whole = whole.lstrip("0") or "0"
+    frac = frac.rstrip("0")
+    return f"{whole}.{frac}" if frac else whole
+
+
 def _payload_tokens(narration: Narration | WeeklyNarration) -> frozenset[str]:
     """The closed world: every token of ``narration.model_dump_json()``,
     lowercased and split by :func:`_split_token` exactly as the prose side is.
@@ -1086,6 +1104,7 @@ def _closed_world(text: str, narration: Narration | WeeklyNarration) -> list[str
     what closes that, not a longer list.
     """
     payload = _payload_tokens(narration)
+    payload_numbers = {form for token in payload if (form := _numeric_form(token)) is not None}
     # A WeeklyNarration has no ``teams[].grade`` — the grade half of this check is
     # draft-recap-only, so its awarded set is empty (the isinstance guards the
     # attribute access, not just the value).
@@ -1109,6 +1128,8 @@ def _closed_world(text: str, narration: Narration | WeeklyNarration) -> list[str
                 continue
             if token.lower() in payload:
                 continue
+            if (form := _numeric_form(token)) is not None and form in payload_numbers:
+                continue  # the payload's own number, written with a padding zero (109.80 for 109.8)
             unknown.append(token)
 
     return list(dict.fromkeys(unknown))
