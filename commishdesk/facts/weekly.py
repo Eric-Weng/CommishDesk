@@ -274,6 +274,7 @@ def build_weekly_facts(
     previous_storylines: Sequence[Storyline] = (),
     previous_published_ranks: Mapping[int, Mapping[str, int]] | None = None,
     playoff_seeding: PlayoffSeeding | None = None,
+    recent_lead_kinds: Sequence[str] = (),
 ) -> WeeklyFacts:
     """Merge the weekly stats modules into a validated :class:`WeeklyFacts`.
 
@@ -287,7 +288,9 @@ def build_weekly_facts(
     fence holds. Story 5B.3 also threads it into each roster's
     ``WeeklyHistoryRow.published_rank``. ``playoff_seeding`` (Story 5.15) is the
     caller's optional confirm/override input, threaded through to
-    ``compute_standings``.
+    ``compute_standings``. ``recent_lead_kinds`` (the angles the previous Issues
+    led on, read by the caller from its Facts snapshots) lets the lead rotate; see
+    :func:`~commishdesk.facts.leads.build_weekly_lead_candidates`.
 
     Raises
     :class:`~commishdesk.errors.SchemaValidationError` (chained from the
@@ -310,6 +313,7 @@ def build_weekly_facts(
             previous_storylines=previous_storylines,
             previous_published_ranks=previous_published_ranks,
             playoff_seeding=playoff_seeding,
+            recent_lead_kinds=recent_lead_kinds,
         )
     except (ValidationError, KeyError, AttributeError, TypeError, ValueError) as exc:
         raise SchemaValidationError(_violation_message(exc, document="weekly")) from exc
@@ -329,6 +333,7 @@ def _build(
     previous_storylines: Sequence[Storyline],
     previous_published_ranks: Mapping[int, Mapping[str, int]] | None,
     playoff_seeding: PlayoffSeeding | None,
+    recent_lead_kinds: Sequence[str],
 ) -> WeeklyFacts:
     weekly = compute_weekly_stats(week)
     lineups = compute_weekly_lineups(week, league, players, nfl_byes)
@@ -462,7 +467,7 @@ def _build(
 
     # Story 5.9: the weekly lead angles, and the weekly-kind storyline lifecycle
     # advanced from the league's persisted narrative memory.
-    lead_candidates = build_weekly_lead_candidates(teams_block, period_block)
+    lead_candidates = build_weekly_lead_candidates(teams_block, period_block, recent_kinds=recent_lead_kinds)
     storyline_candidates = project_storyline_candidates(
         advance_storylines(
             previous_storylines,

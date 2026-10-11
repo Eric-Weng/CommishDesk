@@ -136,6 +136,22 @@ def weekly_facts_snapshot_key(league_id: str, week: int) -> str:
     return f"{league_id}-{week}"
 
 
+#: How many earlier Issues' lead angles the next lead steps away from.
+_LEAD_ROTATION_WEEKS = 2
+
+
+def recent_lead_kinds(store: Store, league_id: str, week: int) -> list[str]:
+    """The angles the league's previous Issues (up to ``_LEAD_ROTATION_WEEKS``) led on, read from
+    their persisted Facts snapshots. A week with no readable snapshot contributes nothing."""
+    kinds: list[str] = []
+    for prior in range(week - 1, max(week - 1 - _LEAD_ROTATION_WEEKS, 0), -1):
+        snapshot = read_weekly_facts_snapshot(store, league_id, prior)
+        leads = snapshot.get("lead_candidates") if snapshot else None
+        if isinstance(leads, list) and leads and isinstance(leads[0], dict) and isinstance(leads[0].get("kind"), str):
+            kinds.append(leads[0]["kind"])
+    return kinds
+
+
 def read_weekly_facts_snapshot(
     store: Store, league_id: str, week: int
 ) -> dict[str, object] | None:
@@ -768,6 +784,7 @@ def compute_weekly_facts(
         previous_storylines=previous_storylines,
         previous_published_ranks=previous_published_ranks,
         playoff_seeding=seeding,
+        recent_lead_kinds=recent_lead_kinds(store, league_id, week),
     )
     return WeeklyFactsBuild(
         doc=doc,

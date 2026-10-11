@@ -1288,3 +1288,39 @@ def test_published_overlay_swaps_model_ranks_7_and_8_with_a_cited_justification(
                 assert record in payload, record
         else:
             assert row["nudge_justification"] is None
+
+
+def test_a_lead_angle_that_just_led_steps_behind_the_fresh_ones(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Rotation: the angles the previous Issues led on yield the lead, without losing their place as fallbacks."""
+    from commishdesk.facts import leads
+    from commishdesk.facts.schema import LeadCandidate
+
+    def angle(kind: str) -> LeadCandidate:
+        return LeadCandidate(rank=0, kind=kind, roster_ids=[], hook=f"{kind} hook")
+
+    monkeypatch.setattr(leads, "_lineup_loss", lambda teams: angle("lineup_loss"))
+    monkeypatch.setattr(leads, "_biggest_blowout", lambda teams, period: None)
+    monkeypatch.setattr(leads, "_closest_game", lambda teams, period: angle("closest_game"))
+    monkeypatch.setattr(leads, "_week_high_score", lambda teams: angle("week_high_score"))
+
+    def order(recent: tuple[str, ...]) -> list[str]:
+        return [c.kind for c in leads.build_weekly_lead_candidates([], None, recent_kinds=recent)]  # type: ignore[arg-type]
+
+    assert order(()) == ["lineup_loss", "closest_game", "week_high_score"]  # unchanged without history
+    assert order(("lineup_loss",)) == ["closest_game", "week_high_score", "lineup_loss"]
+    assert order(("closest_game", "lineup_loss")) == ["week_high_score", "lineup_loss", "closest_game"]
+    everything = ("lineup_loss", "closest_game", "week_high_score")
+    assert order(everything) == list(everything)  # all recent: the plain priority order stands
+
+
+def test_recent_lead_kinds_reads_the_last_two_persisted_snapshots(tmp_path: Path) -> None:
+    from commishdesk.store import FileStore
+    from commishdesk.weekly import recent_lead_kinds, write_weekly_facts_snapshot
+
+    store = FileStore(tmp_path)
+    for week, kind in ((1, "lineup_loss"), (2, "closest_game"), (3, "week_high_score")):
+        write_weekly_facts_snapshot(store, "L", week, {"lead_candidates": [{"rank": 1, "kind": kind, "hook": "h"}]})
+    assert recent_lead_kinds(store, "L", 4) == ["week_high_score", "closest_game"]
+    assert recent_lead_kinds(store, "L", 2) == ["lineup_loss"]
+    assert recent_lead_kinds(store, "L", 1) == []
+    assert recent_lead_kinds(store, "other", 4) == []
