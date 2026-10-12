@@ -15,6 +15,7 @@ import struct
 import subprocess
 import sys
 import textwrap
+from collections.abc import Callable
 from typing import Any
 
 import pytest
@@ -159,6 +160,43 @@ def test_power_finding_names_the_top_team_and_the_biggest_mover() -> None:
             team["season"]["power"]["week_delta"] = 0
     other = cs.finding(WeeklyFacts.model_validate(raw), "power")
     assert other == "#1 is Two Minute Drill; the biggest move is No-Huddle Narwhals, down 2 spots."
+
+
+def _edited(fn: Callable[[dict[str, Any]], None]) -> WeeklyFacts:
+    raw = _raw()
+    for team in raw["teams"]:
+        fn(team)
+    return WeeklyFacts.model_validate(raw)
+
+
+def test_luck_finding_covers_the_one_sided_and_even_branches() -> None:
+    from commishdesk.render import charts_static as cs
+
+    def set_luck(fn: Callable[[float], float]) -> Callable[[dict[str, Any]], None]:
+        def edit(team: dict[str, Any]) -> None:
+            team["season"]["luck"] = fn(team["season"]["luck"])
+
+        return edit
+
+    assert "nobody has been robbed" in cs.finding(_edited(set_luck(lambda v: abs(v) + 0.5)), "luck")
+    assert "nobody is ahead of the schedule" in cs.finding(_edited(set_luck(lambda v: -abs(v) - 0.5)), "luck")
+    assert cs.finding(_edited(set_luck(lambda v: 0.0)), "luck") == "Every team is right on its expected record."
+
+
+def test_power_finding_covers_no_mover_and_the_singular_spot() -> None:
+    from commishdesk.render import charts_static as cs
+
+    def set_delta(fn: Callable[[int], int]) -> Callable[[dict[str, Any]], None]:
+        def edit(team: dict[str, Any]) -> None:
+            power = team["season"]["power"]
+            power["week_delta"] = fn(power["week_delta"] or 0)
+
+        return edit
+
+    assert cs.finding(_edited(set_delta(lambda d: 0)), "power").endswith("no team moved this week.")
+    up = cs.finding(_edited(set_delta(lambda d: 1 if d else 0)), "power")
+    assert "up 1 spot." in up or "down 1 spot." in up
+    assert " spots" not in up
 
 
 def test_finding_truncates_a_long_name_like_the_web_chart() -> None:
