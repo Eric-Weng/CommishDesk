@@ -329,7 +329,8 @@ def test_runtime_dependency_allowlist() -> None:
     # Nothing else may appear, in `llm` or in a new group.
     optional = project.get("optional-dependencies", {})
     # Story 7.3 adds the second, `l4` — the local ONNX classifier runtime (AD-47).
-    assert set(optional) <= {"llm", "l4"}, f"unexpected optional-dependency group(s): {set(optional)}"
+    # Story 8.15 adds the third, `charts` -- matplotlib for the static chart images.
+    assert set(optional) <= {"llm", "l4", "charts"}, f"unexpected optional-dependency group(s): {set(optional)}"
     llm_names = {
         re.split(r"[<>=!~ \[]", spec, maxsplit=1)[0].strip().lower()
         for spec in optional.get("llm", [])
@@ -343,4 +344,11 @@ def test_runtime_dependency_allowlist() -> None:
     }
     assert l4_names <= {"onnxruntime", "tokenizers"}, (
         f"[project.optional-dependencies].l4 has unexpected deps: {l4_names}"
+    )
+    charts_names = {
+        re.split(r"[<>=!~ \[]", spec, maxsplit=1)[0].strip().lower()
+        for spec in optional.get("charts", [])
+    }
+    assert charts_names <= {"matplotlib"}, (
+        f"[project.optional-dependencies].charts has unexpected deps: {charts_names}"
     )

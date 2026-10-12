@@ -10,6 +10,7 @@ tests/fixtures/** -text
 *.jpg binary
 *.woff binary
 *.woff2 binary
+*.ttf binary
 *.ico binary
 
 # Keep the lockfile out of language stats (it's fine if GitHub collapses its diff —
