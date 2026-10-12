@@ -1,0 +1,6 @@
+# Doc ids that were renamed, one `old = "new"` line per rename.
+#
+# A doc_id is permanent. When a doc is renamed, add the old id here pointing at
+# the new one so the site can redirect the old URL. The table starts empty.
+
+[retired]

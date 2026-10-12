@@ -1,0 +1,111 @@
+# Facts JSON paths that are not stats and need no concept doc.
+#
+# Each entry names a path prefix from docs/facts-schema.json and says why it is
+# plumbing: ids, timestamps, league configuration, provenance, or the narration
+# projections. A prefix covers everything beneath it, exactly as a stat doc's
+# facts_keys do, and no path may be claimed twice. tests/test_concept_docs.py
+# checks that every entry resolves to a real path.
+
+[[exclude]]
+path = "weekly.schema_version"
+reason = "Contract version of the document, not a computed number."
+
+[[exclude]]
+path = "weekly.generated_at"
+reason = "Build timestamp supplied by the caller."
+
+[[exclude]]
+path = "weekly.provisional"
+reason = "Flag that the inputs may still change; set by the caller."
+
+[[exclude]]
+path = "weekly.issue_type"
+reason = "Document discriminator (weekly or draft_recap)."
+
+[[exclude]]
+path = "weekly.week"
+reason = "The week number of the issue; an input, not a computed stat."
+
+[[exclude]]
+path = "weekly.source"
+reason = "Where the data came from (platform, league id, fetch time); provenance, not a stat."
+
+[[exclude]]
+path = "weekly.league"
+reason = "League identity and settings (name, season, scoring, roster slots, playoff and division layout); configuration the stats read, not a stat."
+
+[[exclude]]
+path = "weekly.period.week"
+reason = "The issue week number, echoing weekly.week."
+
+[[exclude]]
+path = "weekly.period.type"
+reason = "Whether the issue week is regular season or playoff; classification of the input week."
+
+[[exclude]]
+path = "weekly.period.has_prior_week"
+reason = "Whether the week is late enough for cumulative stats to exist; a gate, explained inside the stat docs that use it."
+
+[[exclude]]
+path = "weekly.teams[].roster_id"
+reason = "Team identifier."
+
+[[exclude]]
+path = "weekly.teams[].manager"
+reason = "Manager display name, joined from the league."
+
+[[exclude]]
+path = "weekly.teams[].team_name"
+reason = "Team display name, joined from the league."
+
+[[exclude]]
+path = "weekly.teams[].co_owners"
+reason = "Co-owner names, joined from the league."
+
+[[exclude]]
+path = "weekly.teams[].division_id"
+reason = "Division identifier, joined from the league."
+
+[[exclude]]
+path = "weekly.narration"
+reason = "Projection of the numbers above, trimmed and capped for the narrator; it adds no figures of its own."
+
+[[exclude]]
+path = "draft_recap.schema_version"
+reason = "Contract version of the document, not a computed number."
+
+[[exclude]]
+path = "draft_recap.generated_at"
+reason = "Build timestamp supplied by the caller."
+
+[[exclude]]
+path = "draft_recap.provisional"
+reason = "Flag that the inputs may still change; set by the caller."
+
+[[exclude]]
+path = "draft_recap.issue_type"
+reason = "Document discriminator (weekly or draft_recap)."
+
+[[exclude]]
+path = "draft_recap.week"
+reason = "Reserved placeholder, always null for a draft recap."
+
+[[exclude]]
+path = "draft_recap.weekly"
+reason = "Reserved and always null; the weekly document is its own root."
+
+[[exclude]]
+path = "draft_recap.source"
+reason = "Where the data came from (platform, league id, draft id, fetch time); provenance, not a stat."
+
+[[exclude]]
+path = "draft_recap.league"
+reason = "League identity and settings (name, season, scoring, roster slots); configuration the stats read, not a stat."
+
+[[exclude]]
+path = "draft_recap.draft"
+reason = "Draft identity and settings (id, type, rounds, start and end times); input, not a stat."
+
+[[exclude]]
+path = "draft_recap.narration"
+reason = "Projection of the numbers above, trimmed and capped for the narrator; it adds no figures of its own."
