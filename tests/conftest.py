@@ -43,6 +43,7 @@ _KNOWN_SKIP_PREFIXES = (
     "the l4 extra is not installed",  # test_narrate_l4_runtime.py / _cases.py -- real onnxruntime + tokenizers
     "the google-genai SDK is not installed",  # test_narrate_llm.py -- real-SDK HttpOptions check, run locally
     "COMMISHDESK_L4_MODEL is unset",  # test_narrate_l4_cases.py -- opt-in real-model measurement
+    "the charts extra is not installed",  # test_render_charts_static.py -- real matplotlib, charts CI job
 )
 
 #: The ``pytest.skip(...)`` reason string in a skip report's ``longrepr`` is

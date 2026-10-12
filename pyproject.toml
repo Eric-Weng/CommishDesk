@@ -1,6 +1,6 @@
 [project]
 name = "commishdesk"
-version = "0.14.0"
+version = "0.15.0"
 description = "An automated weekly newspaper for a Sleeper fantasy football league — open-source, zero-credential engine."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -37,6 +37,11 @@ llm = [
 l4 = [
     "onnxruntime",
     "tokenizers",
+]
+# Opt-in static chart images and social-card PNGs (Story 8.15). matplotlib is imported
+# only inside ``commishdesk.render.charts_static``; the core install never needs it.
+charts = [
+    "matplotlib>=3.9",
 ]
 
 [project.urls]
