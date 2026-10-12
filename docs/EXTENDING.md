@@ -202,6 +202,8 @@ namespaced under `module_id`, and a stat module never touches a prompt or a rend
 pipeline compute package. Evaluation material goes in `tests/eval/statmods/`. The
 reference `StatModule` (playoff odds) lands in v1.
 
+A stat added to the engine's own `commishdesk/stats/` package and the Facts JSON ships its concept doc in the same PR; see "Concept docs" in [`CONTRIBUTING.md`](../CONTRIBUTING.md).
+
 ## The one-reference-implementation rule
 
 A "reference implementation" in a zone is a non-underscore-prefixed `.py` module — or a

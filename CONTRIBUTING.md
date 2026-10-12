@@ -112,6 +112,42 @@ I1–I7 that a change may not weaken. A few consequences for PR authors:
 - **Lint and type-check are a CI gate.** The `lint` job runs `ruff check .` and
   `mypy commishdesk`; either one failing blocks CI independently of the test matrix.
 
+## Concept docs: every stat ships its explanation
+
+`docs/concepts/` holds one Markdown doc per stat group of the Facts JSON, plus a guide.
+The public site renders them, and `docs/facts-schema.json` is the manifest: a test fails
+if a stat has no doc or a doc points at a stat that does not exist.
+
+- **A new stat ships its doc in the same PR.** Add or extend a `docs/concepts/<doc_id>.md`
+  for it, or, if the field is plumbing (ids, timestamps, configuration, a narration
+  projection), add its path to `docs/concepts/not-a-stat.toml` with a `reason`.
+- **A doc claims paths by prefix.** `facts_keys` lists root-qualified schema paths such as
+  `weekly.teams[].season.luck` or `draft_recap.picks[].delta` (arrays are `[]`). A claim
+  covers its path and everything beneath it. Every leaf path of `WeeklyFacts` and
+  `DraftRecapFacts` must be covered by exactly one claim across all docs and
+  `not-a-stat.toml`. Two claims may not be equal or nested, and every claim must be a real
+  path.
+- **Doc ids are permanent.** `doc_id` is lowercase kebab-case and equals the filename. When
+  you rename a doc, add `old-id = "new-id"` under `[retired]` in
+  `docs/concepts/retired.toml` so the old URL can redirect.
+- **Frontmatter is a small YAML subset**: `key: value` scalars and a `facts_keys:` list of
+  `- ` lines. Stat docs need `doc_id`, `kind: stat`, `title`, `schema_min` (the first schema
+  version with the stat, `0.10.0` if unsure), `facts_keys`, `fixture` (a path under
+  `tests/fixtures/`) and `source` (`path/to/module.py::function`). Guides use `kind: guide`
+  and no `facts_keys`, `fixture` or `source`.
+- **Stat body**: the headings `Definition`, `Worked example`, `Code` and `Edge cases`, in
+  that order, all non-empty. The worked example is a fenced `json` block whose values are a
+  subset of the named fixture, followed by prose walking the numbers. The code section opens
+  with a `Source:` line and holds a fenced `python` block that is the whole source function
+  named by `source`, copied verbatim (whitespace is ignored). Edit the function and the doc
+  in the same PR, or the test fails.
+- **Plain prose.** Docs use anonymized fixtures only, name no competing newsletter or stats
+  product, and are never truncated or marked as paid.
+
+```bash
+uv run pytest tests/test_concept_docs.py
+```
+
 ## Reporting security issues
 
 Do **not** open a public issue for a vulnerability. See [`SECURITY.md`](SECURITY.md).
