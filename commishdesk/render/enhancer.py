@@ -14,7 +14,7 @@ Whatever an enhancer supplies is validated at render time, twice:
 * **Page level** (:func:`validate_page`) — the finished page, parsed with the
   standard library's :mod:`html.parser` (real tags only; escaped text is never
   a tag): exactly one ``<script>`` with an enhancer and zero without, no
-  ``on*`` attribute on any tag, and no ``src`` / ``href`` / ``<link>`` /
+  ``on*`` attribute on any tag, and no ``src`` / ``href`` (bar a same-page ``<a href="#id">``) / ``<link>`` /
   ``<iframe>`` / ``<img>`` sub-resource.
 
 Every refusal raises :class:`EnhancerRejected` naming the rule it broke.
@@ -80,6 +80,8 @@ _CSS_RULES: tuple[tuple[str, re.Pattern[str]], ...] = (
 
 _SUBRESOURCE_TAGS = frozenset({"link", "iframe", "img"})
 _SUBRESOURCE_ATTRS = frozenset({"src", "href", "srcset"})
+#: The one href the page may carry: ``<a href="#section-id">``, a same-page fragment (8.16c).
+_SAME_PAGE_FRAGMENT = re.compile(r"#[A-Za-z][A-Za-z0-9_-]*")
 
 
 def validate_enhancer(enhancer: object) -> tuple[str, str]:
@@ -120,10 +122,12 @@ class _PageScan(HTMLParser):
         if tag in _SUBRESOURCE_TAGS:
             self.violation = ("page-subresource", f"<{tag}>")
             return
-        for name, _value in attrs:
+        for name, value in attrs:
             if name.startswith("on"):
                 self.violation = ("page-inline-handler", f"<{tag} {name}>")
                 return
+            if tag == "a" and name == "href" and _SAME_PAGE_FRAGMENT.fullmatch(value or ""):
+                continue  # Story 8.16c: a "Jump to" anchor loads nothing and runs nothing
             if name in _SUBRESOURCE_ATTRS or name.rsplit(":", 1)[-1] == "href":
                 self.violation = ("page-subresource", f"<{tag} {name}>")
                 return

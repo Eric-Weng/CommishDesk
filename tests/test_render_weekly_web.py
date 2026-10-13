@@ -346,6 +346,7 @@ def test_render_is_deterministic() -> None:
 
 
 #: SHA-256 of the static weekly page per committed fixture. History: Story
+#: 8.16c re-pinned all three for the Jump to nav and the removed .card-expand markup;
 #: 8.16b re-pinned all three for the Issue redesign pass (the page as the 8.16
 #: demo review asked for it); Story 5.14a's page (commit 779de47); Stories 5B.2-5B.5 grew the interaction script
 #: and CSS; Story 6.0c (AD-40) moved them behind the WebEnhancer seam and Part B
@@ -353,9 +354,9 @@ def test_render_is_deterministic() -> None:
 #: these only with a deliberate design change to the page, and regenerate them
 #: by running this test once and copying the printed digests.
 _GOLDEN_SHA256 = {
-    ("week10", "static"): "2be49be537788ca023708fe97d6418fa0312145687f09cd8b54ebc7c873abe77",
-    ("week10-published", "static"): "a6c1713648f17f965d9da4207ca9e18d969a408f1a5017e560620eb491212268",
-    ("week01", "static"): "b74c1c802dae7a49ef0757a148a94111db9ce1a542eed7cacb07c8f66e25a768",
+    ("week10", "static"): "80a21193f094feaf584a588281f693407dc9a56e98c7fddfc22e4b303008a681",
+    ("week10-published", "static"): "f8cc8bd16e8b4315d728b8e5b4d63f05eff6d6e53acd8766e53496e0bc8a9c5c",
+    ("week01", "static"): "f54d06d1ffc4b09bf214ae4f2af1baf1188759dc6e7a8a09b09c8c78f23911e6",
 }
 
 
@@ -994,14 +995,12 @@ def test_next_week_detail_shows_stakes_only_when_no_bye_impact() -> None:
 def test_expand_controls_are_hidden_without_the_script_gate() -> None:
     page = _page(_raw(published=True))
     body_without_script = _body(page).split("<script>", 1)[0]
-    assert 'class="card-expand"' in body_without_script
+    assert "card-expand" not in body_without_script  # the unbound per-card button is gone (8.16c)
     assert 'class="game-detail"' in body_without_script
 
     css = page.split("<style>", 1)[1].split("</style>", 1)[0]
     base_css = css.split("@media (prefers-reduced-motion: reduce)", 1)[0]
-    assert ".card-expand {" in base_css
-    expand_block = base_css.split(".card-expand {", 1)[1].split("}", 1)[0]
-    assert "display: none;" in expand_block
+    assert ".card-expand" not in css
     assert "js-reveal" not in base_css
 
 
@@ -1073,7 +1072,6 @@ def test_static_page_offers_no_control_that_does_nothing() -> None:
 
     assert "display: none;" in _css_block(css, ".pw-hits")
     assert "display: none;" in _css_block(css, ".bump-detail")
-    assert "display: none;" in _css_block(css, ".card-expand")
     assert "display: none;" in _css_block(css, ".detail-all")
     assert "display: none;" in _css_block(css, ".standings-toggle")
     assert "grid-template-columns: minmax(0, 1fr);" in _css_block(css, ".bump-layout")
@@ -1082,7 +1080,7 @@ def test_static_page_offers_no_control_that_does_nothing() -> None:
     buttons = re.findall(r'<button\b[^>]*class="([^"]*)"', body)
     assert buttons
     for cls in buttons:
-        assert cls in {"hit pw-hit", "card-expand", "detail-all"} or cls.startswith("toggle-btn"), cls
+        assert cls in {"hit pw-hit", "detail-all"} or cls.startswith("toggle-btn"), cls
     # Each hidden container really holds its buttons.
     assert re.search(r'<div class="pw-hits" role="list"><button type="button" class="hit pw-hit"', body)
     assert "Hover or select a team" in body.split('class="bump-detail"', 1)[1].split("</div>", 1)[0]

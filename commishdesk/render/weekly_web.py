@@ -246,14 +246,6 @@ def _bye_impact_text(players: Sequence[WeeklyByeStarter | WeeklyByeImpact]) -> s
     )
 
 
-def _card_expand() -> str:
-    return (
-        '<button type="button" class="card-expand" aria-expanded="false">'
-        "<span>Details</span>"
-        '<span class="card-expand-state" aria-hidden="true"></span></button>'
-    )
-
-
 def _game_side_detail(ctx: _Ctx, roster_id: str) -> str:
     team = ctx.teams.get(roster_id)
     game = team.this_week if team else None
@@ -338,6 +330,21 @@ def _masthead(ctx: _Ctx) -> str:
         f'<p class="weekline">{_esc(weekline)}</p>'
         f'<h1 class="nameplate">{_esc(league.name)}</h1>'
         f"</div>{tile_html}</header>"
+    )
+
+
+def _toc(ids: Sequence[str], *, cold_start: bool) -> str:
+    """The "Jump to" nav: one real link per section actually rendered, in page order, so no
+    link is dead. Plain anchors only: the page ships no script, and the browser does the scroll."""
+    if not ids:
+        return ""
+    items = "".join(
+        f'<li><a href="#{section_id}">{_esc(heading_for(section_id, cold_start=cold_start))}</a></li>'
+        for section_id in ids
+    )
+    return (
+        '<nav class="toc" aria-label="Jump to" data-reveal>'
+        f'<p class="toc-k" aria-hidden="true">Jump to</p><ul>{items}</ul></nav>'
     )
 
 
@@ -1283,8 +1290,7 @@ def _next_week_card(ctx: _Ctx, card: WeeklyNextWeekCard, shared: set[str]) -> st
     own = [tag for tag in wm.own_stakes(card, list(shared)) if not (out and tag == "draft_position")]
     chips.extend(f'<span class="chip chip-plain">{_esc(_stake_label(tag))}</span>' for tag in own)
     detail = "" if out else _nw_detail(card, shared)
-    expand = _card_expand() if detail else ""
-    chip_row = f'<div class="nw-chips">{"".join(chips)}{expand}</div>'
+    chip_row = f'<div class="nw-chips">{"".join(chips)}</div>'
     cls = "card nw gotw" if card.game_of_week else "card nw"
     return (
         f'<article class="{cls}">{chip_row}<div class="nw-vs">'
@@ -1422,16 +1428,21 @@ def render_weekly_web(
         "<p>Every number is computed from the league&rsquo;s own Sleeper record; "
         "the prose is the narrator&rsquo;s.</p></footer>"
     )
+    body_sections = [
+        ("lead", _lead_section(ctx)),
+        ("around_league", _around_section(ctx)),
+        ("standings", _standings_section(ctx)),
+        ("power", _power_section(ctx) if not cold_start else ""),
+        ("luck", _luck_section(ctx) if not cold_start else ""),
+        ("next_week", _next_week_section(ctx)),
+        ("transactions", _transactions_section(ctx) if not cold_start else ""),
+    ]
+    rendered_ids = [section_id for section_id, html in body_sections if html]
     sections = [
         _masthead(ctx),
+        _toc(rendered_ids, cold_start=cold_start),
         _notices(issue, headings),
-        _lead_section(ctx),
-        _around_section(ctx),
-        _standings_section(ctx),
-        _power_section(ctx) if not cold_start else "",
-        _luck_section(ctx) if not cold_start else "",
-        _next_week_section(ctx),
-        _transactions_section(ctx) if not cold_start else "",
+        *[html for _, html in body_sections],
         footer,
     ]
     document = [

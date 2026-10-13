@@ -619,6 +619,43 @@ body {{
 .mono {{ font-family: {FONT_MONO}; }}
 .num {{ font-variant-numeric: tabular-nums; }}
 
+/* Story 8.16c -- "Jump to": plain anchors under the masthead, no script, not sticky */
+.toc {{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  margin-top: -6px;
+}}
+.toc-k {{
+  margin: 0;
+  font-family: {FONT_MONO};
+  font-size: 11px;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}}
+.toc ul {{ list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; }}
+.toc li {{ min-width: 0; }}
+.toc a {{
+  display: inline-block;
+  max-width: 100%;
+  min-height: 24px;
+  padding: 7px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.3;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  overflow-wrap: anywhere;
+}}
+.toc a:hover {{ border-color: var(--emph); }}
+.toc a:focus-visible {{ outline: 3px solid var(--emph); outline-offset: 3px; }}
+.weekly_issue [id] {{ scroll-margin-top: 20px; }}
+
 /* masthead */
 .masthead {{
   border-bottom: 3px solid var(--rule);
@@ -1010,29 +1047,6 @@ svg .name {{ font-family: {WEEKLY_FONT_BODY}; font-size: 14px; font-weight: 700;
 /* Story 5B.5 -- expandable matchup and next-week cards */
 .game,
 .nw {{ position: relative; }}
-
-.card-expand {{
-  display: none;
-  position: relative;
-  z-index: 3;
-  align-items: center;
-  gap: 8px;
-  min-height: 36px;
-  padding: 7px 12px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--card);
-  color: var(--ink-2);
-  font-family: {FONT_MONO};
-  font-size: 11px;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-  cursor: pointer;
-}}
-.card-expand:hover,
-.card-expand:focus-visible {{ border-color: var(--emph); }}
-.card-expand:focus-visible {{ outline: 3px solid var(--emph); outline-offset: 3px; }}
-.card-expand-state {{ color: var(--emph); }}
 
 /* details open in the flow below the card and make it taller, never an overlay; the page
    shows them all, and the interaction layer may fold them away behind a toggle */

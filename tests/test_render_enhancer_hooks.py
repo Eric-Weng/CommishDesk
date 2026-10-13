@@ -35,8 +35,6 @@ _HOOKS: tuple[tuple[str, str], ...] = (
     (".pw-row[data-team]", rf'<(?=[^>]*{_cls("pw-row")})[^>]*{_attr("data-team")}="'),
     (".ps", _cls("ps")),
     (".bump-model-dot[data-pub]", rf'<(?=[^>]*{_cls("bump-model-dot")})[^>]*{_attr("data-pub")}="'),
-    (".card-expand", _cls("card-expand")),
-    (".card-expand-state", _cls("card-expand-state")),
     (".hit-state", _cls("hit-state")),
     (".luck-preview", _cls("luck-preview")),
     (".standings-toggle", _cls("standings-toggle")),
@@ -92,7 +90,7 @@ def test_a_removed_hook_is_caught_and_named(page: str) -> None:
 
 
 def test_a_longer_sibling_class_does_not_stand_in_for_a_renamed_hook(page: str) -> None:
-    broken = re.sub(r'class="card-expand"', 'class="card-expand-renamed"', page)
+    broken = re.sub(r'class="detail-all"', 'class="detail-all-renamed"', page)
     assert broken != page
     missing = [h for h, p in _HOOKS if not re.search(p, broken)]
-    assert missing == [".card-expand"]
+    assert ".detail-all[data-detail-all]" in missing
