@@ -17,7 +17,7 @@ These two lists are the engine's own suggestions for what an issue could open on
 
 **Lead candidates** are ranked angles for the lead of this issue. Weekly kinds, in priority order:
 
-1. `lineup_loss`: a team lost a game it should have won, with more points left on the bench than it lost by;
+1. `lineup_loss`: a team lost a game it should have won: a perfect lineup would have added more points than the team lost by;
 2. `biggest_blowout`: the week's blowout (see `blowout-and-week-shape`);
 3. `closest_game`: the smallest margin;
 4. `week_high_score`: the best score of the week, which is always available as the floor.
@@ -39,7 +39,7 @@ Fixture: `tests/fixtures/facts/expected-weekly-facts-week10.json` (the anonymize
       "roster_ids": [
         "7"
       ],
-      "hook": "Kneel-Down Koalas lost by 6.06 with 108.86 on the bench, including TreVeyon Henderson."
+      "hook": "Kneel-Down Koalas lost by 6.06, and a perfect lineup adds 108.86, including TreVeyon Henderson."
     },
     {
       "rank": 2,
@@ -74,7 +74,7 @@ Fixture: `tests/fixtures/facts/expected-weekly-facts-week10.json` (the anonymize
 }
 ```
 
-Roster 7 (Kneel-Down Koalas) lost by 6.06 with 108.86 points on the bench, so `lineup_loss` leads: 108.86 is more than 6.06, and the gap is the largest of any losing team. The week's biggest blowout, roster 1 over roster 5 by 138.19, ranks second. For storylines, Yardage Yaks (roster 12) carry the league's best luck, +2.5, which clears the 1.5 threshold, and Bubble-Screen Bobcats (roster 11) have a six-game losing streak, well over the length of three. Both have run for one week.
+Roster 7 (Kneel-Down Koalas) lost by 6.06, and a perfect lineup adds 108.86 points, so `lineup_loss` leads: 108.86 is more than 6.06, and the gap is the largest of any losing team. The week's biggest blowout, roster 1 over roster 5 by 138.19, ranks second. For storylines, Yardage Yaks (roster 12) carry the league's best luck, +2.5, which clears the 1.5 threshold, and Bubble-Screen Bobcats (roster 11) have a six-game losing streak, well over the length of three. Both have run for one week.
 
 ## Code
 

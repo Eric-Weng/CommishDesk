@@ -77,7 +77,7 @@ def test_week10_follows_the_boards_line_order_within_budget_and_no_link() -> Non
     lines = post.split("\n")
     assert lines[0] == "## 🏈 Trench Warfare · Week 10"
     assert lines[1] == (
-        "**Kneel-Down Koalas lost by 6.06 with 108.86 on the bench, including TreVeyon Henderson.** 🪑"
+        "**Kneel-Down Koalas lost by 6.06, and a perfect lineup adds 108.86, including TreVeyon Henderson.** 🪑"
     )
     assert lines[2] == "" and lines[3] == "📊 **Standings**" and lines[4] == "```"
     assert lines[5] == " 1 Two Minute Drill         9-1   2,029"  # the board's row, byte for byte

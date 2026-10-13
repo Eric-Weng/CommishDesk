@@ -206,8 +206,9 @@ _RULE_CLOSED_WORLD = """Closed world. Use ONLY the facts in the supplied JSON. N
    high" or "third-best" unless the JSON says so. Two facts the JSON states
    loosely: a game's "top" is that game's top scorer and "top_team" is the team
    they play for, which may be the losing team; credit them to "top_team", never
-   by default to the winner; and "including X" in a bench hook means X was one
-   of the benched players, not that the bench total is his."""
+   by default to the winner; and "including X" in a lineup hook ("a perfect
+   lineup adds N, including X") means X was one of the benched players, not
+   that the gap is his."""
 
 #: Week 1 has no season to have a high in, so its arithmetic line drops "season
 #: high" (and the paragraph rewraps around it).
@@ -221,8 +222,9 @@ _RULE_CLOSED_WORLD_COLD_START = """Closed world. Use ONLY the facts in the suppl
    "third-best" unless the JSON says so. Two facts the JSON states loosely: a
    game's "top" is that game's top scorer and "top_team" is the team they play
    for, which may be the losing team; credit them to "top_team", never by
-   default to the winner; and "including X" in a bench hook means X was one of
-   the benched players, not that the bench total is his."""
+   default to the winner; and "including X" in a lineup hook ("a perfect lineup
+   adds N, including X") means X was one of the benched players, not that the
+   gap is his."""
 
 _RULE_NO_HUMAN_ROASTS = """Roast the result or the approach, never the human. You may not mock a
    manager's intelligence, character, appearance, or anything about their life

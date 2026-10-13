@@ -178,7 +178,9 @@ def _sort_key(value: str) -> tuple[int, object]:
 
 
 def _rec_str(wins: int, losses: int, ties: int) -> str:
-    return f"{wins}-{losses}-{ties}"
+    """``W-L``, with ``-T`` only when a tie exists (``7-4``, ``7-4-1``): the one record
+    format the Issue prints, so the table, the cards and the narrated prose agree."""
+    return f"{wins}-{losses}-{ties}" if ties else f"{wins}-{losses}"
 
 
 def _team_label(team_name: str | None, manager: str | None, roster_id: str) -> str:
@@ -1226,6 +1228,13 @@ def _weekly_narration(
         loser = game.away_roster_id if winner == game.home_roster_id else game.home_roster_id
         winner_pts = game.home_points if winner == game.home_roster_id else game.away_points
         loser_pts = game.away_points if winner == game.home_roster_id else game.home_points
+        tie_sides: str | None = None
+        if winner is None:
+            # A tie has no winner or loser, but the narrator must still be told BOTH teams
+            # (epic-5-retro-item-96): ``loser`` carries "A and B", ``winner`` stays null.
+            tie_sides = " and ".join(
+                labels.get(rid, rid) for rid in (game.home_roster_id, game.away_roster_id)
+            )
         top = None
         top_team = None
         best = None
@@ -1242,7 +1251,7 @@ def _weekly_narration(
                 matchup_id=game.matchup_id,
                 winner=labels.get(winner) if winner else None,
                 winner_pts=winner_pts,
-                loser=labels.get(loser) if loser else None,
+                loser=tie_sides if tie_sides is not None else (labels.get(loser) if loser else None),
                 loser_pts=loser_pts,
                 margin=game.margin,
                 top=top,

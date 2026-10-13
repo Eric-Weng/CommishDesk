@@ -12,6 +12,7 @@ is the only module that imports across every pipeline stage (AD-1).
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import tempfile
@@ -38,8 +39,11 @@ from commishdesk.narrate.pricing import (
     MAX_BILLABLE_VERIFICATION_CALLS as _MAX_BILLABLE_VERIFICATION_CALLS,
 )
 from commishdesk.weekly import (
+    assign_team_colors,
     compute_weekly_facts,
     fetch_weekly_bundles,
+    make_narration_record,
+    parse_narration_record,
     persist_weekly_storylines,
     record_published_weekly,
 )
@@ -185,6 +189,15 @@ def run(
             "the hold back on for one run regardless of the environment."
         ),
     ),
+    replay_narration: Path | None = typer.Option(  # noqa: B008 -- canonical typer idiom
+        None,
+        "--replay-narration",
+        help=(
+            "Re-render a weekly Issue from the narration file an earlier run wrote beside its "
+            "page (*.narration.json): no narrator runs and no LLM call is made, so the prose is "
+            "exactly what was approved. Requires --week; cannot be combined with --post or --reason."
+        ),
+    ),
     verbose: bool = typer.Option(False, "--verbose", help="Increase output verbosity."),
     version: bool | None = typer.Option(
         None,
@@ -221,6 +234,11 @@ def run(
             raise typer.BadParameter("--draft-recap builds the draft recap and cannot be combined with --week")
         if post and not (draft_recap or week is not None):
             raise typer.BadParameter("--post requires --draft-recap or --week")
+        if replay_narration is not None:
+            if draft_recap or week is None:
+                raise typer.BadParameter("--replay-narration requires --week")
+            if post or reason is not None:
+                raise typer.BadParameter("--replay-narration cannot be combined with --post or --reason")
         if reason is not None:
             if draft_recap:
                 # Kept short on purpose: this Click version prints a
@@ -281,6 +299,7 @@ def run(
                     reason=reason,
                     seeding=seeding,
                     allow_content_hold=_allow_content_hold(allow_content_hold),
+                    replay_narration=replay_narration,
                 )
             except (CommishDeskError, OSError) as exc:
                 typer.echo(_one_line(exc), err=True)
@@ -498,6 +517,7 @@ def _run_weekly(
     reason: str | None = None,
     seeding: str | None = None,
     allow_content_hold: bool = False,
+    replay_narration: Path | None = None,
 ) -> int:
     """Derive the run list (the one Generation Set constructor) and build a weekly
     Issue for each activated league. Returns the process exit code: ``0`` when
@@ -556,6 +576,7 @@ def _run_weekly(
                 reason=reason,
                 seeding=parsed_seeding,
                 allow_content_hold=allow_content_hold,
+                replay_narration=replay_narration,
             )
         except (CommishDeskError, OSError) as exc:
             logger.debug("league %s faulted: %s", resolved, _one_line(exc))
@@ -1118,6 +1139,7 @@ class _WeeklyRecapPhases(_RecapPhases):
         reason: str | None,
         seeding: PlayoffSeeding | None,
         allow_content_hold: bool,
+        replay_narration: Path | None = None,
     ) -> None:
         from commishdesk.store import FileStore
 
@@ -1129,6 +1151,7 @@ class _WeeklyRecapPhases(_RecapPhases):
         self.reason = reason
         self.seeding = seeding
         self.allow_content_hold = allow_content_hold
+        self.replay_narration = replay_narration
         self.store = FileStore(_cache_dir())
 
     def ledger_store(self) -> FileStore:
@@ -1172,6 +1195,18 @@ class _WeeklyRecapPhases(_RecapPhases):
         week = self.week
         reason = self.reason
         logger = self.logger
+
+        if self.replay_narration is not None:
+            # Replay (8.16b): the approved prose from an earlier run, no narrator, no LLM call.
+            logger.debug("replaying the stored narration from %s", self.replay_narration)
+            try:
+                raw = json.loads(self.replay_narration.read_text(encoding="utf-8"))
+            except (OSError, ValueError) as exc:
+                raise CommishDeskError(
+                    f"cannot read the stored narration {self.replay_narration}: {_one_line(exc)}"
+                ) from exc
+            self.issue, self.published_ranks, self.nudge_justifications, _reverted = parse_narration_record(raw)
+            return
 
         logger.debug("narrating the weekly Issue")
         issue, self.published_ranks, self.nudge_justifications, _l4_reverted = _produce_weekly_issue(
@@ -1231,6 +1266,8 @@ class _WeeklyRecapPhases(_RecapPhases):
         # narratable Issue exists and any cross-check hold has resolved -- and
         # "resolved" means *passed* (an UNVERIFIED local Issue must not taint next
         # week's storyline continuity). The gate lives in the shared function.
+        if self.replay_narration is not None:
+            return  # nothing was narrated, so there is nothing to carry into narrative memory
         persist_weekly_storylines(self.ledger_store(), self.resolved, self.week, self.built)
 
     def render(self) -> None:
@@ -1243,6 +1280,10 @@ class _WeeklyRecapPhases(_RecapPhases):
             resolved=self.resolved,
             week=self.week,
             logger=self.logger,
+            team_colors=assign_team_colors(
+                self.ledger_store(), self.resolved, [team.roster_id for team in self.doc.teams], logger=self.logger
+            ),
+            write_narration=self.replay_narration is None,
         )
 
     def discord_summary(self) -> str:
@@ -1277,6 +1318,7 @@ def _recap_one_league_weekly(
     reason: str | None = None,
     seeding: PlayoffSeeding | None = None,
     allow_content_hold: bool = False,
+    replay_narration: Path | None = None,
 ) -> None:
     """Story 5.11a: chain ingest → stats → facts → narrator → render for one
     league-week, writing the local text Issue plus the Story 2.7 generic HTML
@@ -1348,6 +1390,7 @@ def _recap_one_league_weekly(
             reason=reason,
             seeding=seeding,
             allow_content_hold=allow_content_hold,
+            replay_narration=replay_narration,
         ),
     )
 
@@ -1438,6 +1481,8 @@ def _render_and_write_weekly_issue(
     resolved: str,
     week: int,
     logger: logging.Logger,
+    team_colors: Mapping[str, int] | None = None,
+    write_narration: bool = True,
 ) -> None:
     """Story 5.11a: print the weekly Issue's plain text and write the local text
     Issue plus (Story 5.14a) the designed, self-contained weekly page next to it.
@@ -1467,10 +1512,20 @@ def _render_and_write_weekly_issue(
             issue,
             output_id=resolved,
             generated_at=str(doc.generated_at),
+            team_colors=team_colors,
         ),
         Path(out_dir) / f"commishdesk-{resolved}-{stem}.html",
     )
     typer.echo(str(written_html))
+    if write_narration:
+        # The approved prose, kept beside the page so ``--replay-narration`` can re-render it
+        # later without another LLM call (Story 8.16b).
+        record = make_narration_record(issue, published_ranks, nudge_justifications, league_id=resolved, week=week)
+        written_narration = write_text_file(
+            json.dumps(record, indent=2, ensure_ascii=False) + "\n",
+            Path(out_dir) / f"commishdesk-{resolved}-{stem}.narration.json",
+        )
+        typer.echo(str(written_narration))
     written_text = write_text_file(
         text,
         Path(out_dir) / f"commishdesk-{resolved}-{stem}.txt",

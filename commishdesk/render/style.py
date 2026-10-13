@@ -25,6 +25,11 @@ reduced-motion block — out of the weekly stylesheet into the app-supplied
 complete static page: the bump chart's team buttons and hover detail panel are
 hidden and its layout is one column until an enhancer reveals them.
 
+Story 8.16b adds the team identity palette (:data:`TEAM_PALETTE_LIGHT` /
+:data:`TEAM_PALETTE_DARK`, 16 colors each, contrast-tested), circular avatars with a real
+border ring, the lead / results / next-week / power / luck layout of the redesign, and
+the in-flow (never overlaid) card details.
+
 Standard library only, credential-free. Numerals only: ``render`` emits digits in
 data contexts, so this module carries **no** copy of
 ``commishdesk.facts.leads._spell`` (spec 4.1 boundary).
@@ -44,6 +49,8 @@ __all__ = [
     "POSITIONS",
     "POSITION_VAR",
     "REACH_HEX",
+    "TEAM_PALETTE_DARK",
+    "TEAM_PALETTE_LIGHT",
     "VALUE_HEX",
     "WEEKLY_DARK_TOKENS",
     "WEEKLY_FONT_BODY",
@@ -502,6 +509,57 @@ WEEKLY_DARK_TOKENS: dict[str, str] = {
     "--shadow": "0 1px 0 #ffffff0a inset, 0 1px 2px #00000040",
 }
 
+#: Story 8.16b -- the team identity palette: 16 solid colors (the twelve approved
+#: in the redesign brief, in order, then four more, none of them gold: gold is
+#: the Game of the week border). Each is a thin accent (an underline, a chart
+#: line, an avatar ring), never a fill behind text, and never the only cue: the
+#: name and the monogram are printed. Light values meet 4.5:1 on the card;
+#: the dark values are the same hues lifted to 4.5:1 on the dark card (a test
+#: pins both). Teams 17 to 32 reuse the colors with the dotted second style.
+TEAM_PALETTE_LIGHT: tuple[str, ...] = (
+    "#C2410C",  # 0  orange (Bobcats)
+    "#1D4ED8",  # 1  blue (Terriers)
+    "#0E7490",  # 2  cyan (Seagulls)
+    "#15803D",  # 3  green (Herons)
+    "#7C3AED",  # 4  violet (Otters)
+    "#B91C1C",  # 5  red (Hail Mary)
+    "#52525B",  # 6  grey (Neutral Zone)
+    "#4D7C0F",  # 7  olive (Mallards)
+    "#A16207",  # 8  amber-brown (Turtles)
+    "#A21CAF",  # 9  magenta (Roadrunners)
+    "#1E3A8A",  # 10 navy (Stags)
+    "#BE185D",  # 11 pink (Magpies)
+    "#0F766E",  # 12 teal
+    "#4F46E5",  # 13 indigo
+    "#7C4A21",  # 14 brown
+    "#BE123C",  # 15 crimson
+)
+TEAM_PALETTE_DARK: tuple[str, ...] = (
+    "#D16F46",
+    "#6587E4",
+    "#4895AB",
+    "#489C68",
+    "#A171F2",
+    "#D26E6E",
+    "#89898F",
+    "#71963F",
+    "#B48139",
+    "#C269CA",
+    "#7889B9",
+    "#D46794",
+    "#499791",
+    "#847EED",
+    "#A68468",
+    "#D56782",
+)
+WEEKLY_LIGHT_TOKENS.update({f"--tm{n}": hex_ for n, hex_ in enumerate(TEAM_PALETTE_LIGHT)})
+WEEKLY_LIGHT_TOKENS["--gold"] = "#C9971C"
+WEEKLY_DARK_TOKENS.update({f"--tm{n}": hex_ for n, hex_ in enumerate(TEAM_PALETTE_DARK)})
+WEEKLY_DARK_TOKENS["--gold"] = "#E0B23C"
+
+#: ``.tc0`` .. ``.tc15`` put a palette color on ``--c`` for whatever carries the class.
+_TEAM_COLOR_CSS = "\n".join(f".tc{n} {{ --c: var(--tm{n}); }}" for n in range(len(TEAM_PALETTE_LIGHT)))
+
 #: The embedded faces: ``(family, weight, file under render/fonts/)``. Latin
 #: subsets of the OFL families (licences beside them in ``render/fonts/``).
 WEEKLY_FONT_FILES: tuple[tuple[str, int, str], ...] = (
@@ -556,7 +614,7 @@ body {{
   padding: clamp(20px, 4vw, 48px) clamp(16px, 4vw, 48px) 64px;
   display: flex;
   flex-direction: column;
-  gap: 44px;
+  gap: 30px;
 }}
 .mono {{ font-family: {FONT_MONO}; }}
 .num {{ font-variant-numeric: tabular-nums; }}
@@ -653,7 +711,7 @@ body {{
 .dash-notable {{ --dash: var(--notable); }}
 .dash-emph {{ --dash: var(--emph); }}
 .title {{
-  margin: 8px 0 18px;
+  margin: 6px 0 12px;
   font-family: {WEEKLY_FONT_DISPLAY};
   font-weight: 700;
   font-size: 26px;
@@ -661,9 +719,25 @@ body {{
   letter-spacing: -.01em;
   text-wrap: balance;
 }}
-.card {{ background: var(--card); border: 1px solid var(--line); border-radius: 20px; box-shadow: var(--shadow); }}
+.card {{ background: var(--card); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); }}
+/* big section panels are lightly rounded; the cards inside them a little more */
+.lead-main, .table-card, .luck-card, .tx {{ border-radius: 10px; }}
+{_TEAM_COLOR_CSS}
+/* a team name in running text or a card: bold, ink, a thin underline in the team color
+   (dotted from the 17th team on, so the style tells the two sets apart) */
+.tm {{
+  font-weight: 700;
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--c, currentColor);
+}}
+.tm.td {{ text-decoration-style: dotted; text-decoration-thickness: 2px; }}
 .prose {{ margin-top: 18px; color: var(--ink-2); font-size: 15.5px; }}
 .prose p {{ margin: 0 0 10px; max-width: 70ch; overflow-wrap: break-word; break-inside: avoid; }}
+/* section blurbs under the tables and card grids span their whole section */
+section > .prose p, .luck-grid > .prose p {{ max-width: none; }}
 .prose.cols {{ columns: 2 24rem; column-gap: 32px; }}
 .chip {{
   display: inline-block;
@@ -683,24 +757,29 @@ body {{
 .chip-up {{ background: var(--good-wash); color: var(--good-text); }}
 .chip-down {{ background: var(--bad-wash); color: var(--bad-text); }}
 .chip-plain {{ border: 1px solid var(--line); color: var(--ink-2); }}
+/* team avatars: circles, the ring a real border in the team color (a box-shadow ring can land
+   a device pixel off at fractional zoom); sizes 24, 30, 36, 64 with 2, 2, 3, 4px borders */
 .mg {{
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: none;
+  box-sizing: border-box;
   width: 30px;
   height: 30px;
-  border-radius: 10px;
+  padding: 0;
+  border: 2px solid var(--c, var(--line));
+  border-radius: 50%;
   background: var(--mono-bg);
   color: var(--mono-fg);
   font-family: {WEEKLY_FONT_DISPLAY};
   font-weight: 700;
-  font-size: 13px;
-  letter-spacing: .02em;
+  font-size: 12px;
+  letter-spacing: 0;
+  line-height: 1;
 }}
-.mg-l {{ width: 36px; height: 36px; border-radius: 12px; font-size: 15px; }}
-.mg-xl {{ width: 56px; height: 56px; border-radius: 18px; font-size: 23px; }}
-.mg-xxl {{ width: 64px; height: 64px; border-radius: 20px; font-size: 26px; }}
+.mg-l {{ width: 36px; height: 36px; border-width: 3px; font-size: 14px; }}
+.mg-xxl {{ width: 64px; height: 64px; border-width: 4px; font-size: 24px; }}
 svg.chart {{ display: block; max-width: 100%; height: auto; }}
 :focus-visible {{
   outline: 3px solid var(--emph);
@@ -722,36 +801,54 @@ svg .name {{ font-family: {WEEKLY_FONT_BODY}; font-size: 14px; font-weight: 700;
   transform-origin: var(--luck-origin, left center);
 }}
 
-/* lead */
-.lead {{ display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 28px; align-items: stretch; }}
+/* lead: the lead on the left; the key number and the award cards in one right-hand column */
+.lead {{ display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 24px; align-items: stretch; }}
+.lead.lead-solo {{ grid-template-columns: minmax(0, 1fr); }}
 .lead-main {{ padding: 34px 38px; }}
 .lead-main .title {{ font-size: clamp(24px, 3vw, 30px); }}
 .lead-main .prose {{ margin: 0 0 18px; font-size: 18px; line-height: 1.5; }}
-.lead-side {{ display: flex; flex-direction: column; gap: 16px; }}
+.lead-side {{ display: flex; flex-direction: column; gap: 12px; min-width: 0; }}
 .keynum {{
-  flex: 1;
-  border-radius: 20px;
-  padding: 24px 28px;
+  flex: 1.5 1 0;
+  border-radius: 14px;
+  padding: 22px 26px;
   display: flex;
   flex-direction: column;
   justify-content: center;
+  background: var(--card);
+  border: 1px solid var(--line);
+  color: var(--ink);
 }}
-.keynum .k {{ font-family: {FONT_MONO}; font-size: 11px; letter-spacing: .16em; text-transform: uppercase; }}
+.keynum .k {{
+  font-family: {FONT_MONO};
+  font-size: 11px;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}}
 .keynum .v {{
   font-family: {WEEKLY_FONT_DISPLAY};
   font-weight: 700;
-  font-size: clamp(44px, 6vw, 64px);
+  font-size: clamp(56px, 6.4vw, 80px);
   line-height: .95;
   margin-top: 6px;
+  color: var(--ink);
   font-variant-numeric: tabular-nums;
 }}
 .keynum .s {{ font-size: 15px; margin-top: 6px; color: var(--ink-2); }}
-.kn-bad {{ background: var(--bad-wash); color: var(--bad-text); }}
-.kn-emph {{ background: var(--emph-wash); color: var(--emph); }}
-.kn-notable {{ background: var(--notable-wash); color: var(--ink); }}
-.teamcard {{ padding: 20px 28px; display: flex; align-items: center; gap: 16px; }}
-.teamcard .n {{ font-family: {WEEKLY_FONT_DISPLAY}; font-weight: 700; font-size: 22px; line-height: 1.1; }}
-.teamcard .m {{ font-size: 14px; color: var(--ink-2); }}
+.keynum .k::before, .award .k::before {{
+  content: "";
+  display: inline-block;
+  vertical-align: middle;
+  width: 22px;
+  height: 6px;
+  border-radius: 3px;
+  margin-right: 10px;
+  background: var(--emph);
+}}
+.kn-bad .k::before, .aw-bad .k::before {{ background: var(--bad-text); }}
+.kn-notable .k::before, .aw-notable .k::before {{ background: var(--notable); }}
+.aw-good .k::before {{ background: var(--good-text); }}
 .lead-type {{ display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px 28px; margin-bottom: 18px; }}
 .lead-type .hook {{
   flex: 1 1 24rem;
@@ -773,43 +870,68 @@ svg .name {{ font-family: {WEEKLY_FONT_BODY}; font-size: 14px; font-weight: 700;
 }}
 .chart-note {{ margin: 6px 0 0; font-family: {FONT_MONO}; font-size: 11.5px; color: var(--ink-2); }}
 
-/* awards */
-.awards {{ display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-top: 16px; }}
+/* awards: equal cards, title top left, then the team's avatar, name and one line, the stat on the right */
+.awards {{
+  flex: 3 1 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-auto-rows: 1fr;
+  gap: 12px;
+  margin: 0;
+}}
 .award {{
-  border-radius: 20px;
-  padding: 22px 24px;
-  min-height: 176px;
+  min-height: 0;
+  border-radius: 14px;
+  padding: 14px 20px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  color: var(--ink);
 }}
-.award .k {{ font-family: {FONT_MONO}; font-size: 11px; letter-spacing: .16em; text-transform: uppercase; }}
+.award .k {{
+  align-self: flex-start;
+  font-family: {FONT_MONO};
+  font-size: 11px;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}}
+.aw-body {{ display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; }}
+.aw-who {{ min-width: 0; }}
 .award .v {{
   font-family: {WEEKLY_FONT_DISPLAY};
   font-weight: 700;
-  font-size: clamp(40px, 4.4vw, 56px);
-  line-height: .95;
+  font-size: 32px;
+  line-height: 1;
+  text-align: right;
+  color: var(--ink);
   font-variant-numeric: tabular-nums;
 }}
-.award .n {{ font-weight: 700; font-size: 16px; margin-top: 6px; color: var(--ink); overflow-wrap: anywhere; }}
-.award .s {{ font-size: 13px; color: var(--ink-2); }}
-.aw-good {{ background: var(--good-wash); color: var(--good-text); }}
-.aw-emph {{ background: var(--emph-wash); color: var(--emph); }}
-.aw-bad {{ background: var(--bad-wash); color: var(--bad-text); }}
-.aw-notable {{ background: var(--notable-wash); color: var(--ink); }}
+.awards.awards-wide {{ flex: none; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); grid-auto-rows: auto; }}
+.award .n {{ font-weight: 700; font-size: 14.5px; margin: 0; color: var(--ink); overflow-wrap: anywhere; }}
+.award .s {{ font-size: 11.5px; color: var(--ink-2); overflow-wrap: anywhere; }}
 
-/* game and next-week cards */
-.grid3 {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }}
+/* game and next-week cards: every card in a row is as tall as its tallest, and so is every row */
+.grid3 {{
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-auto-rows: 1fr;
+  gap: 12px;
+  align-items: stretch;
+}}
 .game {{
-  min-height: 184px;
-  padding: 18px 22px;
+  min-height: 168px;
+  padding: 14px 20px;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  gap: 10px;
+  justify-content: flex-start;
+  gap: 8px;
+  border-radius: 14px;
 }}
-.game-top {{ display: flex; justify-content: space-between; align-items: center; gap: 8px; min-height: 24px; }}
+.game-top {{ display: flex; justify-content: space-between; align-items: center; gap: 8px; min-height: 28px; }}
 .game-top .by {{
   font-family: {FONT_MONO};
   font-size: 11px;
@@ -817,18 +939,73 @@ svg .name {{ font-family: {WEEKLY_FONT_BODY}; font-size: 14px; font-weight: 700;
   text-transform: uppercase;
   color: var(--ink-2);
 }}
-.side {{ display: flex; align-items: center; gap: 12px; padding: 0 10px; }}
-.side .tn {{ flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 15px; font-weight: 500; color: var(--ink-2); }}
+/* one grid for every row: 36px avatar, a name clamped to two lines, a fixed 96px score column */
+.side {{
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) 96px;
+  column-gap: 12px;
+  align-items: center;
+  min-height: 60px;
+  padding: 6px 10px;
+}}
+.side .tn {{
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ink-2);
+}}
 .side .sc {{
+  justify-self: end;
+  text-align: right;
   font-family: {WEEKLY_FONT_DISPLAY};
   font-weight: 700;
   font-size: 22px;
   color: var(--ink-2);
   font-variant-numeric: tabular-nums;
 }}
-.side.win {{ background: var(--win-tint); border-radius: 12px; padding: 8px 10px; }}
+.side.win {{ background: var(--win-tint); border-radius: 12px; }}
 .side.win .tn {{ font-weight: 700; font-size: 16px; color: var(--ink); }}
 .side.win .sc {{ font-size: 28px; color: var(--ink); }}
+.sec-head {{ display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin: 0 0 12px; }}
+.sec-head .title {{ margin-bottom: 0; }}
+/* one Show details control for the whole Results section. It does nothing without the
+   interaction layer, so it stays hidden until that layer reveals it; with it off every
+   card's box score is already open below the card. */
+.detail-all {{
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 8px 16px;
+  border: 1px solid var(--emph);
+  border-radius: 999px;
+  background: var(--emph-wash);
+  color: var(--emph);
+  font-family: {FONT_MONO};
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}}
+.detail-all::after {{
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: translateY(-2px) rotate(45deg);
+}}
+.detail-all[aria-expanded="true"] {{ background: var(--emph); color: var(--on-emph); }}
+.detail-all[aria-expanded="true"]::after {{ transform: translateY(2px) rotate(-135deg); }}
+.detail-all:hover {{ background: var(--emph); color: var(--on-emph); }}
+.detail-all:focus-visible {{ outline: 3px solid var(--emph); outline-offset: 3px; }}
 
 /* Story 5B.5 -- expandable matchup and next-week cards */
 .game,
@@ -857,16 +1034,13 @@ svg .name {{ font-family: {WEEKLY_FONT_BODY}; font-size: 14px; font-weight: 700;
 .card-expand:focus-visible {{ outline: 3px solid var(--emph); outline-offset: 3px; }}
 .card-expand-state {{ color: var(--emph); }}
 
+/* details open in the flow below the card and make it taller, never an overlay; the page
+   shows them all, and the interaction layer may fold them away behind a toggle */
 .game-detail,
 .nw-detail {{
-  position: absolute;
-  inset: 1px;
-  z-index: 2;
-  display: none;
-  overflow-y: auto;
-  padding: 16px 18px;
-  border-radius: 19px;
-  background: var(--card);
+  display: block;
+  padding: 10px 0 0;
+  border-top: 1px solid var(--line);
   color: var(--ink-2);
   font-size: 14px;
   line-height: 1.45;
@@ -1025,11 +1199,15 @@ svg .name {{ font-family: {WEEKLY_FONT_BODY}; font-size: 14px; font-weight: 700;
   text-transform: uppercase;
   color: var(--ink-2);
 }}
-.pw-item {{ padding: 6px 0; border-top: 1px solid var(--line); }}
+.pw-item {{ padding: 8px 0 4px; border-top: 1px solid var(--line); }}
 .pw-row {{ min-height: 30px; }}
 .pw-row .rk {{ font-family: {WEEKLY_FONT_DISPLAY}; font-weight: 800; font-size: 18px; text-align: right; }}
 .pw-row .tn {{ font-family: {WEEKLY_FONT_DISPLAY}; font-weight: 700; font-size: 15px; overflow-wrap: anywhere; }}
 .pw-row .rec, .pw-row .avg, .pw-row .wk {{ font-family: {FONT_MONO}; font-size: 12.5px; color: var(--ink-2); }}
+.pw-row .ps {{ display: flex; align-items: center; gap: 10px; }}
+.pw-row .ps .bar {{ flex: 1; }}
+.pw-row .ps b {{ width: 40px; text-align: right; font: 500 12.5px {FONT_MONO}; color: var(--ink-2); }}
+.pw-why {{ margin: 0 0 8px 44px; max-width: 70ch; font-size: 13.5px; line-height: 1.45; color: var(--ink-2); }}
 .pw-row .avg, .pw-row .wk {{ text-align: right; }}
 .up {{ color: var(--good-text); }}
 .down {{ color: var(--bad-text); }}
@@ -1051,7 +1229,8 @@ svg .name {{ font-family: {WEEKLY_FONT_BODY}; font-size: 14px; font-weight: 700;
 }}
 .bump-detail {{
   display: none;
-  min-height: 96px;
+  height: 140px;
+  overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 14px;
   padding: 14px 16px;
@@ -1076,9 +1255,12 @@ svg .name {{ font-family: {WEEKLY_FONT_BODY}; font-size: 14px; font-weight: 700;
   gap: 2px;
 }}
 .bump-detail .bd-list li {{
-  font-family: {FONT_MONO};
-  font-size: 12px;
+  font-family: {WEEKLY_FONT_BODY};
+  font-size: 12.5px;
+  line-height: 1.35;
 }}
+.bump-detail .bd-now {{ font-weight: 700; color: var(--ink); }}
+.bump-detail .bd-diff {{ color: var(--emph); }}
 .bump-callout {{
   border-left: 3px solid var(--emph);
   background: var(--emph-wash);
@@ -1116,6 +1298,7 @@ svg .name {{ font-family: {WEEKLY_FONT_BODY}; font-size: 14px; font-weight: 700;
   text-align: left;
   cursor: pointer;
 }}
+.hit-mg.mg {{ width: 24px; height: 24px; font-size: 10px; }}
 .hit .hit-tn {{
   flex: 1;
   min-width: 0;
@@ -1145,27 +1328,36 @@ svg .name {{ font-family: {WEEKLY_FONT_BODY}; font-size: 14px; font-weight: 700;
 }}
 .bump-team .bump-model {{
   fill: none;
-  stroke: var(--ink-3);
-  stroke-width: 2;
+  stroke: var(--c, var(--ink-3));
+  stroke-width: 3.5;
   stroke-linecap: round;
   stroke-linejoin: round;
 }}
 .bump-team .bump-model-dot {{
-  fill: var(--ink-3);
+  fill: var(--c, var(--ink-3));
 }}
 .bump-team .bump-pub-line {{
   fill: none;
-  stroke: var(--ink-2);
-  stroke-width: 1.4;
+  stroke: var(--c, var(--ink-2));
+  stroke-width: 1.6;
   stroke-dasharray: 4 4;
   stroke-linecap: round;
   stroke-linejoin: round;
 }}
 .bump-team .bump-pub {{
-  fill: var(--bar);
+  fill: var(--c, var(--bar));
   stroke: var(--card);
   stroke-width: 1.5;
 }}
+.bump-endlabel {{
+  font-family: {WEEKLY_FONT_DISPLAY};
+  font-weight: 700;
+  font-size: 13px;
+  fill: var(--c, var(--ink-2));
+}}
+/* the second style (teams 17 to 32): the same colors, dotted */
+.bump-team.td .bump-model {{ stroke-dasharray: 0.1 7; stroke-width: 4.5; }}
+.bump-team.td .bump-pub-line {{ stroke-dasharray: 1 5; }}
 /* Story 5B.3 -- generous invisible hit targets layered under the thin
    marks (interaction-decisions.md): a wide transparent stroke under each
    line, a larger transparent circle under each dot/diamond. */
@@ -1186,29 +1378,23 @@ svg .name {{ font-family: {WEEKLY_FONT_BODY}; font-size: 14px; font-weight: 700;
    ``[data-draw]`` chart's direct children (Story 5B.2). The draw-in itself
    lives in the interaction layer (Story 6.0c), so the static page and a
    not-yet-revealed mark both default to a fully drawn, fully visible mark. */
-.bump-team .bump-model {{
+.bump-team:not(.td) .bump-model {{
   stroke-dasharray: var(--len, 0);
 }}
-.bump-team.is-active .bump-model {{
-  stroke: var(--emph);
-  stroke-width: 3;
-}}
-.bump-team.is-active .bump-model-dot {{
-  fill: var(--emph);
-}}
-.bump-team.is-active .bump-pub-line {{
-  stroke: var(--emph);
-  stroke-width: 2;
-}}
-.bump-team.is-active .bump-pub {{
-  fill: var(--emph);
-}}
+/* hovering a team (or its line) thickens that line and fades the rest almost to nothing */
+.bump-team.is-active .bump-model {{ stroke-width: 7; }}
+.bump-team.td.is-active .bump-model {{ stroke-width: 8; }}
+.bump-team.is-active .bump-pub-line {{ stroke-width: 2.5; }}
+.bump-team.is-active .bump-endlabel {{ font-size: 15px; }}
+.bump-team.is-active {{ filter: drop-shadow(0 0 3px rgba(0, 0, 0, .35)); }}
 .bump-team {{
   transition: opacity 160ms linear;
 }}
 .bump-team.is-dim {{
-  opacity: .22;
+  opacity: .14;
 }}
+.bump-key {{ margin: 8px 0 0; max-width: none; font-size: 12.5px; color: var(--ink-2); }}
+.key-dmd {{ margin: 0 2px 0 8px; color: var(--emph); }}
 .bump-grid {{
   stroke: var(--line);
   stroke-width: 1;
@@ -1221,8 +1407,16 @@ svg .name {{ font-family: {WEEKLY_FONT_BODY}; font-size: 14px; font-weight: 700;
 }}
 .r {{ text-align: right; }}
 
-/* luck */
+/* luck: the graphic on the left, the words on the right; stacked on a phone */
 .luck-card {{ padding: 30px; }}
+.luck-grid {{
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  column-gap: 28px;
+  align-items: start;
+}}
+.luck-grid > .luck-fig {{ min-width: 0; }}
+.luck-grid > .prose {{ margin-top: 0; }}
 
 /* next week */
 .stakes-shared {{
@@ -1235,9 +1429,18 @@ svg .name {{ font-family: {WEEKLY_FONT_BODY}; font-size: 14px; font-weight: 700;
   color: var(--ink-2);
 }}
 .byes-next {{ margin: -6px 0 16px; font-family: {FONT_MONO}; font-size: 12px; color: var(--ink-2); }}
-.nw {{ padding: 16px 22px 18px; display: flex; flex-direction: column; gap: 12px; }}
-.nw.gotw {{ border: 2px solid var(--emph); }}
-.nw-chips {{ display: flex; flex-wrap: wrap; gap: 6px; }}
+.nw {{
+  min-height: 176px;
+  padding: 12px 20px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-radius: 14px;
+}}
+/* the Game of the week: a 2px gold border only (no tint, no glow, no badge) */
+.nw.gotw {{ border: 2px solid var(--gold); }}
+/* the header row is always there, so a card with no chips keeps the height of one with */
+.nw-chips {{ display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-height: 36px; }}
 .nw-vs {{
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
@@ -1245,9 +1448,30 @@ svg .name {{ font-family: {WEEKLY_FONT_BODY}; font-size: 14px; font-weight: 700;
   gap: 8px;
   flex: 1;
 }}
-.nw-side {{ text-align: center; }}
-.nw-side .tn {{ font-weight: 700; font-size: 15px; margin-top: 10px; line-height: 1.2; overflow-wrap: anywhere; }}
+.nw-side {{ display: flex; flex-direction: column; align-items: center; text-align: center; }}
+.nw-side .tn {{
+  font-weight: 700;
+  font-size: 15px;
+  margin-top: 10px;
+  line-height: 1.25;
+  min-height: 2.5em;
+  overflow-wrap: anywhere;
+}}
 .nw-side .meta {{ font-family: {FONT_MONO}; font-size: 12px; color: var(--ink-2); margin-top: 2px; }}
+/* an eliminated team wears the tag under its record (the card itself carries none) */
+.oor {{
+  display: inline-block;
+  margin-top: 6px;
+  padding: 3px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--paper-2);
+  color: var(--ink-2);
+  font-family: {FONT_MONO};
+  font-size: 10.5px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}}
 .nw-vs .vs {{
   align-self: start;
   margin-top: 16px;
@@ -1255,14 +1479,6 @@ svg .name {{ font-family: {WEEKLY_FONT_BODY}; font-size: 14px; font-weight: 700;
   font-weight: 700;
   font-size: 26px;
   color: var(--ink-2);
-}}
-.byeline {{ margin: 0; font-size: 13px; color: var(--ink-2); }}
-.byeline b {{
-  font-family: {FONT_MONO};
-  font-size: 11px;
-  letter-spacing: .1em;
-  text-transform: uppercase;
-  color: var(--ink);
 }}
 
 /* transactions */
@@ -1285,6 +1501,9 @@ svg .name {{ font-family: {WEEKLY_FONT_BODY}; font-size: 14px; font-weight: 700;
 .tx ul {{ list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }}
 .tx li.mono {{ font-size: 12.5px; }}
 .tx .pos {{ font-family: {FONT_MONO}; font-size: 12px; color: var(--ink-2); }}
+/* a trade takes a whole row of the grid, so its two team columns sit side by side at one
+   width instead of wrapping beside the waiver cards; both columns start on the same line */
+.tx-trade {{ grid-column: 1 / -1; }}
 .trade {{
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
@@ -1292,8 +1511,9 @@ svg .name {{ font-family: {WEEKLY_FONT_BODY}; font-size: 14px; font-weight: 700;
   margin-top: 10px;
   align-items: start;
 }}
+.trade > div {{ min-width: 0; }}
 .trade .tn {{ font-size: 15px; margin-top: 0; }}
-.trade .swap {{ font-family: {FONT_MONO}; color: var(--ink-2); margin-top: 22px; }}
+.trade .swap {{ align-self: center; font-family: {FONT_MONO}; color: var(--ink-2); }}
 .trade ul, .trade-multi ul {{ margin-top: 2px; }}
 .trade-multi {{
   display: grid;
@@ -1315,17 +1535,23 @@ footer p {{ margin: 0; }}
 
 @media (max-width: 900px) {{
   .lead {{ grid-template-columns: minmax(0, 1fr); }}
-  .awards {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
+  .awards {{ grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: auto; }}
+  .luck-grid {{ grid-template-columns: minmax(0, 1fr); }}
+  .luck-grid > .prose {{ margin-top: 18px; }}
+  .pw-why {{ margin-left: 0; }}
 }}
 @media (max-width: 560px) {{
   body {{ font-size: 16px; }}
   .lead-main, .table-card, .luck-card {{ padding: 22px 18px; }}
   .awards {{ grid-template-columns: minmax(0, 1fr); }}
-  .grid3 {{ grid-template-columns: minmax(0, 1fr); }}
+  .grid3 {{ grid-template-columns: minmax(0, 1fr); grid-auto-rows: auto; }}
+  .trade {{ grid-template-columns: minmax(0, 1fr); gap: 12px; }}
+  .trade .swap {{ justify-self: center; transform: rotate(90deg); }}
+  .sec-head {{ flex-wrap: wrap; }}
   .st-row {{ grid-template-columns: 22px minmax(0, 1fr) 36px 42px auto; gap: 8px; }}
   .st-row .bar, .st-row .mg {{ display: none; }}
   .pw-head, .pw-row {{ grid-template-columns: 26px minmax(0, 1fr) 40px 48px 30px; }}
-  .pw-head .ms, .pw-row .bar {{ display: none; }}
+  .pw-head .ms, .pw-row .ps {{ display: none; }}
   .nudge {{ margin-left: 0; }}
 }}
 """.strip()

@@ -14,6 +14,13 @@ published ranks) are a separate call, :func:`record_published_weekly`.
 
 Suppressed sections (AD-30) are passed in by the caller (read once per run); ``None`` reads
 them from the store.
+
+Story 8.16b adds two seams. **Team colors**: each team gets a palette slot the first time it
+appears, kept with the league in the blob cache (:func:`assign_team_colors`), so a team's color
+is the same every week. **Replay**: :func:`narration_record` is the narration an Issue shipped
+with (the final section text, the published ranks and their cited reasons), and
+``build_weekly_issue(..., replay=record)`` re-renders the page and email from it with no LLM
+call, no narrator selection and no storyline write.
 """
 
 from __future__ import annotations
@@ -21,7 +28,7 @@ from __future__ import annotations
 import logging
 import os
 import sys
-from collections.abc import Collection, Mapping
+from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
@@ -41,8 +48,14 @@ if TYPE_CHECKING:
     from commishdesk.voices import Voice
 
 __all__ = [
+    "NARRATION_RECORD_VERSION",
+    "TEAM_COLORS_NAMESPACE",
     "WeeklyIssueBuild",
+    "assign_team_colors",
     "build_weekly_issue",
+    "make_narration_record",
+    "narration_record",
+    "parse_narration_record",
     "record_published_weekly",
 ]
 
@@ -52,6 +65,12 @@ _LLM_KEY_VARS = ("ANTHROPIC_API_KEY", "LLM_API_KEY", "GEMINI_API_KEY", "GOOGLE_A
 
 #: The blob-cache namespace a league-week's Facts JSON snapshot lives under.
 _WEEKLY_FACTS_NAMESPACE = "weekly-facts-snapshot"
+
+#: The blob-cache namespace a league's team color slots live under (key: the league id).
+TEAM_COLORS_NAMESPACE = "team_colors"
+
+#: The shape version of :func:`narration_record`.
+NARRATION_RECORD_VERSION = 1
 
 
 def _warn(message: str) -> None:
@@ -813,6 +832,113 @@ def persist_weekly_storylines(store: Store, league_id: str, week: int, built: We
         store.write_storylines(league_id, next_storylines)
 
 
+def assign_team_colors(
+    store: Store, league_id: str, roster_ids: Sequence[str], *, logger: logging.Logger | None = None
+) -> dict[str, int]:
+    """Each team's color slot, assigned once and kept with the league.
+
+    A roster id seen for the first time takes the next free slot (0, 1, 2, ...) and the new
+    assignment is written to the blob cache under ``team_colors``; every later week reads the
+    same slot back, so a team never changes color and no two teams share a slot. The key is the
+    roster id, never the team name, so a rename keeps the color. A team added mid-season takes
+    the next free slot; across seasons a color follows the roster slot.
+
+    Never a Facts field. When the store cannot be read the deterministic fallback
+    (:func:`commishdesk.render._weekly_model.default_team_colors`, by roster id) is used and the
+    fault is logged: an unreadable cache must not stop an Issue.
+    """
+    from commishdesk.render._weekly_model import default_team_colors
+
+    log = logger or logging.getLogger(f"{LOGGER_NAME}.weekly")
+    try:
+        stored = store.read_cache(TEAM_COLORS_NAMESPACE, league_id)
+        raw = stored.get("slots") if stored else None
+        slots = {str(k): int(v) for k, v in raw.items()} if isinstance(raw, Mapping) else {}
+    except (StoreError, TypeError, ValueError, AttributeError) as exc:
+        log.warning(
+            "league %s: team colors are unreadable (%s); using the roster-id order", league_id, one_line(exc)
+        )
+        return default_team_colors(roster_ids)
+    taken = set(slots.values())
+    free = (n for n in range(len(taken) + len(roster_ids) + 1) if n not in taken)
+    changed = False
+    for roster_id in roster_ids:
+        if roster_id not in slots:
+            slots[roster_id] = next(free)
+            changed = True
+    if changed:
+        try:
+            store.write_cache(TEAM_COLORS_NAMESPACE, league_id, {"slots": slots})
+        except StoreError:
+            log.warning("league %s: could not persist the team colors", league_id)
+    return {roster_id: slots[roster_id] for roster_id in roster_ids}
+
+
+def make_narration_record(
+    issue: WeeklyIssue,
+    published_ranks: Mapping[str, int],
+    nudge_justifications: Mapping[str, str],
+    *,
+    league_id: str,
+    week: int,
+    l4_reverted: Sequence[str] = (),
+) -> dict[str, Any]:
+    """The narration an Issue shipped with, as JSON-safe data: the final text of every
+    section, the published ranks and their cited reasons, and the sections the L4 screen
+    reverted. A later ``build_weekly_issue(..., replay=...)`` (or the CLI's
+    ``--replay-narration``) re-renders from it. Store it beside the Issue: the page itself is
+    not the place to recover prose from."""
+    return {
+        "version": NARRATION_RECORD_VERSION,
+        "league_id": league_id,
+        "week": week,
+        "issue": issue.model_dump(mode="json"),
+        "published_ranks": dict(published_ranks),
+        "nudge_justifications": dict(nudge_justifications),
+        "l4_reverted": list(l4_reverted),
+    }
+
+
+def narration_record(built: WeeklyIssueBuild) -> dict[str, Any]:
+    """:func:`make_narration_record` for a finished build."""
+    return make_narration_record(
+        built.issue,
+        built.published_ranks,
+        built.nudge_justifications,
+        league_id=built.league_id,
+        week=built.week,
+        l4_reverted=built.l4_reverted,
+    )
+
+
+def parse_narration_record(
+    record: Mapping[str, Any],
+) -> tuple[WeeklyIssue, dict[str, int], dict[str, str], tuple[str, ...]]:
+    """Validate a stored :func:`narration_record`; raise :class:`CommishDeskError` when it is
+    absent, empty or malformed. There is no fallback: a replay that cannot find its narration
+    must stop, never quietly buy a new one."""
+    from pydantic import ValidationError
+
+    from commishdesk.narrate.weekly_template import WeeklyIssue
+
+    if not isinstance(record, Mapping) or not record:
+        raise CommishDeskError("replay needs the stored narration for this Issue, and none was given")
+    if record.get("version") != NARRATION_RECORD_VERSION:
+        raise CommishDeskError(
+            f"stored narration has version {record.get('version')!r}, expected {NARRATION_RECORD_VERSION}"
+        )
+    try:
+        issue = WeeklyIssue.model_validate(record.get("issue"))
+        ranks = {str(k): int(v) for k, v in dict(record.get("published_ranks") or {}).items()}
+        justifications = {str(k): str(v) for k, v in dict(record.get("nudge_justifications") or {}).items()}
+        reverted = tuple(str(item) for item in (record.get("l4_reverted") or ()))
+    except (ValidationError, TypeError, ValueError) as exc:
+        raise CommishDeskError(f"stored narration is malformed: {one_line(exc)}") from exc
+    if not issue.sections:
+        raise CommishDeskError("stored narration has no sections")
+    return issue, ranks, justifications, reverted
+
+
 def build_weekly_issue(
     store: Store,
     league_id: str,
@@ -826,6 +952,7 @@ def build_weekly_issue(
     enhancer: WebEnhancer | None = None,
     l4: L4Scorer | None = None,
     logger: logging.Logger | None = None,
+    replay: Mapping[str, Any] | None = None,
 ) -> WeeklyIssueBuild:
     """Build one league-week's weekly Issue from *store* and return it, writing no Issue file.
 
@@ -841,10 +968,19 @@ def build_weekly_issue(
     (storylines) is advanced before returning; call :func:`record_published_weekly` once the
     Issue is durably published.
 
+    ``replay`` is a stored :func:`narration_record`: the Issue is then re-rendered from that
+    narration, its published ranks and their reasons with **no** narrator selection and no LLM
+    call, the storylines are left untouched, and the Facts come from the week's stored snapshot
+    when there is one (else they are recomputed). A missing or malformed record raises
+    :class:`~commishdesk.errors.CommishDeskError`; it never falls back to a paid call. Rendered
+    from the same Facts and narration, the page is byte-identical to the fresh render.
+
     Raises :class:`~commishdesk.errors.CommishDeskError` subtypes for every expected fault,
     including a week that is not final (nothing is written then).
     """
     from commishdesk.render import render_weekly_email, render_weekly_web
+
+    replayed = parse_narration_record(replay) if replay is not None else None
 
     log = logger or logging.getLogger(f"{LOGGER_NAME}.weekly")
     if not 1 <= week <= 18:
@@ -862,36 +998,45 @@ def build_weekly_issue(
         if owns_adapter:
             adapter.close()
 
-    built = compute_weekly_facts(
-        store,
-        league_id,
-        week,
-        week_bundle,
-        league_bundle,
-        seeding=seeding,
-        hold_on_cross_check=hold_on_cross_check,
-        logger=log,
-    )
-    issue, ranks, justifications, l4_reverted = produce_weekly_issue(
-        built.doc,
-        resolved=league_id,
-        logger=log,
-        allow_content_hold=allow_content_hold,
-        suppressed=suppressed,
-        l4=l4,
-    )
-    if not built.cross_check_passed:
-        issue = issue.model_copy(update={"dateline": f"UNVERIFIED — {issue.dateline}"})
-    persist_weekly_storylines(store, league_id, week, built)
+    built = _replayed_facts(store, league_id, week, replayed is not None, log)
+    if built is None:
+        built = compute_weekly_facts(
+            store,
+            league_id,
+            week,
+            week_bundle,
+            league_bundle,
+            seeding=seeding,
+            hold_on_cross_check=hold_on_cross_check,
+            logger=log,
+        )
+    if replayed is not None:
+        # The stored Issue already carries any UNVERIFIED stamp and Correction; nothing is
+        # narrated, and narrative memory was advanced when the Issue was first built.
+        issue, ranks, justifications, l4_reverted = replayed
+    else:
+        issue, ranks, justifications, l4_reverted = produce_weekly_issue(
+            built.doc,
+            resolved=league_id,
+            logger=log,
+            allow_content_hold=allow_content_hold,
+            suppressed=suppressed,
+            l4=l4,
+        )
+        if not built.cross_check_passed:
+            issue = issue.model_copy(update={"dateline": f"UNVERIFIED — {issue.dateline}"})
+        persist_weekly_storylines(store, league_id, week, built)
 
     render_doc = weekly_render_doc(built.doc, ranks, justifications)
     generated_at = str(built.doc.generated_at)
+    team_colors = assign_team_colors(store, league_id, [team.roster_id for team in built.doc.teams], logger=log)
     web_html = render_weekly_web(
         render_doc,
         issue,
         output_id=league_id,
         generated_at=generated_at,
         enhancer=enhancer,
+        team_colors=team_colors,
     )
     email = render_weekly_email(render_doc, issue, generated_at=generated_at)
     return WeeklyIssueBuild(
@@ -909,6 +1054,37 @@ def build_weekly_issue(
         generated_at=generated_at,
         cross_check_passed=built.cross_check_passed,
         l4_reverted=tuple(l4_reverted),
+    )
+
+
+def _replayed_facts(
+    store: Store, league_id: str, week: int, replaying: bool, log: logging.Logger
+) -> WeeklyFactsBuild | None:
+    """On a replay, the week's stored Facts snapshot as a Facts build, or ``None`` (recompute).
+
+    The snapshot is exactly what the original run rendered from, so the replay needs neither
+    the storyline state nor the rolling lookbacks of that moment."""
+    if not replaying:
+        return None
+    from pydantic import ValidationError
+
+    from commishdesk.facts.schema import WeeklyFacts
+
+    snapshot = read_weekly_facts_snapshot(store, league_id, week)
+    if snapshot is None:
+        return None
+    try:
+        doc = WeeklyFacts.model_validate(snapshot)
+    except ValidationError as exc:
+        log.warning(
+            "league %s: the stored week %s Facts no longer validate (%s); recomputing",
+            league_id,
+            week,
+            one_line(exc),
+        )
+        return None
+    return WeeklyFactsBuild(
+        doc=doc, facts_json=doc.model_dump(mode="json"), previous_storylines=[], cross_check_passed=True
     )
 
 

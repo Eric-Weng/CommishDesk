@@ -61,7 +61,7 @@ Fixture: `tests/fixtures/facts/expected-weekly-facts-week10.json` (the anonymize
 }
 ```
 
-Jonathan Taylor, started by roster 3, scored 71.37 in week 10, the best of any starter and a new season high, ahead of De'Von Achane (56.52, roster 1). Roster 2 had the most efficient week, using 99.2 percent of its optimal lineup, and roster 7 the least, at 52.4 percent. Roster 7 left 108.86 points on the bench in a six-point loss, the lead of the issue in `leads-and-storylines`.
+Jonathan Taylor, started by roster 3, scored 71.37 in week 10, the best of any starter and a new season high, ahead of De'Von Achane (56.52, roster 1). Roster 2 had the most efficient week, using 99.2 percent of its optimal lineup, and roster 7 the least, at 52.4 percent. A perfect lineup would have added 108.86 points for roster 7 in a six-point loss, the lead of the issue in `leads-and-storylines`.
 
 ## Code
 

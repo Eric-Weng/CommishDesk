@@ -1499,10 +1499,13 @@ def test_weekly_a_voiced_run_renders_its_published_ranks_and_cited_reasons(
     power = body.split('aria-label="Power rankings"', 1)[1].split("</section>", 1)[0]
     assert "Nudged down · model #1" in power
     # the cited reason is the rest of the narrated rank line, never invented
-    assert '<span class="why">9-1-0, 202.87 points a week.</span>' in power
+    assert '<span class="why">9-1, 202.87 points a week.</span>' in power
     email_text = (tmp_path / "commishdesk-111-weekly-week10.email.txt").read_text(encoding="utf-8")
-    assert "Nudged down · model #1" in email_text and "9-1-0, 202.87 points a week." in email_text
-    page_rows = re.findall(r'<span class="rk">#?(\d+)</span><span class="tn">(.*?)</span>', power)
+    assert "Nudged down · model #1" in email_text and "9-1, 202.87 points a week." in email_text
+    page_rows = [
+        (rank, re.sub(r"<[^>]+>", "", name))  # the team name is set in a <b class="tm"> underline
+        for rank, name in re.findall(r'<span class="rk">#?(\d+)</span><span class="tn">(.*?)</span>', power)
+    ]
     top = next(line for line in posted[0][1].split("\n") if line.startswith("📈"))
     # the page's published ranks and order (the stub shifts every rank, so the numbers matter)
     assert re.findall(r"(\d+)\. (.+?)(?= · |$)", top) == page_rows[:5]

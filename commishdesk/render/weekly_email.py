@@ -411,16 +411,11 @@ def _chip(text: str, fg: str, bg: str) -> str:
     )
 
 
-def _monogram(name: str) -> str:
-    tokens = [token for token in re.split(r"[ -]", name) if token]
-    if not tokens:
-        return "??"
-    if len(tokens) == 1:
-        return (tokens[0] * 2)[:2].upper()
-    return (tokens[0][0] + tokens[1][0]).upper()
+def _code(codes: dict[str, str], name: str) -> str:
+    return codes.get(name) or wm.monogram(name)
 
 
-def _mono_cell(name: str, w: int = 26) -> str:
+def _mono_cell(code: str, w: int = 26) -> str:
     outer_w = w + 8
     return (
         f'<td width="{outer_w}" valign="middle" style="width:{outer_w}px;padding:0 8px 0 0;">'
@@ -428,7 +423,7 @@ def _mono_cell(name: str, w: int = 26) -> str:
         f'<td width="{w}" height="{w}" align="center" bgcolor="{MONO_BG}" '
         f'style="width:{w}px;height:{w}px;background-color:{MONO_BG};border-radius:8px;'
         f'font-family:{_MONO};font-size:11px;font-weight:bold;color:{INK2};">'
-        f'{_esc(_monogram(name))}</td></tr></table></td>'
+        f'{_esc(code)}</td></tr></table></td>'
     )
 
 
@@ -595,7 +590,7 @@ def _lead_numbers(facts: WeeklyFacts, lead: LeadCandidate) -> str:
         )
     key = wm.key_number(facts, lead)
     if lead.kind == "lineup_loss" and key:
-        return f"left on bench {key}"
+        return f"{wm.PERFECT_LINEUP.lower()} {key}"
     return key
 
 
@@ -641,7 +636,7 @@ def _bench_bar_html(split: wm.BenchSplit) -> str:
 
     labels = [
         ("Started", wm.pts(split.started), EMPH_TEXT, "33%", "left"),
-        ("On the bench", wm.pts(split.bench), INK, "34%", "left"),
+        (wm.PERFECT_LINEUP, wm.pts(split.bench), INK, "34%", "left"),
         ("Opponent", wm.pts(split.opponent), BAD_TEXT, "33%", "right"),
     ]
     stats = _table("margin-top:6px;") + "<tr>"
@@ -742,7 +737,7 @@ def _lead(facts: WeeklyFacts, blocks: list[str]) -> _Section | None:
     if split is not None:
         card_parts.append(_bench_bar_html(split))
         caption = (
-            f"started {wm.pts(split.started)} · left on bench {wm.pts(split.bench)} · "
+            f"started {wm.pts(split.started)} · {wm.PERFECT_LINEUP.lower()} {wm.pts(split.bench)} · "
             f"opponent {wm.pts(split.opponent)}"
         )
         text.append(caption)  # text/plain only: the HTML's labelled figures replace it
@@ -797,12 +792,12 @@ def _results_title(games: Sequence[object]) -> str:
     return title
 
 
-def _game_side(name: str, points: str, *, winner: bool, tie: bool) -> str:
+def _game_side(name: str, code: str, points: str, *, winner: bool, tie: bool) -> str:
     indicator = "T" if tie else ("W" if winner else "L")
     indicator_colour = GOOD_TEXT if winner and not tie else INK2
     return (
         _table()
-        + f'<tr>{_mono_cell(name)}'
+        + f'<tr>{_mono_cell(code)}'
         f'<td style="font-family:{_SANS};font-weight:{"800" if winner and not tie else "500"};'
         f'font-size:15px;color:{INK if winner and not tie else INK2};">{_esc(name)}</td>'
         f'<td width="70" align="right" style="width:70px;font-family:{_MONO};font-size:15px;'
@@ -817,6 +812,8 @@ def _results(facts: WeeklyFacts, blocks: list[str]) -> _Section | None:
     if not games:
         return None
     label = wm.labeller(facts)
+    # The same unique two-letter codes the web page prints (8.16b).
+    codes = wm.monogram_codes([wm.team_label(team) for team in facts.teams])
     text: list[str] = []
     cards: list[str] = []
 
@@ -832,7 +829,7 @@ def _results(facts: WeeklyFacts, blocks: list[str]) -> _Section | None:
         top = (
             f'<tr><td bgcolor="{winner_bg}" style="background-color:{winner_bg};'
             f'border-radius:11px 11px 0 0;padding:12px 16px;">'
-            + _game_side(winner_name, wm.pts(win_pts), winner=True, tie=tie)
+            + _game_side(winner_name, _code(codes, winner_name), wm.pts(win_pts), winner=True, tie=tie)
             + "</td></tr>"
         )
 
@@ -845,7 +842,7 @@ def _results(facts: WeeklyFacts, blocks: list[str]) -> _Section | None:
             )
         bottom = (
             '<tr><td style="padding:12px 16px;">'
-            + _game_side(loser_name, wm.pts(lose_pts), winner=False, tie=tie)
+            + _game_side(loser_name, _code(codes, loser_name), wm.pts(lose_pts), winner=False, tie=tie)
             + tag_html
             + "</td></tr>"
         )
@@ -1233,7 +1230,7 @@ def _next_week(facts: WeeklyFacts, blocks: list[str]) -> _Section | None:
         bye = ""
         own = [wm.stake_label(tag) for tag in wm.own_stakes(card, shared)]
         line = (
-            f"{a} ({card.a_record}) vs {b} ({card.b_record})"
+            f"{a} ({wm.display_record(card.a_record)}) vs {b} ({wm.display_record(card.b_record)})"
             + (" [Game of the week]" if gotw else "")
             + "".join(f" [{stake}]" for stake in own)
         )
@@ -1258,13 +1255,13 @@ def _next_week(facts: WeeklyFacts, blocks: list[str]) -> _Section | None:
             f'<tr><td width="46%" valign="top" style="padding:16px 4px 16px 16px;">'
             f'<div style="font-family:{_SANS};font-weight:bold;font-size:15px;color:{INK};">{_esc(a)}</div>'
             f'<div style="font-family:{_MONO};font-size:11px;color:{INK2};margin-top:5px;">'
-            f'{_esc(card.a_record)}{a_power}</div></td>'
+            f'{_esc(wm.display_record(card.a_record))}{a_power}</div></td>'
             f'<td width="8%" align="center" valign="middle" style="font-family:{_MONO};font-size:11px;'
             f'letter-spacing:.1em;color:{INK2};">VS</td>'
             f'<td width="46%" valign="top" align="right" style="padding:16px 16px 16px 4px;">'
             f'<div style="font-family:{_SANS};font-weight:bold;font-size:15px;color:{INK};">{_esc(b)}</div>'
             f'<div style="font-family:{_MONO};font-size:11px;color:{INK2};margin-top:5px;">'
-            f'{_esc(card.b_record)}{b_power}</div></td></tr>'
+            f'{_esc(wm.display_record(card.b_record))}{b_power}</div></td></tr>'
             + (
                 f'<tr><td colspan="3" style="padding:0 16px 10px;font-family:{_MONO};font-size:11px;'
                 f'letter-spacing:.08em;text-transform:uppercase;color:{INK2};">'
