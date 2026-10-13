@@ -127,7 +127,7 @@ def test_email_list_sits_under_the_masthead_and_survives_dark_mode_inversion() -
 
 def test_the_email_keeps_the_marker_in_the_stored_render() -> None:
     assert we.ISSUE_URL_MARKER in _email(_raw()).html
-    assert we.ISSUE_URL_MARKER in we.__all__ or "ISSUE_URL_MARKER" in we.__all__
+    assert "ISSUE_URL_MARKER" in we.__all__
 
 
 def test_toc_output_is_deterministic() -> None:

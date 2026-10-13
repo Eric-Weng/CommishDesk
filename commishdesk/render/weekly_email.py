@@ -53,7 +53,7 @@ TOP_LINKS_MARKER = "<!--commishdesk:top-links-->"
 
 #: Story 8.16c: the base of every "In this issue" link, ``{ISSUE_URL_MARKER}#<section id>``.
 #: The app replaces every occurrence at send time (before link tracking) with the web Issue
-#: URL ``{base}/w/{NN}``; the stored render keeps the marker. Free of ``<``, ``>``, quotes and
+#: URL (the app uses ``{base}/l/{slug}/w/{NN}``); the stored render keeps the marker. Free of ``<``, ``>``, quotes and
 #: ``&`` so it sits in an ``href`` and in plain text untouched by escaping.
 ISSUE_URL_MARKER = "{{commishdesk:issue-url}}"
 
