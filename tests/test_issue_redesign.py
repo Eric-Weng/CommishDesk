@@ -846,6 +846,16 @@ def test_the_cli_refuses_a_replay_that_is_not_a_plain_local_weekly_run(tmp_path:
     for args in (
         ["--league", "1", "--replay-narration", str(path)],
         ["--league", "1", "--week", "3", "--post", "--replay-narration", str(path)],
+        ["--league", "1", "--week", "3", "--reason", "x", "--replay-narration", str(path)],
+        ["--league", "1", "--draft-recap", "--replay-narration", str(path)],
     ):
         result = runner.invoke(app, args)
         assert result.exit_code != 0 and "replay-narration" in result.output
+
+
+def test_a_replay_refuses_a_narration_stored_for_another_league_or_week() -> None:
+    record = {"version": 1, "league_id": "111", "week": 10}
+    with pytest.raises(CommishDeskError, match="league"):
+        parse_narration_record(record, league_id="222", week=10)
+    with pytest.raises(CommishDeskError, match="week"):
+        parse_narration_record(record, league_id="111", week=9)

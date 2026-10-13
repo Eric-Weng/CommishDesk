@@ -1205,7 +1205,9 @@ class _WeeklyRecapPhases(_RecapPhases):
                 raise CommishDeskError(
                     f"cannot read the stored narration {self.replay_narration}: {_one_line(exc)}"
                 ) from exc
-            self.issue, self.published_ranks, self.nudge_justifications, _reverted = parse_narration_record(raw)
+            self.issue, self.published_ranks, self.nudge_justifications, _reverted = parse_narration_record(
+                raw, league_id=self.resolved, week=self.week
+            )
             return
 
         logger.debug("narrating the weekly Issue")

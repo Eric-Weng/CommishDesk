@@ -913,6 +913,9 @@ def narration_record(built: WeeklyIssueBuild) -> dict[str, Any]:
 
 def parse_narration_record(
     record: Mapping[str, Any],
+    *,
+    league_id: str | None = None,
+    week: int | None = None,
 ) -> tuple[WeeklyIssue, dict[str, int], dict[str, str], tuple[str, ...]]:
     """Validate a stored :func:`narration_record`; raise :class:`CommishDeskError` when it is
     absent, empty or malformed. There is no fallback: a replay that cannot find its narration
@@ -927,6 +930,12 @@ def parse_narration_record(
         raise CommishDeskError(
             f"stored narration has version {record.get('version')!r}, expected {NARRATION_RECORD_VERSION}"
         )
+    if league_id is not None and str(record.get("league_id")) != str(league_id):
+        raise CommishDeskError(
+            f"stored narration is for league {record.get('league_id')!r}, not {league_id!r}"
+        )
+    if week is not None and record.get("week") != week:
+        raise CommishDeskError(f"stored narration is for week {record.get('week')!r}, not {week}")
     try:
         issue = WeeklyIssue.model_validate(record.get("issue"))
         ranks = {str(k): int(v) for k, v in dict(record.get("published_ranks") or {}).items()}
@@ -980,7 +989,7 @@ def build_weekly_issue(
     """
     from commishdesk.render import render_weekly_email, render_weekly_web
 
-    replayed = parse_narration_record(replay) if replay is not None else None
+    replayed = parse_narration_record(replay, league_id=league_id, week=week) if replay is not None else None
 
     log = logger or logging.getLogger(f"{LOGGER_NAME}.weekly")
     if not 1 <= week <= 18:
