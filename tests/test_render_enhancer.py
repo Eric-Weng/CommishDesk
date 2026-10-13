@@ -177,7 +177,10 @@ _SHELL = "<!doctype html><html><head><style>{css}</style></head><body>{body}</bo
         ("<script>a()</script><script>b()</script>", True, "page-script-count"),
         ('<p onclick="x()">x</p>', False, "page-inline-handler"),
         ('<svg><g onload="x()"></g></svg>', False, "page-inline-handler"),
-        ('<a href="#x">x</a>', False, "page-subresource"),
+        ('<a href="https://example.com/x">x</a>', False, "page-subresource"),
+        ('<a href="/x#y">x</a>', False, "page-subresource"),
+        ('<a href="#">x</a>', False, "page-subresource"),
+        ('<area href="#x">', False, "page-subresource"),
         ('<svg><use xlink:href="#x"/></svg>', False, "page-subresource"),
         ('<script src="x.js"></script>', True, "page-subresource"),
         ('<link rel="stylesheet">', False, "page-subresource"),
@@ -189,6 +192,11 @@ def test_page_rules_reject_real_tags(body: str, enhanced: bool, rule: str) -> No
     with pytest.raises(EnhancerRejected) as caught:
         validate_page(_SHELL.format(css="", body=body), enhanced=enhanced)
     assert caught.value.rule == rule
+
+
+def test_page_rules_allow_a_same_page_fragment_anchor() -> None:
+    """Story 8.16c: the "Jump to" nav is `<a href="#id">`; it loads nothing and runs nothing."""
+    validate_page(_SHELL.format(css="", body='<nav><a href="#lead">x</a></nav>'), enhanced=False)
 
 
 def test_page_rules_ignore_escaped_text_and_script_or_style_bodies() -> None:

@@ -44,12 +44,18 @@ from commishdesk.render.email import EmailParts, _document
 from commishdesk.render.style import WEEKLY_DARK_TOKENS, WEEKLY_LIGHT_TOKENS
 from commishdesk.sections import heading_for
 
-__all__ = ["TOP_LINKS_MARKER", "render_weekly_email"]
+__all__ = ["ISSUE_URL_MARKER", "TOP_LINKS_MARKER", "render_weekly_email"]
 
 #: Story 6-11: an HTML comment right under the masthead. The per-Reader links (signed
 #: unsubscribe / report links) are built by the app after render, so the engine only
 #: reserves the spot; unused it is an inert comment. The app swaps it for a table row.
 TOP_LINKS_MARKER = "<!--commishdesk:top-links-->"
+
+#: Story 8.16c: the base of every "In this issue" link, ``{ISSUE_URL_MARKER}#<section id>``.
+#: The app replaces every occurrence at send time (before link tracking) with the web Issue
+#: URL ``{base}/w/{NN}``; the stored render keeps the marker. Free of ``<``, ``>``, quotes and
+#: ``&`` so it sits in an ``href`` and in plain text untouched by escaping.
+ISSUE_URL_MARKER = "{{commishdesk:issue-url}}"
 
 # --------------------------------------------------------------------------- #
 # Palette — literal hex from Tuesday Morning light, with a dark enhancement
@@ -355,6 +361,7 @@ class _Section(NamedTuple):
     label: str
     html: str
     text: list[str]
+    section_id: str = ""  # the permanent SECTION_IDS id; empty for a notice (never listed)
 
 
 # --------------------------------------------------------------------------- #
@@ -476,6 +483,30 @@ def _section_header(label: str, title: str | None = None, sub: str | None = None
             f'color:{INK2};margin-top:8px;">{_esc(sub)}</div>'
         )
     return _tr(inner, "44px 28px 18px 28px")
+
+
+def _toc(entries: list[tuple[str, str]]) -> str:
+    """The "In this issue" row: one inline-styled link per rendered section, each to the
+    web Issue at that section (an in-email ``#`` anchor is dropped by the Gmail app and
+    Outlook). ``entries`` is ``(section id, heading)`` in page order."""
+    if not entries:
+        return ""
+    links = "".join(
+        f'<div style="font-family:{_SANS};font-size:15px;line-height:1.4;margin-top:6px;">'
+        f'<a href="{ISSUE_URL_MARKER}#{section_id}" style="color:{EMPH_TEXT};text-decoration:underline;">'
+        f"{_esc(heading)}</a></div>"
+        for section_id, heading in entries
+    )
+    inner = (
+        f'<div style="font-family:{_MONO};font-size:11px;letter-spacing:.16em;'
+        f'text-transform:uppercase;color:{INK2};font-weight:bold;">In this issue</div>{links}'
+    )
+    return _tr(
+        f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>'
+        f'<td bgcolor="{CARD}" style="background-color:{CARD};border:1px solid {LINE};'
+        f'border-radius:8px;padding:14px 16px;">{inner}</td></tr></table>',
+        "24px 28px 0 28px",
+    )
 
 
 def _week_line(facts: WeeklyFacts) -> str:
@@ -1438,20 +1469,23 @@ def render_weekly_email(facts: WeeklyFacts, issue: WeeklyIssue, *, generated_at:
     def blocks(heading: str) -> list[str]:
         return prose.get(heading, [])
 
-    built = [
-        *_notices(issue, headings),
-        _lead(facts, blocks(heading_for("lead"))),
-        _results(facts, blocks(heading_for("around_league"))),
-        _standings(
-            facts,
-            blocks(heading_for("standings", cold_start=cold_start)),
-        ),
-        _power(facts, blocks(heading_for("power"))) if not cold_start else None,
-        _luck(facts, blocks(heading_for("luck"))) if not cold_start else None,
-        _next_week(facts, blocks(heading_for("next_week"))),
-        _transactions(facts, blocks(heading_for("transactions"))) if not cold_start else None,
+    notices = _notices(issue, headings)
+    built: list[tuple[str, _Section | None]] = [
+        ("lead", _lead(facts, blocks(heading_for("lead")))),
+        ("around_league", _results(facts, blocks(heading_for("around_league")))),
+        ("standings", _standings(facts, blocks(heading_for("standings", cold_start=cold_start)))),
+        ("power", _power(facts, blocks(heading_for("power"))) if not cold_start else None),
+        ("luck", _luck(facts, blocks(heading_for("luck"))) if not cold_start else None),
+        ("next_week", _next_week(facts, blocks(heading_for("next_week")))),
+        ("transactions", _transactions(facts, blocks(heading_for("transactions"))) if not cold_start else None),
     ]
-    sections = [section for section in built if section is not None]
+    listed = [
+        section._replace(section_id=section_id) for section_id, section in built if section is not None
+    ]
+    sections = [*notices, *listed]
+    toc_entries = [
+        (section.section_id, heading_for(section.section_id, cold_start=cold_start)) for section in listed
+    ]
 
     league = facts.league
     footer_stamp = f"{league.name} · {league.season} · Week {facts.week} · generated {generated_at}"
@@ -1471,6 +1505,7 @@ def render_weekly_email(facts: WeeklyFacts, issue: WeeklyIssue, *, generated_at:
         _masthead(facts)
         + TOP_LINKS_MARKER
         + _tiles(facts)
+        + _toc(toc_entries)
         + "".join(section.html for section in sections)
         + footer
     )
@@ -1488,6 +1523,9 @@ def render_weekly_email(facts: WeeklyFacts, issue: WeeklyIssue, *, generated_at:
     )
 
     parts = [f"{league.name}\n{_week_line(facts)}\ngenerated {generated_at}"]
+    if toc_entries:
+        toc_lines = [f"{heading}: {ISSUE_URL_MARKER}#{section_id}" for section_id, heading in toc_entries]
+        parts.append("\n".join(["IN THIS ISSUE", *toc_lines]))
     for section in sections:
         parts.append("\n".join([section.label.upper(), *section.text]))
     parts.append(
