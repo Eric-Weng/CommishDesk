@@ -238,7 +238,7 @@ def test_text_part_carries_every_html_section_heading_prose_and_data() -> None:
     for block in dropped:
         assert block not in parts.text and _esc(block) not in parts.html, block[:40]
     for data in (
-        "started 119.97 · left on bench 108.86 · opponent 126.03",
+        "started 119.97 · a perfect lineup adds 108.86 · opponent 126.03",
         "--- playoff line ---",
         "Coach of the week: Two Minute Drill, 99.2%",
         "Yardage Yaks 126.03 over Kneel-Down Koalas 119.97",
@@ -255,15 +255,16 @@ def test_text_part_carries_every_html_section_heading_prose_and_data() -> None:
 
 def test_week10_lead_is_the_bench_bar_as_a_cell_row() -> None:
     lead = _section(_parts(_raw()).html, "The lead")
-    assert "Kneel-Down Koalas lost by 6.06 with 108.86 on the bench" in lead
+    assert "Kneel-Down Koalas lost by 6.06, and a perfect lineup adds 108.86" in lead
+    assert "on the bench" not in lead  # the gap is not the bench total (8.16b)
     # the bar's cells: the started fill, a hued gap, a fixed opponent marker
     assert f'bgcolor="{we.BAR}"' in lead
     assert f'bgcolor="{we.BARLO}"' in lead
     assert f'bgcolor="{we.BAD}"' in lead
     # the board's three labelled figures replace the duplicate caption line, which
     # survives in text/plain only
-    assert "started 119.97" not in lead and "left on bench" not in lead
-    for label, figure in (("Started", "119.97"), ("On the bench", "108.86"), ("Opponent", "126.03")):
+    assert "started 119.97" not in lead and "a perfect lineup adds 108.86 ·" not in lead
+    for label, figure in (("Started", "119.97"), ("A perfect lineup adds", "108.86"), ("Opponent", "126.03")):
         assert f">{label}</div>" in lead and f">{figure}</div>" in lead
     for award in ("Coach of the week", "Player of the week", "Bust of the week", "Goose egg club"):
         assert award in lead
@@ -358,7 +359,7 @@ def test_shared_stakes_appear_once_and_a_differing_stake_stays_on_its_card() -> 
     assert "On the line in every game: Bye seed, Wildcard race, Division race" in parts.text
     # a stake that differs per card stays on that card, in both parts
     assert parts.html.count("Elimination") == 1
-    assert "Flea Flicker Union (7-3-0) vs Bubble-Screen Bobcats (2-8-0) [Elimination]" in parts.text
+    assert "Flea Flicker Union (7-3) vs Bubble-Screen Bobcats (2-8) [Elimination]" in parts.text
 
 
 def test_the_stat_tiles_carry_the_week10_figures() -> None:
@@ -574,9 +575,9 @@ def test_game_cards_are_bordered_rounded_cards_with_the_chip_inside() -> None:
 
 def test_text_part_keeps_the_game_of_the_week_tag_and_the_caption() -> None:
     text = _parts(_raw()).text
-    assert "Backpedal Buffalo (7-3-0) vs No-Huddle Narwhals (6-4-0) [Game of the week]\n" in text
+    assert "Backpedal Buffalo (7-3) vs No-Huddle Narwhals (6-4) [Game of the week]\n" in text
     assert text.count("[Game of the week]") == 1
-    assert "started 119.97 · left on bench 108.86 · opponent 126.03" in text
+    assert "started 119.97 · a perfect lineup adds 108.86 · opponent 126.03" in text
     assert "    On bye: Jonathan Taylor (RB IND), Josh Downs (WR IND)" in text
 
 

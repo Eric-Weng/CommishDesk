@@ -17,7 +17,7 @@ source: commishdesk/stats/lineup.py::_team_lineup
 
 **Coaching efficiency.** `actual` is the points the starters scored. `optimal` is the solved lineup's total, never lower than `actual`. `pct` is `actual / optimal` to three decimals and is `null` when `optimal` is zero or less. `season.coaching_efficiency` adds `actual` and `optimal` over weeks 1 through the issue week, then takes the same ratio.
 
-**Points left on the bench** is `optimal - actual` for the week.
+**Points left on the bench** is `optimal - actual` for the week: what a perfect lineup would have added to the score. It is the gap between two lineups, not the total the bench scored, so the Issue words it as "a perfect lineup adds".
 
 **Bench regret** names the highest-scoring player the manager could have started but did not, with that player's points. It is `null` when no benched player scored zero or more.
 

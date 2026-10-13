@@ -31,6 +31,10 @@ def _attr(name: str) -> str:
 
 #: Selectors the app's enhancer.js uses, each as (name, regex over the page's markup).
 _HOOKS: tuple[tuple[str, str], ...] = (
+    (".detail-all[data-detail-all]", rf'<(?=[^>]*{_cls("detail-all")})[^>]*{_attr("data-detail-all")}'),
+    (".pw-row[data-team]", rf'<(?=[^>]*{_cls("pw-row")})[^>]*{_attr("data-team")}="'),
+    (".ps", _cls("ps")),
+    (".bump-model-dot[data-pub]", rf'<(?=[^>]*{_cls("bump-model-dot")})[^>]*{_attr("data-pub")}="'),
     (".card-expand", _cls("card-expand")),
     (".card-expand-state", _cls("card-expand-state")),
     (".hit-state", _cls("hit-state")),

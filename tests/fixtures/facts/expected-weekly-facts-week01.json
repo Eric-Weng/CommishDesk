@@ -2953,8 +2953,8 @@
         "b_roster_id": "11",
         "a_power_rank": null,
         "b_power_rank": null,
-        "a_record": "0-1-0",
-        "b_record": "0-1-0",
+        "a_record": "0-1",
+        "b_record": "0-1",
         "a_clinched_playoff": false,
         "a_clinched_bye": false,
         "a_eliminated": false,
@@ -2977,8 +2977,8 @@
         "b_roster_id": "5",
         "a_power_rank": null,
         "b_power_rank": null,
-        "a_record": "1-0-0",
-        "b_record": "1-0-0",
+        "a_record": "1-0",
+        "b_record": "1-0",
         "a_clinched_playoff": false,
         "a_clinched_bye": false,
         "a_eliminated": false,
@@ -3001,8 +3001,8 @@
         "b_roster_id": "9",
         "a_power_rank": null,
         "b_power_rank": null,
-        "a_record": "1-0-0",
-        "b_record": "1-0-0",
+        "a_record": "1-0",
+        "b_record": "1-0",
         "a_clinched_playoff": false,
         "a_clinched_bye": false,
         "a_eliminated": false,
@@ -3025,8 +3025,8 @@
         "b_roster_id": "7",
         "a_power_rank": null,
         "b_power_rank": null,
-        "a_record": "0-1-0",
-        "b_record": "0-1-0",
+        "a_record": "0-1",
+        "b_record": "0-1",
         "a_clinched_playoff": false,
         "a_clinched_bye": false,
         "a_eliminated": false,
@@ -3049,8 +3049,8 @@
         "b_roster_id": "10",
         "a_power_rank": null,
         "b_power_rank": null,
-        "a_record": "0-1-0",
-        "b_record": "1-0-0",
+        "a_record": "0-1",
+        "b_record": "1-0",
         "a_clinched_playoff": false,
         "a_clinched_bye": false,
         "a_eliminated": false,
@@ -3073,8 +3073,8 @@
         "b_roster_id": "12",
         "a_power_rank": null,
         "b_power_rank": null,
-        "a_record": "1-0-0",
-        "b_record": "0-1-0",
+        "a_record": "1-0",
+        "b_record": "0-1",
         "a_clinched_playoff": false,
         "a_clinched_bye": false,
         "a_eliminated": false,
@@ -6910,7 +6910,7 @@
       "roster_ids": [
         "7"
       ],
-      "hook": "Kneel-Down Koalas lost by 4.25 with 20.85 on the bench, including Zach Ertz."
+      "hook": "Kneel-Down Koalas lost by 4.25, and a perfect lineup adds 20.85, including Zach Ertz."
     },
     {
       "rank": 2,
@@ -7016,7 +7016,7 @@
         "rank": 1,
         "team": "Flea Flicker Union",
         "roster_id": "1",
-        "rec": "1-0-0",
+        "rec": "1-0",
         "pf": 232.86,
         "model_rank": null
       },
@@ -7024,7 +7024,7 @@
         "rank": 2,
         "team": "No-Huddle Narwhals",
         "roster_id": "9",
-        "rec": "1-0-0",
+        "rec": "1-0",
         "pf": 204.79,
         "model_rank": null
       },
@@ -7032,7 +7032,7 @@
         "rank": 3,
         "team": "Stiff-Arm Stags",
         "roster_id": "10",
-        "rec": "1-0-0",
+        "rec": "1-0",
         "pf": 196.58,
         "model_rank": null
       },
@@ -7040,7 +7040,7 @@
         "rank": 4,
         "team": "Two Minute Drill",
         "roster_id": "2",
-        "rec": "1-0-0",
+        "rec": "1-0",
         "pf": 183.39,
         "model_rank": null
       },
@@ -7048,7 +7048,7 @@
         "rank": 5,
         "team": "Backpedal Buffalo",
         "roster_id": "3",
-        "rec": "1-0-0",
+        "rec": "1-0",
         "pf": 171.71,
         "model_rank": null
       },
@@ -7056,7 +7056,7 @@
         "rank": 6,
         "team": "Nickel Newts",
         "roster_id": "5",
-        "rec": "1-0-0",
+        "rec": "1-0",
         "pf": 164.11,
         "model_rank": null
       },
@@ -7064,7 +7064,7 @@
         "rank": 7,
         "team": "Kneel-Down Koalas",
         "roster_id": "7",
-        "rec": "0-1-0",
+        "rec": "0-1",
         "pf": 179.14,
         "model_rank": null
       },
@@ -7072,7 +7072,7 @@
         "rank": 8,
         "team": "Screen Pass Syndicate",
         "roster_id": "8",
-        "rec": "0-1-0",
+        "rec": "0-1",
         "pf": 142.29,
         "model_rank": null
       },
@@ -7080,7 +7080,7 @@
         "rank": 9,
         "team": "Overtime Otters",
         "roster_id": "6",
-        "rec": "0-1-0",
+        "rec": "0-1",
         "pf": 141.35,
         "model_rank": null
       },
@@ -7088,7 +7088,7 @@
         "rank": 10,
         "team": "Chip-Block Chinchillas",
         "roster_id": "4",
-        "rec": "0-1-0",
+        "rec": "0-1",
         "pf": 123.35,
         "model_rank": null
       },
@@ -7096,7 +7096,7 @@
         "rank": 11,
         "team": "Bubble-Screen Bobcats",
         "roster_id": "11",
-        "rec": "0-1-0",
+        "rec": "0-1",
         "pf": 119.65,
         "model_rank": null
       },
@@ -7104,7 +7104,7 @@
         "rank": 12,
         "team": "Yardage Yaks",
         "roster_id": "12",
-        "rec": "0-1-0",
+        "rec": "0-1",
         "pf": 92.1,
         "model_rank": null
       }
@@ -7137,7 +7137,7 @@
         "model_rank": null,
         "team": "Flea Flicker Union",
         "roster_id": "1",
-        "rec": "1-0-0",
+        "rec": "1-0",
         "avg_pf": 232.86,
         "all_play": null,
         "luck": null,
@@ -7149,7 +7149,7 @@
         "model_rank": null,
         "team": "Two Minute Drill",
         "roster_id": "2",
-        "rec": "1-0-0",
+        "rec": "1-0",
         "avg_pf": 183.39,
         "all_play": null,
         "luck": null,
@@ -7161,7 +7161,7 @@
         "model_rank": null,
         "team": "Backpedal Buffalo",
         "roster_id": "3",
-        "rec": "1-0-0",
+        "rec": "1-0",
         "avg_pf": 171.71,
         "all_play": null,
         "luck": null,
@@ -7173,7 +7173,7 @@
         "model_rank": null,
         "team": "Chip-Block Chinchillas",
         "roster_id": "4",
-        "rec": "0-1-0",
+        "rec": "0-1",
         "avg_pf": 123.35,
         "all_play": null,
         "luck": null,
@@ -7185,7 +7185,7 @@
         "model_rank": null,
         "team": "Nickel Newts",
         "roster_id": "5",
-        "rec": "1-0-0",
+        "rec": "1-0",
         "avg_pf": 164.11,
         "all_play": null,
         "luck": null,
@@ -7197,7 +7197,7 @@
         "model_rank": null,
         "team": "Overtime Otters",
         "roster_id": "6",
-        "rec": "0-1-0",
+        "rec": "0-1",
         "avg_pf": 141.35,
         "all_play": null,
         "luck": null,
@@ -7209,7 +7209,7 @@
         "model_rank": null,
         "team": "Kneel-Down Koalas",
         "roster_id": "7",
-        "rec": "0-1-0",
+        "rec": "0-1",
         "avg_pf": 179.14,
         "all_play": null,
         "luck": null,
@@ -7221,7 +7221,7 @@
         "model_rank": null,
         "team": "Screen Pass Syndicate",
         "roster_id": "8",
-        "rec": "0-1-0",
+        "rec": "0-1",
         "avg_pf": 142.29,
         "all_play": null,
         "luck": null,
@@ -7233,7 +7233,7 @@
         "model_rank": null,
         "team": "No-Huddle Narwhals",
         "roster_id": "9",
-        "rec": "1-0-0",
+        "rec": "1-0",
         "avg_pf": 204.79,
         "all_play": null,
         "luck": null,
@@ -7245,7 +7245,7 @@
         "model_rank": null,
         "team": "Stiff-Arm Stags",
         "roster_id": "10",
-        "rec": "1-0-0",
+        "rec": "1-0",
         "avg_pf": 196.58,
         "all_play": null,
         "luck": null,
@@ -7257,7 +7257,7 @@
         "model_rank": null,
         "team": "Bubble-Screen Bobcats",
         "roster_id": "11",
-        "rec": "0-1-0",
+        "rec": "0-1",
         "avg_pf": 119.65,
         "all_play": null,
         "luck": null,
@@ -7269,7 +7269,7 @@
         "model_rank": null,
         "team": "Yardage Yaks",
         "roster_id": "12",
-        "rec": "0-1-0",
+        "rec": "0-1",
         "avg_pf": 92.1,
         "all_play": null,
         "luck": null,
@@ -7282,7 +7282,7 @@
       {
         "team": "Flea Flicker Union",
         "roster_id": "1",
-        "rec": "1-0-0",
+        "rec": "1-0",
         "all_play": null,
         "earned_wins": null,
         "luck": null
@@ -7290,7 +7290,7 @@
       {
         "team": "Two Minute Drill",
         "roster_id": "2",
-        "rec": "1-0-0",
+        "rec": "1-0",
         "all_play": null,
         "earned_wins": null,
         "luck": null
@@ -7298,7 +7298,7 @@
       {
         "team": "Backpedal Buffalo",
         "roster_id": "3",
-        "rec": "1-0-0",
+        "rec": "1-0",
         "all_play": null,
         "earned_wins": null,
         "luck": null
@@ -7306,7 +7306,7 @@
       {
         "team": "Chip-Block Chinchillas",
         "roster_id": "4",
-        "rec": "0-1-0",
+        "rec": "0-1",
         "all_play": null,
         "earned_wins": null,
         "luck": null
@@ -7314,7 +7314,7 @@
       {
         "team": "Nickel Newts",
         "roster_id": "5",
-        "rec": "1-0-0",
+        "rec": "1-0",
         "all_play": null,
         "earned_wins": null,
         "luck": null
@@ -7322,7 +7322,7 @@
       {
         "team": "Overtime Otters",
         "roster_id": "6",
-        "rec": "0-1-0",
+        "rec": "0-1",
         "all_play": null,
         "earned_wins": null,
         "luck": null
@@ -7330,7 +7330,7 @@
       {
         "team": "Kneel-Down Koalas",
         "roster_id": "7",
-        "rec": "0-1-0",
+        "rec": "0-1",
         "all_play": null,
         "earned_wins": null,
         "luck": null
@@ -7338,7 +7338,7 @@
       {
         "team": "Screen Pass Syndicate",
         "roster_id": "8",
-        "rec": "0-1-0",
+        "rec": "0-1",
         "all_play": null,
         "earned_wins": null,
         "luck": null
@@ -7346,7 +7346,7 @@
       {
         "team": "No-Huddle Narwhals",
         "roster_id": "9",
-        "rec": "1-0-0",
+        "rec": "1-0",
         "all_play": null,
         "earned_wins": null,
         "luck": null
@@ -7354,7 +7354,7 @@
       {
         "team": "Stiff-Arm Stags",
         "roster_id": "10",
-        "rec": "1-0-0",
+        "rec": "1-0",
         "all_play": null,
         "earned_wins": null,
         "luck": null
@@ -7362,7 +7362,7 @@
       {
         "team": "Bubble-Screen Bobcats",
         "roster_id": "11",
-        "rec": "0-1-0",
+        "rec": "0-1",
         "all_play": null,
         "earned_wins": null,
         "luck": null
@@ -7370,7 +7370,7 @@
       {
         "team": "Yardage Yaks",
         "roster_id": "12",
-        "rec": "0-1-0",
+        "rec": "0-1",
         "all_play": null,
         "earned_wins": null,
         "luck": null
@@ -7381,11 +7381,11 @@
         "matchup_id": 1,
         "a": "Chip-Block Chinchillas",
         "a_roster_id": "4",
-        "a_rec": "0-1-0",
+        "a_rec": "0-1",
         "a_model_rank": null,
         "b": "Bubble-Screen Bobcats",
         "b_roster_id": "11",
-        "b_rec": "0-1-0",
+        "b_rec": "0-1",
         "b_model_rank": null,
         "stakes": [
           "bye_seed",
@@ -7398,11 +7398,11 @@
         "matchup_id": 2,
         "a": "Backpedal Buffalo",
         "a_roster_id": "3",
-        "a_rec": "1-0-0",
+        "a_rec": "1-0",
         "a_model_rank": null,
         "b": "Nickel Newts",
         "b_roster_id": "5",
-        "b_rec": "1-0-0",
+        "b_rec": "1-0",
         "b_model_rank": null,
         "stakes": [
           "bye_seed",
@@ -7415,11 +7415,11 @@
         "matchup_id": 3,
         "a": "Two Minute Drill",
         "a_roster_id": "2",
-        "a_rec": "1-0-0",
+        "a_rec": "1-0",
         "a_model_rank": null,
         "b": "No-Huddle Narwhals",
         "b_roster_id": "9",
-        "b_rec": "1-0-0",
+        "b_rec": "1-0",
         "b_model_rank": null,
         "stakes": [
           "bye_seed",
@@ -7432,11 +7432,11 @@
         "matchup_id": 4,
         "a": "Overtime Otters",
         "a_roster_id": "6",
-        "a_rec": "0-1-0",
+        "a_rec": "0-1",
         "a_model_rank": null,
         "b": "Kneel-Down Koalas",
         "b_roster_id": "7",
-        "b_rec": "0-1-0",
+        "b_rec": "0-1",
         "b_model_rank": null,
         "stakes": [
           "bye_seed",
@@ -7449,11 +7449,11 @@
         "matchup_id": 5,
         "a": "Screen Pass Syndicate",
         "a_roster_id": "8",
-        "a_rec": "0-1-0",
+        "a_rec": "0-1",
         "a_model_rank": null,
         "b": "Stiff-Arm Stags",
         "b_roster_id": "10",
-        "b_rec": "1-0-0",
+        "b_rec": "1-0",
         "b_model_rank": null,
         "stakes": [
           "bye_seed",
@@ -7466,11 +7466,11 @@
         "matchup_id": 6,
         "a": "Flea Flicker Union",
         "a_roster_id": "1",
-        "a_rec": "1-0-0",
+        "a_rec": "1-0",
         "a_model_rank": null,
         "b": "Yardage Yaks",
         "b_roster_id": "12",
-        "b_rec": "0-1-0",
+        "b_rec": "0-1",
         "b_model_rank": null,
         "stakes": [
           "bye_seed",
@@ -7488,7 +7488,7 @@
       "this_week_count": 136,
       "recent_trade_count": 23
     },
-    "printed_headline": "Kneel-Down Koalas lost by 4.25 with 20.85 on the bench, including Zach Ertz.",
+    "printed_headline": "Kneel-Down Koalas lost by 4.25, and a perfect lineup adds 20.85, including Zach Ertz.",
     "lead_candidates": [
       {
         "rank": 1,
@@ -7496,7 +7496,7 @@
         "roster_ids": [
           "7"
         ],
-        "hook": "Kneel-Down Koalas lost by 4.25 with 20.85 on the bench, including Zach Ertz."
+        "hook": "Kneel-Down Koalas lost by 4.25, and a perfect lineup adds 20.85, including Zach Ertz."
       },
       {
         "rank": 2,

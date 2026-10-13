@@ -90,14 +90,21 @@ def _body(page: str) -> str:
     return page.split("</style>", 1)[1]
 
 
+def _plain(markup: str) -> str:
+    """Markup with its tags removed: team names are set in a ``<b class="tm">`` underline (8.16b)."""
+    return re.sub(r"<[^>]+>", "", markup)
+
+
 def _power_rows(page: str) -> list[tuple[str, str, str]]:
     """``(rank, team, following nudge html or "")`` per power row, in page order."""
     power = _body(page).split('aria-label="Power rankings"', 1)[1].split("</section>", 1)[0]
-    items = re.findall(r'<div class="pw-item">(.*?)</div>(<p class="nudge">.*?</p>)?</div>', power)
+    items = re.findall(
+        r'<div class="pw-item">(.*?)</div>(?:<p class="pw-why">.*?</p>)?(<p class="nudge">.*?</p>)?</div>', power
+    )
     out = []
     for row, nudge in items:
         rank = re.search(r'<span class="rk">(.*?)</span>', row).group(1)  # type: ignore[union-attr]
-        team = re.search(r'<span class="tn">(.*?)</span>', row).group(1)  # type: ignore[union-attr]
+        team = _plain(re.search(r'<span class="tn">(.*?)</span>', row).group(1))  # type: ignore[union-attr]
         out.append((rank, team, nudge))
     return out
 
@@ -110,7 +117,7 @@ def _power_section(page: str) -> str:
 def _bump_team_blocks(power_html: str) -> dict[str, str]:
     """``{roster_id: inner html}`` for every ``<g class="bump-team">`` group."""
     return dict(
-        re.findall(r'<g class="bump-team" data-team="([^"]+)">(.*?)</g>', power_html, flags=re.DOTALL)
+        re.findall(r'<g class="bump-team[^"]*" data-team="([^"]+)">(.*?)</g>', power_html, flags=re.DOTALL)
     )
 
 
@@ -145,8 +152,8 @@ def test_published_overlay_swaps_7_and_8_with_both_chips_and_reasons() -> None:
     assert "Nudged down · model #7" in by_rank["8"][1]
     reasons = {row["team"]: row["nudge_justification"] for row in raw["narration"]["power"]}
     assert "the record settles the tie the model left open" in by_rank["7"][1]
-    assert _esc_text(reasons["Nickel Newts"]) in by_rank["7"][1]
-    assert _esc_text(reasons["Chip-Block Chinchillas"]) in by_rank["8"][1]
+    assert _esc_text(reasons["Nickel Newts"]) in _plain(by_rank["7"][1])
+    assert _esc_text(reasons["Chip-Block Chinchillas"]) in _plain(by_rank["8"][1])
     assert sum(1 for _r, _t, nudge in rows if nudge) == 2
 
 
@@ -222,7 +229,7 @@ def test_a_lead_hero_that_cannot_draw_falls_back_to_type_only() -> None:
     lead_html = body.split('aria-label="The lead"', 1)[1].split('class="awards"', 1)[0]
     assert "<svg" not in lead_html
     assert 'class="lead-type"' in lead_html
-    assert _esc_text(lead["hook"]) in lead_html
+    assert _esc_text(lead["hook"]) in _plain(lead_html)
 
 
 @pytest.mark.parametrize("kind", ["lineup_loss", "biggest_blowout", "closest_game", "week_high_score"])
@@ -339,15 +346,16 @@ def test_render_is_deterministic() -> None:
 
 
 #: SHA-256 of the static weekly page per committed fixture. History: Story
-#: 5.14a's page (commit 779de47); Stories 5B.2-5B.5 grew the interaction script
+#: 8.16b re-pinned all three for the Issue redesign pass (the page as the 8.16
+#: demo review asked for it); Story 5.14a's page (commit 779de47); Stories 5B.2-5B.5 grew the interaction script
 #: and CSS; Story 6.0c (AD-40) moved them behind the WebEnhancer seam and Part B
 #: removed the engine's copy, so the engine's page is the static one. Change
 #: these only with a deliberate design change to the page, and regenerate them
 #: by running this test once and copying the printed digests.
 _GOLDEN_SHA256 = {
-    ("week10", "static"): "ea8ad8a3b2e46b0bc52048a427a7d688c323b6336201f7a57581882eabbf72e7",
-    ("week10-published", "static"): "acf0ee8d57997c87b86586e5fb65cd6ac2a4bb1a52d6fb45c799f8acd38e568a",
-    ("week01", "static"): "c345d8653ba7045af7a342d42f2ee0bded7902a645961c3e0685333ef4786ad9",
+    ("week10", "static"): "2be49be537788ca023708fe97d6418fa0312145687f09cd8b54ebc7c873abe77",
+    ("week10-published", "static"): "a6c1713648f17f965d9da4207ca9e18d969a408f1a5017e560620eb491212268",
+    ("week01", "static"): "b74c1c802dae7a49ef0757a148a94111db9ce1a542eed7cacb07c8f66e25a768",
 }
 
 
@@ -467,13 +475,14 @@ def test_bump_chart_shows_current_week_diamond_and_justification_callout() -> No
     assert 'class="bump-point bump-pub"' in blocks["5"]
     assert 'data-week="10"' in blocks["5"]
     assert "data-bump-callout" in power
-    assert _esc_text("Chip-Block Chinchillas slide behind Nickel Newts on record, 4-6 against 6-4.") in power
+    plain = _plain(power)
+    assert _esc_text("Chip-Block Chinchillas slide behind Nickel Newts on record, 4-6 against 6-4.") in plain
     assert (
         _esc_text(
             "Nickel Newts sit 6-4 to Chip-Block Chinchillas' 4-6, "
             "and the record settles the tie the model left open."
         )
-        in power
+        in plain
     )
 
 
@@ -594,7 +603,7 @@ def test_the_stylesheet_ships_light_and_a_dark_variant() -> None:
 # --------------------------------------------------------------------------- #
 
 
-def test_shared_stakes_render_once_and_cards_carry_no_empty_chip_row() -> None:
+def test_shared_stakes_render_once_and_every_card_reserves_its_header_row() -> None:
     raw = _raw()
     assert all(
         card["stakes"] == ["bye_seed", "wildcard_race", "division_race"] for card in raw["matchups"]["next_week"]
@@ -605,13 +614,14 @@ def test_shared_stakes_render_once_and_cards_carry_no_empty_chip_row() -> None:
     cards = re.findall(r'<article class="card nw[^"]*">(.*?)</article>', next_week)
     assert len(cards) == len(raw["matchups"]["next_week"])
     for card, data in zip(cards, raw["matchups"]["next_week"], strict=True):
+        # 8.16b: the header row is always there, so a card without chips is as tall as one with
         chip_row = re.search(r'<div class="nw-chips">(.*?)</div>', card)
+        assert chip_row is not None
+        assert "Bye seed" not in chip_row.group(1)
         if data["game_of_week"]:
-            assert "Game of the week" in card
-            assert chip_row is not None
-            assert "Bye seed" not in chip_row.group(1)
+            assert "Game of the week" in chip_row.group(1)
         else:
-            assert chip_row is None
+            assert "chip" not in chip_row.group(1)
 
 
 def test_a_differing_stake_shows_as_a_chip_on_its_card_only() -> None:
@@ -1064,6 +1074,7 @@ def test_static_page_offers_no_control_that_does_nothing() -> None:
     assert "display: none;" in _css_block(css, ".pw-hits")
     assert "display: none;" in _css_block(css, ".bump-detail")
     assert "display: none;" in _css_block(css, ".card-expand")
+    assert "display: none;" in _css_block(css, ".detail-all")
     assert "display: none;" in _css_block(css, ".standings-toggle")
     assert "grid-template-columns: minmax(0, 1fr);" in _css_block(css, ".bump-layout")
     assert "320px" not in _css_block(css, ".bump-layout")
@@ -1071,7 +1082,7 @@ def test_static_page_offers_no_control_that_does_nothing() -> None:
     buttons = re.findall(r'<button\b[^>]*class="([^"]*)"', body)
     assert buttons
     for cls in buttons:
-        assert cls in {"hit pw-hit", "card-expand"} or cls.startswith("toggle-btn"), cls
+        assert cls in {"hit pw-hit", "card-expand", "detail-all"} or cls.startswith("toggle-btn"), cls
     # Each hidden container really holds its buttons.
     assert re.search(r'<div class="pw-hits" role="list"><button type="button" class="hit pw-hit"', body)
     assert "Hover or select a team" in body.split('class="bump-detail"', 1)[1].split("</div>", 1)[0]

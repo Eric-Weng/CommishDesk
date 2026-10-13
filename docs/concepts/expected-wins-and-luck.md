@@ -64,7 +64,7 @@ Fixture: `tests/fixtures/facts/expected-weekly-facts-week10.json` (the anonymize
 }
 ```
 
-Yardage Yaks (roster 12) are 5-5 with an all-play record of 28-82, so they won 28 of 110 comparisons. Their expected wins are about 28 / 110 x 10 weeks = 2.5, and their luck is 5 - 2.5 = +2.5. They have been the luckiest team in the league. No-Huddle Narwhals (roster 9) are 6-4 with an all-play record of 86-24-0. They scored well enough to be expected to win 7.8 games, and they won 6, so their luck is 6 - 7.8 = -1.8, the worst in the league.
+Yardage Yaks (roster 12) are 5-5 with an all-play record of 28-82, so they won 28 of 110 comparisons. Their expected wins are about 28 / 110 x 10 weeks = 2.5, and their luck is 5 - 2.5 = +2.5. They have been the luckiest team in the league. No-Huddle Narwhals (roster 9) are 6-4 with an all-play record of 86-24. They scored well enough to be expected to win 7.8 games, and they won 6, so their luck is 6 - 7.8 = -1.8, the worst in the league.
 
 ## Code
 

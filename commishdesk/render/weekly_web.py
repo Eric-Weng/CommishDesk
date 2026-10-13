@@ -21,6 +21,17 @@ Story 5B.5 adds expandable matchup and next-week cards: an in-card CSS-revealed
 detail panel (never a layout-expanding accordion, so cards don't reorder or
 resize on hover/pin), with the same one inline script driving the pin state.
 
+Story 8.16b is the redesign pass the 8.16 demo review asked for: every team has a
+unique two-letter monogram (shared with the email) and a color from a 16-color palette
+(stored per league, passed in as ``team_colors``) worn as a thin accent only (an underline
+under its name, a ring on its circular avatar, its line in the power chart); the lead sits
+left with the key number and the award cards in one right-hand column; results share one
+grid and one "Show details" control (every detail is open when the interaction layer is
+absent); an eliminated team is tagged "Out of the race"; the power table carries the
+narrator's note under each row; the luck graphic sits beside its words; and every section
+has a stable ``id`` (``commishdesk.sections.SECTION_IDS``). The page still carries no
+``<script>``: the behavior lives in the app's enhancer.
+
 **Section order** — masthead, lead (hero chosen by lead kind, plus the awards
 row), around the league, standings, power rankings (with the bump chart),
 luck index, next week, transaction desk. A section whose data is absent renders
@@ -50,7 +61,7 @@ from __future__ import annotations
 
 import math
 import re
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 
 from commishdesk.facts.schema import (
     LeadCandidate,
@@ -68,7 +79,6 @@ from commishdesk.render import _weekly_model as wm
 from commishdesk.render._body import _esc
 from commishdesk.render._weekly_model import find_matchup as _find_matchup
 from commishdesk.render._weekly_model import key_number
-from commishdesk.render._weekly_model import pct as _pct
 from commishdesk.render._weekly_model import pts as _pts
 from commishdesk.render._weekly_model import record as _record
 from commishdesk.render._weekly_model import signed as _signed
@@ -109,28 +119,6 @@ def _num(value: float) -> str:
     return f"{value:.1f}"
 
 
-_WORD_SPLIT = re.compile(r"[\s\-‐‑‒–—―_/]+")
-
-
-def _monogram(label: str) -> str:
-    """Two letters for a neutral team monogram: the first letters of the first
-    two words (``Kneel-Down Koalas -> KD``), else the first two letters."""
-    letters = []
-    for word in _WORD_SPLIT.split(label.strip()):
-        first = next((ch for ch in word if ch.isalnum()), "")
-        if first:
-            letters.append(first)
-    if len(letters) >= 2:
-        return (letters[0] + letters[1]).upper()
-    alnum = [ch for ch in label if ch.isalnum()]
-    return "".join(alnum[:2]).upper() or "?"
-
-
-def _mg(label: str, size: str = "") -> str:
-    cls = f"mg {size}".strip()
-    return f'<span class="{cls}" aria-hidden="true">{_esc(_monogram(label))}</span>'
-
-
 def _diamond(cx: float, cy: float, r: float = 7.0) -> str:
     """An SVG diamond path centered on *cx*, *cy*."""
     return (
@@ -165,30 +153,18 @@ def _svg_open(width: float, height: float, aria: str) -> str:
     )
 
 
-def _head(eyebrow: str, title: str, dash: str, *, level: str = "h2") -> str:
-    return (
-        f'<p class="eyebrow dash-{dash}">{_esc(eyebrow)}</p>'
-        f'<{level} class="title">{_esc(title)}</{level}>'
-    )
-
-
-def _prose(blocks: Sequence[str], *, skip: set[str] | None = None, extra_cls: str = "") -> str:
-    kept = [block for block in blocks if block and block not in (skip or set())]
-    if not kept:
-        return ""
-    cls = "prose"
-    if extra_cls:
-        cls += f" {extra_cls}"
-    elif len(kept) > 3:
-        cls += " cols"
-    body = "".join(f"<p>{_esc(block)}</p>" for block in kept)
-    return f'<div class="{cls}">{body}</div>'
+def _sid(section_id: str) -> str:
+    """The ``id`` attribute for a section: its permanent id from
+    :data:`commishdesk.sections.SECTION_IDS` (stable across weeks and seasons)."""
+    return f'id="{section_id}"'
 
 
 class _Ctx:
     """Lookups the section builders share."""
 
-    def __init__(self, facts: WeeklyFacts, issue: WeeklyIssue) -> None:
+    def __init__(
+        self, facts: WeeklyFacts, issue: WeeklyIssue, team_colors: Mapping[str, int] | None = None
+    ) -> None:
         self.facts = facts
         self.teams = wm.team_index(facts)
         self.sections = section_headings_for_has_prior_week(facts.period.has_prior_week)
@@ -197,12 +173,68 @@ class _Ctx:
             for section in issue.sections
             if section.heading in self.sections
         }
+        # Team identity (8.16b): one unique monogram and one color slot per team label.
+        labels = [_team_label(team) for team in facts.teams]
+        self.codes = wm.monogram_codes(labels)
+        slots = wm.resolve_team_colors(facts, team_colors)
+        self.slot_of: dict[str, int] = {}
+        for team in facts.teams:
+            self.slot_of.setdefault(_team_label(team), slots[team.roster_id])
+        self._by_escaped = {_esc(label): label for label in self.slot_of}
+        names = sorted(self._by_escaped, key=len, reverse=True)
+        self._name_re = (
+            re.compile(r"(?<!\w)(" + "|".join(re.escape(name) for name in names) + r")(?!\w)") if names else None
+        )
 
     def label(self, roster_id: str | None) -> str:
         return _team_label(self.teams.get(roster_id or ""), roster_id)
 
     def blocks(self, heading: str) -> list[str]:
         return self.prose.get(heading, [])
+
+    def code(self, label: str) -> str:
+        return self.codes.get(label) or wm.monogram(label)
+
+    def color(self, label: str) -> str:
+        return wm.color_classes(self.slot_of.get(label))
+
+    def mg(self, label: str, size: str = "") -> str:
+        """A circular team avatar: the unique monogram, ringed in the team color."""
+        cls = " ".join(part for part in ("mg", size, self.color(label)) if part)
+        return f'<span class="{cls}" aria-hidden="true">{_esc(self.code(label))}</span>'
+
+    def text(self, value: str) -> str:
+        """Escaped text with every team name set bold and underlined in its color."""
+        escaped = _esc(value)
+        if self._name_re is None:
+            return escaped
+
+        def wrap(found: re.Match[str]) -> str:
+            label = self._by_escaped[found.group(1)]
+            classes = " ".join(part for part in ("tm", self.color(label)) if part)
+            return f'<b class="{classes}">{found.group(1)}</b>'
+
+        return self._name_re.sub(wrap, escaped)
+
+
+def _head(ctx: _Ctx, eyebrow: str, title: str, dash: str, *, level: str = "h2", actions: str = "") -> str:
+    heading = f'<{level} class="title">{ctx.text(title)}</{level}>'
+    if actions:
+        heading = f'<div class="sec-head">{heading}{actions}</div>'
+    return f'<p class="eyebrow dash-{dash}">{_esc(eyebrow)}</p>{heading}'
+
+
+def _prose(ctx: _Ctx, blocks: Sequence[str], *, skip: set[str] | None = None, extra_cls: str = "") -> str:
+    kept = [block for block in blocks if block and block not in (skip or set())]
+    if not kept:
+        return ""
+    cls = "prose"
+    if extra_cls:
+        cls += f" {extra_cls}"
+    elif len(kept) > 3:
+        cls += " cols"
+    body = "".join(f"<p>{ctx.text(block)}</p>" for block in kept)
+    return f'<div class="{cls}">{body}</div>'
 
 
 def _bye_impact_text(players: Sequence[WeeklyByeStarter | WeeklyByeImpact]) -> str:
@@ -227,7 +259,7 @@ def _game_side_detail(ctx: _Ctx, roster_id: str) -> str:
     game = team.this_week if team else None
     name = ctx.label(roster_id)
     if game is None:
-        return f'<div class="game-side-detail"><p class="d-team">{_esc(name)}</p></div>'
+        return f'<div class="game-side-detail"><p class="d-team">{ctx.text(name)}</p></div>'
 
     lines: list[str] = []
     if game.top_performers:
@@ -242,7 +274,7 @@ def _game_side_detail(ctx: _Ctx, roster_id: str) -> str:
             f"{_esc(bench.name)} {_pts(bench.points)}</p>"
         )
     return (
-        f'<div class="game-side-detail"><p class="d-team">{_esc(name)}</p>'
+        f'<div class="game-side-detail"><p class="d-team">{ctx.text(name)}</p>'
         f'{"".join(lines)}</div>'
     )
 
@@ -381,7 +413,7 @@ def _hero_lineup_loss(ctx: _Ctx, lead: LeadCandidate) -> tuple[str, str] | None:
     bx = _H_X0 + ws
     tick = _H_X0 + opp * scale
     started_label = f"STARTED {_pts(started)}"
-    bench_label = f"STILL ON THE BENCH {_pts(bench)}"
+    bench_label = f"{wm.PERFECT_LINEUP.upper()} {_pts(bench)}"
     parts = [
         f'<rect x="{_H_X0}" y="{y}" width="{_num(ws)}" height="{h}" rx="14" fill="var(--emph)"/>',
         f'<rect x="{_num(bx)}" y="{y}" width="{_num(wb)}" height="{h}" rx="14" fill="var(--bad-wash)" '
@@ -420,27 +452,24 @@ def _hero_lineup_loss(ctx: _Ctx, lead: LeadCandidate) -> tuple[str, str] | None:
     tail = f"and {result}" if result == "tied" else f"and {result} {_pts(abs(week.margin or 0))}"
     parts.append(f'<text class="lbl-2" x="{_num(tx)}" y="160" text-anchor="{anchor}">{_esc(tail)}</text>')
     aria = (
-        f"{name} started {_pts(started)} and left {_pts(bench)} on the bench; "
+        f"{name} started {_pts(started)}; a perfect lineup adds {_pts(bench)}; "
         f"{opp_name} scored {_pts(opp)}"
     )
     svg = _svg_open(_H_W, 176, aria) + "".join(parts) + "</svg>"
 
-    sub = ""
-    if week.bench_regret is not None:
-        sub = f"Including {week.bench_regret.name}, {_pts(week.bench_regret.points)} on the bench alone."
-    side = _keynum("Left on the bench", _pts(bench), sub, "kn-bad")
-    meta = []
-    if week.coaching_efficiency is not None and week.coaching_efficiency.pct is not None:
-        meta.append(f"Lineup efficiency {_pct(week.coaching_efficiency.pct)}")
-    rec = team.season.record
-    meta.append(_record(rec.w, rec.l, rec.t))
-    side += _teamcard(name, " · ".join(meta))
-    return svg, side
+    regret = week.bench_regret
+    sub = wm.lineup_loss_sub(
+        bench,
+        abs(week.margin or 0),
+        regret.name if regret is not None else None,
+        regret.points if regret is not None else None,
+    )
+    return svg, _keynum(ctx, wm.PERFECT_LINEUP, _pts(bench), sub, "kn-bad")
 
 
 def _two_bar_hero(
     ctx: _Ctx, lead: LeadCandidate, *, zoom: bool
-) -> tuple[str, str, float] | None:
+) -> tuple[str, float, str] | None:
     """Two bars (winner, loser). ``zoom`` starts the axis near the lower score
     and highlights the gap (closest game); otherwise the axis is zero-based and
     a bracket marks the margin (biggest blowout)."""
@@ -488,6 +517,7 @@ def _two_bar_hero(
             f"{_esc(f'axis starts at {floor:g} to show the gap')}</text>"
         )
         aria = f"{win_name} {_pts(win_pts)} edged {lose_name} {_pts(lose_pts)} by {_pts(margin)}"
+        sub = f"{win_name} edged {lose_name}, {_pts(win_pts)} to {_pts(lose_pts)}."
     else:
         parts.append(f'<path d="M {_num(x_lose)} 122 H {_num(x_win)}" stroke="var(--ink)" stroke-width="3"/>')
         parts.append(
@@ -498,26 +528,25 @@ def _two_bar_hero(
             f'font-weight="500">{_esc("margin " + _pts(margin))}</text>'
         )
         aria = f"{win_name} {_pts(win_pts)} beat {lose_name} {_pts(lose_pts)} by {_pts(margin)}"
+        sub = f"{win_name} beat {lose_name}, {_pts(win_pts)} to {_pts(lose_pts)}."
     svg = _svg_open(_H_W, 156, aria) + "".join(parts) + "</svg>"
-    return svg, win_id, margin
+    return svg, margin, sub
 
 
 def _hero_blowout(ctx: _Ctx, lead: LeadCandidate) -> tuple[str, str] | None:
     drawn = _two_bar_hero(ctx, lead, zoom=False)
     if drawn is None:
         return None
-    svg, win_id, margin = drawn
-    side = _keynum("Winning margin", _pts(margin), "", "kn-emph") + _teamcard_for(ctx, win_id)
-    return svg, side
+    svg, margin, sub = drawn
+    return svg, _keynum(ctx, "Winning margin", _pts(margin), sub, "kn-emph")
 
 
 def _hero_closest(ctx: _Ctx, lead: LeadCandidate) -> tuple[str, str] | None:
     drawn = _two_bar_hero(ctx, lead, zoom=True)
     if drawn is None:
         return None
-    svg, win_id, margin = drawn
-    side = _keynum("Decided by", _pts(margin), "", "kn-notable") + _teamcard_for(ctx, win_id)
-    return svg, side
+    svg, margin, sub = drawn
+    return svg, _keynum(ctx, "Decided by", _pts(margin), sub, "kn-notable")
 
 
 def _hero_week_high(ctx: _Ctx, lead: LeadCandidate) -> tuple[str, str] | None:
@@ -570,35 +599,17 @@ def _hero_week_high(ctx: _Ctx, lead: LeadCandidate) -> tuple[str, str] | None:
         f"{_pts(high.points)}; the league averaged {_pts(avg)}"
     )
     svg = _svg_open(_H_W, 140, aria) + "".join(parts) + "</svg>"
-    side = _keynum("Week high", _pts(high.points), "", "kn-emph") + _teamcard_for(ctx, high.roster_id)
-    return svg, side
+    sub = f"{high_name}, with the league averaging {_pts(avg)}."
+    return svg, _keynum(ctx, "Week high", _pts(high.points), sub, "kn-emph")
 
 
-def _keynum(key: str, value: str, sub: str, cls: str) -> str:
-    sub_html = f'<div class="s">{_esc(sub)}</div>' if sub else ""
+def _keynum(ctx: _Ctx, key: str, value: str, sub: str, cls: str) -> str:
+    """The lead's one big number, in a neutral card (the kind sets only the dash color)."""
+    sub_html = f'<div class="s">{ctx.text(sub)}</div>' if sub else ""
     return (
         f'<div class="keynum {cls}"><div class="k">{_esc(key)}</div>'
         f'<div class="v">{_esc(value)}</div>{sub_html}</div>'
     )
-
-
-def _teamcard(name: str, meta: str) -> str:
-    return (
-        f'<div class="card teamcard">{_mg(name, "mg-xl")}<div>'
-        f'<div class="n">{_esc(name)}</div><div class="m">{_esc(meta)}</div></div></div>'
-    )
-
-
-def _teamcard_for(ctx: _Ctx, roster_id: str) -> str:
-    team = ctx.teams.get(roster_id)
-    name = ctx.label(roster_id)
-    if team is None:
-        return _teamcard(name, "")
-    rec = team.season.record
-    meta = [_record(rec.w, rec.l, rec.t)]
-    if team.this_week is not None:
-        meta.append(f"{_pts(team.this_week.points)} this week")
-    return _teamcard(name, " · ".join(meta))
 
 
 _HEROES = {
@@ -609,63 +620,74 @@ _HEROES = {
 }
 
 
+def _lead_layout(main: str, side: str) -> str:
+    """The lead card on the left, the right-hand column (key number, then awards) beside it."""
+    solo = "" if side else " lead-solo"
+    column = f'<div class="lead-side">{side}</div>' if side else ""
+    return f'<div class="lead{solo}">{main}{column}</div>'
+
+
+def _lead_wrap(sid: str, inner: str) -> str:
+    return f'<section {sid} class="lead-wrap" aria-label="The lead" data-reveal>{inner}</section>'
+
+
 def _lead_section(ctx: _Ctx) -> str:
     blocks = ctx.blocks(heading_for("lead"))
     lead = wm.choose_lead(ctx.facts)
     awards = _awards(ctx)
+    sid = _sid("lead")
     if lead is None:
         if not blocks:
-            return f'<section aria-label="The lead" data-reveal>{awards}</section>' if awards else awards
-        return (
-            '<section class="lead-wrap" aria-label="The lead" data-reveal><div class="card lead-main">'
-            f'{_head("The lead", blocks[0], "bad")}{_prose(blocks[1:], extra_cls="lead-prose")}'
-            f"</div>{awards}</section>"
+            wide = _awards(ctx, wide=True)
+            return f'<section {sid} aria-label="The lead" data-reveal>{wide}</section>' if wide else ""
+        main = (
+            '<div class="card lead-main">'
+            f'{_head(ctx, "The lead", blocks[0], "bad")}{_prose(ctx, blocks[1:], extra_cls="lead-prose")}</div>'
         )
+        return _lead_wrap(sid, _lead_layout(main, awards))
     hook = lead.hook or ""
-    prose = _prose(blocks, skip={hook}, extra_cls="lead-prose")
+    prose = _prose(ctx, blocks, skip={hook}, extra_cls="lead-prose")
     builder = _HEROES.get(lead.kind)
     drawn = builder(ctx, lead) if builder is not None else None
     if drawn is None:
         key = key_number(ctx.facts, lead)
         key_html = f'<p class="key">{_esc(key)}</p>' if key else ""
-        return (
-            '<section class="lead-wrap" aria-label="The lead" data-reveal><div class="card lead-main">'
-            '<p class="eyebrow dash-bad">The lead</p>'
-            f'<div class="lead-type"><h2 class="hook">{_esc(hook)}</h2>{key_html}</div>'
-            f"{prose}</div>{awards}</section>"
+        main = (
+            '<div class="card lead-main"><p class="eyebrow dash-bad">The lead</p>'
+            f'<div class="lead-type"><h2 class="hook">{ctx.text(hook)}</h2>{key_html}</div>{prose}</div>'
         )
-    svg, side = drawn
-    return (
-        '<section class="lead-wrap" aria-label="The lead" data-reveal><div class="lead">'
-        f'<div class="card lead-main">{_head("The lead", hook, "bad")}{prose}{svg}</div>'
-        f'<div class="lead-side">{side}</div></div>{awards}</section>'
-    )
+        return _lead_wrap(sid, _lead_layout(main, awards))
+    svg, keynum = drawn
+    main = f'<div class="card lead-main">{_head(ctx, "The lead", hook, "bad")}{prose}{svg}</div>'
+    return _lead_wrap(sid, _lead_layout(main, keynum + awards))
 
 
 # --------------------------------------------------------------------------- #
-# Awards row (all from ``leaders``)
+# Awards (all from ``leaders``)
 # --------------------------------------------------------------------------- #
 
 
 _AWARD_CLS = {"coach": "aw-good", "player": "aw-emph", "bust": "aw-bad", "goose": "aw-notable"}
 
 
-def _award(key: str, value: str, name: str, sub: str, cls: str) -> str:
+def _award(ctx: _Ctx, award: wm.Award) -> str:
+    """One award card: the title top left, then the team's avatar, a name and one line, the stat on the right."""
+    team_label = ctx.label(award.roster_id) if award.roster_id else ""
+    avatar = ctx.mg(team_label, "mg-l") if team_label else ""
     return (
-        f'<div class="award {cls}"><div class="k">{_esc(key)}</div><div>'
-        f'<div class="v">{_esc(value)}</div><div class="n">{_esc(name)}</div>'
-        f'<div class="s">{_esc(sub)}</div></div></div>'
+        f'<div class="award {_AWARD_CLS[award.kind]}"><div class="k">{_esc(award.key)}</div>'
+        f'<div class="aw-body">{avatar}<div class="aw-who"><div class="n">{ctx.text(award.name)}</div>'
+        f'<div class="s">{ctx.text(award.sub)}</div></div>'
+        f'<div class="v">{_esc(award.value)}</div></div></div>'
     )
 
 
-def _awards(ctx: _Ctx) -> str:
-    cards = [
-        _award(award.key, award.value, award.name, award.sub, _AWARD_CLS[award.kind])
-        for award in wm.awards(ctx.facts)
-    ]
+def _awards(ctx: _Ctx, *, wide: bool = False) -> str:
+    cards = [_award(ctx, award) for award in wm.awards(ctx.facts)]
     if not cards:
         return ""
-    return f'<div class="awards">{"".join(cards)}</div>'
+    cls = "awards awards-wide" if wide else "awards"
+    return f'<div class="{cls}">{"".join(cards)}</div>'
 
 
 # --------------------------------------------------------------------------- #
@@ -687,15 +709,22 @@ def _game_card(ctx: _Ctx, matchup: WeeklyMatchup) -> str:
     by = "Tied" if tied else f"Won by {_pts(abs(matchup.margin))}"
     win_name, lose_name = ctx.label(win_id), ctx.label(lose_id)
     win_cls = "side" if tied else "side win"
-    expand = _card_expand()
     detail = _game_detail(ctx, win_id, lose_id)
     return (
-        f'<article class="card game"><div class="game-top"><span class="by">{_esc(by)}</span>{tag}{expand}</div>'
-        f'<div class="{win_cls}">{_mg(win_name, "" if tied else "mg-l")}<span class="tn">{_esc(win_name)}</span>'
+        f'<article class="card game"><div class="game-top"><span class="by">{_esc(by)}</span>{tag}</div>'
+        f'<div class="{win_cls}">{ctx.mg(win_name, "mg-l")}<span class="tn">{ctx.text(win_name)}</span>'
         f'<span class="sc">{_esc(_pts(win_pts))}</span></div>'
-        f'<div class="side">{_mg(lose_name)}<span class="tn">{_esc(lose_name)}</span>'
+        f'<div class="side">{ctx.mg(lose_name, "mg-l")}<span class="tn">{ctx.text(lose_name)}</span>'
         f'<span class="sc">{_esc(_pts(lose_pts))}</span></div>{detail}</article>'
     )
+
+
+#: The one Results toggle. It does nothing without the interaction layer, so the engine's
+#: stylesheet keeps it hidden; with the layer off every card's box score is already open.
+_DETAIL_ALL = (
+    '<button type="button" class="detail-all" aria-expanded="false" data-detail-all>'
+    "<span>Show details</span></button>"
+)
 
 
 def _around_section(ctx: _Ctx) -> str:
@@ -705,8 +734,9 @@ def _around_section(ctx: _Ctx) -> str:
         return ""
     cards = "".join(_game_card(ctx, matchup) for matchup in games)
     return (
-        f'<section aria-label="Around the league" data-reveal>{_head("Around the league", "Results", "emph")}'
-        f'<div class="grid3">{cards}</div>{_prose(blocks)}</section>'
+        f'<section {_sid("around_league")} aria-label="Around the league" data-reveal>'
+        f'{_head(ctx, "Around the league", "Results", "emph", actions=_DETAIL_ALL)}'
+        f'<div class="grid3">{cards}</div>{_prose(ctx, blocks)}</section>'
     )
 
 
@@ -795,8 +825,8 @@ def _standings_section(ctx: _Ctx) -> str:
         below = cut is not None and index > cut
         rows.append(
             f'<div class="st-row{" below" if below else ""}">'
-            f'<span class="rk">{index if cold_start else season.rank}</span>{_mg(name)}'
-            f'<span class="tn">{dot}{_esc(name)}</span>'
+            f'<span class="rk">{index if cold_start else season.rank}</span>{ctx.mg(name)}'
+            f'<span class="tn">{dot}{ctx.text(name)}</span>'
             f"{rec_html}"
             f"{bar_html}"
             f'<span class="pf">{_esc(_whole(season.points_for))}</span>'
@@ -829,10 +859,10 @@ def _standings_section(ctx: _Ctx) -> str:
         note = '<p class="seeding-note">Seeding unconfirmed — derived from the standings.</p>'
     prose_heading = heading_for("standings", cold_start=cold_start)
     return (
-        '<section class="card table-card" data-standings aria-label="Standings" data-reveal>'
-        f'{_head("Standings", title, "good")}'
+        f'<section {_sid("standings")} class="card table-card" data-standings aria-label="Standings" data-reveal>'
+        f'{_head(ctx, "Standings", title, "good")}'
         f'{toggle_html}<div class="standings">{"".join(rows)}</div>{legend}{note}'
-        f"{_prose(ctx.blocks(prose_heading))}</section>"
+        f"{_prose(ctx, ctx.blocks(prose_heading))}</section>"
     )
 
 
@@ -841,11 +871,58 @@ def _standings_section(ctx: _Ctx) -> str:
 # --------------------------------------------------------------------------- #
 
 
+#: How tall the bump chart's plot is aimed to be (px), so it fills the height of the
+#: side column; the row pitch shrinks for a big league and never drops under ``_ROW_MIN``.
+_BUMP_PLOT_H = 600.0
+_ROW_MIN = 18.0
+_ROW_MAX = 55.0
+_BUMP_W = 900
+
+_POWER_KEY = (
+    "Solid line: where the model ranks each team. Dashed line: where the desk put them. "
+    '<span class="key-dmd" aria-hidden="true">&#9670;</span>marks a week the two disagreed. '
+    "Power score (0 to 100) blends all-play record (45%), scoring (35%) and head-to-head record (20%)."
+)
+
+_ITEM_SPLIT = re.compile(r"\n+|\s(?=\d{1,2}\. \S)")
+_ITEM = re.compile(r"^(\d{1,2})\. (.+?) \u2014 (.+)$", re.DOTALL)
+
+
+def _power_notes(ctx: _Ctx, blocks: Sequence[str]) -> tuple[dict[str, str], list[str]]:
+    """Split the narrator's numbered power list (``1. Team — note``) into one note per
+    team, so each sits under its table row; any block that is not entirely such a list
+    stays prose."""
+    labels = set(ctx.slot_of)
+    notes: dict[str, str] = {}
+    rest: list[str] = []
+    for block in blocks:
+        found: list[tuple[str, str]] = []
+        for item in (part.strip() for part in _ITEM_SPLIT.split(block.strip())):
+            if not item:
+                continue
+            match = _ITEM.match(item)
+            if match is None or match.group(2) not in labels:
+                found = []
+                break
+            found.append((match.group(2), match.group(3).strip()))
+        if found:
+            notes.update(found)
+        else:
+            rest.append(block)
+    return notes, rest
+
+
+def _short_name(label: str) -> str:
+    words = label.split()
+    word = words[-1] if words else label
+    return word if len(word) <= 14 else word[:13] + "…"
+
+
 def _power_bump_chart(ctx: _Ctx, rows: Sequence[wm.PowerRow]) -> str:
     """The Story 5B.3 SVG bump chart, or ``""`` under 2 usable weeks."""
     series: list[tuple[wm.PowerRow, list[wm.PowerHistoryPoint]]] = []
     for row in rows:
-        points = wm.power_history(row.team, row)
+        points = wm.power_history(row.team, row, ctx.facts.week)
         if len(points) >= 2:
             series.append((row, points))
 
@@ -866,7 +943,7 @@ def _power_bump_chart(ctx: _Ctx, rows: Sequence[wm.PowerRow]) -> str:
 
     x0, x1 = 60.0, 720.0
     top = 30.0
-    row_h = 22.0
+    row_h = min(_ROW_MAX, max(_ROW_MIN, _BUMP_PLOT_H / max(max_rank - 1, 1)))
     plot_bottom = top + (max_rank - 1) * row_h
     height = int(plot_bottom + 62)
     step = (x1 - x0) / (len(weeks) - 1) if len(weeks) > 1 else 0.0
@@ -909,12 +986,13 @@ def _power_bump_chart(ctx: _Ctx, rows: Sequence[wm.PowerRow]) -> str:
             f'<polyline class="bump-pub-line" style="--len:{_num(pub_len)}" points="{pub_pts}"/>'
         )
 
+    shorts = [_short_name(_team_label(row.team)) for row, _points in series]
     for row, points in series:
         team = row.team
         team_id = _esc(team.roster_id)
         name = _team_label(team)
 
-        parts.append(f'<g class="bump-team" data-team="{team_id}">')
+        parts.append(f'<g class="bump-team {ctx.color(name)}" data-team="{team_id}">')
 
         # Model line: a generous invisible hit-stroke layered under the thin
         # visible one (interaction-decisions.md), and a draw-in dash length
@@ -971,6 +1049,16 @@ def _power_bump_chart(ctx: _Ctx, rows: Sequence[wm.PowerRow]) -> str:
                 f"<title>{_esc(title)}</title></path>"
             )
 
+        # The end label, in the team's color, always on (not only on hover): its last model rank and name.
+        last = points[-1]
+        short = _short_name(name)
+        if shorts.count(short) > 1:
+            short = ctx.code(name)
+        parts.append(
+            f'<text class="bump-endlabel" x="{_num(x1 + 16)}" y="{_num(y(last.model) + 5)}">'
+            f"{_esc(f'{last.model} {short}')}</text>"
+        )
+
         parts.append("</g>")
 
     detail = (
@@ -985,8 +1073,8 @@ def _power_bump_chart(ctx: _Ctx, rows: Sequence[wm.PowerRow]) -> str:
         buttons.append(
             f'<button type="button" class="hit pw-hit" data-team="{_esc(row.team.roster_id)}" '
             f'data-name="{_esc(name)}" aria-pressed="false">'
-            f'<span class="hit-mg mg" aria-hidden="true">{_esc(_monogram(name))}</span>'
-            f'<span class="hit-tn">{_esc(name)}</span>'
+            f'{ctx.mg(name, "hit-mg")}'
+            f'<span class="hit-tn">{ctx.text(name)}</span>'
             '<span class="hit-state" aria-hidden="true"></span></button>'
         )
     hit_list = f'<div class="pw-hits" role="list">{"".join(buttons)}</div>'
@@ -1001,7 +1089,7 @@ def _power_bump_chart(ctx: _Ctx, rows: Sequence[wm.PowerRow]) -> str:
             and point.published != point.model
         ):
             name = _team_label(row.team)
-            reasons.append(f"<p><strong>{_esc(name)}</strong> {_esc(point.reason)}</p>")
+            reasons.append(f"<p><strong>{ctx.text(name)}</strong> {ctx.text(point.reason)}</p>")
 
     if reasons:
         reason_html = (
@@ -1011,11 +1099,11 @@ def _power_bump_chart(ctx: _Ctx, rows: Sequence[wm.PowerRow]) -> str:
         )
 
     aria = "Power rankings bump chart: model rank trajectory and published-rank overrules"
-    svg = _svg_open(760, height, aria) + "".join(parts) + "</svg>"
+    svg = _svg_open(_BUMP_W, height, aria) + "".join(parts) + "</svg>"
 
     return (
         '<div class="bump" data-reveal data-bump-chart>'
-        f'<div class="bump-layout"><div class="bump-main">{svg}</div>'
+        f'<div class="bump-layout"><div class="bump-main">{svg}<p class="bump-key">{_POWER_KEY}</p></div>'
         f'<div class="bump-side">{detail}{reason_html}{hit_list}</div>'
         "</div></div>"
     )
@@ -1025,6 +1113,7 @@ def _power_section(ctx: _Ctx) -> str:
     rows = wm.power_rows(ctx.facts)
     if not rows:
         return ""
+    notes, prose_blocks = _power_notes(ctx, ctx.blocks(heading_for("power")))
     items: list[str] = []
     for published, model, team, reason in rows:
         power = team.season.power
@@ -1032,6 +1121,7 @@ def _power_section(ctx: _Ctx) -> str:
         rec = team.season.record
         score = power.model_score
         width = max(0.0, min(1.0, score)) * 100 if score is not None else 0.0
+        score_text = f"{score * 100:.1f}" if score is not None else "–"
         delta = power.week_delta
         if delta is None or delta == 0:
             wk = '<span aria-label="no change">–</span>' if delta == 0 else ""
@@ -1041,33 +1131,35 @@ def _power_section(ctx: _Ctx) -> str:
             wk = f'<span class="down" aria-label="down {-delta}">▼{-delta}</span>'
         rank_text = str(published) if published is not None else "–"
         line = (
-            f'<div class="pw-row"><span class="rk">{_esc(rank_text)}</span>'
-            f'<span class="tn">{_esc(name)}</span>'
+            f'<div class="pw-row" data-team="{_esc(team.roster_id)}"><span class="rk">{_esc(rank_text)}</span>'
+            f'<span class="tn">{ctx.text(name)}</span>'
             f'<span class="rec">{_esc(_record(rec.w, rec.l, rec.t))}</span>'
             f'<span class="avg">{_esc(f"{team.season.avg_for:.1f}")}</span>'
-            f'<span class="bar thin" aria-hidden="true"><i style="width:{width:.1f}%"></i></span>'
+            f'<span class="ps"><span class="bar thin" aria-hidden="true"><i style="width:{width:.1f}%"></i></span>'
+            f"<b>{_esc(score_text)}</b></span>"
             f'<span class="wk">{wk}</span></div>'
         )
+        note = f'<p class="pw-why">{ctx.text(notes[name])}</p>' if name in notes else ""
         nudge = ""
         if published is not None and model is not None and published != model:
             if published < model:
                 chip = f'<span class="chip chip-up">▲ Nudged up · model #{model}</span>'
             else:
                 chip = f'<span class="chip chip-down">▼ Nudged down · model #{model}</span>'
-            why = f'<span class="why">{_esc(reason)}</span>' if reason else ""
+            why = f'<span class="why">{ctx.text(reason)}</span>' if reason else ""
             nudge = f'<p class="nudge">{chip}{why}</p>'
-        items.append(f'<div class="pw-item">{line}{nudge}</div>')
+        items.append(f'<div class="pw-item">{line}{note}{nudge}</div>')
     bump = _power_bump_chart(ctx, rows)
     head = (
         '<div class="pw-head" aria-hidden="true"><span class="r">Rk</span><span>Team</span><span>W-L</span>'
-        '<span class="r">Avg PF</span><span class="ms">Model score</span><span class="r">Wk</span></div>'
+        '<span class="r">Avg PF</span><span class="ms">Power score</span><span class="r">Wk</span></div>'
     )
     return (
-        f'<section class="card table-card" aria-label="Power rankings" data-reveal>'
-        f'{_head("Power rankings", "Where the model and the desk land", "emph")}'
+        f'<section {_sid("power")} class="card table-card" aria-label="Power rankings" data-reveal>'
+        f'{_head(ctx, "Power rankings", "Where the model and the desk land", "emph")}'
         f"{bump}"
         f'{head}<div class="power">{"".join(items)}</div>'
-        f"{_prose(ctx.blocks(heading_for("power")))}</section>"
+        f"{_prose(ctx, prose_blocks)}</section>"
     )
 
 
@@ -1157,10 +1249,11 @@ def _luck_section(ctx: _Ctx) -> str:
     aria = "Luck index: actual wins minus expected wins, most lucky to least"
     svg = _svg_open(_L_W, height, aria) + "".join(parts) + "</svg>"
     return (
-        '<section class="card luck-card" data-luck-section aria-label="The luck index" data-reveal>'
-        f'{_head("The luck index", "Who the schedule favoured", "notable")}{svg}'
-        '<p class="luck-preview" data-luck-preview hidden></p>'
-        f"{_prose(ctx.blocks(heading_for("luck")))}</section>"
+        f'<section {_sid("luck")} class="card luck-card" data-luck-section aria-label="The luck index" data-reveal>'
+        f'{_head(ctx, "The luck index", "Who the schedule favoured", "notable")}'
+        f'<div class="luck-grid"><div class="luck-fig">{svg}'
+        '<p class="luck-preview" data-luck-preview hidden></p></div>'
+        f"{_prose(ctx, ctx.blocks(heading_for('luck')))}</div></section>"
     )
 
 
@@ -1169,36 +1262,36 @@ def _luck_section(ctx: _Ctx) -> str:
 # --------------------------------------------------------------------------- #
 
 
-def _nw_side(ctx: _Ctx, roster_id: str, record: str, rank: int | None) -> str:
+def _nw_side(ctx: _Ctx, roster_id: str, record: str, rank: int | None, eliminated: bool) -> str:
     name = ctx.label(roster_id)
-    meta = record if rank is None else f"{record} · #{rank}"
+    shown = wm.display_record(record)
+    meta = shown if rank is None else f"{shown} · #{rank}"
+    out = '<span class="oor">Out of the race</span>' if eliminated else ""
     return (
-        f'<div class="nw-side">{_mg(name, "mg-xxl")}<div class="tn">{_esc(name)}</div>'
-        f'<div class="meta">{_esc(meta)}</div></div>'
+        f'<div class="nw-side">{ctx.mg(name, "mg-xxl")}<div class="tn">{ctx.text(name)}</div>'
+        f'<div class="meta">{_esc(meta)}</div>{out}</div>'
     )
 
 
 def _next_week_card(ctx: _Ctx, card: WeeklyNextWeekCard, shared: set[str]) -> str:
+    # An eliminated team wears "Out of the race" under its own record, and that replaces the
+    # Draft position chip; such a card has nothing more to open, so it carries no Details.
+    out = card.a_eliminated or card.b_eliminated
     chips: list[str] = []
     if card.game_of_week:
         chips.append('<span class="chip chip-emph">Game of the week</span>')
-    chips.extend(
-        f'<span class="chip chip-plain">{_esc(_stake_label(tag))}</span>'
-        for tag in wm.own_stakes(card, list(shared))
-    )
-    chip_row = f'<div class="nw-chips">{"".join(chips)}</div>' if chips else ""
-    bye = ""
-    detail = _nw_detail(card, shared)
+    own = [tag for tag in wm.own_stakes(card, list(shared)) if not (out and tag == "draft_position")]
+    chips.extend(f'<span class="chip chip-plain">{_esc(_stake_label(tag))}</span>' for tag in own)
+    detail = "" if out else _nw_detail(card, shared)
     expand = _card_expand() if detail else ""
-    if card.bye_impact:
-        bye = f'<p class="byeline"><b>On bye</b> {_esc(_bye_impact_text(card.bye_impact))}</p>'
+    chip_row = f'<div class="nw-chips">{"".join(chips)}{expand}</div>'
     cls = "card nw gotw" if card.game_of_week else "card nw"
     return (
-        f'<article class="{cls}">{chip_row}{expand}<div class="nw-vs">'
-        f"{_nw_side(ctx, card.a_roster_id, card.a_record, card.a_power_rank)}"
+        f'<article class="{cls}">{chip_row}<div class="nw-vs">'
+        f"{_nw_side(ctx, card.a_roster_id, card.a_record, card.a_power_rank, card.a_eliminated)}"
         '<span class="vs">vs</span>'
-        f"{_nw_side(ctx, card.b_roster_id, card.b_record, card.b_power_rank)}"
-        f"</div>{bye}{detail}</article>"
+        f"{_nw_side(ctx, card.b_roster_id, card.b_record, card.b_power_rank, card.b_eliminated)}"
+        f"</div>{detail}</article>"
     )
 
 
@@ -1218,9 +1311,10 @@ def _next_week_section(ctx: _Ctx) -> str:
         )
     body = "".join(_next_week_card(ctx, card, set(shared)) for card in cards)
     return (
-        f'<section aria-label="Next week" data-reveal>{_head("Next week", "Next week" + chr(8217) + "s games", "bad")}'
+        f'<section {_sid("next_week")} aria-label="Next week" data-reveal>'
+        f'{_head(ctx, "Next week", "Next week" + chr(8217) + "s games", "bad")}'
         f'{shared_line}{byes_line}<div class="grid3">{body}</div>'
-        f"{_prose(ctx.blocks(heading_for("next_week")))}</section>"
+        f"{_prose(ctx, ctx.blocks(heading_for('next_week')))}</section>"
     )
 
 
@@ -1242,7 +1336,7 @@ def _move_card(ctx: _Ctx, move: WeeklyMove) -> str:
     items += [_player_li('<span class="chip chip-down">Drop</span>', p.name, p.pos) for p in move.drops]
     return (
         f'<article class="card tx"><div class="tx-top"><span class="lab">{_esc(kind)} · this week</span>{faab}</div>'
-        f'<div class="tn">{_esc(team)}</div><ul>{"".join(items)}</ul></article>'
+        f'<div class="tn">{ctx.text(team)}</div><ul>{"".join(items)}</ul></article>'
     )
 
 
@@ -1256,13 +1350,14 @@ def _trade_card(ctx: _Ctx, trade: WeeklyTrade) -> str:
         if side.faab:
             items.append(f"<li class=\"mono\">{_esc(f'FAAB ${side.faab}')}</li>")
         sides.append(
-            f'<div><div class="tn">{_esc(ctx.label(side.roster_id))}</div>'
+            f'<div><div class="tn">{ctx.text(ctx.label(side.roster_id))}</div>'
             f'<div class="lab">Receives</div><ul>{"".join(items)}</ul></div>'
         )
     body = '<span class="swap" aria-hidden="true">⇄</span>'.join(sides) if len(sides) == 2 else "".join(sides)
     layout = "trade" if len(sides) == 2 else "trade-multi"
     return (
-        f'<article class="card tx"><div class="tx-top"><span class="lab">{_esc(f"Trade · week {trade.week}")}</span>'
+        f'<article class="card tx tx-trade"><div class="tx-top">'
+        f'<span class="lab">{_esc(f"Trade · week {trade.week}")}</span>'
         f'<span class="chip chip-plain">{_esc(when)}</span></div><div class="{layout}">{body}</div></article>'
     )
 
@@ -1275,10 +1370,10 @@ def _transactions_section(ctx: _Ctx) -> str:
     cards = [_move_card(ctx, move) for move in moves]
     cards.extend(_trade_card(ctx, trade) for trade in trades)
     return (
-        f'<section aria-label="The transaction desk" data-reveal>'
-        f'{_head("The transaction desk", "What moved on the wire", "good")}'
+        f'<section {_sid("transactions")} aria-label="The transaction desk" data-reveal>'
+        f'{_head(ctx, "The transaction desk", "What moved on the wire", "good")}'
         f'<div class="grid3">{"".join(cards)}</div>'
-        f"{_prose(ctx.blocks(heading_for("transactions")))}</section>"
+        f"{_prose(ctx, ctx.blocks(heading_for('transactions')))}</section>"
     )
 
 
@@ -1294,6 +1389,7 @@ def render_weekly_web(
     output_id: str,
     generated_at: str,
     enhancer: WebEnhancer | None = None,
+    team_colors: Mapping[str, int] | None = None,
 ) -> str:
     """Render one self-contained ``<!doctype html>`` weekly Issue page.
 
@@ -1319,7 +1415,7 @@ def render_weekly_web(
     del output_id  # not rendered into the shareable page (parity with render_web)
     headings = section_headings_for_has_prior_week(facts.period.has_prior_week)
     cold_start = not facts.period.has_prior_week
-    ctx = _Ctx(facts, issue)
+    ctx = _Ctx(facts, issue, team_colors)
     footer = (
         f'<footer data-reveal><p>{_esc(facts.league.name)} · {_esc(facts.league.season)} · Week {facts.week} · '
         f"generated {_esc(generated_at)}</p>"

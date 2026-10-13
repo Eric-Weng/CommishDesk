@@ -16,6 +16,11 @@ web power-rank bump chart plots (model rank from ``WeeklyHistoryRow.power_rank``
 published rank from ``WeeklyHistoryRow.published_rank``, current-week values
 resolved from the render-time :class:`PowerRow`).
 
+Story 8.16b adds the shared team identity every surface prints the same way:
+:func:`monogram_codes` (unique per league), :func:`default_team_colors` (the
+render-time fallback when no stored colors are passed), the one record format
+(:func:`display_record`) and the lineup-loss wording.
+
 Story 5B.4 adds :func:`all_play_rows` — the season all-play rows the web
 standings view toggle swaps in, with the same ``None``-filtering shape as
 :func:`luck_rows`.
@@ -26,7 +31,8 @@ standings view toggle swaps in, with the same ``None``-filtering shape as
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+import re
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from typing import NamedTuple
 
 from commishdesk.facts.schema import (
@@ -103,6 +109,35 @@ def record(w: int, l: int, t: int, *, full: bool = False) -> str:  # noqa: E741 
     if full or t:
         return f"{w}-{l}-{t}"
     return f"{w}-{l}"
+
+
+_FULL_RECORD = re.compile(r"^(\d+)-(\d+)-(\d+)$")
+
+
+def display_record(text: str) -> str:
+    """A record string as the Issue prints it: ties only when nonzero (``7-4-0``
+    -> ``7-4``, ``7-4-1`` stays). Anything that is not ``W-L-T`` passes through."""
+    found = _FULL_RECORD.match(text.strip())
+    if found is None or int(found.group(3)) != 0:
+        return text
+    return f"{found.group(1)}-{found.group(2)}"
+
+
+#: The lineup-loss key-number label: the best possible lineup minus the one
+#: started (``points_left_on_bench`` is ``optimal - actual``), never "on the bench"
+#: alone, which read as a total the bench itself scored.
+PERFECT_LINEUP = "A perfect lineup adds"
+
+
+def lineup_loss_sub(gap: float, margin: float, bench_name: str | None, bench_points: float | None) -> str:
+    """The sub-line under the lineup-loss key number: the loss it outweighed,
+    then the one benched scorer."""
+    parts: list[str] = []
+    if gap > margin > 0:
+        parts.append(f"More than the {pts(margin)}-point loss.")
+    if bench_name and bench_points is not None:
+        parts.append(f"{bench_name} scored {pts(bench_points)} on the bench.")
+    return " ".join(parts)
 
 
 def team_label(team: WeeklyTeam | None, roster_id: str | None = None) -> str:
@@ -216,6 +251,8 @@ class Award(NamedTuple):
     value: str
     name: str
     sub: str
+    #: The team the award belongs to (the winner, the bust, the scorer's side).
+    roster_id: str | None = None
 
 
 def awards(facts: WeeklyFacts) -> list[Award]:
@@ -224,22 +261,33 @@ def awards(facts: WeeklyFacts) -> list[Award]:
     out: list[Award] = []
     best = leaders.best_coaching
     if best is not None and best.pct is not None:
-        out.append(Award("coach", "Coach of the week", pct(best.pct), label(best.roster_id), OF_BEST))
+        out.append(
+            Award("coach", "Coach of the week", pct(best.pct), label(best.roster_id), OF_BEST, best.roster_id)
+        )
     star = leaders.week_high_player
     if star is not None:
         sub = [star.pos or "", label(star.roster_id)]
         if star.is_season_high:
             sub.append("season high")
         out.append(
-            Award("player", "Player of the week", pts(star.points), star.name, " · ".join(s for s in sub if s))
+            Award(
+                "player",
+                "Player of the week",
+                pts(star.points),
+                star.name,
+                " · ".join(s for s in sub if s),
+                star.roster_id,
+            )
         )
     worst = leaders.worst_coaching
     if worst is not None and worst.pct is not None:
-        out.append(Award("bust", "Bust of the week", pct(worst.pct), label(worst.roster_id), OF_BEST))
+        out.append(
+            Award("bust", "Bust of the week", pct(worst.pct), label(worst.roster_id), OF_BEST, worst.roster_id)
+        )
     egg = leaders.worst_starters[0] if leaders.worst_starters else None
     if egg is not None and egg.points == 0:
         sub_text = " · ".join(s for s in (egg.pos or "", f"started by {label(egg.roster_id)}") if s)
-        out.append(Award("goose", "Goose egg club", pts(egg.points), egg.name, sub_text))
+        out.append(Award("goose", "Goose egg club", pts(egg.points), egg.name, sub_text, egg.roster_id))
     return out
 
 
@@ -323,12 +371,18 @@ class PowerHistoryPoint(NamedTuple):
     reason: str | None
 
 
-def power_history(team: WeeklyTeam, current: PowerRow) -> list[PowerHistoryPoint]:
+def power_history(team: WeeklyTeam, current: PowerRow, week: int | None = None) -> list[PowerHistoryPoint]:
     """The trailing <=5 ``team.history.weekly`` rows with model ranks.
 
     The last point is the render-time-resolved current week, so it carries
     ``current.published`` and ``current.reason``; historical points carry only
     ``WeeklyHistoryRow.published_rank`` and no prose.
+
+    *week* is the week being rendered. A history row only carries a model rank
+    inside the regular season, so in a playoff week the last usable row is an
+    earlier week: the current week then becomes a point of its own instead of
+    being spliced onto that stale week's number (``epic-5b-retro-item-1``). With
+    no *week* the last row is taken to be the current one.
     """
     points: list[PowerHistoryPoint] = []
     for row in team.history.weekly:
@@ -345,6 +399,15 @@ def power_history(team: WeeklyTeam, current: PowerRow) -> list[PowerHistoryPoint
 
     if not points:
         return []
+
+    last = points[-1]
+    if week is not None and last.week != week:
+        if current.model is None:
+            return points[-5:]  # no model rank for this week: plot what exists, never a stale relabel
+        points.append(
+            PowerHistoryPoint(week=week, model=current.model, published=current.published, reason=current.reason)
+        )
+        return points[-5:]
 
     points = points[-5:]
     last = points[-1]
@@ -435,3 +498,136 @@ def wire_pick(facts: WeeklyFacts) -> WirePick | None:
     if trades:
         return WirePick(trade=trades[0])
     return None
+
+
+# --------------------------------------------------------------------------- #
+# Team identity (Story 8.16b): one monogram and one color slot per team
+# --------------------------------------------------------------------------- #
+
+#: Palette slots in a league: 16 solid colors, then the same 16 in a second
+#: (dotted) style for teams 17 to 32.
+PALETTE_SIZE = 16
+TEAM_COLOR_SLOTS = 32
+
+_WORD_SPLIT = re.compile(r"[\s\-‐‑‒–—―_/]+")
+
+
+def _words(label: str) -> list[str]:
+    return [word for word in _WORD_SPLIT.split(label.strip()) if any(ch.isalnum() for ch in word)]
+
+
+def _alnum(text: str) -> str:
+    return "".join(ch for ch in text if ch.isalnum())
+
+
+def monogram(label: str) -> str:
+    """Two letters for a team: the first letters of the first two words
+    (``Kneel-Down Koalas -> KD``), else the first two letters of a one-word name."""
+    words = _words(label)
+    if len(words) >= 2:
+        return (_alnum(words[0])[0] + _alnum(words[1])[0]).upper()
+    letters = _alnum(label)
+    return letters[:2].upper() or "?"
+
+
+def _monogram_candidates(label: str) -> Iterable[str]:
+    """Alternate codes for a team whose first-choice code is taken, best first."""
+    words = _words(label)
+    first, last = (_alnum(words[0]), _alnum(words[-1])) if words else ("", "")
+    if first and last:
+        yield (first[0] + last[0]).upper()  # first and last word
+    if len(first) >= 2:
+        yield first[:2].upper()  # the first word's first two letters
+    if first and len(last) >= 2:
+        yield (first[0] + last[1]).upper()
+    if len(last) >= 2:
+        yield last[:2].upper()
+    letters = _alnum(label)
+    for ch in letters[1:]:
+        yield (letters[0] + ch).upper()
+    for digit in "123456789":
+        yield (letters[:1] or "X").upper() + digit
+    yield from (a + b for a in "ABCDEFGHIJKLMNOPQRSTUVWXYZ" for b in "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+
+
+def _whitespace_derived(label: str) -> bool:
+    """True when the first-choice code comes from the name's first two
+    space-separated words (``Hail Mary Club -> HM``), not from splitting a
+    hyphenated word (``Hash-Mark Herons -> HM``): the former keeps a contested
+    code."""
+    parts = label.split()
+    return len(parts) >= 2 and not _WORD_SPLIT.search(parts[0])
+
+
+def monogram_codes(labels: Sequence[str]) -> dict[str, str]:
+    """A unique two-character code per distinct label, shared by the web page
+    and the email.
+
+    First choice is :func:`monogram`. Teams sharing a first choice are
+    resolved so no two print alike: a lone name built from two real words keeps
+    it (Hail Mary Club ``HM`` over Hash-Mark Herons), the rest take their first
+    and last words (``HH``), then the first word's first two letters
+    (Midfield Magpies ``MI``, Motion Mallards ``MO``), then further fallbacks.
+    Deterministic in the order of *labels*.
+    """
+    ordered = list(dict.fromkeys(labels))
+    first_choice = {label: monogram(label) for label in ordered}
+    groups: dict[str, list[str]] = {}
+    for label in ordered:
+        groups.setdefault(first_choice[label], []).append(label)
+    codes: dict[str, str] = {}
+    pending: list[str] = []
+    for code, members in groups.items():
+        if len(members) == 1:
+            codes[members[0]] = code
+            continue
+        keepers = [m for m in members if _whitespace_derived(m)]
+        if len(keepers) == 1:
+            codes[keepers[0]] = code
+            pending.extend(m for m in members if m is not keepers[0])
+        else:
+            pending.extend(members)
+    taken = set(codes.values())
+    taken.update(first_choice[label] for label in pending)  # a contested code stays off the table
+    for label in sorted(pending, key=ordered.index):
+        for candidate in _monogram_candidates(label):
+            if candidate not in taken:
+                codes[label] = candidate
+                taken.add(candidate)
+                break
+    return {label: codes[label] for label in ordered}
+
+
+def default_team_colors(roster_ids: Iterable[str]) -> dict[str, int]:
+    """The render-time fallback assignment: roster ids in numeric order take
+    slots 0, 1, 2, ... Used when no stored colors are passed (and, logged, when
+    the store cannot be read); the stored assignment from ``weekly`` wins."""
+
+    def key(value: str) -> tuple[int, int | str]:
+        return (0, int(value)) if value.isdigit() else (1, value)
+
+    return {rid: slot for slot, rid in enumerate(sorted(dict.fromkeys(roster_ids), key=key))}
+
+
+def color_classes(slot: int | None) -> str:
+    """The CSS classes for a team's color slot: ``tc<N>`` (one of 16 palette
+    colors) plus ``td`` (the dotted second style) from the 17th team on."""
+    if slot is None:
+        return ""
+    slot = max(0, slot)
+    return f"tc{slot % PALETTE_SIZE}" + (" td" if slot % TEAM_COLOR_SLOTS >= PALETTE_SIZE else "")
+
+
+def resolve_team_colors(facts: WeeklyFacts, stored: Mapping[str, int] | None) -> dict[str, int]:
+    """Every team's slot: the stored one, else the next free slot (the
+    fallback never reuses a stored slot)."""
+    ids = [team.roster_id for team in facts.teams]
+    if stored is None:
+        return default_team_colors(ids)
+    slots = {rid: stored[rid] for rid in ids if rid in stored}
+    taken = set(slots.values())
+    free = (n for n in range(max(taken, default=-1) + len(ids) + 1) if n not in taken)
+    for rid in ids:
+        if rid not in slots:
+            slots[rid] = next(free)
+    return slots

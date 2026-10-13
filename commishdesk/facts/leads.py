@@ -330,16 +330,14 @@ def _lineup_loss(teams: list[WeeklyTeam]) -> LeadCandidate | None:
     assert game is not None and game.margin is not None and game.points_left_on_bench is not None
     label = _team_label(best)
     regret = game.bench_regret
-    if regret is not None:
-        hook = (
-            f"{label} lost by {_points(abs(game.margin))} with "
-            f"{_points(game.points_left_on_bench)} on the bench, including {regret.name}."
-        )
-    else:
-        hook = (
-            f"{label} lost by {_points(abs(game.margin))} with "
-            f"{_points(game.points_left_on_bench)} on the bench."
-        )
+    # The gap is the best possible lineup minus the one started, so say "a perfect lineup adds",
+    # never "on the bench": the bench total can be larger than the gap (a benched
+    # player's points are not all additive once the lineup rules apply).
+    lead_in = (
+        f"{label} lost by {_points(abs(game.margin))}, and a perfect lineup adds "
+        f"{_points(game.points_left_on_bench)}"
+    )
+    hook = f"{lead_in}, including {regret.name}." if regret is not None else f"{lead_in}."
     return _candidate("lineup_loss", [best.roster_id], hook)
 
 
