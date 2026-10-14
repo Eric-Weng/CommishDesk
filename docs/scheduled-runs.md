@@ -25,9 +25,14 @@ other when setting up secrets.
 Both workflows ship disarmed: their `schedule:` trigger is commented out and only
 `workflow_dispatch` is live until the operator sets the league id variable, the
 channel webhook, and — for the weekly run — the `commishdesk-weekly-schedule`
-GitHub Environment. `scheduled-weekly.yml` was armed 2026-09-30 (its `schedule:`
-trigger is live); `scheduled-draft-recap.yml` remains disarmed until its own
-variable/webhook are set.
+GitHub Environment. `scheduled-weekly.yml` was armed 2026-09-30 and retired
+2026-10-14 (Story 7.14): its `schedule:` trigger is removed because the hosted
+weekly run now owns the author's league and its Discord channel, and two
+schedules must not both post there. It keeps `workflow_dispatch`, its
+Environment and its secrets, and is now the **self-host reference**: copy it and
+add your own `schedule:` (the old cron was `0 12 * * 3`, Wednesday 12:00 UTC).
+`scheduled-draft-recap.yml` remains disarmed until its own variable/webhook are
+set.
 
 ## Confirm or override playoff seeding
 
