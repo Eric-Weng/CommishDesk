@@ -9,3 +9,6 @@ carries **at most one reference implementation**, enforced by
 [`tests/test_extension_zones.py`](../../tests/test_extension_zones.py) — today it carries
 one: [`sleeper.py`](sleeper.py)'s `SleeperAdapter`, landed in Epic 2. Nothing here
 prescribes how to build an adapter.
+
+`SleeperAdapter` also accepts `players_file=` (Story 8B.1): a supplied `players/nfl.json` that
+replaces its `GET /players/nfl` call; see `load_players_file` in [`sleeper.py`](sleeper.py).

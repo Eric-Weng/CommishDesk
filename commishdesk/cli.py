@@ -198,6 +198,15 @@ def run(
             "exactly what was approved. Requires --week; cannot be combined with --post or --reason."
         ),
     ),
+    players_file: Path | None = typer.Option(  # noqa: B008 -- canonical typer idiom
+        None,
+        "--players-file",
+        help=(
+            "Read Sleeper's player table from this players/nfl.json instead of calling "
+            "GET /players/nfl. An unreadable, malformed, empty or stale file fails the run "
+            "(exit 1) and never falls back to the network."
+        ),
+    ),
     verbose: bool = typer.Option(False, "--verbose", help="Increase output verbosity."),
     version: bool | None = typer.Option(
         None,
@@ -257,6 +266,17 @@ def run(
             # section displays -- both read this same stripped value from now
             # on, never the raw option string.
             reason = reason.strip()
+        if players_file is not None:
+            if not (draft_recap or week is not None):
+                raise typer.BadParameter("--players-file requires --draft-recap or --week")
+            # Validated up front, before any league runs or request is made.
+            from commishdesk.adapters.sleeper import load_players_file
+
+            try:
+                load_players_file(players_file)
+            except CommishDeskError as exc:
+                typer.echo(_one_line(exc), err=True)
+                raise typer.Exit(code=1) from exc
         if draft_recap:
             if not league:
                 raise typer.BadParameter("--draft-recap requires --league")
@@ -269,6 +289,7 @@ def run(
                     llm_enabled=_llm_enabled(llm),
                     allow_content_hold=_allow_content_hold(allow_content_hold),
                     post=post,
+                    players_file=players_file,
                 )
             except (CommishDeskError, OSError) as exc:
                 typer.echo(_one_line(exc), err=True)
@@ -300,6 +321,7 @@ def run(
                     seeding=seeding,
                     allow_content_hold=_allow_content_hold(allow_content_hold),
                     replay_narration=replay_narration,
+                    players_file=players_file,
                 )
             except (CommishDeskError, OSError) as exc:
                 typer.echo(_one_line(exc), err=True)
@@ -436,6 +458,7 @@ def _run_draft_recap(
     llm_enabled: bool,
     allow_content_hold: bool,
     post: bool,
+    players_file: Path | None = None,
 ) -> int:
     """Derive the run list (the one Generation Set constructor) and build a recap
     for each activated league. Returns the process exit code: ``0`` when every
@@ -499,6 +522,7 @@ def _run_draft_recap(
                 llm_enabled=llm_enabled,
                 allow_content_hold=allow_content_hold,
                 post=post,
+                players_file=players_file,
             )
         except (CommishDeskError, OSError) as exc:
             logger.debug("league %s faulted: %s", resolved, _one_line(exc))
@@ -518,6 +542,7 @@ def _run_weekly(
     seeding: str | None = None,
     allow_content_hold: bool = False,
     replay_narration: Path | None = None,
+    players_file: Path | None = None,
 ) -> int:
     """Derive the run list (the one Generation Set constructor) and build a weekly
     Issue for each activated league. Returns the process exit code: ``0`` when
@@ -577,6 +602,7 @@ def _run_weekly(
                 seeding=parsed_seeding,
                 allow_content_hold=allow_content_hold,
                 replay_narration=replay_narration,
+                players_file=players_file,
             )
         except (CommishDeskError, OSError) as exc:
             logger.debug("league %s faulted: %s", resolved, _one_line(exc))
@@ -696,6 +722,7 @@ class _RecapPhases(ABC):
     reason: str | None = None
     uses_adapter: bool = True
     store: FileStore | None = None
+    players_file: Path | None = None
 
     @abstractmethod
     def ledger_store(self) -> FileStore:
@@ -787,7 +814,7 @@ def _run_recap_skeleton(resolved: str, phases: _RecapPhases) -> None:
     if phases.uses_adapter:
         from commishdesk.adapters.sleeper import SleeperAdapter
 
-        adapter = SleeperAdapter()
+        adapter = SleeperAdapter() if phases.players_file is None else SleeperAdapter(players_file=phases.players_file)
         try:
             phases.fetch(adapter)
         finally:
@@ -838,6 +865,7 @@ class _DraftRecapPhases(_RecapPhases):
         llm_enabled: bool,
         allow_content_hold: bool,
         post: bool,
+        players_file: Path | None = None,
     ) -> None:
         from commishdesk.facts.storylines import DRAFT_RECAP_WEEK
 
@@ -852,6 +880,7 @@ class _DraftRecapPhases(_RecapPhases):
         self.llm_enabled = llm_enabled
         self.allow_content_hold = allow_content_hold
         self.post = post
+        self.players_file = players_file
         # Storyline persistence bridge — the Store I/O lives here in the CLI, never
         # in ``facts/`` (import fence). The demo path stays side-effect-free and
         # offline for storylines specifically, so ``previous_storylines`` stays
@@ -915,7 +944,17 @@ class _DraftRecapPhases(_RecapPhases):
 
             self.logger.debug("fetching consensus rank")
             self.store = FileStore(_cache_dir())
-            rank = build_consensus_rank(model, self.store)
+            if self.players_file is not None:
+                from commishdesk.adapters.sleeper import load_players_file
+
+                rank = build_consensus_rank(
+                    model,
+                    self.store,
+                    players=load_players_file(self.players_file),
+                    players_label=str(self.players_file),
+                )
+            else:
+                rank = build_consensus_rank(model, self.store)
             slots = rank.slots
             consensus_source_name = rank.source
             consensus_as_of = rank.as_of
@@ -1091,6 +1130,7 @@ def _recap_one_league(
     llm_enabled: bool,
     allow_content_hold: bool,
     post: bool,
+    players_file: Path | None = None,
 ) -> None:
     """Chain the five pipeline stages for one league and emit the recap to stdout
     plus a local HTML file; optionally deliver it to Discord (Story 4.6).
@@ -1111,6 +1151,7 @@ def _recap_one_league(
             llm_enabled=llm_enabled,
             allow_content_hold=allow_content_hold,
             post=post,
+            players_file=players_file,
         ),
     )
 
@@ -1140,6 +1181,7 @@ class _WeeklyRecapPhases(_RecapPhases):
         seeding: PlayoffSeeding | None,
         allow_content_hold: bool,
         replay_narration: Path | None = None,
+        players_file: Path | None = None,
     ) -> None:
         from commishdesk.store import FileStore
 
@@ -1152,6 +1194,7 @@ class _WeeklyRecapPhases(_RecapPhases):
         self.seeding = seeding
         self.allow_content_hold = allow_content_hold
         self.replay_narration = replay_narration
+        self.players_file = players_file
         self.store = FileStore(_cache_dir())
 
     def ledger_store(self) -> FileStore:
@@ -1321,6 +1364,7 @@ def _recap_one_league_weekly(
     seeding: PlayoffSeeding | None = None,
     allow_content_hold: bool = False,
     replay_narration: Path | None = None,
+    players_file: Path | None = None,
 ) -> None:
     """Story 5.11a: chain ingest → stats → facts → narrator → render for one
     league-week, writing the local text Issue plus the Story 2.7 generic HTML
@@ -1393,6 +1437,7 @@ def _recap_one_league_weekly(
             seeding=seeding,
             allow_content_hold=allow_content_hold,
             replay_narration=replay_narration,
+            players_file=players_file,
         ),
     )
 
