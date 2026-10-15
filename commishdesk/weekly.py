@@ -31,6 +31,7 @@ import sys
 from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from commishdesk.errors import CommishDeskError, StoreError
@@ -954,6 +955,7 @@ def build_weekly_issue(
     week: int,
     *,
     adapter: Any | None = None,
+    players_file: Path | str | None = None,
     suppressions: Collection[str] | None = None,
     seeding: PlayoffSeeding | None = None,
     allow_content_hold: bool = False,
@@ -966,7 +968,11 @@ def build_weekly_issue(
     """Build one league-week's weekly Issue from *store* and return it, writing no Issue file.
 
     ``league_id`` is opaque. ``adapter`` is an open platform adapter (``fetch`` / ``fetch_week``
-    / ``close``); when ``None`` the default adapter is opened and closed here. ``suppressions``
+    / ``close``); when ``None`` the default adapter is opened and closed here. ``players_file`` (Story
+    8B.1) is a ``players/nfl.json`` the default adapter reads instead of calling ``GET /players/nfl``;
+    it only configures an adapter this function opens, so passing it with ``adapter`` raises
+    :class:`~commishdesk.errors.CommishDeskError`, and a bad or stale file raises ``AdapterError``
+    naming it. ``suppressions``
     are the section ids toned down to template prose (AD-30), read once by the caller per run;
     ``None`` reads them from the store. The narrator is chosen from the environment exactly as
     on the CLI (template unless a provider key and a budget are present). ``l4`` is an optional
@@ -989,6 +995,9 @@ def build_weekly_issue(
     """
     from commishdesk.render import render_weekly_email, render_weekly_web
 
+    if adapter is not None and players_file is not None:
+        raise CommishDeskError("players_file cannot be combined with adapter: configure the adapter with it instead")
+
     replayed = parse_narration_record(replay, league_id=league_id, week=week) if replay is not None else None
 
     log = logger or logging.getLogger(f"{LOGGER_NAME}.weekly")
@@ -1000,7 +1009,7 @@ def build_weekly_issue(
     if adapter is None:
         from commishdesk.adapters.sleeper import SleeperAdapter
 
-        adapter = SleeperAdapter()
+        adapter = SleeperAdapter() if players_file is None else SleeperAdapter(players_file=players_file)
     try:
         week_bundle, league_bundle = fetch_weekly_bundles(adapter, league_id, week)
     finally:

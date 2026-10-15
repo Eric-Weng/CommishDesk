@@ -63,7 +63,9 @@ and re-raised as an ``AdapterError`` chained from the original exception
 
 from __future__ import annotations
 
+import json
 from collections.abc import Mapping
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -71,7 +73,7 @@ import httpx
 from commishdesk import __version__
 from commishdesk.errors import AdapterError
 
-__all__ = ["SleeperAdapter"]
+__all__ = ["SleeperAdapter", "load_players_file"]
 
 _DEFAULT_CONTACT_URL = "https://github.com/Eric-Weng/CommishDesk"
 _DEFAULT_TIMEOUT = 10.0
@@ -192,6 +194,30 @@ def _rostered_player_ids(rosters: Any, matchups: Mapping[str, Any]) -> set[str]:
     return ids
 
 
+def load_players_file(path: str | Path) -> dict[str, Any]:
+    """Read and validate a supplied ``players/nfl.json`` (Story 8B.1): the same
+    JSON object Sleeper's ``GET /players/nfl`` returns, keyed by player id.
+
+    Raises :class:`AdapterError` naming *path* when the file cannot be read, is not
+    valid JSON, is not a JSON object, or is empty. No age or mtime check is made
+    (the party that refreshes the file owns freshness), and there is never a
+    network fallback."""
+    file_path = Path(path)
+    try:
+        text = file_path.read_text(encoding="utf-8")
+    except (OSError, ValueError) as exc:
+        raise AdapterError(f"players file {str(file_path)!r} could not be read") from exc
+    try:
+        data = json.loads(text)
+    except (ValueError, RecursionError) as exc:
+        raise AdapterError(f"players file {str(file_path)!r} is not valid JSON") from exc
+    if not isinstance(data, dict):
+        raise AdapterError(f"players file {str(file_path)!r} is not a JSON object")
+    if not data:
+        raise AdapterError(f"players file {str(file_path)!r} is empty")
+    return data
+
+
 def _playoff_week_start(league: Any) -> int | None:
     """``league["settings"]["playoff_week_start"]`` as an ``int``, or ``None``
     when the league response carries no usable value (no ``settings``, no key,
@@ -235,6 +261,12 @@ class SleeperAdapter:
     timeout:
         Explicit per-request timeout (seconds), applied to every request this
         adapter issues.
+    players_file:
+        Optional path to a ``players/nfl.json`` (Story 8B.1). When given, it is
+        read and validated at construction (an :class:`AdapterError` naming the
+        file, before any request) and replaces every ``GET /players/nfl`` this
+        adapter would make; a file none of whose ids is on this week's rosters is
+        "stale" and fails the same way, never falling back to the network.
     """
 
     def __init__(
@@ -242,7 +274,12 @@ class SleeperAdapter:
         contact_url: str = _DEFAULT_CONTACT_URL,
         client: httpx.Client | None = None,
         timeout: float = _DEFAULT_TIMEOUT,
+        players_file: str | Path | None = None,
     ) -> None:
+        self._players_file = Path(players_file) if players_file is not None else None
+        self._players: dict[str, Any] | None = (
+            load_players_file(self._players_file) if self._players_file is not None else None
+        )
         self._timeout = timeout
         self._headers = {"User-Agent": f"CommishDesk/{__version__} (+{contact_url})"}
         self._client = client if client is not None else httpx.Client()
@@ -400,6 +437,13 @@ class SleeperAdapter:
         any future non-Sleeper ``Adapter`` is still guaranteed to supply
         player data through ``fetch_week``'s one return value. Raises
         ``AdapterError`` if the response isn't a JSON object."""
+        if self._players is not None:
+            if rostered_ids and not any(pid in self._players for pid in rostered_ids):
+                raise AdapterError(
+                    f"players file {str(self._players_file)!r} is stale: "
+                    "none of this league's rostered players are in it"
+                )
+            return {pid: record for pid, record in self._players.items() if pid in rostered_ids}
         raw = self._get("/players/nfl")
         if not isinstance(raw, Mapping):
             raise AdapterError("Sleeper /players/nfl response is not a JSON object")

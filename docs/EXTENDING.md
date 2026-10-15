@@ -63,6 +63,13 @@ turns that key into a `player_id -> PlayerSnapshot` map (`PlayerSnapshot` carrie
 on first generation via `Store.write_player_snapshot` and reuses the persisted snapshot
 verbatim on a later regeneration, never re-deriving it from a fresher bundle (FR-5).
 
+**Story 8B.1** lets the caller supply that player table instead: `SleeperAdapter(players_file=path)`,
+`build_weekly_issue(players_file=path)` and the CLI's `--players-file path` read a `players/nfl.json`
+(the JSON object `GET /players/nfl` returns) and make no `/players/nfl` request at all; the draft
+recap's consensus fallback takes it too (`build_consensus_rank(players=...)`). An unreadable,
+malformed, empty or stale file (none of the rostered ids is in it) fails with an `AdapterError` naming
+the file, never a network fallback; the caller owns the file's freshness.
+
 ### `Voice` — `commishdesk/voices/`
 
 A `Voice` supplies `system_prompt: str`, `banned_topics: frozenset[str]`, and

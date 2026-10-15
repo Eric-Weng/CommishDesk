@@ -100,13 +100,23 @@ class ConsensusRank(BaseModel):
 
 
 def build_consensus_rank(
-    league: LeagueModel, store: Store, *, client: httpx.Client | None = None
+    league: LeagueModel,
+    store: Store,
+    *,
+    client: httpx.Client | None = None,
+    players: Mapping[str, Any] | None = None,
+    players_label: str | None = None,
 ) -> ConsensusRank:
     """Return a :class:`ConsensusRank` over ``league``'s drafted players.
 
     Warm FantasyCalc cache -> live FantasyCalc -> warm Sleeper cache -> live
     Sleeper players file. Raises :class:`~commishdesk.errors.ConsensusError` only
     when every path fails to fetch, parse, or rank a single drafted player.
+
+    ``players`` (Story 8B.1) is a supplied ``players/nfl.json`` mapping. When given
+    it replaces the Sleeper cache and fetch as the last-resort source: no
+    ``/players/nfl`` request is made, and nothing is written to the Sleeper cache.
+    A ``ConsensusError`` then names ``players_label`` (the file's path).
     """
     params = _fantasycalc_params(league.format)
     fc_key = _fantasycalc_cache_key(params)
@@ -132,6 +142,15 @@ def build_consensus_rank(
             if rank is not None:
                 _write_cache(store, fc_key, fc_payload)
                 return rank
+
+        if players is not None:
+            rank = _rank_from_sleeper(players, drafted)
+            if rank is None:
+                raise ConsensusError(
+                    f"players file {players_label or '(supplied)'!r} ranks none of the drafted "
+                    "players, and FantasyCalc did not"
+                )
+            return rank
 
         cached = _read_cache(store, _SLEEPER_KEY)
         if cached is not None:
