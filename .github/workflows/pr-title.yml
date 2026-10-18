@@ -1,0 +1,29 @@
+name: pr-title
+
+# Squash-merge makes the PR title the commit subject, and the retro tooling
+# (git_evidence.py) attributes commits to stories by matching the id in that
+# subject. Require a story id, or a chore/release type (covers dependabot).
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions: {}
+
+jobs:
+  pr-title:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Require a story id or chore/release
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          exempt='^(chore|release)(\([^)]*\))?!?: '
+          story='(^|[^0-9A-Za-z.])([0-9]+[bB]?[-.][0-9]+[a-z]?|epic-[0-9]+-retro-item-[0-9]+)($|[^0-9A-Za-z.]|\.($|[^0-9]))'
+          if [[ "$TITLE" =~ $exempt ]] || [[ "$TITLE" =~ $story ]]; then
+            echo "ok: $TITLE"
+            exit 0
+          fi
+          echo "::error title=PR title::Put the story id in the title (for example '8B.22', '8b-21', '7-10a', '8.6'), or use a chore: / release: type. Got: $TITLE"
+          exit 1
