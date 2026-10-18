@@ -16,9 +16,9 @@ jobs:
     timeout-minutes: 2
     steps:
       - name: Require a story id or chore/release
-        env:
-          TITLE: ${{ github.event.pull_request.title }}
         run: |
+          # Read the title from the event payload as data; never interpolate it (CLAUDE.md section 4).
+          TITLE=$(jq -r .pull_request.title "$GITHUB_EVENT_PATH")
           exempt='^(chore|release)(\([^)]*\))?!?: '
           story='(^|[^0-9A-Za-z.])([0-9]+[bB]?[-.][0-9]+[a-z]?|epic-[0-9]+-retro-item-[0-9]+)($|[^0-9A-Za-z.]|\.($|[^0-9]))'
           if [[ "$TITLE" =~ $exempt ]] || [[ "$TITLE" =~ $story ]]; then
