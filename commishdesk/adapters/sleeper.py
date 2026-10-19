@@ -337,14 +337,25 @@ class SleeperAdapter:
         Stops on a repeated id (retro finding C3) as well as on the hop cap: a
         self-referencing or cyclic ``previous_league_id`` chain would otherwise
         re-request the same league up to ``_MAX_HISTORY_HOPS`` times and return
-        that many duplicate ids instead of terminating immediately."""
+        that many duplicate ids instead of terminating immediately.
+
+        Sleeper marks the end of a chain with ``previous_league_id: "0"`` (a
+        truthy string, not a league), so ``"0"`` ends the walk like ``None``
+        does, and a 404 on a hop is likewise the end of history, not a
+        failure. Any other hop error still raises."""
         visited: list[str] = []
         current = previous_league_id
         while current and len(visited) < _MAX_HISTORY_HOPS:
             current_id = str(current)
-            if current_id in visited:
+            if current_id == "0" or current_id in visited:
                 break
-            hop_league = self._get(f"/league/{current_id}")
+            try:
+                hop_league = self._get(f"/league/{current_id}")
+            except AdapterError as exc:
+                cause = exc.__cause__
+                if isinstance(cause, httpx.HTTPStatusError) and cause.response.status_code == 404:
+                    break
+                raise
             if not isinstance(hop_league, Mapping):
                 raise AdapterError(
                     f"Sleeper history hop {current_id!r} returned a non-object response"
