@@ -326,6 +326,75 @@ def test_self_referencing_history_stops_after_one_hop() -> None:
 
 
 # --------------------------------------------------------------------------- #
+# Row: Sleeper's "0" terminator and a 404 hop
+# --------------------------------------------------------------------------- #
+
+
+def test_chain_ending_in_string_zero_stops_without_requesting_league_zero() -> None:
+    """Sleeper ends history with ``previous_league_id: "0"``: the walk keeps the
+    real seasons and never issues ``GET /league/0``."""
+    chain = {
+        "id_zero_a": {"previous_league_id": "id_zero_b"},
+        "id_zero_b": {"previous_league_id": "0"},
+    }
+    league = _league_with_previous("id_zero_a")
+    requests: list[httpx.Request] = []
+    transport = _build_transport(
+        league=league,
+        draft=DRAFT,
+        draft_picks=DRAFT_PICKS,
+        rosters=ROSTERS,
+        users=USERS,
+        history=chain,
+        requests=requests,
+    )
+    adapter = _adapter_for(transport)
+
+    bundle = adapter.fetch(league["league_id"])
+
+    assert bundle["previous_league_ids"] == ["id_zero_a", "id_zero_b"]
+    assert not [r for r in requests if r.url.path == "/v1/league/0"]
+
+
+def test_origin_league_with_zero_previous_has_no_history_and_no_extra_call() -> None:
+    league = _league_with_previous("0")
+    requests: list[httpx.Request] = []
+    transport = _build_transport(
+        league=league,
+        draft=DRAFT,
+        draft_picks=DRAFT_PICKS,
+        rosters=ROSTERS,
+        users=USERS,
+        requests=requests,
+    )
+    adapter = _adapter_for(transport)
+
+    bundle = adapter.fetch(league["league_id"])
+
+    assert bundle["previous_league_ids"] == []
+    assert len(requests) == 5
+
+
+def test_404_on_a_history_hop_ends_history_but_other_errors_still_raise() -> None:
+    chain = {"id_gone_a": {"previous_league_id": "id_gone_missing"}}
+    league = _league_with_previous("id_gone_a")
+    kwargs: dict[str, Any] = dict(
+        league=league, draft=DRAFT, draft_picks=DRAFT_PICKS, rosters=ROSTERS, users=USERS
+    )
+    adapter = _adapter_for(_build_transport(history=chain, **kwargs))  # unmapped -> 404
+
+    assert adapter.fetch(league["league_id"])["previous_league_ids"] == ["id_gone_a"]
+
+    broken = _build_transport(
+        history=chain,
+        override={"/v1/league/id_gone_missing": lambda r: httpx.Response(500)},
+        **kwargs,
+    )
+    with pytest.raises(AdapterError):
+        _adapter_for(broken).fetch(league["league_id"])
+
+
+# --------------------------------------------------------------------------- #
 # Row: No history
 # --------------------------------------------------------------------------- #
 
