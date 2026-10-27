@@ -21,6 +21,16 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _league_value_off(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Story 9.6a: the weekly build reads or builds a League Value snapshot, which by default fetches
+    nflverse. The suite is network-free, so that is off unless a test turns it on (``source=...``)."""
+    monkeypatch.setenv("COMMISHDESK_LEAGUE_VALUE_SOURCE", "off")
+
+
 #: The repository root, resolved once here and imported by every test file
 #: that needs it (``from tests.conftest import REPO_ROOT``) instead of each
 #: file redefining ``Path(__file__).resolve().parent.parent`` itself.

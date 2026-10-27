@@ -690,6 +690,9 @@ class WeeklyFactsBuild:
     facts_json: dict[str, Any]
     previous_storylines: list[Storyline]
     cross_check_passed: bool
+    #: The week's League Value snapshot (Story 9.6a): a plain mapping for ``stats/``, or ``None``
+    #: when it was switched off or could not be built. Never part of ``facts_json``.
+    league_value: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True)
@@ -736,10 +739,17 @@ def compute_weekly_facts(
     seeding: PlayoffSeeding | None,
     hold_on_cross_check: bool,
     logger: logging.Logger,
+    league_value_source: str | None = None,
 ) -> WeeklyFactsBuild:
     """Raw bundles to the weekly Facts JSON. A standings cross-check failure raises
     ``CrossCheckError`` when ``hold_on_cross_check`` (a posting or hosted run), and otherwise
-    is logged and flagged so the Issue ships with an ``UNVERIFIED`` dateline."""
+    is logged and flagged so the Issue ships with an ``UNVERIFIED`` dateline.
+
+    Story 9.6a: before the Facts are built, the week's League Value snapshot is read from the
+    ``Store`` or built and cached there (best-effort, never fails the Issue) and returned on the
+    build as ``league_value``; the Facts JSON is unchanged. ``league_value_source`` is
+    ``nflverse``, ``sleeper_only`` or ``off``; ``None`` reads ``COMMISHDESK_LEAGUE_VALUE_SOURCE``."""
+    from commishdesk.demo_season import DEMO_LEAGUE_ID
     from commishdesk.errors import CrossCheckError
     from commishdesk.facts.weekly import build_weekly_facts
     from commishdesk.ingest import (
@@ -749,6 +759,7 @@ def compute_weekly_facts(
         bye_teams,
         get_player_snapshot,
     )
+    from commishdesk.league_value import league_value_for_week, source_from_env
     from commishdesk.stats.standings import (
         compute_standings,
         cross_check_standings,
@@ -792,6 +803,21 @@ def compute_weekly_facts(
     previous_storylines = store.read_storylines(league_id)
     previous_published_ranks = read_previous_published_ranks(store, league_id, week, logger)
 
+    if league_value_source is None and league_id == DEMO_LEAGUE_ID and source_from_env() == "nflverse":
+        league_value_source = "sleeper_only"  # the fictional demo season has nothing to look up in nflverse
+    league_value = league_value_for_week(
+        store,
+        league_id,
+        week,
+        model=model,
+        league=league_bundle.get("league") or {},
+        matchups=week_bundle.get("matchups") or {},
+        players=week_bundle.get("players") or {},
+        standings_order=[team.roster_id for team in sorted(standings.teams, key=lambda t: t.rank)],
+        source=league_value_source,
+        logger=logger,
+    )
+
     logger.debug("building the weekly Facts JSON")
     doc = build_weekly_facts(
         week_model,
@@ -811,6 +837,7 @@ def compute_weekly_facts(
         facts_json=doc.model_dump(mode="json"),
         previous_storylines=previous_storylines,
         cross_check_passed=cross_check_passed,
+        league_value=league_value,
     )
 
 
@@ -964,6 +991,7 @@ def build_weekly_issue(
     l4: L4Scorer | None = None,
     logger: logging.Logger | None = None,
     replay: Mapping[str, Any] | None = None,
+    league_value_source: str | None = None,
 ) -> WeeklyIssueBuild:
     """Build one league-week's weekly Issue from *store* and return it, writing no Issue file.
 
@@ -981,7 +1009,9 @@ def build_weekly_issue(
     raises ``L4UnavailableError`` (fail closed). A cross-check failure
     raises ``CrossCheckError`` unless ``hold_on_cross_check`` is false. Narrative memory
     (storylines) is advanced before returning; call :func:`record_published_weekly` once the
-    Issue is durably published.
+    Issue is durably published. ``league_value_source`` (Story 9.6a) picks where the week's League
+    Value snapshot reads its stats: ``nflverse``, ``sleeper_only`` (the sample container: no new
+    egress) or ``off``; ``None`` reads ``COMMISHDESK_LEAGUE_VALUE_SOURCE`` (default ``nflverse``).
 
     ``replay`` is a stored :func:`narration_record`: the Issue is then re-rendered from that
     narration, its published ranks and their reasons with **no** narrator selection and no LLM
@@ -1027,6 +1057,7 @@ def build_weekly_issue(
             seeding=seeding,
             hold_on_cross_check=hold_on_cross_check,
             logger=log,
+            league_value_source=league_value_source,
         )
     if replayed is not None:
         # The stored Issue already carries any UNVERIFIED stamp and Correction; nothing is
