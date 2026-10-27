@@ -1,6 +1,6 @@
 {
   "_derived_from": "Story 5.8 oracle. build_weekly_facts() over week10-blowout.json (the anonymized week-10 fixture); generated_at pinned to '2026-09-07T00:00:00Z'; nfl_byes_next_week={IND, NO}.",
-  "schema_version": "0.10.0",
+  "schema_version": "0.11.0",
   "generated_at": "2026-09-07T00:00:00Z",
   "provisional": true,
   "issue_type": "weekly",
@@ -5717,7 +5717,733 @@
       "last_trade_week": 9,
       "weeks_since_last_trade": 1,
       "complete": true
-    }
+    },
+    "trade_grades": [],
+    "trade_revisits": [
+      {
+        "transaction_id": "id_gt72mqtv3v",
+        "trade_week": 6,
+        "weeks_since": 4,
+        "leader": "10",
+        "sides": [
+          {
+            "roster_id": "8",
+            "players": [],
+            "points_per_week": 0.0
+          },
+          {
+            "roster_id": "10",
+            "players": [
+              {
+                "player_id": "19",
+                "points_per_week": 30.06
+              }
+            ],
+            "points_per_week": 30.06
+          }
+        ]
+      },
+      {
+        "transaction_id": "id_zw28varxa7",
+        "trade_week": 6,
+        "weeks_since": 4,
+        "leader": "7",
+        "sides": [
+          {
+            "roster_id": "2",
+            "players": [],
+            "points_per_week": 0.0
+          },
+          {
+            "roster_id": "7",
+            "players": [
+              {
+                "player_id": "3257",
+                "points_per_week": 20.52
+              }
+            ],
+            "points_per_week": 20.52
+          }
+        ]
+      },
+      {
+        "transaction_id": "id_larjagbt9p",
+        "trade_week": 5,
+        "weeks_since": 5,
+        "leader": "1",
+        "sides": [
+          {
+            "roster_id": "1",
+            "players": [
+              {
+                "player_id": "9754",
+                "points_per_week": 7.55
+              }
+            ],
+            "points_per_week": 7.55
+          },
+          {
+            "roster_id": "10",
+            "players": [
+              {
+                "player_id": "4033",
+                "points_per_week": 6.05
+              }
+            ],
+            "points_per_week": 6.05
+          }
+        ]
+      },
+      {
+        "transaction_id": "id_97rq6f69cj",
+        "trade_week": 4,
+        "weeks_since": 6,
+        "leader": "6",
+        "sides": [
+          {
+            "roster_id": "2",
+            "players": [
+              {
+                "player_id": "9221",
+                "points_per_week": 23.61
+              }
+            ],
+            "points_per_week": 23.61
+          },
+          {
+            "roster_id": "6",
+            "players": [
+              {
+                "player_id": "8155",
+                "points_per_week": 18.29
+              },
+              {
+                "player_id": "11625",
+                "points_per_week": 0.55
+              },
+              {
+                "player_id": "11628",
+                "points_per_week": 12.59
+              },
+              {
+                "player_id": "12497",
+                "points_per_week": 6.9
+              }
+            ],
+            "points_per_week": 38.33
+          }
+        ]
+      },
+      {
+        "transaction_id": "id_dq9k84bcrg",
+        "trade_week": 3,
+        "weeks_since": 7,
+        "leader": "11",
+        "sides": [
+          {
+            "roster_id": "2",
+            "players": [
+              {
+                "player_id": "11632",
+                "points_per_week": 0.58
+              }
+            ],
+            "points_per_week": 0.58
+          },
+          {
+            "roster_id": "11",
+            "players": [
+              {
+                "player_id": "11631",
+                "points_per_week": 9.84
+              }
+            ],
+            "points_per_week": 9.84
+          }
+        ]
+      },
+      {
+        "transaction_id": "id_jpe93eznoy",
+        "trade_week": 3,
+        "weeks_since": 7,
+        "leader": "10",
+        "sides": [
+          {
+            "roster_id": "2",
+            "players": [],
+            "points_per_week": 0.0
+          },
+          {
+            "roster_id": "10",
+            "players": [
+              {
+                "player_id": "4144",
+                "points_per_week": 4.2
+              }
+            ],
+            "points_per_week": 4.2
+          }
+        ]
+      },
+      {
+        "transaction_id": "id_63h578wbfb",
+        "trade_week": 1,
+        "weeks_since": 9,
+        "leader": "5",
+        "sides": [
+          {
+            "roster_id": "2",
+            "players": [
+              {
+                "player_id": "4035",
+                "points_per_week": 10.91
+              }
+            ],
+            "points_per_week": 10.91
+          },
+          {
+            "roster_id": "5",
+            "players": [
+              {
+                "player_id": "12455",
+                "points_per_week": 5.4
+              },
+              {
+                "player_id": "12474",
+                "points_per_week": 11.68
+              }
+            ],
+            "points_per_week": 17.08
+          }
+        ]
+      },
+      {
+        "transaction_id": "id_9i3saglz3b",
+        "trade_week": 1,
+        "weeks_since": 9,
+        "leader": "5",
+        "sides": [
+          {
+            "roster_id": "5",
+            "players": [
+              {
+                "player_id": "8136",
+                "points_per_week": 11.3
+              }
+            ],
+            "points_per_week": 11.3
+          },
+          {
+            "roster_id": "7",
+            "players": [],
+            "points_per_week": 0.0
+          }
+        ]
+      },
+      {
+        "transaction_id": "id_dm908n9a14",
+        "trade_week": 1,
+        "weeks_since": 9,
+        "leader": "8",
+        "sides": [
+          {
+            "roster_id": "6",
+            "players": [],
+            "points_per_week": 0.0
+          },
+          {
+            "roster_id": "8",
+            "players": [
+              {
+                "player_id": "11564",
+                "points_per_week": 29.9
+              }
+            ],
+            "points_per_week": 29.9
+          }
+        ]
+      },
+      {
+        "transaction_id": "id_epcxqb37g6",
+        "trade_week": 1,
+        "weeks_since": 9,
+        "leader": "10",
+        "sides": [
+          {
+            "roster_id": "2",
+            "players": [],
+            "points_per_week": 0.0
+          },
+          {
+            "roster_id": "10",
+            "players": [
+              {
+                "player_id": "4234",
+                "points_per_week": 0.21
+              }
+            ],
+            "points_per_week": 0.21
+          }
+        ]
+      },
+      {
+        "transaction_id": "id_etmpxu69oq",
+        "trade_week": 1,
+        "weeks_since": 9,
+        "leader": "1",
+        "sides": [
+          {
+            "roster_id": "1",
+            "players": [
+              {
+                "player_id": "9997",
+                "points_per_week": 11.09
+              }
+            ],
+            "points_per_week": 11.09
+          },
+          {
+            "roster_id": "11",
+            "players": [],
+            "points_per_week": 0.0
+          }
+        ]
+      },
+      {
+        "transaction_id": "id_ff34hqrzxc",
+        "trade_week": 1,
+        "weeks_since": 9,
+        "leader": "3",
+        "sides": [
+          {
+            "roster_id": "2",
+            "players": [],
+            "points_per_week": 0.0
+          },
+          {
+            "roster_id": "3",
+            "players": [
+              {
+                "player_id": "6039",
+                "points_per_week": 3.32
+              }
+            ],
+            "points_per_week": 3.32
+          }
+        ]
+      },
+      {
+        "transaction_id": "id_g62mq6vxr8",
+        "trade_week": 1,
+        "weeks_since": 9,
+        "leader": "7",
+        "sides": [
+          {
+            "roster_id": "2",
+            "players": [],
+            "points_per_week": 0.0
+          },
+          {
+            "roster_id": "7",
+            "players": [
+              {
+                "player_id": "3286",
+                "points_per_week": 3.4
+              }
+            ],
+            "points_per_week": 3.4
+          }
+        ]
+      },
+      {
+        "transaction_id": "id_gdruqdii4p",
+        "trade_week": 1,
+        "weeks_since": 9,
+        "leader": null,
+        "sides": [
+          {
+            "roster_id": "1",
+            "players": [],
+            "points_per_week": 0.0
+          },
+          {
+            "roster_id": "10",
+            "players": [
+              {
+                "player_id": "5937",
+                "points_per_week": 0.0
+              }
+            ],
+            "points_per_week": 0.0
+          }
+        ]
+      },
+      {
+        "transaction_id": "id_gkdf6s9k88",
+        "trade_week": 1,
+        "weeks_since": 9,
+        "leader": "9",
+        "sides": [
+          {
+            "roster_id": "2",
+            "players": [],
+            "points_per_week": 0.0
+          },
+          {
+            "roster_id": "9",
+            "players": [
+              {
+                "player_id": "3271",
+                "points_per_week": 5.35
+              }
+            ],
+            "points_per_week": 5.35
+          }
+        ]
+      },
+      {
+        "transaction_id": "id_h69ubqcbrt",
+        "trade_week": 1,
+        "weeks_since": 9,
+        "leader": "2",
+        "sides": [
+          {
+            "roster_id": "1",
+            "players": [
+              {
+                "player_id": "11638",
+                "points_per_week": 5.04
+              }
+            ],
+            "points_per_week": 5.04
+          },
+          {
+            "roster_id": "2",
+            "players": [
+              {
+                "player_id": "11624",
+                "points_per_week": 7.59
+              }
+            ],
+            "points_per_week": 7.59
+          }
+        ]
+      },
+      {
+        "transaction_id": "id_hi7l0pxxwu",
+        "trade_week": 1,
+        "weeks_since": 9,
+        "leader": "4",
+        "sides": [
+          {
+            "roster_id": "1",
+            "players": [],
+            "points_per_week": 0.0
+          },
+          {
+            "roster_id": "4",
+            "players": [
+              {
+                "player_id": "6768",
+                "points_per_week": 19.16
+              }
+            ],
+            "points_per_week": 19.16
+          }
+        ]
+      },
+      {
+        "transaction_id": "id_jpvgl1e130",
+        "trade_week": 1,
+        "weeks_since": 9,
+        "leader": "9",
+        "sides": [
+          {
+            "roster_id": "1",
+            "players": [
+              {
+                "player_id": "9488",
+                "points_per_week": 25.4
+              }
+            ],
+            "points_per_week": 25.4
+          },
+          {
+            "roster_id": "9",
+            "players": [
+              {
+                "player_id": "8137",
+                "points_per_week": 20.66
+              },
+              {
+                "player_id": "11635",
+                "points_per_week": 15.61
+              }
+            ],
+            "points_per_week": 36.27
+          }
+        ]
+      },
+      {
+        "transaction_id": "id_qfujz0ft94",
+        "trade_week": 1,
+        "weeks_since": 9,
+        "leader": "3",
+        "sides": [
+          {
+            "roster_id": "1",
+            "players": [],
+            "points_per_week": 0.0
+          },
+          {
+            "roster_id": "3",
+            "players": [
+              {
+                "player_id": "5012",
+                "points_per_week": 9.31
+              }
+            ],
+            "points_per_week": 9.31
+          }
+        ]
+      },
+      {
+        "transaction_id": "id_r1q4zerqrv",
+        "trade_week": 1,
+        "weeks_since": 9,
+        "leader": "2",
+        "sides": [
+          {
+            "roster_id": "2",
+            "players": [
+              {
+                "player_id": "8137",
+                "points_per_week": 20.66
+              },
+              {
+                "player_id": "8148",
+                "points_per_week": 12.96
+              },
+              {
+                "player_id": "11625",
+                "points_per_week": 2.52
+              }
+            ],
+            "points_per_week": 36.14
+          },
+          {
+            "roster_id": "9",
+            "players": [
+              {
+                "player_id": "5846",
+                "points_per_week": 13.3
+              },
+              {
+                "player_id": "9500",
+                "points_per_week": 9.39
+              },
+              {
+                "player_id": "12492",
+                "points_per_week": 3.94
+              }
+            ],
+            "points_per_week": 26.63
+          }
+        ]
+      },
+      {
+        "transaction_id": "id_trjqa4whel",
+        "trade_week": 1,
+        "weeks_since": 9,
+        "leader": "7",
+        "sides": [
+          {
+            "roster_id": "2",
+            "players": [
+              {
+                "player_id": "11631",
+                "points_per_week": 9.87
+              }
+            ],
+            "points_per_week": 9.87
+          },
+          {
+            "roster_id": "7",
+            "players": [
+              {
+                "player_id": "11624",
+                "points_per_week": 7.59
+              },
+              {
+                "player_id": "12641",
+                "points_per_week": 7.19
+              }
+            ],
+            "points_per_week": 14.78
+          }
+        ]
+      },
+      {
+        "transaction_id": "id_v1ez6kv25w",
+        "trade_week": 1,
+        "weeks_since": 9,
+        "leader": "9",
+        "sides": [
+          {
+            "roster_id": "2",
+            "players": [],
+            "points_per_week": 0.0
+          },
+          {
+            "roster_id": "9",
+            "players": [
+              {
+                "player_id": "6151",
+                "points_per_week": 2.94
+              },
+              {
+                "player_id": "11577",
+                "points_per_week": 2.95
+              }
+            ],
+            "points_per_week": 5.89
+          }
+        ]
+      },
+      {
+        "transaction_id": "id_w6myy0p5cs",
+        "trade_week": 1,
+        "weeks_since": 9,
+        "leader": "11",
+        "sides": [
+          {
+            "roster_id": "2",
+            "players": [],
+            "points_per_week": 0.0
+          },
+          {
+            "roster_id": "11",
+            "players": [
+              {
+                "player_id": "11584",
+                "points_per_week": 8.69
+              }
+            ],
+            "points_per_week": 8.69
+          }
+        ]
+      },
+      {
+        "transaction_id": "id_w9gjzbeaiy",
+        "trade_week": 1,
+        "weeks_since": 9,
+        "leader": "2",
+        "sides": [
+          {
+            "roster_id": "2",
+            "players": [
+              {
+                "player_id": "5870",
+                "points_per_week": 24.85
+              }
+            ],
+            "points_per_week": 24.85
+          },
+          {
+            "roster_id": "4",
+            "players": [
+              {
+                "player_id": "12496",
+                "points_per_week": 1.0
+              }
+            ],
+            "points_per_week": 1.0
+          }
+        ]
+      },
+      {
+        "transaction_id": "id_xi4lzdsdgl",
+        "trade_week": 1,
+        "weeks_since": 9,
+        "leader": "4",
+        "sides": [
+          {
+            "roster_id": "2",
+            "players": [],
+            "points_per_week": 0.0
+          },
+          {
+            "roster_id": "4",
+            "players": [
+              {
+                "player_id": "11435",
+                "points_per_week": 4.51
+              }
+            ],
+            "points_per_week": 4.51
+          }
+        ]
+      },
+      {
+        "transaction_id": "id_xqvhcgfvz2",
+        "trade_week": 1,
+        "weeks_since": 9,
+        "leader": "5",
+        "sides": [
+          {
+            "roster_id": "1",
+            "players": [
+              {
+                "player_id": "11630",
+                "points_per_week": 4.6
+              }
+            ],
+            "points_per_week": 4.6
+          },
+          {
+            "roster_id": "5",
+            "players": [
+              {
+                "player_id": "4035",
+                "points_per_week": 10.91
+              },
+              {
+                "player_id": "8228",
+                "points_per_week": 12.96
+              },
+              {
+                "player_id": "11557",
+                "points_per_week": 0.92
+              }
+            ],
+            "points_per_week": 24.79
+          }
+        ]
+      },
+      {
+        "transaction_id": "id_xugvpwkcu4",
+        "trade_week": 1,
+        "weeks_since": 9,
+        "leader": "11",
+        "sides": [
+          {
+            "roster_id": "2",
+            "players": [],
+            "points_per_week": 0.0
+          },
+          {
+            "roster_id": "11",
+            "players": [
+              {
+                "player_id": "11834",
+                "points_per_week": 1.65
+              }
+            ],
+            "points_per_week": 1.65
+          }
+        ]
+      }
+    ]
   },
   "leaders": {
     "week_high_player": {

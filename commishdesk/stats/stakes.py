@@ -75,6 +75,7 @@ __all__ = [
     "NextWeekCard",
     "NextWeekSide",
     "compute_next_week",
+    "roster_eliminated",
 ]
 
 #: The stakes tags, in the order a matchup emits their union. The order is the
@@ -312,6 +313,14 @@ def _outlooks(week: WeekModel, league: LeagueModel, standings: Standings) -> dic
             clinched_division=clinched_division,
         )
     return outlooks
+
+
+def roster_eliminated(week: WeekModel, league: LeagueModel, standings: Standings) -> dict[str, bool]:
+    """Whether each roster is mathematically out of the playoff race (the conservative
+    ``eliminated`` outlook of :func:`compute_next_week`), keyed by ``roster_id``. Empty when the
+    league declares no rosters; every value ``False`` when it declares no playoff format or
+    ``playoff_week_start``."""
+    return {roster_id: outlook.eliminated for roster_id, outlook in _outlooks(week, league, standings).items()}
 
 
 def _union_tags(outlooks: dict[str, _Outlook], roster_ids: tuple[str, ...]) -> list[str]:

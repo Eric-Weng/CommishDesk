@@ -71,7 +71,7 @@ makes no network call. The one thing it does raise is
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 
 from pydantic import BaseModel, ConfigDict
 
@@ -84,6 +84,7 @@ __all__ = [
     "LineupSlot",
     "TeamLineup",
     "WeeklyLineups",
+    "best_lineup_total",
     "compute_weekly_lineups",
 ]
 
@@ -339,6 +340,22 @@ def _solve(eligibility: list[list[str]], candidates: list[tuple[str, str, float]
         else:
             solved.append((None, 0.0))
     return solved
+
+
+def best_lineup_total(league: LeagueModel, candidates: Sequence[tuple[str, str, float]]) -> float:
+    """The highest-scoring legal lineup total for ``(player_id, position, points)``
+    *candidates* under ``league.format.roster_slots`` (the same eligibility and
+    assignment solve as :func:`compute_weekly_lineups`). An empty slot scores ``0.0``.
+    Candidates are put in the canonical ``(-points, player_id)`` order first, so
+    equal inputs always give an equal total. Raises
+    :class:`~commishdesk.errors.OptimalLineupError` for a malformed ``roster_slots``."""
+    _, eligibility = _slot_eligibility(league)
+    placeable = {position for positions in eligibility for position in positions}
+    pool = sorted(
+        ((pid, str(pos), float(points)) for pid, pos, points in candidates if str(pos) in placeable),
+        key=lambda row: (-row[2], row[0]),
+    )
+    return round(sum(points for _, points in _solve(eligibility, pool)), 2)
 
 
 # --------------------------------------------------------------------------- #

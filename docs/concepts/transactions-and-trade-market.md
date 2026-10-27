@@ -4,7 +4,9 @@ kind: stat
 title: Transactions and the trade market
 schema_min: 0.5.0
 facts_keys:
-  - weekly.transactions
+  - weekly.transactions.this_week
+  - weekly.transactions.recent_trades
+  - weekly.transactions.market_note
 fixture: facts/expected-weekly-facts-week10.json
 source: commishdesk/stats/transactions.py::_market_note
 ---

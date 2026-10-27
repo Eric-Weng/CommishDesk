@@ -201,7 +201,7 @@ def _synthetic(
 def test_week10_build_validates_and_has_twelve_teams() -> None:
     doc = _week10_facts()
     assert isinstance(doc, WeeklyFacts)
-    assert doc.schema_version == "0.10.0" == SCHEMA_VERSION
+    assert doc.schema_version == "0.11.0" == SCHEMA_VERSION
     assert doc.issue_type == "weekly"
     assert doc.week == 10
     assert len(doc.teams) == 12

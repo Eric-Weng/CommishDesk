@@ -1,6 +1,6 @@
 {
   "_derived_from": "Story 5.16 oracle. build_weekly_facts() over week01-openers.json (the anonymized Week-1 fixture); generated_at pinned to '2026-09-07T00:00:00Z'; nfl_byes_next_week=None.",
-  "schema_version": "0.10.0",
+  "schema_version": "0.11.0",
   "generated_at": "2026-09-07T00:00:00Z",
   "provisional": true,
   "issue_type": "weekly",
@@ -6809,7 +6809,1408 @@
       "last_trade_week": 1,
       "weeks_since_last_trade": 0,
       "complete": true
-    }
+    },
+    "trade_grades": [
+      {
+        "transaction_id": "id_63h578wbfb",
+        "week": 1,
+        "status": "ungraded",
+        "reason": "no_snapshot",
+        "dynasty": false,
+        "source": null,
+        "fair_band": null,
+        "context": null,
+        "eliminated_roster_ids": [],
+        "sides": [
+          {
+            "roster_id": "2",
+            "assets": [],
+            "ungraded": [
+              {
+                "kind": "player",
+                "reason": "no_snapshot",
+                "player_id": "4035",
+                "pick_season": null,
+                "pick_round": null,
+                "pick_from_roster_id": null,
+                "faab": null
+              },
+              {
+                "kind": "pick",
+                "reason": "no_snapshot",
+                "player_id": null,
+                "pick_season": "2027",
+                "pick_round": 3,
+                "pick_from_roster_id": "5",
+                "faab": null
+              }
+            ],
+            "this_season_total": null,
+            "future_total": null,
+            "lineup_impact": null,
+            "verdicts": []
+          },
+          {
+            "roster_id": "5",
+            "assets": [],
+            "ungraded": [
+              {
+                "kind": "player",
+                "reason": "no_snapshot",
+                "player_id": "12455",
+                "pick_season": null,
+                "pick_round": null,
+                "pick_from_roster_id": null,
+                "faab": null
+              },
+              {
+                "kind": "player",
+                "reason": "no_snapshot",
+                "player_id": "12474",
+                "pick_season": null,
+                "pick_round": null,
+                "pick_from_roster_id": null,
+                "faab": null
+              },
+              {
+                "kind": "pick",
+                "reason": "no_snapshot",
+                "player_id": null,
+                "pick_season": "2026",
+                "pick_round": 3,
+                "pick_from_roster_id": "11",
+                "faab": null
+              }
+            ],
+            "this_season_total": null,
+            "future_total": null,
+            "lineup_impact": null,
+            "verdicts": []
+          }
+        ]
+      },
+      {
+        "transaction_id": "id_9i3saglz3b",
+        "week": 1,
+        "status": "ungraded",
+        "reason": "no_snapshot",
+        "dynasty": false,
+        "source": null,
+        "fair_band": null,
+        "context": null,
+        "eliminated_roster_ids": [],
+        "sides": [
+          {
+            "roster_id": "5",
+            "assets": [],
+            "ungraded": [
+              {
+                "kind": "player",
+                "reason": "no_snapshot",
+                "player_id": "8136",
+                "pick_season": null,
+                "pick_round": null,
+                "pick_from_roster_id": null,
+                "faab": null
+              }
+            ],
+            "this_season_total": null,
+            "future_total": null,
+            "lineup_impact": null,
+            "verdicts": []
+          },
+          {
+            "roster_id": "7",
+            "assets": [],
+            "ungraded": [
+              {
+                "kind": "pick",
+                "reason": "no_snapshot",
+                "player_id": null,
+                "pick_season": "2026",
+                "pick_round": 2,
+                "pick_from_roster_id": "5",
+                "faab": null
+              }
+            ],
+            "this_season_total": null,
+            "future_total": null,
+            "lineup_impact": null,
+            "verdicts": []
+          }
+        ]
+      },
+      {
+        "transaction_id": "id_dm908n9a14",
+        "week": 1,
+        "status": "ungraded",
+        "reason": "no_snapshot",
+        "dynasty": false,
+        "source": null,
+        "fair_band": null,
+        "context": null,
+        "eliminated_roster_ids": [],
+        "sides": [
+          {
+            "roster_id": "6",
+            "assets": [],
+            "ungraded": [
+              {
+                "kind": "pick",
+                "reason": "no_snapshot",
+                "player_id": null,
+                "pick_season": "2025",
+                "pick_round": 1,
+                "pick_from_roster_id": "8",
+                "faab": null
+              }
+            ],
+            "this_season_total": null,
+            "future_total": null,
+            "lineup_impact": null,
+            "verdicts": []
+          },
+          {
+            "roster_id": "8",
+            "assets": [],
+            "ungraded": [
+              {
+                "kind": "player",
+                "reason": "no_snapshot",
+                "player_id": "11564",
+                "pick_season": null,
+                "pick_round": null,
+                "pick_from_roster_id": null,
+                "faab": null
+              }
+            ],
+            "this_season_total": null,
+            "future_total": null,
+            "lineup_impact": null,
+            "verdicts": []
+          }
+        ]
+      },
+      {
+        "transaction_id": "id_ek6q8so2a7",
+        "week": 1,
+        "status": "ungraded",
+        "reason": "no_snapshot",
+        "dynasty": false,
+        "source": null,
+        "fair_band": null,
+        "context": null,
+        "eliminated_roster_ids": [],
+        "sides": [
+          {
+            "roster_id": "1",
+            "assets": [],
+            "ungraded": [
+              {
+                "kind": "pick",
+                "reason": "no_snapshot",
+                "player_id": null,
+                "pick_season": "2025",
+                "pick_round": 3,
+                "pick_from_roster_id": "11",
+                "faab": null
+              },
+              {
+                "kind": "pick",
+                "reason": "no_snapshot",
+                "player_id": null,
+                "pick_season": "2026",
+                "pick_round": 3,
+                "pick_from_roster_id": "11",
+                "faab": null
+              }
+            ],
+            "this_season_total": null,
+            "future_total": null,
+            "lineup_impact": null,
+            "verdicts": []
+          },
+          {
+            "roster_id": "11",
+            "assets": [],
+            "ungraded": [
+              {
+                "kind": "pick",
+                "reason": "no_snapshot",
+                "player_id": null,
+                "pick_season": "2025",
+                "pick_round": 2,
+                "pick_from_roster_id": "3",
+                "faab": null
+              }
+            ],
+            "this_season_total": null,
+            "future_total": null,
+            "lineup_impact": null,
+            "verdicts": []
+          }
+        ]
+      },
+      {
+        "transaction_id": "id_epcxqb37g6",
+        "week": 1,
+        "status": "ungraded",
+        "reason": "no_snapshot",
+        "dynasty": false,
+        "source": null,
+        "fair_band": null,
+        "context": null,
+        "eliminated_roster_ids": [],
+        "sides": [
+          {
+            "roster_id": "2",
+            "assets": [],
+            "ungraded": [
+              {
+                "kind": "pick",
+                "reason": "no_snapshot",
+                "player_id": null,
+                "pick_season": "2025",
+                "pick_round": 4,
+                "pick_from_roster_id": "10",
+                "faab": null
+              }
+            ],
+            "this_season_total": null,
+            "future_total": null,
+            "lineup_impact": null,
+            "verdicts": []
+          },
+          {
+            "roster_id": "10",
+            "assets": [],
+            "ungraded": [
+              {
+                "kind": "player",
+                "reason": "no_snapshot",
+                "player_id": "4234",
+                "pick_season": null,
+                "pick_round": null,
+                "pick_from_roster_id": null,
+                "faab": null
+              },
+              {
+                "kind": "faab",
+                "reason": "faab",
+                "player_id": null,
+                "pick_season": null,
+                "pick_round": null,
+                "pick_from_roster_id": null,
+                "faab": 20
+              }
+            ],
+            "this_season_total": null,
+            "future_total": null,
+            "lineup_impact": null,
+            "verdicts": []
+          }
+        ]
+      },
+      {
+        "transaction_id": "id_etmpxu69oq",
+        "week": 1,
+        "status": "ungraded",
+        "reason": "no_snapshot",
+        "dynasty": false,
+        "source": null,
+        "fair_band": null,
+        "context": null,
+        "eliminated_roster_ids": [],
+        "sides": [
+          {
+            "roster_id": "1",
+            "assets": [],
+            "ungraded": [
+              {
+                "kind": "player",
+                "reason": "no_snapshot",
+                "player_id": "9997",
+                "pick_season": null,
+                "pick_round": null,
+                "pick_from_roster_id": null,
+                "faab": null
+              }
+            ],
+            "this_season_total": null,
+            "future_total": null,
+            "lineup_impact": null,
+            "verdicts": []
+          },
+          {
+            "roster_id": "11",
+            "assets": [],
+            "ungraded": [
+              {
+                "kind": "pick",
+                "reason": "no_snapshot",
+                "player_id": null,
+                "pick_season": "2025",
+                "pick_round": 1,
+                "pick_from_roster_id": "1",
+                "faab": null
+              }
+            ],
+            "this_season_total": null,
+            "future_total": null,
+            "lineup_impact": null,
+            "verdicts": []
+          }
+        ]
+      },
+      {
+        "transaction_id": "id_ff34hqrzxc",
+        "week": 1,
+        "status": "ungraded",
+        "reason": "no_snapshot",
+        "dynasty": false,
+        "source": null,
+        "fair_band": null,
+        "context": null,
+        "eliminated_roster_ids": [],
+        "sides": [
+          {
+            "roster_id": "2",
+            "assets": [],
+            "ungraded": [
+              {
+                "kind": "pick",
+                "reason": "no_snapshot",
+                "player_id": null,
+                "pick_season": "2025",
+                "pick_round": 4,
+                "pick_from_roster_id": "3",
+                "faab": null
+              }
+            ],
+            "this_season_total": null,
+            "future_total": null,
+            "lineup_impact": null,
+            "verdicts": []
+          },
+          {
+            "roster_id": "3",
+            "assets": [],
+            "ungraded": [
+              {
+                "kind": "player",
+                "reason": "no_snapshot",
+                "player_id": "6039",
+                "pick_season": null,
+                "pick_round": null,
+                "pick_from_roster_id": null,
+                "faab": null
+              }
+            ],
+            "this_season_total": null,
+            "future_total": null,
+            "lineup_impact": null,
+            "verdicts": []
+          }
+        ]
+      },
+      {
+        "transaction_id": "id_g62mq6vxr8",
+        "week": 1,
+        "status": "ungraded",
+        "reason": "no_snapshot",
+        "dynasty": false,
+        "source": null,
+        "fair_band": null,
+        "context": null,
+        "eliminated_roster_ids": [],
+        "sides": [
+          {
+            "roster_id": "2",
+            "assets": [],
+            "ungraded": [
+              {
+                "kind": "pick",
+                "reason": "no_snapshot",
+                "player_id": null,
+                "pick_season": "2025",
+                "pick_round": 4,
+                "pick_from_roster_id": "7",
+                "faab": null
+              }
+            ],
+            "this_season_total": null,
+            "future_total": null,
+            "lineup_impact": null,
+            "verdicts": []
+          },
+          {
+            "roster_id": "7",
+            "assets": [],
+            "ungraded": [
+              {
+                "kind": "player",
+                "reason": "no_snapshot",
+                "player_id": "3286",
+                "pick_season": null,
+                "pick_round": null,
+                "pick_from_roster_id": null,
+                "faab": null
+              }
+            ],
+            "this_season_total": null,
+            "future_total": null,
+            "lineup_impact": null,
+            "verdicts": []
+          }
+        ]
+      },
+      {
+        "transaction_id": "id_gdruqdii4p",
+        "week": 1,
+        "status": "ungraded",
+        "reason": "no_snapshot",
+        "dynasty": false,
+        "source": null,
+        "fair_band": null,
+        "context": null,
+        "eliminated_roster_ids": [],
+        "sides": [
+          {
+            "roster_id": "1",
+            "assets": [],
+            "ungraded": [
+              {
+                "kind": "pick",
+                "reason": "no_snapshot",
+                "player_id": null,
+                "pick_season": "2025",
+                "pick_round": 3,
+                "pick_from_roster_id": "10",
+                "faab": null
+              }
+            ],
+            "this_season_total": null,
+            "future_total": null,
+            "lineup_impact": null,
+            "verdicts": []
+          },
+          {
+            "roster_id": "10",
+            "assets": [],
+            "ungraded": [
+              {
+                "kind": "player",
+                "reason": "no_snapshot",
+                "player_id": "5937",
+                "pick_season": null,
+                "pick_round": null,
+                "pick_from_roster_id": null,
+                "faab": null
+              },
+              {
+                "kind": "faab",
+                "reason": "faab",
+                "player_id": null,
+                "pick_season": null,
+                "pick_round": null,
+                "pick_from_roster_id": null,
+                "faab": 10
+              }
+            ],
+            "this_season_total": null,
+            "future_total": null,
+            "lineup_impact": null,
+            "verdicts": []
+          }
+        ]
+      },
+      {
+        "transaction_id": "id_gkdf6s9k88",
+        "week": 1,
+        "status": "ungraded",
+        "reason": "no_snapshot",
+        "dynasty": false,
+        "source": null,
+        "fair_band": null,
+        "context": null,
+        "eliminated_roster_ids": [],
+        "sides": [
+          {
+            "roster_id": "2",
+            "assets": [],
+            "ungraded": [
+              {
+                "kind": "pick",
+                "reason": "no_snapshot",
+                "player_id": null,
+                "pick_season": "2026",
+                "pick_round": 5,
+                "pick_from_roster_id": "9",
+                "faab": null
+              }
+            ],
+            "this_season_total": null,
+            "future_total": null,
+            "lineup_impact": null,
+            "verdicts": []
+          },
+          {
+            "roster_id": "9",
+            "assets": [],
+            "ungraded": [
+              {
+                "kind": "player",
+                "reason": "no_snapshot",
+                "player_id": "3271",
+                "pick_season": null,
+                "pick_round": null,
+                "pick_from_roster_id": null,
+                "faab": null
+              }
+            ],
+            "this_season_total": null,
+            "future_total": null,
+            "lineup_impact": null,
+            "verdicts": []
+          }
+        ]
+      },
+      {
+        "transaction_id": "id_h69ubqcbrt",
+        "week": 1,
+        "status": "ungraded",
+        "reason": "no_snapshot",
+        "dynasty": false,
+        "source": null,
+        "fair_band": null,
+        "context": null,
+        "eliminated_roster_ids": [],
+        "sides": [
+          {
+            "roster_id": "1",
+            "assets": [],
+            "ungraded": [
+              {
+                "kind": "player",
+                "reason": "no_snapshot",
+                "player_id": "11638",
+                "pick_season": null,
+                "pick_round": null,
+                "pick_from_roster_id": null,
+                "faab": null
+              },
+              {
+                "kind": "pick",
+                "reason": "no_snapshot",
+                "player_id": null,
+                "pick_season": "2027",
+                "pick_round": 2,
+                "pick_from_roster_id": "2",
+                "faab": null
+              }
+            ],
+            "this_season_total": null,
+            "future_total": null,
+            "lineup_impact": null,
+            "verdicts": []
+          },
+          {
+            "roster_id": "2",
+            "assets": [],
+            "ungraded": [
+              {
+                "kind": "player",
+                "reason": "no_snapshot",
+                "player_id": "11624",
+                "pick_season": null,
+                "pick_round": null,
+                "pick_from_roster_id": null,
+                "faab": null
+              },
+              {
+                "kind": "pick",
+                "reason": "no_snapshot",
+                "player_id": null,
+                "pick_season": "2026",
+                "pick_round": 3,
+                "pick_from_roster_id": "11",
+                "faab": null
+              }
+            ],
+            "this_season_total": null,
+            "future_total": null,
+            "lineup_impact": null,
+            "verdicts": []
+          }
+        ]
+      },
+      {
+        "transaction_id": "id_hi7l0pxxwu",
+        "week": 1,
+        "status": "ungraded",
+        "reason": "no_snapshot",
+        "dynasty": false,
+        "source": null,
+        "fair_band": null,
+        "context": null,
+        "eliminated_roster_ids": [],
+        "sides": [
+          {
+            "roster_id": "1",
+            "assets": [],
+            "ungraded": [
+              {
+                "kind": "pick",
+                "reason": "no_snapshot",
+                "player_id": null,
+                "pick_season": "2027",
+                "pick_round": 1,
+                "pick_from_roster_id": "4",
+                "faab": null
+              }
+            ],
+            "this_season_total": null,
+            "future_total": null,
+            "lineup_impact": null,
+            "verdicts": []
+          },
+          {
+            "roster_id": "4",
+            "assets": [],
+            "ungraded": [
+              {
+                "kind": "player",
+                "reason": "no_snapshot",
+                "player_id": "6768",
+                "pick_season": null,
+                "pick_round": null,
+                "pick_from_roster_id": null,
+                "faab": null
+              }
+            ],
+            "this_season_total": null,
+            "future_total": null,
+            "lineup_impact": null,
+            "verdicts": []
+          }
+        ]
+      },
+      {
+        "transaction_id": "id_jpvgl1e130",
+        "week": 1,
+        "status": "ungraded",
+        "reason": "no_snapshot",
+        "dynasty": false,
+        "source": null,
+        "fair_band": null,
+        "context": null,
+        "eliminated_roster_ids": [],
+        "sides": [
+          {
+            "roster_id": "1",
+            "assets": [],
+            "ungraded": [
+              {
+                "kind": "player",
+                "reason": "no_snapshot",
+                "player_id": "9488",
+                "pick_season": null,
+                "pick_round": null,
+                "pick_from_roster_id": null,
+                "faab": null
+              },
+              {
+                "kind": "pick",
+                "reason": "no_snapshot",
+                "player_id": null,
+                "pick_season": "2027",
+                "pick_round": 1,
+                "pick_from_roster_id": "9",
+                "faab": null
+              }
+            ],
+            "this_season_total": null,
+            "future_total": null,
+            "lineup_impact": null,
+            "verdicts": []
+          },
+          {
+            "roster_id": "9",
+            "assets": [],
+            "ungraded": [
+              {
+                "kind": "player",
+                "reason": "no_snapshot",
+                "player_id": "8137",
+                "pick_season": null,
+                "pick_round": null,
+                "pick_from_roster_id": null,
+                "faab": null
+              },
+              {
+                "kind": "player",
+                "reason": "no_snapshot",
+                "player_id": "11635",
+                "pick_season": null,
+                "pick_round": null,
+                "pick_from_roster_id": null,
+                "faab": null
+              }
+            ],
+            "this_season_total": null,
+            "future_total": null,
+            "lineup_impact": null,
+            "verdicts": []
+          }
+        ]
+      },
+      {
+        "transaction_id": "id_pibb8uvime",
+        "week": 1,
+        "status": "ungraded",
+        "reason": "no_snapshot",
+        "dynasty": false,
+        "source": null,
+        "fair_band": null,
+        "context": null,
+        "eliminated_roster_ids": [],
+        "sides": [
+          {
+            "roster_id": "5",
+            "assets": [],
+            "ungraded": [
+              {
+                "kind": "pick",
+                "reason": "no_snapshot",
+                "player_id": null,
+                "pick_season": "2026",
+                "pick_round": 4,
+                "pick_from_roster_id": "8",
+                "faab": null
+              }
+            ],
+            "this_season_total": null,
+            "future_total": null,
+            "lineup_impact": null,
+            "verdicts": []
+          },
+          {
+            "roster_id": "8",
+            "assets": [],
+            "ungraded": [
+              {
+                "kind": "pick",
+                "reason": "no_snapshot",
+                "player_id": null,
+                "pick_season": "2025",
+                "pick_round": 5,
+                "pick_from_roster_id": "5",
+                "faab": null
+              }
+            ],
+            "this_season_total": null,
+            "future_total": null,
+            "lineup_impact": null,
+            "verdicts": []
+          }
+        ]
+      },
+      {
+        "transaction_id": "id_qfujz0ft94",
+        "week": 1,
+        "status": "ungraded",
+        "reason": "no_snapshot",
+        "dynasty": false,
+        "source": null,
+        "fair_band": null,
+        "context": null,
+        "eliminated_roster_ids": [],
+        "sides": [
+          {
+            "roster_id": "1",
+            "assets": [],
+            "ungraded": [
+              {
+                "kind": "pick",
+                "reason": "no_snapshot",
+                "player_id": null,
+                "pick_season": "2025",
+                "pick_round": 2,
+                "pick_from_roster_id": "3",
+                "faab": null
+              }
+            ],
+            "this_season_total": null,
+            "future_total": null,
+            "lineup_impact": null,
+            "verdicts": []
+          },
+          {
+            "roster_id": "3",
+            "assets": [],
+            "ungraded": [
+              {
+                "kind": "player",
+                "reason": "no_snapshot",
+                "player_id": "5012",
+                "pick_season": null,
+                "pick_round": null,
+                "pick_from_roster_id": null,
+                "faab": null
+              }
+            ],
+            "this_season_total": null,
+            "future_total": null,
+            "lineup_impact": null,
+            "verdicts": []
+          }
+        ]
+      },
+      {
+        "transaction_id": "id_r1q4zerqrv",
+        "week": 1,
+        "status": "ungraded",
+        "reason": "no_snapshot",
+        "dynasty": false,
+        "source": null,
+        "fair_band": null,
+        "context": null,
+        "eliminated_roster_ids": [],
+        "sides": [
+          {
+            "roster_id": "2",
+            "assets": [],
+            "ungraded": [
+              {
+                "kind": "player",
+                "reason": "no_snapshot",
+                "player_id": "8137",
+                "pick_season": null,
+                "pick_round": null,
+                "pick_from_roster_id": null,
+                "faab": null
+              },
+              {
+                "kind": "player",
+                "reason": "no_snapshot",
+                "player_id": "8148",
+                "pick_season": null,
+                "pick_round": null,
+                "pick_from_roster_id": null,
+                "faab": null
+              },
+              {
+                "kind": "player",
+                "reason": "no_snapshot",
+                "player_id": "11625",
+                "pick_season": null,
+                "pick_round": null,
+                "pick_from_roster_id": null,
+                "faab": null
+              }
+            ],
+            "this_season_total": null,
+            "future_total": null,
+            "lineup_impact": null,
+            "verdicts": []
+          },
+          {
+            "roster_id": "9",
+            "assets": [],
+            "ungraded": [
+              {
+                "kind": "player",
+                "reason": "no_snapshot",
+                "player_id": "5846",
+                "pick_season": null,
+                "pick_round": null,
+                "pick_from_roster_id": null,
+                "faab": null
+              },
+              {
+                "kind": "player",
+                "reason": "no_snapshot",
+                "player_id": "9500",
+                "pick_season": null,
+                "pick_round": null,
+                "pick_from_roster_id": null,
+                "faab": null
+              },
+              {
+                "kind": "player",
+                "reason": "no_snapshot",
+                "player_id": "12492",
+                "pick_season": null,
+                "pick_round": null,
+                "pick_from_roster_id": null,
+                "faab": null
+              },
+              {
+                "kind": "pick",
+                "reason": "no_snapshot",
+                "player_id": null,
+                "pick_season": "2027",
+                "pick_round": 3,
+                "pick_from_roster_id": "5",
+                "faab": null
+              }
+            ],
+            "this_season_total": null,
+            "future_total": null,
+            "lineup_impact": null,
+            "verdicts": []
+          }
+        ]
+      },
+      {
+        "transaction_id": "id_trjqa4whel",
+        "week": 1,
+        "status": "ungraded",
+        "reason": "no_snapshot",
+        "dynasty": false,
+        "source": null,
+        "fair_band": null,
+        "context": null,
+        "eliminated_roster_ids": [],
+        "sides": [
+          {
+            "roster_id": "2",
+            "assets": [],
+            "ungraded": [
+              {
+                "kind": "player",
+                "reason": "no_snapshot",
+                "player_id": "11631",
+                "pick_season": null,
+                "pick_round": null,
+                "pick_from_roster_id": null,
+                "faab": null
+              }
+            ],
+            "this_season_total": null,
+            "future_total": null,
+            "lineup_impact": null,
+            "verdicts": []
+          },
+          {
+            "roster_id": "7",
+            "assets": [],
+            "ungraded": [
+              {
+                "kind": "player",
+                "reason": "no_snapshot",
+                "player_id": "11624",
+                "pick_season": null,
+                "pick_round": null,
+                "pick_from_roster_id": null,
+                "faab": null
+              },
+              {
+                "kind": "player",
+                "reason": "no_snapshot",
+                "player_id": "12641",
+                "pick_season": null,
+                "pick_round": null,
+                "pick_from_roster_id": null,
+                "faab": null
+              },
+              {
+                "kind": "pick",
+                "reason": "no_snapshot",
+                "player_id": null,
+                "pick_season": "2027",
+                "pick_round": 1,
+                "pick_from_roster_id": "2",
+                "faab": null
+              }
+            ],
+            "this_season_total": null,
+            "future_total": null,
+            "lineup_impact": null,
+            "verdicts": []
+          }
+        ]
+      },
+      {
+        "transaction_id": "id_v1ez6kv25w",
+        "week": 1,
+        "status": "ungraded",
+        "reason": "no_snapshot",
+        "dynasty": false,
+        "source": null,
+        "fair_band": null,
+        "context": null,
+        "eliminated_roster_ids": [],
+        "sides": [
+          {
+            "roster_id": "2",
+            "assets": [],
+            "ungraded": [
+              {
+                "kind": "pick",
+                "reason": "no_snapshot",
+                "player_id": null,
+                "pick_season": "2025",
+                "pick_round": 4,
+                "pick_from_roster_id": "9",
+                "faab": null
+              },
+              {
+                "kind": "pick",
+                "reason": "no_snapshot",
+                "player_id": null,
+                "pick_season": "2025",
+                "pick_round": 5,
+                "pick_from_roster_id": "9",
+                "faab": null
+              }
+            ],
+            "this_season_total": null,
+            "future_total": null,
+            "lineup_impact": null,
+            "verdicts": []
+          },
+          {
+            "roster_id": "9",
+            "assets": [],
+            "ungraded": [
+              {
+                "kind": "player",
+                "reason": "no_snapshot",
+                "player_id": "6151",
+                "pick_season": null,
+                "pick_round": null,
+                "pick_from_roster_id": null,
+                "faab": null
+              },
+              {
+                "kind": "player",
+                "reason": "no_snapshot",
+                "player_id": "11577",
+                "pick_season": null,
+                "pick_round": null,
+                "pick_from_roster_id": null,
+                "faab": null
+              }
+            ],
+            "this_season_total": null,
+            "future_total": null,
+            "lineup_impact": null,
+            "verdicts": []
+          }
+        ]
+      },
+      {
+        "transaction_id": "id_w6myy0p5cs",
+        "week": 1,
+        "status": "ungraded",
+        "reason": "no_snapshot",
+        "dynasty": false,
+        "source": null,
+        "fair_band": null,
+        "context": null,
+        "eliminated_roster_ids": [],
+        "sides": [
+          {
+            "roster_id": "2",
+            "assets": [],
+            "ungraded": [
+              {
+                "kind": "pick",
+                "reason": "no_snapshot",
+                "player_id": null,
+                "pick_season": "2025",
+                "pick_round": 1,
+                "pick_from_roster_id": "11",
+                "faab": null
+              }
+            ],
+            "this_season_total": null,
+            "future_total": null,
+            "lineup_impact": null,
+            "verdicts": []
+          },
+          {
+            "roster_id": "11",
+            "assets": [],
+            "ungraded": [
+              {
+                "kind": "player",
+                "reason": "no_snapshot",
+                "player_id": "11584",
+                "pick_season": null,
+                "pick_round": null,
+                "pick_from_roster_id": null,
+                "faab": null
+              },
+              {
+                "kind": "pick",
+                "reason": "no_snapshot",
+                "player_id": null,
+                "pick_season": "2026",
+                "pick_round": 1,
+                "pick_from_roster_id": "2",
+                "faab": null
+              },
+              {
+                "kind": "pick",
+                "reason": "no_snapshot",
+                "player_id": null,
+                "pick_season": "2026",
+                "pick_round": 3,
+                "pick_from_roster_id": "2",
+                "faab": null
+              }
+            ],
+            "this_season_total": null,
+            "future_total": null,
+            "lineup_impact": null,
+            "verdicts": []
+          }
+        ]
+      },
+      {
+        "transaction_id": "id_w9gjzbeaiy",
+        "week": 1,
+        "status": "ungraded",
+        "reason": "no_snapshot",
+        "dynasty": false,
+        "source": null,
+        "fair_band": null,
+        "context": null,
+        "eliminated_roster_ids": [],
+        "sides": [
+          {
+            "roster_id": "2",
+            "assets": [],
+            "ungraded": [
+              {
+                "kind": "player",
+                "reason": "no_snapshot",
+                "player_id": "5870",
+                "pick_season": null,
+                "pick_round": null,
+                "pick_from_roster_id": null,
+                "faab": null
+              }
+            ],
+            "this_season_total": null,
+            "future_total": null,
+            "lineup_impact": null,
+            "verdicts": []
+          },
+          {
+            "roster_id": "4",
+            "assets": [],
+            "ungraded": [
+              {
+                "kind": "player",
+                "reason": "no_snapshot",
+                "player_id": "12496",
+                "pick_season": null,
+                "pick_round": null,
+                "pick_from_roster_id": null,
+                "faab": null
+              },
+              {
+                "kind": "pick",
+                "reason": "no_snapshot",
+                "player_id": null,
+                "pick_season": "2027",
+                "pick_round": 3,
+                "pick_from_roster_id": "2",
+                "faab": null
+              }
+            ],
+            "this_season_total": null,
+            "future_total": null,
+            "lineup_impact": null,
+            "verdicts": []
+          }
+        ]
+      },
+      {
+        "transaction_id": "id_xi4lzdsdgl",
+        "week": 1,
+        "status": "ungraded",
+        "reason": "no_snapshot",
+        "dynasty": false,
+        "source": null,
+        "fair_band": null,
+        "context": null,
+        "eliminated_roster_ids": [],
+        "sides": [
+          {
+            "roster_id": "2",
+            "assets": [],
+            "ungraded": [
+              {
+                "kind": "pick",
+                "reason": "no_snapshot",
+                "player_id": null,
+                "pick_season": "2025",
+                "pick_round": 4,
+                "pick_from_roster_id": "4",
+                "faab": null
+              }
+            ],
+            "this_season_total": null,
+            "future_total": null,
+            "lineup_impact": null,
+            "verdicts": []
+          },
+          {
+            "roster_id": "4",
+            "assets": [],
+            "ungraded": [
+              {
+                "kind": "player",
+                "reason": "no_snapshot",
+                "player_id": "11435",
+                "pick_season": null,
+                "pick_round": null,
+                "pick_from_roster_id": null,
+                "faab": null
+              }
+            ],
+            "this_season_total": null,
+            "future_total": null,
+            "lineup_impact": null,
+            "verdicts": []
+          }
+        ]
+      },
+      {
+        "transaction_id": "id_xqvhcgfvz2",
+        "week": 1,
+        "status": "ungraded",
+        "reason": "no_snapshot",
+        "dynasty": false,
+        "source": null,
+        "fair_band": null,
+        "context": null,
+        "eliminated_roster_ids": [],
+        "sides": [
+          {
+            "roster_id": "1",
+            "assets": [],
+            "ungraded": [
+              {
+                "kind": "player",
+                "reason": "no_snapshot",
+                "player_id": "11630",
+                "pick_season": null,
+                "pick_round": null,
+                "pick_from_roster_id": null,
+                "faab": null
+              },
+              {
+                "kind": "pick",
+                "reason": "no_snapshot",
+                "player_id": null,
+                "pick_season": "2025",
+                "pick_round": 2,
+                "pick_from_roster_id": "5",
+                "faab": null
+              }
+            ],
+            "this_season_total": null,
+            "future_total": null,
+            "lineup_impact": null,
+            "verdicts": []
+          },
+          {
+            "roster_id": "5",
+            "assets": [],
+            "ungraded": [
+              {
+                "kind": "player",
+                "reason": "no_snapshot",
+                "player_id": "4035",
+                "pick_season": null,
+                "pick_round": null,
+                "pick_from_roster_id": null,
+                "faab": null
+              },
+              {
+                "kind": "player",
+                "reason": "no_snapshot",
+                "player_id": "8228",
+                "pick_season": null,
+                "pick_round": null,
+                "pick_from_roster_id": null,
+                "faab": null
+              },
+              {
+                "kind": "player",
+                "reason": "no_snapshot",
+                "player_id": "11557",
+                "pick_season": null,
+                "pick_round": null,
+                "pick_from_roster_id": null,
+                "faab": null
+              }
+            ],
+            "this_season_total": null,
+            "future_total": null,
+            "lineup_impact": null,
+            "verdicts": []
+          }
+        ]
+      },
+      {
+        "transaction_id": "id_xugvpwkcu4",
+        "week": 1,
+        "status": "ungraded",
+        "reason": "no_snapshot",
+        "dynasty": false,
+        "source": null,
+        "fair_band": null,
+        "context": null,
+        "eliminated_roster_ids": [],
+        "sides": [
+          {
+            "roster_id": "2",
+            "assets": [],
+            "ungraded": [
+              {
+                "kind": "pick",
+                "reason": "no_snapshot",
+                "player_id": null,
+                "pick_season": "2025",
+                "pick_round": 4,
+                "pick_from_roster_id": "11",
+                "faab": null
+              }
+            ],
+            "this_season_total": null,
+            "future_total": null,
+            "lineup_impact": null,
+            "verdicts": []
+          },
+          {
+            "roster_id": "11",
+            "assets": [],
+            "ungraded": [
+              {
+                "kind": "player",
+                "reason": "no_snapshot",
+                "player_id": "11834",
+                "pick_season": null,
+                "pick_round": null,
+                "pick_from_roster_id": null,
+                "faab": null
+              }
+            ],
+            "this_season_total": null,
+            "future_total": null,
+            "lineup_impact": null,
+            "verdicts": []
+          }
+        ]
+      }
+    ],
+    "trade_revisits": []
   },
   "leaders": {
     "week_high_player": {
