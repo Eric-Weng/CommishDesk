@@ -144,14 +144,22 @@ __all__ = [
     "WeeklyTeam",
     "WeeklyTeamGame",
     "WeeklyTeamNextWeek",
+    "WeeklyRevisitPlayer",
+    "WeeklyRevisitSide",
     "WeeklyTrade",
+    "WeeklyTradeAsset",
+    "WeeklyTradeGrade",
+    "WeeklyTradeRevisit",
     "WeeklyTradeSide",
+    "WeeklyTradeSideGrade",
+    "WeeklyTradeUngraded",
+    "WeeklyTradeVerdict",
     "WeeklyTransactions",
     "WeeklyWeekHighPlayer",
     "WeeklyWeekPoints",
 ]
 
-SCHEMA_VERSION = "0.10.0"
+SCHEMA_VERSION = "0.11.0"
 """Semver contract version. Additive key -> minor bump; shape change -> major.
 ``0.4.0`` -> ``0.5.0`` (Story 5.8): the empty ``WeeklyFacts`` placeholder becomes
 the real weekly document and its ``WeeklyNarration``; ``DraftRecapFacts.weekly``
@@ -164,7 +172,8 @@ adds ``StorylineCandidate.weeks_running`` additively. ``0.6.0`` -> ``0.7.0``
 ``WeeklyNarrationPlayoff.seeding_unconfirmed`` additively. ``0.8.0`` -> ``0.9.0``
 (Story 5B.3) adds ``WeeklyHistoryRow.published_rank`` additively. ``0.9.0`` ->
 ``0.10.0`` (weekly voice v3) adds ``WeeklyNarrationGame.top_team`` and
-``WeeklyNarration.printed_headline`` additively."""
+``WeeklyNarration.printed_headline`` additively. ``0.10.0`` -> ``0.11.0`` (Story 9.6)
+adds ``WeeklyTransactions.trade_grades`` and ``WeeklyTransactions.trade_revisits`` additively."""
 
 _ISSUE_TYPE: Literal["draft_recap"] = "draft_recap"
 _IssueType = Literal["draft_recap", "weekly"]
@@ -1138,12 +1147,111 @@ class WeeklyMarketNote(_Doc):
     complete: bool = False
 
 
+class WeeklyTradeAsset(_Doc):
+    """One valued asset a trade side receives (Story 9.6). ``value`` is its This season
+    value in points per week over replacement (``None`` for a pick), ``future`` its dynasty
+    Future value, ``est`` whether it rests on an estimate. Ids and numbers only."""
+
+    kind: Literal["player", "pick"]
+    player_id: str | None = None
+    pick_season: str | None = None
+    pick_round: int | None = None
+    pick_from_roster_id: str | None = None
+    value: float | None = None
+    future: float | None = None
+    est: bool = False
+
+
+class WeeklyTradeUngraded(_Doc):
+    """An asset listed but not graded. ``reason`` is one of ``faab``, ``not_valued``,
+    ``pick_not_priced``, ``redraft_pick``, ``no_snapshot``."""
+
+    kind: Literal["player", "pick", "faab"]
+    reason: str
+    player_id: str | None = None
+    pick_season: str | None = None
+    pick_round: int | None = None
+    pick_from_roster_id: str | None = None
+    faab: int | None = None
+
+
+class WeeklyTradeVerdict(_Doc):
+    """One side's verdict for a horizon (``this_season`` or ``future``): the letter and word on
+    the documented scale, the totals behind it, and ``ahead`` (``None`` when Even)."""
+
+    horizon: Literal["this_season", "future"]
+    total: float
+    counter_total: float
+    share: float
+    tier: Literal["even", "slight", "clear", "lopsided"]
+    letter: str
+    word: str
+    ahead: bool | None = None
+    est: bool = False
+
+
+class WeeklyTradeSideGrade(_Doc):
+    """One side of a graded trade: what it receives, what could not be graded, the totals,
+    the change in its best starting lineup (points per week), and its verdicts."""
+
+    roster_id: str
+    assets: list[WeeklyTradeAsset] = []
+    ungraded: list[WeeklyTradeUngraded] = []
+    this_season_total: float | None = None
+    future_total: float | None = None
+    lineup_impact: float | None = None
+    verdicts: list[WeeklyTradeVerdict] = []
+
+
+class WeeklyTradeGrade(_Doc):
+    """The grade of one trade settled in the issue week. ``status`` is ``graded`` or
+    ``ungraded`` (then ``reason`` says why and no side has a verdict). ``context`` is
+    ``contender_vs_eliminated`` when one side is out of the playoff race and another is not;
+    it never changes a grade."""
+
+    transaction_id: str
+    week: int
+    status: Literal["graded", "ungraded"]
+    reason: str | None = None
+    dynasty: bool = False
+    source: str | None = None
+    fair_band: float | None = None
+    context: str | None = None
+    eliminated_roster_ids: list[str] = []
+    sides: list[WeeklyTradeSideGrade] = []
+
+
+class WeeklyRevisitPlayer(_Doc):
+    """A received player's league points per week since the trade."""
+
+    player_id: str
+    points_per_week: float
+
+
+class WeeklyRevisitSide(_Doc):
+    roster_id: str
+    players: list[WeeklyRevisitPlayer] = []
+    points_per_week: float = 0.0
+
+
+class WeeklyTradeRevisit(_Doc):
+    """Numbers for a this-season trade at least three weeks old. ``leader`` is ``None`` on a tie."""
+
+    transaction_id: str
+    trade_week: int
+    weeks_since: int
+    leader: str | None = None
+    sides: list[WeeklyRevisitSide] = []
+
+
 class WeeklyTransactions(_Doc):
     """The transactions desk, with names."""
 
     this_week: list[WeeklyMove] = []
     recent_trades: list[WeeklyTrade] = []
     market_note: WeeklyMarketNote
+    trade_grades: list[WeeklyTradeGrade] = []
+    trade_revisits: list[WeeklyTradeRevisit] = []
 
 
 class WeeklyLeaderPlayer(_Doc):

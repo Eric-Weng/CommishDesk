@@ -48,6 +48,7 @@ _LINEUP_NAMES = frozenset(
         "LineupSlot",
         "TeamLineup",
         "WeeklyLineups",
+        "best_lineup_total",
         "compute_weekly_lineups",
     }
 )
@@ -86,6 +87,23 @@ _STAKES_NAMES = frozenset(
         "NextWeekCard",
         "NextWeekSide",
         "compute_next_week",
+        "roster_eliminated",
+    }
+)
+_TRADES_NAMES = frozenset(
+    {
+        "FAIR_BAND",
+        "FAIR_BAND_SLEEPER_ONLY",
+        "REVISIT_MIN_WEEKS",
+        "SCALE",
+        "TradeAsset",
+        "TradeGrade",
+        "TradeGrades",
+        "TradeRevisit",
+        "TradeSideGrade",
+        "UngradedAsset",
+        "Verdict",
+        "compute_trade_grades",
     }
 )
 _TRANSACTIONS_NAMES = frozenset(
@@ -123,6 +141,7 @@ __all__ = sorted(
     | _POWER_NAMES
     | _STAKES_NAMES
     | _STANDINGS_NAMES
+    | _TRADES_NAMES
     | _TRANSACTIONS_NAMES
     | _WEEKLY_NAMES
 )
@@ -152,6 +171,7 @@ if TYPE_CHECKING:
     from .lineup import LineupSlot as LineupSlot
     from .lineup import TeamLineup as TeamLineup
     from .lineup import WeeklyLineups as WeeklyLineups
+    from .lineup import best_lineup_total as best_lineup_total
     from .lineup import compute_weekly_lineups as compute_weekly_lineups
     from .power import POWER_NUDGE_CAP as POWER_NUDGE_CAP
     from .power import POWER_WEIGHTS as POWER_WEIGHTS
@@ -165,6 +185,7 @@ if TYPE_CHECKING:
     from .stakes import NextWeekCard as NextWeekCard
     from .stakes import NextWeekSide as NextWeekSide
     from .stakes import compute_next_week as compute_next_week
+    from .stakes import roster_eliminated as roster_eliminated
     from .standings import POINTS_FOR_ROUNDING_TOLERANCE as POINTS_FOR_ROUNDING_TOLERANCE
     from .standings import TIEBREAK as TIEBREAK
     from .standings import DivisionOrder as DivisionOrder
@@ -178,6 +199,18 @@ if TYPE_CHECKING:
     from .standings import compute_standings as compute_standings
     from .standings import cross_check_standings as cross_check_standings
     from .standings import regular_season_records as regular_season_records
+    from .trades import FAIR_BAND as FAIR_BAND
+    from .trades import FAIR_BAND_SLEEPER_ONLY as FAIR_BAND_SLEEPER_ONLY
+    from .trades import REVISIT_MIN_WEEKS as REVISIT_MIN_WEEKS
+    from .trades import SCALE as SCALE
+    from .trades import TradeAsset as TradeAsset
+    from .trades import TradeGrade as TradeGrade
+    from .trades import TradeGrades as TradeGrades
+    from .trades import TradeRevisit as TradeRevisit
+    from .trades import TradeSideGrade as TradeSideGrade
+    from .trades import UngradedAsset as UngradedAsset
+    from .trades import Verdict as Verdict
+    from .trades import compute_trade_grades as compute_trade_grades
     from .transactions import RECENT_TRADE_WEEKS as RECENT_TRADE_WEEKS
     from .transactions import MarketNote as MarketNote
     from .transactions import Move as Move
@@ -227,6 +260,10 @@ def __getattr__(name: str) -> object:
         from . import stakes
 
         return getattr(stakes, name)
+    if name in _TRADES_NAMES:
+        from . import trades
+
+        return getattr(trades, name)
     if name in _TRANSACTIONS_NAMES:
         from . import transactions
 

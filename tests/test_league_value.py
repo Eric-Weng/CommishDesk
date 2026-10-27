@@ -576,7 +576,10 @@ def test_the_weekly_build_attaches_the_snapshot_and_leaves_the_facts_unchanged(t
     assert on.league_value["players"] and on.league_value["replacement"]  # the hook fed real bundle data
     on_facts = {k: v for k, v in on.facts_json.items() if k != "generated_at"}
     off_facts = {k: v for k, v in off.facts_json.items() if k != "generated_at"}
-    assert _canon(on_facts) == _canon(off_facts)  # no facts key, no schema change
+    # Story 9.6: the snapshot now feeds exactly one Facts key, the week's trade grades.
+    assert all(g["status"] == "ungraded" for g in off_facts["transactions"].pop("trade_grades"))
+    on_facts["transactions"].pop("trade_grades")
+    assert _canon(on_facts) == _canon(off_facts)  # nothing else in the Facts reads the snapshot
     from commishdesk import demo_season
 
     key = lv.snapshot_cache_key(demo_season.DEMO_LEAGUE_ID, on.league_value["season"], 6)

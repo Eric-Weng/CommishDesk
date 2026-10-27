@@ -831,6 +831,7 @@ def compute_weekly_facts(
         previous_published_ranks=previous_published_ranks,
         playoff_seeding=seeding,
         recent_lead_kinds=recent_lead_kinds(store, league_id, week),
+        league_value=league_value,
     )
     return WeeklyFactsBuild(
         doc=doc,

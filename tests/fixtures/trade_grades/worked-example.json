@@ -1,0 +1,115 @@
+{
+  "transactions": {
+    "trade_grades": [
+      {
+        "transaction_id": "t_example",
+        "week": 8,
+        "status": "graded",
+        "reason": null,
+        "dynasty": true,
+        "source": "nflverse",
+        "fair_band": 0.05,
+        "context": null,
+        "eliminated_roster_ids": [],
+        "sides": [
+          {
+            "roster_id": "1",
+            "assets": [
+              {
+                "kind": "player",
+                "player_id": "rbA",
+                "pick_season": null,
+                "pick_round": null,
+                "pick_from_roster_id": null,
+                "value": 10.0,
+                "future": 12.0,
+                "est": false
+              }
+            ],
+            "ungraded": [],
+            "this_season_total": 10.0,
+            "future_total": 12.0,
+            "lineup_impact": 4.0,
+            "verdicts": [
+              {
+                "horizon": "this_season",
+                "total": 10.0,
+                "counter_total": 4.0,
+                "share": 0.4286,
+                "tier": "lopsided",
+                "letter": "A",
+                "word": "Lopsided",
+                "ahead": true,
+                "est": false
+              },
+              {
+                "horizon": "future",
+                "total": 12.0,
+                "counter_total": 11.0,
+                "share": 0.0435,
+                "tier": "even",
+                "letter": "B",
+                "word": "Even",
+                "ahead": null,
+                "est": false
+              }
+            ]
+          },
+          {
+            "roster_id": "2",
+            "assets": [
+              {
+                "kind": "player",
+                "player_id": "rbB",
+                "pick_season": null,
+                "pick_round": null,
+                "pick_from_roster_id": null,
+                "value": 4.0,
+                "future": 3.0,
+                "est": false
+              },
+              {
+                "kind": "pick",
+                "player_id": null,
+                "pick_season": "2027",
+                "pick_round": 1,
+                "pick_from_roster_id": "4",
+                "value": null,
+                "future": 8.0,
+                "est": true
+              }
+            ],
+            "ungraded": [],
+            "this_season_total": 4.0,
+            "future_total": 11.0,
+            "lineup_impact": -6.0,
+            "verdicts": [
+              {
+                "horizon": "this_season",
+                "total": 4.0,
+                "counter_total": 10.0,
+                "share": 0.4286,
+                "tier": "lopsided",
+                "letter": "D",
+                "word": "Far behind",
+                "ahead": false,
+                "est": false
+              },
+              {
+                "horizon": "future",
+                "total": 11.0,
+                "counter_total": 12.0,
+                "share": 0.0435,
+                "tier": "even",
+                "letter": "B",
+                "word": "Even",
+                "ahead": null,
+                "est": false
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -59,7 +59,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
 from datetime import datetime
-from typing import cast
+from typing import Any, cast
 
 from pydantic import ValidationError
 
@@ -75,6 +75,7 @@ from commishdesk.stats.standings import (
     compute_standings,
     regular_season_records,
 )
+from commishdesk.stats.trades import TradeGrades, compute_trade_grades
 from commishdesk.stats.transactions import TransactionsDesk, compute_transactions_desk
 from commishdesk.stats.weekly import (
     MEANINGFUL_FROM_WEEK,
@@ -135,6 +136,8 @@ from .schema import (
     WeeklyTeamGame,
     WeeklyTeamNextWeek,
     WeeklyTrade,
+    WeeklyTradeGrade,
+    WeeklyTradeRevisit,
     WeeklyTradeSide,
     WeeklyTransactions,
     WeeklyWeekHighPlayer,
@@ -277,6 +280,7 @@ def build_weekly_facts(
     previous_published_ranks: Mapping[int, Mapping[str, int]] | None = None,
     playoff_seeding: PlayoffSeeding | None = None,
     recent_lead_kinds: Sequence[str] = (),
+    league_value: Mapping[str, Any] | None = None,
 ) -> WeeklyFacts:
     """Merge the weekly stats modules into a validated :class:`WeeklyFacts`.
 
@@ -292,7 +296,10 @@ def build_weekly_facts(
     caller's optional confirm/override input, threaded through to
     ``compute_standings``. ``recent_lead_kinds`` (the angles the previous Issues
     led on, read by the caller from its Facts snapshots) lets the lead rotate; see
-    :func:`~commishdesk.facts.leads.build_weekly_lead_candidates`.
+    :func:`~commishdesk.facts.leads.build_weekly_lead_candidates`. ``league_value``
+    (Story 9.6) is the week's cached League Value snapshot as a plain mapping, or ``None``
+    when unavailable; the builder only *reads* it (no fetch), grading the issue week's trades
+    into ``transactions.trade_grades``.
 
     Raises
     :class:`~commishdesk.errors.SchemaValidationError` (chained from the
@@ -316,6 +323,7 @@ def build_weekly_facts(
             previous_published_ranks=previous_published_ranks,
             playoff_seeding=playoff_seeding,
             recent_lead_kinds=recent_lead_kinds,
+            league_value=league_value,
         )
     except (ValidationError, KeyError, AttributeError, TypeError, ValueError) as exc:
         raise SchemaValidationError(_violation_message(exc, document="weekly")) from exc
@@ -336,6 +344,7 @@ def _build(
     previous_published_ranks: Mapping[int, Mapping[str, int]] | None,
     playoff_seeding: PlayoffSeeding | None,
     recent_lead_kinds: Sequence[str],
+    league_value: Mapping[str, Any] | None = None,
 ) -> WeeklyFacts:
     weekly = compute_weekly_stats(week)
     lineups = compute_weekly_lineups(week, league, players, nfl_byes)
@@ -463,7 +472,9 @@ def _build(
 
     matchups_block = _matchups_block(week, weekly_by_roster, starters_by_roster, next_week, name_of, players)
     standings_block = _standings_block(standings, week)
-    transactions_block = _transactions_block(desk, name_of, players)
+    transactions_block = _transactions_block(
+        desk, name_of, players, compute_trade_grades(week, league, league_value, standings)
+    )
     leaders_block = _leaders(roster_ids, starters_by_roster, lineups_by_roster, week)
     period_block = _period_block(week, weekly, nfl_byes, nfl_byes_next_week)
 
@@ -1060,7 +1071,10 @@ def _playoff_picture(
 
 
 def _transactions_block(
-    desk: TransactionsDesk, name_of: Callable[[str], str], players: Mapping[str, PlayerSnapshot]
+    desk: TransactionsDesk,
+    name_of: Callable[[str], str],
+    players: Mapping[str, PlayerSnapshot],
+    graded: TradeGrades,
 ) -> WeeklyTransactions:
     moves: list[WeeklyMove] = []
     for move in desk.this_week:
@@ -1117,6 +1131,8 @@ def _transactions_block(
             weeks_since_last_trade=note.weeks_since_last_trade,
             complete=note.complete,
         ),
+        trade_grades=[WeeklyTradeGrade.model_validate(grade.model_dump()) for grade in graded.grades],
+        trade_revisits=[WeeklyTradeRevisit.model_validate(revisit.model_dump()) for revisit in graded.revisits],
     )
 
 

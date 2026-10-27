@@ -243,7 +243,7 @@
           "type": "boolean"
         },
         "schema_version": {
-          "default": "0.10.0",
+          "default": "0.11.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -2100,7 +2100,7 @@
           "type": "boolean"
         },
         "schema_version": {
-          "default": "0.10.0",
+          "default": "0.11.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -3872,6 +3872,51 @@
       "title": "WeeklyRecord",
       "type": "object"
     },
+    "WeeklyRevisitPlayer": {
+      "description": "A received player's league points per week since the trade.",
+      "properties": {
+        "player_id": {
+          "title": "Player Id",
+          "type": "string"
+        },
+        "points_per_week": {
+          "title": "Points Per Week",
+          "type": "number"
+        }
+      },
+      "required": [
+        "player_id",
+        "points_per_week"
+      ],
+      "title": "WeeklyRevisitPlayer",
+      "type": "object"
+    },
+    "WeeklyRevisitSide": {
+      "properties": {
+        "players": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WeeklyRevisitPlayer"
+          },
+          "title": "Players",
+          "type": "array"
+        },
+        "points_per_week": {
+          "default": 0.0,
+          "title": "Points Per Week",
+          "type": "number"
+        },
+        "roster_id": {
+          "title": "Roster Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "roster_id"
+      ],
+      "title": "WeeklyRevisitSide",
+      "type": "object"
+    },
     "WeeklySeason": {
       "description": "One roster's whole-season block: the head-to-head fold, the all-play\nfold, the model power rank, and the season-long coaching efficiency.",
       "properties": {
@@ -4432,6 +4477,242 @@
       "title": "WeeklyTrade",
       "type": "object"
     },
+    "WeeklyTradeAsset": {
+      "description": "One valued asset a trade side receives (Story 9.6). ``value`` is its This season\nvalue in points per week over replacement (``None`` for a pick), ``future`` its dynasty\nFuture value, ``est`` whether it rests on an estimate. Ids and numbers only.",
+      "properties": {
+        "est": {
+          "default": false,
+          "title": "Est",
+          "type": "boolean"
+        },
+        "future": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Future"
+        },
+        "kind": {
+          "enum": [
+            "player",
+            "pick"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "pick_from_roster_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pick From Roster Id"
+        },
+        "pick_round": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pick Round"
+        },
+        "pick_season": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pick Season"
+        },
+        "player_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Player Id"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "title": "WeeklyTradeAsset",
+      "type": "object"
+    },
+    "WeeklyTradeGrade": {
+      "description": "The grade of one trade settled in the issue week. ``status`` is ``graded`` or\n``ungraded`` (then ``reason`` says why and no side has a verdict). ``context`` is\n``contender_vs_eliminated`` when one side is out of the playoff race and another is not;\nit never changes a grade.",
+      "properties": {
+        "context": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Context"
+        },
+        "dynasty": {
+          "default": false,
+          "title": "Dynasty",
+          "type": "boolean"
+        },
+        "eliminated_roster_ids": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Eliminated Roster Ids",
+          "type": "array"
+        },
+        "fair_band": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fair Band"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        },
+        "sides": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WeeklyTradeSideGrade"
+          },
+          "title": "Sides",
+          "type": "array"
+        },
+        "source": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source"
+        },
+        "status": {
+          "enum": [
+            "graded",
+            "ungraded"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "transaction_id": {
+          "title": "Transaction Id",
+          "type": "string"
+        },
+        "week": {
+          "title": "Week",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "transaction_id",
+        "week",
+        "status"
+      ],
+      "title": "WeeklyTradeGrade",
+      "type": "object"
+    },
+    "WeeklyTradeRevisit": {
+      "description": "Numbers for a this-season trade at least three weeks old. ``leader`` is ``None`` on a tie.",
+      "properties": {
+        "leader": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Leader"
+        },
+        "sides": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WeeklyRevisitSide"
+          },
+          "title": "Sides",
+          "type": "array"
+        },
+        "trade_week": {
+          "title": "Trade Week",
+          "type": "integer"
+        },
+        "transaction_id": {
+          "title": "Transaction Id",
+          "type": "string"
+        },
+        "weeks_since": {
+          "title": "Weeks Since",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "transaction_id",
+        "trade_week",
+        "weeks_since"
+      ],
+      "title": "WeeklyTradeRevisit",
+      "type": "object"
+    },
     "WeeklyTradeSide": {
       "description": "One participating roster's receipts from a trade, with names.",
       "properties": {
@@ -4467,6 +4748,235 @@
       "title": "WeeklyTradeSide",
       "type": "object"
     },
+    "WeeklyTradeSideGrade": {
+      "description": "One side of a graded trade: what it receives, what could not be graded, the totals,\nthe change in its best starting lineup (points per week), and its verdicts.",
+      "properties": {
+        "assets": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WeeklyTradeAsset"
+          },
+          "title": "Assets",
+          "type": "array"
+        },
+        "future_total": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Future Total"
+        },
+        "lineup_impact": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lineup Impact"
+        },
+        "roster_id": {
+          "title": "Roster Id",
+          "type": "string"
+        },
+        "this_season_total": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "This Season Total"
+        },
+        "ungraded": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WeeklyTradeUngraded"
+          },
+          "title": "Ungraded",
+          "type": "array"
+        },
+        "verdicts": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WeeklyTradeVerdict"
+          },
+          "title": "Verdicts",
+          "type": "array"
+        }
+      },
+      "required": [
+        "roster_id"
+      ],
+      "title": "WeeklyTradeSideGrade",
+      "type": "object"
+    },
+    "WeeklyTradeUngraded": {
+      "description": "An asset listed but not graded. ``reason`` is one of ``faab``, ``not_valued``,\n``pick_not_priced``, ``redraft_pick``, ``no_snapshot``.",
+      "properties": {
+        "faab": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Faab"
+        },
+        "kind": {
+          "enum": [
+            "player",
+            "pick",
+            "faab"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "pick_from_roster_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pick From Roster Id"
+        },
+        "pick_round": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pick Round"
+        },
+        "pick_season": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pick Season"
+        },
+        "player_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Player Id"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "reason"
+      ],
+      "title": "WeeklyTradeUngraded",
+      "type": "object"
+    },
+    "WeeklyTradeVerdict": {
+      "description": "One side's verdict for a horizon (``this_season`` or ``future``): the letter and word on\nthe documented scale, the totals behind it, and ``ahead`` (``None`` when Even).",
+      "properties": {
+        "ahead": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ahead"
+        },
+        "counter_total": {
+          "title": "Counter Total",
+          "type": "number"
+        },
+        "est": {
+          "default": false,
+          "title": "Est",
+          "type": "boolean"
+        },
+        "horizon": {
+          "enum": [
+            "this_season",
+            "future"
+          ],
+          "title": "Horizon",
+          "type": "string"
+        },
+        "letter": {
+          "title": "Letter",
+          "type": "string"
+        },
+        "share": {
+          "title": "Share",
+          "type": "number"
+        },
+        "tier": {
+          "enum": [
+            "even",
+            "slight",
+            "clear",
+            "lopsided"
+          ],
+          "title": "Tier",
+          "type": "string"
+        },
+        "total": {
+          "title": "Total",
+          "type": "number"
+        },
+        "word": {
+          "title": "Word",
+          "type": "string"
+        }
+      },
+      "required": [
+        "horizon",
+        "total",
+        "counter_total",
+        "share",
+        "tier",
+        "letter",
+        "word"
+      ],
+      "title": "WeeklyTradeVerdict",
+      "type": "object"
+    },
     "WeeklyTransactions": {
       "description": "The transactions desk, with names.",
       "properties": {
@@ -4487,6 +4997,22 @@
             "$ref": "#/$defs/WeeklyMove"
           },
           "title": "This Week",
+          "type": "array"
+        },
+        "trade_grades": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WeeklyTradeGrade"
+          },
+          "title": "Trade Grades",
+          "type": "array"
+        },
+        "trade_revisits": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WeeklyTradeRevisit"
+          },
+          "title": "Trade Revisits",
           "type": "array"
         }
       },
