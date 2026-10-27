@@ -1,0 +1,620 @@
+{
+ "league": {
+  "league_id": "9001",
+  "roster_positions": [
+   "QB",
+   "RB",
+   "RB",
+   "WR",
+   "WR",
+   "TE",
+   "FLEX",
+   "K",
+   "DEF",
+   "BN",
+   "BN"
+  ],
+  "scoring_settings": {
+   "bonus_rec_te": 0.5,
+   "bonus_rush_yd_100": 2,
+   "fgm_0_19": 3,
+   "fum_lost": -2,
+   "pass_int": -2,
+   "pass_td": 4,
+   "pass_td_40p": 1,
+   "pass_yd": 0.04,
+   "pts_allow_0": 10,
+   "rec": 1,
+   "rec_40p": 1,
+   "rec_td": 6,
+   "rec_yd": 0.1,
+   "rush_40p": 1,
+   "rush_td": 6,
+   "rush_yd": 0.1,
+   "xpm": 1
+  },
+  "season": "2026",
+  "settings": {
+   "draft_rounds": 2,
+   "num_teams": 3,
+   "type": 0
+  }
+ },
+ "matchups": {
+  "1": [
+   {
+    "matchup_id": 1,
+    "players_points": {
+     "100": 21.8,
+     "101": 20.7,
+     "102": 19.6,
+     "103": 12.3,
+     "200": 21.0,
+     "201": 25.7,
+     "202": 15.4,
+     "203": 14.1,
+     "204": 17.8,
+     "205": 10.5,
+     "206": 8.2,
+     "207": 12.9,
+     "300": 16.8,
+     "301": 14.5,
+     "303": 11.9,
+     "304": 10.1,
+     "305": 9.3,
+     "306": 7.5,
+     "307": 6.7,
+     "400": 11.3,
+     "401": 8.6,
+     "402": 5.9,
+     "403": 5.3,
+     "700": 8.0,
+     "701": 6.0,
+     "702": 5.0,
+     "900": 0.0,
+     "901": 0.0,
+     "902": 0.0,
+     "NYA": 6.0,
+     "NYB": 4.0,
+     "NYC": 2.0
+    },
+    "roster_id": 1
+   }
+  ],
+  "2": [
+   {
+    "matchup_id": 1,
+    "players_points": {
+     "100": 23.8,
+     "101": 22.7,
+     "102": 21.6,
+     "103": 14.3,
+     "200": 19.3,
+     "201": 20.0,
+     "202": 21.7,
+     "203": 14.4,
+     "204": 12.1,
+     "205": 16.8,
+     "206": 8.5,
+     "207": 7.2,
+     "300": 15.4,
+     "301": 14.6,
+     "303": 12.0,
+     "304": 10.2,
+     "305": 9.4,
+     "306": 7.6,
+     "307": 6.8,
+     "400": 11.4,
+     "401": 8.7,
+     "402": 12.0,
+     "403": 5.4,
+     "700": 9.0,
+     "701": 7.0,
+     "702": 6.0,
+     "900": 0.0,
+     "901": 0.0,
+     "902": 8.0,
+     "NYA": 12.0,
+     "NYB": 5.0,
+     "NYC": 3.0
+    },
+    "roster_id": 1
+   }
+  ],
+  "3": [
+   {
+    "matchup_id": 1,
+    "players_points": {
+     "100": 21.8,
+     "101": 20.7,
+     "102": 19.6,
+     "103": 12.3,
+     "200": 27.6,
+     "201": 20.3,
+     "202": 18.0,
+     "203": 20.7,
+     "204": 12.4,
+     "205": 11.1,
+     "206": 14.8,
+     "207": 7.5,
+     "300": 15.5,
+     "301": 14.7,
+     "302": 18.9,
+     "303": 12.1,
+     "304": 10.3,
+     "305": 9.5,
+     "306": 7.7,
+     "307": 6.9,
+     "400": 17.5,
+     "401": 8.8,
+     "402": 6.1,
+     "403": 11.5,
+     "700": 7.0,
+     "701": 6.0,
+     "702": 4.0,
+     "900": 0.0,
+     "901": 0.0,
+     "902": 10.5,
+     "NYA": 3.0,
+     "NYB": 7.0,
+     "NYC": 3.0
+    },
+    "roster_id": 1
+   }
+  ],
+  "4": [
+   {
+    "matchup_id": 1,
+    "players_points": {
+     "100": 23.8,
+     "101": 22.7,
+     "102": 21.6,
+     "103": 14.3,
+     "200": 21.9,
+     "201": 26.6,
+     "202": 18.3,
+     "203": 15.0,
+     "204": 18.7,
+     "205": 11.4,
+     "206": 9.1,
+     "207": 13.8,
+     "300": 15.6,
+     "301": 14.8,
+     "302": 19.0,
+     "303": 12.2,
+     "304": 10.4,
+     "305": 9.6,
+     "306": 7.8,
+     "307": 7.0,
+     "400": 11.6,
+     "401": 8.9,
+     "402": 6.2,
+     "403": 5.6,
+     "700": 10.0,
+     "701": 8.0,
+     "702": 5.0,
+     "900": 9.0,
+     "901": 0.0,
+     "902": 7.5,
+     "NYA": 9.0,
+     "NYB": 6.0,
+     "NYC": 2.0
+    },
+    "roster_id": 1
+   }
+  ]
+ },
+ "players": {
+  "100": {
+   "birth_date": "1996-01-10",
+   "espn_id": "5100",
+   "fantasy_positions": [
+    "QB"
+   ],
+   "first_name": "Quinn",
+   "full_name": "Quinn Alder",
+   "gsis_id": "00-00100",
+   "last_name": "Alder",
+   "position": "QB",
+   "search_rank": 10,
+   "years_exp": 3
+  },
+  "101": {
+   "birth_date": "1997-02-11",
+   "espn_id": "5101",
+   "fantasy_positions": [
+    "QB"
+   ],
+   "first_name": "Quinn",
+   "full_name": "Quinn Birch",
+   "last_name": "Birch",
+   "position": "QB",
+   "search_rank": 20,
+   "years_exp": 3
+  },
+  "102": {
+   "birth_date": "1998-03-12",
+   "fantasy_positions": [
+    "QB"
+   ],
+   "first_name": "Quinn",
+   "full_name": "Quinn Cedar",
+   "last_name": "Cedar",
+   "position": "QB",
+   "search_rank": 30,
+   "years_exp": 3
+  },
+  "103": {
+   "birth_date": "1999-04-13",
+   "espn_id": "5103",
+   "fantasy_positions": [
+    "QB"
+   ],
+   "first_name": "Quinn",
+   "full_name": "Quinn Dale",
+   "gsis_id": "00-00103",
+   "last_name": "Dale",
+   "position": "QB",
+   "search_rank": 40,
+   "years_exp": 3
+  },
+  "200": {
+   "birth_date": "1996-01-10",
+   "espn_id": "5200",
+   "fantasy_positions": [
+    "RB"
+   ],
+   "first_name": "Rudy",
+   "full_name": "Rudy Alder",
+   "gsis_id": "00-00200",
+   "last_name": "Alder",
+   "position": "RB",
+   "search_rank": 50,
+   "years_exp": 3
+  },
+  "201": {
+   "birth_date": null,
+   "fantasy_positions": [
+    "RB"
+   ],
+   "first_name": "Rudy",
+   "full_name": "Rudy Birch",
+   "last_name": "Birch",
+   "position": "RB",
+   "search_rank": 60,
+   "years_exp": 3
+  },
+  "202": {
+   "birth_date": "1998-03-12",
+   "espn_id": "5202",
+   "fantasy_positions": [
+    "RB"
+   ],
+   "first_name": "Rudy",
+   "full_name": "Rudy Cedar",
+   "gsis_id": "00-00202",
+   "last_name": "Cedar",
+   "position": "RB",
+   "search_rank": 70,
+   "years_exp": 3
+  },
+  "203": {
+   "birth_date": "1999-04-13",
+   "espn_id": "5203",
+   "fantasy_positions": [
+    "RB"
+   ],
+   "first_name": "Rudy",
+   "full_name": "Rudy Dale",
+   "gsis_id": "00-00203",
+   "last_name": "Dale",
+   "position": "RB",
+   "search_rank": 80,
+   "years_exp": 3
+  },
+  "204": {
+   "birth_date": "1996-05-14",
+   "espn_id": "5204",
+   "fantasy_positions": [
+    "RB"
+   ],
+   "first_name": "Rudy",
+   "full_name": "Rudy Elm",
+   "gsis_id": "00-00204",
+   "last_name": "Elm",
+   "position": "RB",
+   "search_rank": 90,
+   "years_exp": 3
+  },
+  "205": {
+   "birth_date": "1997-06-15",
+   "espn_id": "5205",
+   "fantasy_positions": [
+    "RB"
+   ],
+   "first_name": "Rudy",
+   "full_name": "Rudy Fir",
+   "gsis_id": "00-00205",
+   "last_name": "Fir",
+   "position": "RB",
+   "search_rank": 100,
+   "years_exp": 3
+  },
+  "206": {
+   "birth_date": "1998-07-16",
+   "espn_id": "5206",
+   "fantasy_positions": [
+    "RB"
+   ],
+   "first_name": "Rudy",
+   "full_name": "Rudy Gorse",
+   "gsis_id": "00-00206",
+   "last_name": "Gorse",
+   "position": "RB",
+   "search_rank": 110,
+   "years_exp": 3
+  },
+  "207": {
+   "birth_date": "1999-08-17",
+   "fantasy_positions": [
+    "RB"
+   ],
+   "first_name": "Rudy",
+   "full_name": "Rudy Holly Nine",
+   "gsis_id": "00-99207",
+   "last_name": "Holly",
+   "position": "RB",
+   "search_rank": 120,
+   "years_exp": 3
+  },
+  "300": {
+   "birth_date": "1996-01-10",
+   "espn_id": "5300",
+   "fantasy_positions": [
+    "WR"
+   ],
+   "first_name": "Wade",
+   "full_name": "Wade Alder",
+   "gsis_id": "00-00300",
+   "last_name": "Alder",
+   "position": "WR",
+   "search_rank": 130,
+   "years_exp": 3
+  },
+  "301": {
+   "birth_date": "1997-02-11",
+   "espn_id": "5301",
+   "fantasy_positions": [
+    "WR"
+   ],
+   "first_name": "Wade",
+   "full_name": "Wade Birch",
+   "gsis_id": "00-00301",
+   "last_name": "Birch",
+   "position": "WR",
+   "search_rank": 140,
+   "years_exp": 3
+  },
+  "302": {
+   "birth_date": "1998-03-12",
+   "espn_id": "5302",
+   "fantasy_positions": [
+    "WR"
+   ],
+   "first_name": "Wade",
+   "full_name": "Wade Cedar",
+   "gsis_id": "00-00302",
+   "last_name": "Cedar",
+   "position": "WR",
+   "search_rank": 150,
+   "years_exp": 3
+  },
+  "303": {
+   "birth_date": "1999-04-13",
+   "espn_id": "5303",
+   "fantasy_positions": [
+    "WR"
+   ],
+   "first_name": "Wade",
+   "full_name": "Wade Dale",
+   "gsis_id": "00-00303",
+   "last_name": "Dale",
+   "position": "WR",
+   "search_rank": 160,
+   "years_exp": 3
+  },
+  "304": {
+   "birth_date": "1996-05-14",
+   "espn_id": "5304",
+   "fantasy_positions": [
+    "WR"
+   ],
+   "first_name": "Wade",
+   "full_name": "Wade Elm",
+   "gsis_id": "00-00304",
+   "last_name": "Elm",
+   "position": "WR",
+   "search_rank": 170,
+   "years_exp": 3
+  },
+  "305": {
+   "birth_date": "1997-06-15",
+   "espn_id": "5305",
+   "fantasy_positions": [
+    "WR"
+   ],
+   "first_name": "Wade",
+   "full_name": "Wade Fir",
+   "gsis_id": "00-00305",
+   "last_name": "Fir",
+   "position": "WR",
+   "search_rank": 180,
+   "years_exp": 3
+  },
+  "306": {
+   "birth_date": "1998-07-16",
+   "espn_id": "5306",
+   "fantasy_positions": [
+    "WR"
+   ],
+   "first_name": "Wade",
+   "full_name": "Wade Gorse",
+   "gsis_id": "00-00306",
+   "last_name": "Gorse",
+   "position": "WR",
+   "search_rank": 190,
+   "years_exp": 3
+  },
+  "307": {
+   "birth_date": "1999-08-17",
+   "fantasy_positions": [
+    "WR"
+   ],
+   "first_name": "Wade",
+   "full_name": "Wade Holly Nine",
+   "gsis_id": "00-99307",
+   "last_name": "Holly",
+   "position": "WR",
+   "search_rank": 200,
+   "years_exp": 3
+  },
+  "400": {
+   "birth_date": "1996-01-10",
+   "espn_id": "5400",
+   "fantasy_positions": [
+    "TE"
+   ],
+   "first_name": "Teddy",
+   "full_name": "Teddy Alder",
+   "gsis_id": "00-00400",
+   "last_name": "Alder",
+   "position": "TE",
+   "search_rank": 210,
+   "years_exp": 3
+  },
+  "401": {
+   "birth_date": "1997-02-11",
+   "espn_id": "5401",
+   "fantasy_positions": [
+    "TE"
+   ],
+   "first_name": "Teddy",
+   "full_name": "Teddy Birch",
+   "gsis_id": "00-00401",
+   "last_name": "Birch",
+   "position": "TE",
+   "search_rank": 220,
+   "years_exp": 3
+  },
+  "402": {
+   "birth_date": "1998-03-12",
+   "espn_id": "5402",
+   "fantasy_positions": [
+    "TE"
+   ],
+   "first_name": "Teddy",
+   "full_name": "Teddy Cedar",
+   "gsis_id": "00-00402",
+   "last_name": "Cedar",
+   "position": "TE",
+   "search_rank": 230,
+   "years_exp": 3
+  },
+  "403": {
+   "birth_date": "1999-04-13",
+   "espn_id": "5403",
+   "fantasy_positions": [
+    "TE"
+   ],
+   "first_name": "Teddy",
+   "full_name": "Teddy Dale",
+   "gsis_id": "00-00403",
+   "last_name": "Dale",
+   "position": "TE",
+   "search_rank": 240,
+   "years_exp": 3
+  },
+  "700": {
+   "full_name": "K unit 0",
+   "position": "K",
+   "search_rank": 400,
+   "years_exp": 5
+  },
+  "701": {
+   "full_name": "K unit 1",
+   "position": "K",
+   "search_rank": 401,
+   "years_exp": 5
+  },
+  "702": {
+   "full_name": "K unit 2",
+   "position": "K",
+   "search_rank": 402,
+   "years_exp": 5
+  },
+  "703": {
+   "full_name": "K unit idle",
+   "position": "K",
+   "years_exp": 5
+  },
+  "900": {
+   "birth_date": "2004-05-05",
+   "fantasy_positions": [
+    "RB"
+   ],
+   "first_name": "Rookie",
+   "full_name": "Rookie Ash",
+   "last_name": "Ash",
+   "position": "RB",
+   "search_rank": 55,
+   "years_exp": 0
+  },
+  "901": {
+   "birth_date": "2004-05-05",
+   "fantasy_positions": [
+    "WR"
+   ],
+   "first_name": "Rookie",
+   "full_name": "Rookie Beech",
+   "last_name": "Beech",
+   "position": "WR",
+   "search_rank": 92,
+   "years_exp": 0
+  },
+  "902": {
+   "birth_date": "2004-05-05",
+   "fantasy_positions": [
+    "WR"
+   ],
+   "first_name": "Rookie",
+   "full_name": "Rookie Cypress",
+   "last_name": "Cypress",
+   "position": "WR",
+   "search_rank": 130,
+   "years_exp": 0
+  },
+  "NYA": {
+   "full_name": "DEF unit 3",
+   "position": "DEF",
+   "search_rank": 403,
+   "years_exp": 5
+  },
+  "NYB": {
+   "full_name": "DEF unit 4",
+   "position": "DEF",
+   "search_rank": 404,
+   "years_exp": 5
+  },
+  "NYC": {
+   "full_name": "DEF unit 5",
+   "position": "DEF",
+   "search_rank": 405,
+   "years_exp": 5
+  }
+ },
+ "standings_order": [
+  "2",
+  "1",
+  "3"
+ ]
+}
