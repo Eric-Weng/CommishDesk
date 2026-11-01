@@ -36,8 +36,12 @@ import re
 from collections.abc import Sequence
 from typing import NamedTuple
 
-from commishdesk.facts.schema import LeadCandidate, WeeklyFacts, WeeklyMove, WeeklyTrade
-from commishdesk.narrate.weekly_template import WeeklyIssue, section_headings_for_has_prior_week
+from commishdesk.facts.schema import LeadCandidate, WeeklyFacts, WeeklyMove, WeeklyNarrationGame, WeeklyTrade
+from commishdesk.narrate.weekly_template import (
+    WeeklyIssue,
+    is_game_rollup,
+    section_headings_for_has_prior_week,
+)
 from commishdesk.render import _weekly_model as wm
 from commishdesk.render._body import _esc, _plain
 from commishdesk.render.email import EmailParts, _document
@@ -827,6 +831,12 @@ _TAG_WORDS = {
 }
 
 
+def _names_both_sides(block: str, game: WeeklyNarrationGame) -> bool:
+    """Whether *block* is a sentence about *game*: it names the loser side and, unless
+    the game was a tie, the winner too."""
+    return bool(game.loser and game.loser in block and (game.winner is None or game.winner in block))
+
+
 def _results_title(games: Sequence[object]) -> str:
     n = len(games)
     title = f"{wm.spell(n).capitalize()} game{'s' if n != 1 else ''}"
@@ -908,9 +918,16 @@ def _results(facts: WeeklyFacts, blocks: list[str]) -> _Section | None:
                 + (f" [{tag[0]}]" if tag else "")
             )
 
-    # Story 6-11: the per-game sentences (one leading block per game) repeat the
-    # cards; only the trend lines that follow them stay.
-    prose_html, prose_lines = _prose(blocks[len(games) :])
+    # Story 6-11: the per-game sentences (the leading blocks that name both teams of a
+    # game, plus the template's "The other N ..." roll-up of the games it did not narrate)
+    # repeat the cards; only the trend lines that follow them stay.
+    narrated = facts.narration.games
+    leading = 0
+    for block in blocks:
+        if not (is_game_rollup(block) or any(_names_both_sides(block, game) for game in narrated)):
+            break
+        leading += 1
+    prose_html, prose_lines = _prose(blocks[leading:])
     _add_prose(text, prose_lines)
 
     html = _section_header("Around the league", _results_title(games))

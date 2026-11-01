@@ -312,10 +312,11 @@ def test_weekly_happy_path_prints_sections_and_writes_files(
     for heading in WEEKLY_SECTION_HEADINGS:
         assert heading in result.stdout, heading
 
-    # A sample factual claim taken from the fixture: every roster is named in the standings.
-    expected_teams = len(build_week_model(_load_fixture(_WEEK17)).rosters)
+    # A sample factual claim taken from the fixture: the power section narrates its top three
+    # rows (the tables carry the rest), and each of them is named in the standings.
+    assert len(build_week_model(_load_fixture(_WEEK17)).rosters) > 3
     power = re.findall(r"^\d{1,2}\. ([^,(]+?)(?: is | sits at | averages |,| \()", result.stdout, re.MULTILINE)
-    assert len(power) == expected_teams
+    assert len(power) == 3
     standings = result.stdout.split("## Standings", 1)[1].split("\n## ", 1)[0]
     assert all(team in standings for team in power)
     assert "Week 17 Recap" in result.stdout  # the masthead title

@@ -550,7 +550,9 @@ def test_the_power_table_has_one_header_and_the_narrators_notes_sit_under_their_
     assert section.count('class="pw-head"') == 1
     assert "Power score" in section and "Model score" not in section
     rows = re.findall(r'<div class="pw-item">.*?</div>(?:<p class="pw-why">.*?</p>)?', section)
-    assert len(rows) == 12 and all('class="pw-why"' in row for row in rows)
+    # the template narrates the top three rows; the other nine are table-only
+    assert len(rows) == 12 and sum('class="pw-why"' in row for row in rows) == 3
+    assert all('class="pw-why"' in row for row in rows[:3])
     # no second numbered list after the table
     tail = section.split('class="power"', 1)[1]
     assert not re.search(r'<div class="prose"><p>1\. ', tail)
