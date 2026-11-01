@@ -63,7 +63,7 @@ __all__ = [
 ]
 
 #: Bump when any constant or rule below changes the numbers (the snapshot key carries it).
-METHOD_VERSION = 1
+METHOD_VERSION = 2
 
 # --------------------------------------------------------------------------- #
 # Named constants (documented in docs/concepts/league-value.md)
@@ -83,6 +83,9 @@ FUTURE_DISCOUNT = 0.85
 PICK_LATER_DISCOUNT = 0.8
 #: A pick slot deeper than the rookie pool shrinks by this factor per slot beyond the pool.
 PICK_TAIL_DECAY = 0.9
+#: Pick floor: a slot is worth at least the typical hitting rookie's Future, halved for each full round
+#: deep, so a later-round pick never prices at nothing just because this year's rookies sit at replacement.
+PICK_FLOOR_ROUND_DECAY = 0.5
 #: Draft rounds when the league does not declare them.
 DEFAULT_DRAFT_ROUNDS = 4
 #: Year-over-year production factor by position: ``(age below, factor)``, first match wins.
@@ -633,6 +636,7 @@ def build_snapshot(
             "future_horizon": FUTURE_HORIZON,
             "future_discount": FUTURE_DISCOUNT,
             "pick_later_discount": PICK_LATER_DISCOUNT,
+            "pick_floor_round_decay": PICK_FLOOR_ROUND_DECAY,
         },
         "replacement": {pos: _round(level) for pos, level in sorted(replacement.items())},
         "players": values,
@@ -671,10 +675,15 @@ def _pick_table(
     rounds = settings.get("draft_rounds")
     rounds = rounds if _is_int(rounds) and 0 < rounds <= 12 else DEFAULT_DRAFT_ROUNDS
 
+    hits = [v for v in pool if v > 0]
+    typical_hit = hits[(len(hits) - 1) // 2] if hits else 0.0  # the median hitting rookie
+
     def slot_value(overall: int) -> float:
         if overall <= len(pool):
-            return pool[overall - 1]
-        return pool[-1] * PICK_TAIL_DECAY ** (overall - len(pool))
+            rookie = pool[overall - 1]
+        else:
+            rookie = pool[-1] * PICK_TAIL_DECAY ** (overall - len(pool))
+        return max(rookie, typical_hit * PICK_FLOOR_ROUND_DECAY ** ((overall - 1) / teams))
 
     cut_early, cut_mid = (teams + 2) // 3, (2 * teams + 2) // 3
     spans = {"early": (1, cut_early), "mid": (cut_early + 1, cut_mid), "late": (cut_mid + 1, teams)}

@@ -476,6 +476,37 @@ def test_picks_are_tiered_by_the_original_owners_standing_and_marked_est(store: 
     assert pick_value(result, 2026, 1) is None  # already drafted
 
 
+def test_no_pick_prices_at_nothing_and_value_falls_slot_by_slot(store: FileStore) -> None:
+    result = _run(store, league=_dynasty())
+    picks = result["picks"]
+    for tier in ("early", "mid", "late"):
+        row = [picks["by_tier"][tier][str(rnd)] for rnd in range(1, picks["rounds"] + 1)]
+        assert all(value > 0 for value in row) and row == sorted(row, reverse=True)
+    assert all(value > 0 for value in picks["later"].values())
+    assert picks["est"] is True
+
+
+def test_the_pick_floor_is_the_typical_hit_halved_per_round_and_never_beats_a_better_rookie() -> None:
+    # Hand-built table inputs: 3 teams, a pool whose only positive rookies are 9.0, 5.0 and 1.0.
+    model = type("M", (), {"format": type("F", (), {"team_count": 3})()})()
+    values = {str(i): {"future": f} for i, f in enumerate((9.0, 5.0, 1.0, 0.0, 0.0, 0.0, 0.0))}
+    rows = {pid: {"rookie_year": True} for pid in values}
+    table = lv._pick_table(model, {"draft_rounds": 3}, 2026, values, rows, ["1", "2", "3"])
+    assert table is not None
+    typical = 5.0  # the median of the hitting rookies
+    assert table["by_tier"]["early"]["1"] == pytest.approx(9.0, abs=2e-3)  # the pool beats the floor
+    slot4 = typical * lv.PICK_FLOOR_ROUND_DECAY ** (3 / 3)
+    assert table["by_tier"]["early"]["2"] == pytest.approx(slot4, abs=2e-3)  # one slot, round 2 early
+
+
+def test_a_pool_with_no_hitting_rookie_keeps_the_old_zero_picks() -> None:
+    model = type("M", (), {"format": type("F", (), {"team_count": 3})()})()
+    values = {str(i): {"future": 0.0} for i in range(5)}
+    rows = {pid: {"rookie_year": True} for pid in values}
+    table = lv._pick_table(model, {"draft_rounds": 2}, 2026, values, rows, ["1", "2", "3"])
+    assert table is not None and all(v == 0.0 for tier in table["by_tier"].values() for v in tier.values())
+
+
 def test_later_season_picks_are_tierless_and_discounted(store: FileStore) -> None:
     result = _run(store, league=_dynasty())
     base = result["picks"]["later"]["1"]

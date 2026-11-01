@@ -18,7 +18,7 @@ It is computed from open data, by the engine, with no outside rankings. Trade gr
 4. **Value.** `value = max(0, points per week − replacement at his position)`. It is in points per week. A player can be worth nothing, but never less.
 5. **Rookies before they play.** A player with fewer than 2 games this season and no last season to lean on is given the value of the player at the same position rank by Sleeper's search rank. This is an estimate, and it is marked **est.**
 6. **Future value (dynasty leagues only).** This season's value is carried over the next 3 seasons on an age curve for the position, each season counting 15 percent less than the one before. The age curve is an estimate, and so is Future value, marked **est.**
-7. **Draft picks (dynasty leagues only).** A pick is worth the rookie who would go at that spot. Next season's picks are sorted into early, mid and late by where the pick's original owner sits in the standings now (the worst third picks early). Picks two or more seasons out have no tier and lose 20 percent of their value for each extra year. All of it is marked **est.**
+7. **Draft picks (dynasty leagues only).** A pick is worth the rookie who would go at that spot. Next season's picks are sorted into early, mid and late by where the pick's original owner sits in the standings now (the worst third picks early). A pick is never worth less than a floor: the Future value of the typical rookie who is worth anything this year, halved for each full round deep, so a later-round pick does not price at nothing just because most of this year's class sits at replacement level. Picks two or more seasons out have no tier and lose 20 percent of their value for each extra year. All of it is marked **est.**
 
 ## Worked example
 
@@ -43,6 +43,7 @@ This example is from the test league: 3 teams, PPR-style scoring with a 0.5 bonu
 | Future discount | 0.85 a season | Each carried season counts this much of the one before. |
 | Pick discount | 0.80 a season | Applied to each season beyond next season's picks. |
 | Pick tail decay | 0.90 a slot | Slots deeper than the rookie pool shrink by this much each. |
+| Pick floor decay | 0.50 a round | The floor under every pick slot: the typical hitting rookie's Future, times this for each full round deep. |
 | Age curves | by position | Year-on-year change in production by age, in `commishdesk/league_value.py` (`AGE_CURVES`). |
 
 These are estimates, not measurements, and changing any of them changes the method version, which is part of the snapshot's save key.
