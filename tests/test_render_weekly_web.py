@@ -345,7 +345,9 @@ def test_render_is_deterministic() -> None:
     assert _page(_raw(published=True)) == _page(_raw(published=True))
 
 
-#: SHA-256 of the static weekly page per committed fixture. History: Story 9.7 re-pinned all
+#: SHA-256 of the static weekly page per committed fixture. History: Story 9.10 re-pinned all
+#: three for the template narrator's new prose (lead de-duplication, varied game, standings,
+#: power and luck sentences); Story 9.7 re-pinned all
 #: three for the trade-card CSS and the "No trades this week" line (reviewed); Story
 #: 8.16c re-pinned all three for the Jump to nav and the removed .card-expand markup;
 #: 8.16b re-pinned all three for the Issue redesign pass (the page as the 8.16
@@ -355,9 +357,9 @@ def test_render_is_deterministic() -> None:
 #: these only with a deliberate design change to the page, and regenerate them
 #: by running this test once and copying the printed digests.
 _GOLDEN_SHA256 = {
-    ("week10", "static"): "6d9fdf8f6f96d94b2ac2cbd872a7693677e97cea666d9bf262b528925ae5b74a",
-    ("week10-published", "static"): "e9ce294be5d59cd623e4f139ad9e0a856675910cb1c553d327ced4e137e71ab9",
-    ("week01", "static"): "6f3cef7e3e29691386c2509dade5465e31140dedda3b0f0e8ffc550c88d53a3f",
+    ("week10", "static"): "81653860cc9b067331c3aed1a7cc2e4256de3b68ca4218c64f441f5e6726c800",
+    ("week10-published", "static"): "97f307afd0f79b3606ba0a6a4aa7fd98be590acfe073950578a4d5863b941251",
+    ("week01", "static"): "d81c5ac9d16915d9981d26814dd72b902efffd62d88c7bb6234f03e073f7fefa",
 }
 
 
@@ -1098,3 +1100,22 @@ def test_static_page_escapes_a_hostile_team_name() -> None:
     for page in (_static(raw), _page(raw)):
         assert hostile not in page
         assert "&lt;svg onload=1&gt;" in page
+
+
+def test_power_notes_parse_llm_and_template_rows_on_word_boundaries() -> None:
+    from types import SimpleNamespace
+
+    from commishdesk.render import weekly_web
+
+    ctx = SimpleNamespace(slot_of={"Alpha": 1, "Alpha Dogs": 2})
+    notes, rest = weekly_web._power_notes(ctx, ["1. Alpha — steady as ever."])  # type: ignore[arg-type]
+    assert notes == {"Alpha": "steady as ever."} and rest == []
+    notes, _ = weekly_web._power_notes(ctx, ["2. Alpha Dogs — barking."])  # type: ignore[arg-type]
+    assert notes == {"Alpha Dogs": "barking."}  # the longer label wins over its prefix
+    notes, rest = weekly_web._power_notes(ctx, ["3. Alpha Dogs is 3-1 and scores 100.5 points a week."])  # type: ignore[arg-type]
+    assert notes == {"Alpha Dogs": "Alpha Dogs is 3-1 and scores 100.5 points a week."}
+    prose = ["Alphabet soup is not a team.", "4. Alphas — not a label.", "5. Alpha is 3-1. Unranked."]
+    notes, rest = weekly_web._power_notes(ctx, prose[:2])  # type: ignore[arg-type]
+    assert notes == {} and rest == prose[:2]  # no word boundary, or no list: stays prose
+    notes, rest = weekly_web._power_notes(ctx, ["Alpha is 3-1 and unranked."])  # type: ignore[arg-type]
+    assert notes == {} and rest == ["Alpha is 3-1 and unranked."]  # an unranked template row has no number: prose

@@ -13,7 +13,9 @@ fixture; ``week02-nailbiter.json`` supplies the one-point-game case.
 from __future__ import annotations
 
 import ast
+import hashlib
 import json
+import re
 
 import pytest
 
@@ -127,6 +129,18 @@ def _narration(
     )
 
 
+def _family_lines(game: WeeklyNarrationGame, family: str) -> set[str]:
+    """Every sentence the family's frames can render for *game*."""
+    fields = {
+        "w": game.winner,
+        "l": game.loser,
+        "wp": game.winner_pts,
+        "lp": game.loser_pts,
+        "m": game.margin,
+    }
+    return {frame.format(**fields) for frame in weekly_template._GAME_FRAMES[family]}
+
+
 def _game(winner: str, loser: str, winner_pts: float, loser_pts: float) -> WeeklyNarrationGame:
     return WeeklyNarrationGame(
         matchup_id=1,
@@ -199,18 +213,19 @@ def test_each_scoreline_picks_a_different_sentence_family() -> None:
     section = _section(render_weekly_issue(_narration(games=[blowout, close, ordinary])), "Around the League")
     blocks = section.blocks
     assert len(blocks) == 3
-    assert blocks[0].startswith("Alpha") and "blew past" in blocks[0]
-    assert blocks[1].startswith("Gamma") and "edged" in blocks[1]
-    assert blocks[2].startswith("Epsilon") and "beat" in blocks[2]
-    # the three families are mutually exclusive wordings
-    assert "blew past" not in blocks[1] and "blew past" not in blocks[2]
-    assert "edged" not in blocks[0] and "edged" not in blocks[2]
-    assert "beat" not in blocks[0] and "beat" not in blocks[1]
+    for block, game, family in zip(blocks, (blowout, close, ordinary), ("blowout", "close", "ordinary"), strict=True):
+        assert block in _family_lines(game, family)
+        # the three families are mutually exclusive wordings
+        for other in {"blowout", "close", "ordinary"} - {family}:
+            assert block not in _family_lines(game, other)
 
 
 def test_the_blowout_week_renders_a_blowout_game(week10: WeeklyNarration) -> None:
     blocks = _section(render_weekly_issue(week10), "Around the League").blocks
-    assert any("blew past" in block for block in blocks)
+    blowouts = [game for game in week10.games if weekly_template._game_family(game) == "blowout"]
+    assert blowouts
+    for game in blowouts:
+        assert any(block.startswith(line) for block in blocks for line in _family_lines(game, "blowout"))
 
 
 def test_the_nailbiter_week_renders_a_close_game(nailbiter: WeeklyNarration) -> None:
@@ -218,7 +233,8 @@ def test_the_nailbiter_week_renders_a_close_game(nailbiter: WeeklyNarration) -> 
     closest = min(nailbiter.games, key=lambda game: game.margin)
     assert closest.margin <= weekly_template._CLOSE_GAME_MARGIN  # a nailbiter sits inside the close band
     blocks = _section(render_weekly_issue(nailbiter), "Around the League").blocks
-    assert any("edged" in block for block in blocks)
+    assert weekly_template._game_family(closest) == "close"
+    assert any(block.startswith(line) for block in blocks for line in _family_lines(closest, "close"))
 
 
 def test_a_tie_never_renders_the_word_none() -> None:
@@ -246,17 +262,35 @@ def test_around_the_league_renders_every_game(week10: WeeklyNarration) -> None:
     section = _section(render_weekly_issue(week10), "Around the League")
     assert len(week10.games) == 6
     for game in week10.games:
-        matching = [block for block in section.blocks if game.winner and block.startswith(game.winner)]
+        matching = [block for block in section.blocks if game.winner and game.winner in block]
         assert matching, game
         assert any(game.loser and game.loser in block for block in matching)
 
 
-def test_lead_carries_the_ranked_hooks(week10: WeeklyNarration) -> None:
+def test_lead_carries_the_ranked_hooks_but_not_the_printed_headline(week10: WeeklyNarration) -> None:
     section = _section(render_weekly_issue(week10), "The Lead")
-    assert week10.lead_candidates
-    for candidate in week10.lead_candidates:
-        if candidate.hook:
-            assert candidate.hook in section.blocks
+    assert week10.printed_headline
+    others = [
+        c.hook
+        for c in sorted(week10.lead_candidates, key=lambda c: c.rank)
+        if c.hook and c.hook != week10.printed_headline
+    ]
+    assert others
+    assert section.blocks == others  # the top-ranked other hook opens the lead
+    assert week10.printed_headline not in section.blocks
+    assert not any(block.startswith("Week 10:") for block in section.blocks)  # no count line beside real hooks
+
+
+def test_lead_falls_back_to_the_count_line_with_only_the_headline_or_no_hooks(
+    week10: WeeklyNarration,
+) -> None:
+    only_headline = week10.model_copy(
+        update={"lead_candidates": week10.lead_candidates[:1], "printed_headline": week10.lead_candidates[0].hook}
+    )
+    expected = ["Week 10: six games played, twelve teams in the standings."]
+    assert _section(render_weekly_issue(only_headline), "The Lead").blocks == expected
+    none = week10.model_copy(update={"lead_candidates": [], "printed_headline": None})
+    assert _section(render_weekly_issue(none), "The Lead").blocks == expected
 
 
 def test_december_style_storyline_hooks_render_in_around_the_league(week10: WeeklyNarration) -> None:
@@ -276,7 +310,8 @@ def test_standings_list_every_roster(week10: WeeklyNarration) -> None:
     section = _section(render_weekly_issue(week10), "Standings and the Playoff Picture")
     assert week10.standings
     for row in week10.standings:
-        assert any(block.startswith(f"{row.rank}. {row.team}") for block in section.blocks)
+        sentences = [block for block in section.blocks if row.team in block]
+        assert any(row.rec in block for block in sentences), row
 
 
 def test_playoff_picture_renders_for_the_week10_league(week10: WeeklyNarration) -> None:
@@ -421,7 +456,8 @@ def test_luck_index_names_every_measurable_roster(week10: WeeklyNarration) -> No
     assert measurable
     assert len(section.blocks) == len(measurable)
     for row in measurable:
-        assert any(block.startswith(f"{row.team} —") for block in section.blocks)
+        line = next(block for block in section.blocks if row.team in block)
+        assert f"{row.luck:+}" in line
 
 
 # --------------------------------------------------------------------------- #
@@ -550,7 +586,8 @@ def test_power_rankings_follow_the_model_rank(week10: WeeklyNarration) -> None:
     for row in week10.power:
         assert row.team in blob
     # no rank-delta arrows / published ranks (Story 5.12)
-    assert not any("+" in block.split(" — ")[0] for block in section.blocks)
+    assert all(re.match(r"^\d{1,2}\. ", block) for block in section.blocks)
+    assert not any("—" in block for block in section.blocks)
 
 
 # --------------------------------------------------------------------------- #
@@ -630,7 +667,7 @@ def test_module_imports_only_the_facts_schema_and_the_standard_library() -> None
         elif isinstance(node, ast.ImportFrom) and node.module is not None and node.level == 0:
             dotted.add(node.module)
     roots = {name.split(".")[0] for name in dotted}
-    assert roots <= {"__future__", "pydantic", "commishdesk", "re", "collections"}, roots
+    assert roots <= {"__future__", "pydantic", "commishdesk", "re", "collections", "hashlib"}, roots
     # Story 6.0b: the one section id/heading table (stdlib only) is the other allowed import.
     assert {name for name in dotted if name.startswith("commishdesk")} == {
         "commishdesk.facts.schema",
@@ -662,7 +699,8 @@ def test_module_reads_no_network_store_render_or_ingest_module() -> None:
 def test_the_unconfirmed_seeding_note_follows_the_narration_flag_alone(
     week10: WeeklyNarration,
 ) -> None:
-    note = "Seeding unconfirmed — derived from the standings."
+    note = weekly_template._SEEDING_NOTE
+    assert note.startswith("Seeding unconfirmed") and "—" not in note
     picture = week10.playoff_picture
     assert picture is not None and picture.seeding_unconfirmed is False
 
@@ -702,6 +740,220 @@ def test_week_ten_narration_keeps_the_seven_warm_sections(week10: WeeklyNarratio
 def test_cold_start_standings_prose_is_by_points_with_positional_ranks() -> None:
     narration = _cold_start_narration()
     section = _section(render_weekly_issue(narration), "Standings")
-    assert [b.split(".", 1)[0] for b in section.blocks] == [str(n) for n in range(1, len(section.blocks) + 1)]
-    expected = [row.team for row in sorted(narration.standings, key=lambda r: -r.pf)]
-    assert [b.split(". ", 1)[1].split(" — ", 1)[0] for b in section.blocks] == expected
+    ordered = sorted(narration.standings, key=lambda r: (-r.pf, r.roster_id.zfill(8)))
+    assert len(section.blocks) == len(ordered)
+    for block, row in zip(section.blocks, ordered, strict=True):
+        assert block.startswith(row.team)
+        assert row.rec in block and str(row.pf) in block
+    assert "model rank" not in " ".join(section.blocks)
+    # no record clause, no storyline at the cold start
+    around = _section(render_weekly_issue(narration), "Around the League").blocks
+    assert not any(re.search(r"moves to|puts .* at|lifts .* to", block) for block in around)
+
+
+# --------------------------------------------------------------------------- #
+# Story 9.10: closer to the LLM voice
+# --------------------------------------------------------------------------- #
+
+_EM_DASH = "—"
+
+
+@pytest.mark.parametrize("fixture", ["week10-blowout.json", "week02-nailbiter.json"])
+def test_render_is_byte_identical_on_equal_input(fixture: str) -> None:
+    narration = _facts(fixture, nfl_byes_next_week=BYES_NEXT_WEEK).narration
+    first = weekly_issue_to_text(render_weekly_issue(narration))
+    second = weekly_issue_to_text(render_weekly_issue(narration.model_copy(deep=True)))
+    assert first == second
+
+
+def test_frame_choice_uses_a_stable_digest_not_the_salted_builtin_hash() -> None:
+    narration = _narration()
+    frames = tuple(f"frame {n}" for n in range(7))
+    key = "|".join(["Test League", "2025", "5", "x", "1"])
+    expected = frames[int(hashlib.sha256(key.encode("utf-8")).hexdigest(), 16) % 7]
+    assert weekly_template._pick(frames, narration, "x", 1) == expected
+
+
+@pytest.mark.parametrize("fixture", ["week10-blowout.json", "week02-nailbiter.json"])
+def test_every_section_holds_at_most_one_em_dash_outside_team_labels(fixture: str) -> None:
+    narration = _facts(fixture, nfl_byes_next_week=BYES_NEXT_WEEK).narration
+    labels = sorted({row.team for row in narration.standings}, key=len, reverse=True)
+    for section in render_weekly_issue(narration).sections:
+        text = " ".join(section.blocks)
+        for label in labels:
+            text = text.replace(label, "")
+        assert text.count(_EM_DASH) <= 1, section.heading
+
+
+def test_the_game_frames_give_each_family_several_verbs() -> None:
+    frames = weekly_template._GAME_FRAMES
+    assert all(len(family) >= 3 for family in frames.values())
+    assert sum(len(family) for family in frames.values()) >= 12
+    assert len({frame for family in frames.values() for frame in family}) == sum(len(f) for f in frames.values())
+
+
+def test_a_week_of_games_uses_more_than_one_frame(week10: WeeklyNarration) -> None:
+    blocks = _section(render_weekly_issue(week10), "Around the League").blocks[: len(week10.games)]
+    shapes = set()
+    for game, block in zip(week10.games, blocks, strict=True):
+        family = weekly_template._game_family(game)
+        for line in sorted(_family_lines(game, family)):
+            if block.startswith(line):
+                shapes.add((family, line.replace(game.winner or "", "{w}").replace(game.loser or "", "{l}")))
+    assert len({shape for _family, shape in shapes}) >= 3
+
+
+def test_a_game_line_carries_the_winners_record_and_the_top_scorers_team(week10: WeeklyNarration) -> None:
+    records = {row.team: row.rec for row in week10.standings}
+    section = _section(render_weekly_issue(week10), "Around the League")
+    for game, block in zip(week10.games, section.blocks, strict=False):
+        assert game.winner and records[game.winner] in block
+        assert game.top and game.top in block
+        if game.top_team:
+            assert game.top_team in block
+
+
+def test_missing_facts_omit_their_clauses_and_invent_no_digit() -> None:
+    game = WeeklyNarrationGame(
+        matchup_id=4, winner="Alpha", winner_pts=120.0, loser="Beta", loser_pts=100.0, margin=20.0, top="Ace"
+    )
+    line = weekly_template._game_line(game, _narration(games=[game]), records={})
+    assert "Ace" in line and "Alpha" in line and "Beta" in line
+    assert not any(phrase in line for phrase in ("moves to", "That puts", "lifts"))
+    assert set(re.findall(r"\d+(?:\.\d+)?", line)) <= {"120.0", "100.0", "20.0"}
+    bare = game.model_copy(update={"top": None})
+    assert re.findall(r"\d+(?:\.\d+)?", weekly_template._game_line(bare, _narration(games=[bare]))) != []
+    row = WeeklyNarrationPower(model_rank=1, team="Alpha", roster_id="1", rec="3-1", avg_pf=101.5, all_play=None)
+    assert "all-play" not in weekly_template._power_line(row, _narration()).lower()
+    with_ap = row.model_copy(update={"all_play": "9-3"})
+    assert "9-3" in weekly_template._power_line(with_ap, _narration())
+
+
+def test_a_shared_team_label_skips_the_record_clause() -> None:
+    standings = [
+        WeeklyNarrationStanding(rank=1, team="Twin", roster_id="1", rec="3-1", pf=1.0),
+        WeeklyNarrationStanding(rank=2, team="Twin", roster_id="2", rec="1-3", pf=1.0),
+    ]
+    game = _game("Twin", "Other", 120.0, 100.0)
+    narration = _narration(games=[game], standings=standings)
+    block = _section(render_weekly_issue(narration), "Around the League").blocks[0]
+    assert "3-1" not in block and "1-3" not in block
+
+
+def test_luck_is_read_in_words_with_the_printed_sign() -> None:
+    def row(roster_id: str, luck: float) -> WeeklyNarrationLuck:
+        return WeeklyNarrationLuck(team=f"T{roster_id}", roster_id=roster_id, rec="2-2", luck=luck, earned_wins=2.0)
+
+    lucky = weekly_template._luck_line(row("1", 1.5), _narration())
+    unlucky = weekly_template._luck_line(row("2", -1.5), _narration())
+    even = weekly_template._luck_line(row("3", 0.0), _narration())
+    assert "+1.5" in lucky and re.search(r"lucky|favored|breaks", lucky) and "unlucky" not in lucky
+    assert "-1.5" in unlucky and re.search(r"unlucky|deserved|dodged", unlucky)
+    assert "+0.0" in even and re.search(r"no luck|exactly as lucky", even)
+    assert "Earned wins" in lucky and "2.0" in lucky
+
+
+def test_the_standings_read_as_grouped_sentences_without_the_table(week10: WeeklyNarration) -> None:
+    blocks = _section(render_weekly_issue(week10), "Standings and the Playoff Picture").blocks
+    text = " ".join(blocks)
+    assert not re.search(r"^\d{1,2}\. ", text, re.MULTILINE)
+    assert "points for" not in text and "model rank" not in text
+    picture = week10.playoff_picture
+    assert picture is not None
+    for name in [*picture.byes, *picture.bubble, picture.first_out or ""]:
+        assert name in blocks[-1]
+    assert picture.format in blocks[-1]
+
+
+@pytest.mark.parametrize("fixture", ["week10-blowout.json", "week02-nailbiter.json"])
+def test_every_digit_token_is_in_the_payload(fixture: str) -> None:
+    narration = _facts(fixture, nfl_byes_next_week=BYES_NEXT_WEEK).narration
+    text = weekly_issue_to_text(render_weekly_issue(narration))
+    assert check_narration(text, narration).ok
+    payload = narration.model_dump_json()
+    body = text.split("\n", 2)[2]  # past the masthead (title and dateline)
+    for token in re.findall(r"\d+(?:\.\d+)?", body):
+        assert token in payload, token
+
+
+def test_frozen_week_snapshot_of_the_new_render(week10: WeeklyNarration) -> None:
+    text = weekly_issue_to_text(render_weekly_issue(week10))
+    digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
+    assert digest == _WEEK10_TEMPLATE_SHA256, (
+        f"week-10 template render changed; if deliberate, set _WEEK10_TEMPLATE_SHA256 = {digest!r}"
+    )
+
+
+_WEEK10_TEMPLATE_SHA256 = "6f73e74f85e4fccdf5eb433b73c9900a2dafce1cc6632b9697968947c2c53da5"
+
+
+def _picture(**kw: object) -> WeeklyNarrationPlayoff:
+    return WeeklyNarrationPlayoff(format="6 teams", **kw)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    ("picture", "present", "absent_counts"),
+    [
+        (_picture(byes=["A", "B"], in_bracket=["A", "B", "C", "D"]), ["have a first-round bye"], {"A": 1, "B": 1}),
+        (_picture(byes=["A"], in_bracket=["A", "C"]), ["A has a first-round bye", "C is "], {"A": 1}),
+        (_picture(in_bracket=["C", "D"]), ["C and D are in the bracket", "The bracket holds"], {}),
+        (_picture(bubble=["E"]), ["E is on the bubble", "The bubble holds E"], {}),
+        (_picture(bubble=["E", "F"]), ["E and F are on the bubble", "The bubble holds E and F"], {}),
+    ],
+)
+def test_playoff_block_groups_each_team_once_with_agreeing_verbs(
+    picture: WeeklyNarrationPlayoff, present: list[str], absent_counts: dict[str, int]
+) -> None:
+    seen: set[str] = set()
+    for league_name in ("L1", "L2", "L3", "L4", "L5", "L6", "L7", "L8"):
+        narration = _narration()
+        narration = narration.model_copy(
+            update={"league": narration.league.model_copy(update={"name": league_name})}
+        )
+        block = weekly_template._playoff_block(picture, narration)
+        for team, count in absent_counts.items():
+            assert len(re.findall(rf"\b{team}\b", block)) == count, block
+        seen.update(p for p in present if p in block)
+        assert "is have" not in block and "are is" not in block and "has are" not in block
+    assert seen, "no expected phrase rendered under any of eight hash seeds"
+
+
+def test_tie_line_reads_right_for_a_joined_label() -> None:
+    tie = WeeklyNarrationGame(matchup_id=3, winner=None, winner_pts=99.5, loser="A and B", loser_pts=99.5, margin=0.0)
+    for league_name in ("L1", "L2", "L3", "L4", "L5", "L6"):
+        base = _narration(games=[tie])
+        narration = base.model_copy(update={"league": base.league.model_copy(update={"name": league_name})})
+        line = weekly_template._game_line(tie, narration)
+        assert "A and B" in line and "on one side" not in line and "99.5" in line
+
+
+def test_negative_zero_luck_prints_unsigned_in_the_even_frame() -> None:
+    row = WeeklyNarrationLuck(team="T", roster_id="1", rec="2-2", luck=-0.0)
+    line = weekly_template._luck_line(row, _narration())
+    assert "+0.0" in line and "-0.0" not in line
+
+
+def test_earned_wins_wording_is_number_neutral() -> None:
+    row = WeeklyNarrationLuck(team="T", roster_id="1", rec="2-2", luck=1.0, earned_wins=1.0)
+    for seed in range(1, 9):
+        n = _narration().model_copy(update={"league": _narration().league.model_copy(update={"name": f"L{seed}"})})
+        assert "1.0 wins" not in weekly_template._luck_line(row, n)
+
+
+def test_an_empty_record_renders_no_dangling_is() -> None:
+    rows = [
+        WeeklyNarrationStanding(rank=1, team="A", roster_id="1", rec="", pf=10.0),
+        WeeklyNarrationStanding(rank=2, team="B", roster_id="2", rec="", pf=5.0),
+    ]
+    narration = _narration(standings=rows)
+    warm = " ".join(weekly_template._standings_blocks(rows, narration, cold_start=False))
+    cold = " ".join(weekly_template._standings_blocks(rows, narration, cold_start=True))
+    for text in (warm, cold):
+        assert " is ." not in text and " at ." not in text and "  " not in text
+    assert "A and B" in warm
+
+
+def test_an_unranked_power_row_has_no_number_prefix() -> None:
+    row = WeeklyNarrationPower(model_rank=None, team="A", roster_id="1", rec="1-0", avg_pf=1.5)
+    line = weekly_template._power_line(row, _narration())
+    assert line.endswith(" Unranked.") and "for now" not in line and not re.match(r"^\d", line)

@@ -52,6 +52,7 @@ derivation of ``has_prior_week`` for narrators and renderers.
 
 from __future__ import annotations
 
+import hashlib
 import re
 from collections.abc import Iterable
 
@@ -251,6 +252,7 @@ _NO_STANDINGS = "No standings are available for this league yet."
 _NO_PLAYOFFS = "No playoff picture is available for this league."
 _NO_GAMES = "No games were played this week, and no storyline is running."
 _NO_SCHEDULE = "No games are on the schedule for next week."
+_SEEDING_NOTE = "Seeding unconfirmed, derived from the standings."
 
 
 # --------------------------------------------------------------------------- #
@@ -535,17 +537,32 @@ def _masthead(narration: WeeklyNarration) -> tuple[str, str]:
     return title, dateline
 
 
-def _lead_section(narration: WeeklyNarration) -> WeeklySection:
-    """The week in one line, then every deterministic lead angle Story 5.9's
-    facts builder ranked (each hook is its own sentence)."""
+def _pick(frames: tuple[str, ...], narration: WeeklyNarration, *parts: object) -> str:
+    """One frame from *frames*, chosen by a stable hash of the league, season, week
+    and *parts* (never ``hash()``, which is salted per process), so one frozen
+    input renders byte-identically (I4)."""
     league = narration.league
+    key = "|".join(str(part) for part in (league.name, league.season, league.week, *parts))
+    return frames[int(hashlib.sha256(key.encode("utf-8")).hexdigest(), 16) % len(frames)]
+
+
+def _lead_section(narration: WeeklyNarration) -> WeeklySection:
+    """Every deterministic lead angle Story 5.9's facts builder ranked, one sentence
+    each, best first. The renderers already print ``printed_headline`` above The
+    Lead, so that hook is not repeated here; the short count line stands in only
+    when no other hook remains."""
+    league = narration.league
+    ranked = sorted(narration.lead_candidates, key=lambda candidate: candidate.rank)
     blocks = [
-        f"Week {league.week}: {_count(len(narration.games), 'game')} played, "
-        f"{_count(league.team_count, 'team')} in the standings."
+        candidate.hook
+        for candidate in ranked
+        if candidate.hook and candidate.hook != narration.printed_headline
     ]
-    for candidate in narration.lead_candidates:
-        if candidate.hook:
-            blocks.append(candidate.hook)
+    if not blocks:
+        blocks.append(
+            f"Week {league.week}: {_count(len(narration.games), 'game')} played, "
+            f"{_count(league.team_count, 'team')} in the standings."
+        )
     return WeeklySection(heading=heading_for("lead"), blocks=blocks)
 
 
@@ -565,34 +582,112 @@ def _game_family(game: WeeklyNarrationGame) -> str:
     return "ordinary"
 
 
-def _game_line(game: WeeklyNarrationGame) -> str:
-    """One game, in the sentence family its scoreline earned."""
+#: Sentence frames per family. Fields: ``w`` winner, ``l`` loser, ``wp`` / ``lp``
+#: their points, ``m`` the margin. Each family's verbs are its own.
+_GAME_FRAMES: dict[str, tuple[str, ...]] = {
+    "tie": (
+        "{l} finished level at {lp}.",
+        "Neither side blinked: {l} ended level at {lp}.",
+        "{l} ended in a dead heat at {lp}.",
+    ),
+    "close": (
+        "{w} edged {l} by {m}: {wp}-{lp}.",
+        "{w} held off {l}, {wp} to {lp}. The margin was {m}.",
+        "{l} came up {m} short against {w}, {lp} to {wp}.",
+        "{w} got there by {m} against {l}, {wp} to {lp}.",
+    ),
+    "blowout": (
+        "{w} blew past {l}, {wp} to {lp}.",
+        "{w} ran {l} off the field, {wp} to {lp}.",
+        "{l} never got going against {w}, {lp} to {wp}.",
+        "{w} made it look easy against {l}, {wp} to {lp}.",
+        "{w} rolled {l} by {m}, {wp} to {lp}.",
+    ),
+    "ordinary": (
+        "{w} beat {l}, {wp} to {lp}.",
+        "{w} got past {l}, {wp} to {lp}.",
+        "{w} took down {l}, {wp} to {lp}.",
+        "{l} fell to {w}, {lp} to {wp}.",
+        "{w} handled {l}, {wp} to {lp}.",
+    ),
+}
+
+#: The winner's record movement; ``{rec}`` is the standings record after the week.
+_RECORD_FRAMES = (
+    "{w} moves to {rec}.",
+    "That puts {w} at {rec}.",
+    "The win lifts {w} to {rec}.",
+)
+
+#: The top scorer, with and without the team that scorer plays for.
+_TOP_FRAMES = (
+    "{top} topped the scoring.",
+    "{top} led all scorers.",
+    "{top} had the game's best score.",
+)
+_TOP_TEAM_FRAMES = (
+    "{top} topped the scoring for {tt}.",
+    "{top} led all scorers for {tt}.",
+    "{tt} got the game's best score from {top}.",
+)
+
+
+def _game_line(
+    game: WeeklyNarrationGame,
+    narration: WeeklyNarration,
+    *,
+    index: int = 0,
+    records: dict[str, str] | None = None,
+) -> str:
+    """One game, in the sentence family its scoreline earned. The frame is chosen by
+    a stable hash of the league, season, week and matchup id (the game's position
+    when it carries no id). *records* maps a team label to its post-week record;
+    when it holds the winner, the line carries the record movement."""
     family = _game_family(game)
-    winner = _label(game.winner)
-    loser = _label(game.loser)
-    if family == "tie":
-        line = f"{loser} finished level at {game.loser_pts}."
-    elif family == "close":
-        line = f"{winner} edged {loser} by {game.margin}: {game.winner_pts}-{game.loser_pts}."
-    elif family == "blowout":
-        line = f"{winner} blew past {loser}, {game.winner_pts} to {game.loser_pts}."
-    else:
-        line = f"{winner} beat {loser}, {game.winner_pts} to {game.loser_pts}."
+    anchor = game.matchup_id if game.matchup_id is not None else f"g{index}"
+    fields = {
+        "w": _label(game.winner),
+        "l": _label(game.loser),
+        "wp": game.winner_pts,
+        "lp": game.loser_pts,
+        "m": game.margin,
+    }
+    line = _pick(_GAME_FRAMES[family], narration, "game", anchor).format(**fields)
+    rec = records.get(game.winner) if records and game.winner else None
+    if rec:
+        line += " " + _pick(_RECORD_FRAMES, narration, "rec", anchor).format(rec=rec, **fields)
     if game.top:
-        line += f" {game.top} topped the scoring."
+        if game.top_team:
+            frame = _pick(_TOP_TEAM_FRAMES, narration, "top", anchor)
+        else:
+            frame = _pick(_TOP_FRAMES, narration, "top", anchor)
+        line += " " + frame.format(top=game.top, tt=game.top_team)
     return line
+
+
+def _unique_records(rows: list[WeeklyNarrationStanding]) -> dict[str, str]:
+    """``team label -> record`` for the labels that occur exactly once: a shared
+    label cannot be joined to a record without guessing, so it is left out."""
+    seen: dict[str, int] = {}
+    for row in rows:
+        seen[row.team] = seen.get(row.team, 0) + 1
+    return {row.team: row.rec for row in rows if seen[row.team] == 1 and row.rec}
 
 
 def _around_section(
     narration: WeeklyNarration, *, include_storylines: bool = True
 ) -> WeeklySection:
     """Every game of the week, then the multi-week threads Story 5.9's weekly
-    storyline lifecycle is carrying — skipping any hook the lead already used.
+    storyline lifecycle is carrying: skipping any hook the lead already used.
 
     ``include_storylines=False`` is the cold-start call (Story 5.16): Week 1 has
     no prior week, so no multi-week thread can exist and the section is the
-    scores alone."""
-    blocks: list[str] = [_game_line(game) for game in narration.games]
+    scores alone, with no record movement either."""
+    records = _unique_records(narration.standings) if include_storylines else None
+    blocks: list[str] = [
+        _game_line(game, narration, index=index, records=records)
+        for index, game in enumerate(narration.games)
+    ]
     lead_hooks = {candidate.hook for candidate in narration.lead_candidates if candidate.hook}
     if include_storylines:
         for storyline in narration.storyline_candidates:
@@ -606,29 +701,106 @@ def _around_section(
     return WeeklySection(heading=heading_for("around_league"), blocks=blocks)
 
 
-def _standings_line(row: WeeklyNarrationStanding) -> str:
-    line = f"{row.rank}. {_label(row.team)} — {row.rec}, {row.pf} points for"
-    if row.model_rank is not None:
-        line += f", model rank {row.model_rank}"
-    return line + "."
+def _record_runs(rows: list[WeeklyNarrationStanding]) -> list[tuple[str, list[str]]]:
+    """Consecutive standings rows that share a record, in rank order."""
+    runs: list[tuple[str, list[str]]] = []
+    for row in rows:
+        if runs and runs[-1][0] == row.rec:
+            runs[-1][1].append(_label(row.team))
+        else:
+            runs.append((row.rec, [_label(row.team)]))
+    return runs
 
 
-def _playoff_block(picture: WeeklyNarrationPlayoff | None) -> str:
-    """The playoff picture in one block, or the stand-down line when the league
-    has declared no bracket."""
+_TOP_RUN_ONE = ("{n} leads the league at {rec}.", "{n} sits on top at {rec}.")
+_TOP_RUN_MANY = ("{n} lead the way at {rec}.", "{n} are level at {rec}, the best mark in the league.")
+_RUN_ONE = ("{n} is {rec}.", "{n} sits at {rec}.", "{n} comes in at {rec}.")
+_RUN_MANY = ("{n} are all {rec}.", "{n} sit level at {rec}.", "{n} are bunched at {rec}.")
+_COLD_FIRST = ("{n} opens on top at {rec}, with {pf} points.",)
+_COLD_ROW = (
+    "{n} is {rec} with {pf} points.",
+    "{n} sits at {rec} on {pf} points.",
+    "{n} has {pf} points at {rec}.",
+)
+
+
+def _standings_blocks(
+    rows: list[WeeklyNarrationStanding], narration: WeeklyNarration, *, cold_start: bool
+) -> list[str]:
+    """The standings in grouped sentences: teams sharing a record read as one
+    sentence, in rank order. Week 1 ranks by points, so each team gets its own
+    sentence with its points."""
+    if cold_start:
+        return [
+            _pick(_COLD_FIRST if index == 0 else _COLD_ROW, narration, "standing", row.roster_id).format(
+                n=_label(row.team), rec=row.rec, pf=row.pf
+            )
+            if row.rec
+            else f"{_label(row.team)} has {row.pf} points."
+            for index, row in enumerate(rows)
+        ]
+    blocks: list[str] = []
+    frames: tuple[str, ...]
+    for index, (rec, names) in enumerate(_record_runs(rows)):
+        if index == 0:
+            frames = _TOP_RUN_ONE if len(names) == 1 else _TOP_RUN_MANY
+        else:
+            frames = _RUN_ONE if len(names) == 1 else _RUN_MANY
+        if not rec:  # no record to state: name the teams without one
+            blocks.append(f"{_join_names(names)} {'is' if len(names) == 1 else 'are'} in the standings.")
+            continue
+        blocks.append(_pick(frames, narration, "standing", index).format(n=_join_names(names), rec=rec))
+    return blocks
+
+
+_BRACKET_FRAMES = ("The bracket takes {fmt}.", "The playoff field is {fmt}.")
+_BYE_FRAMES = ("{n} {has} a first-round bye.", "{n} would skip the first round.")
+_REST_FRAMES = ("{n} {is} also in the bracket.", "Behind them, {n} {is} in the bracket.")
+_IN_FRAMES = ("{n} {is} in the bracket.", "The bracket holds {n}.")
+_BUBBLE_FRAMES = ("{n} {is} on the bubble.", "The bubble holds {n}.")
+_OUT_FRAMES = ("{n} is the first team out.", "{n} sits just outside, the first team out.")
+
+
+def _verbs(names: list[str]) -> dict[str, str]:
+    plural = len(names) != 1
+    return {"is": "are" if plural else "is", "has": "have" if plural else "has"}
+
+
+def _playoff_block(picture: WeeklyNarrationPlayoff | None, narration: WeeklyNarration) -> str:
+    """The playoff picture in grouped sentences (byes, the rest of the bracket, the
+    bubble, first out), or the stand-down line when the league has declared no
+    bracket. No digit beyond the payload's own format string."""
     if picture is None:
         return _NO_PLAYOFFS
-    parts = [f"The bracket takes {picture.format}."]
+    parts = [_pick(_BRACKET_FRAMES, narration, "playoff", "format").format(fmt=picture.format)]
     if picture.byes:
-        parts.append(f"First-round byes: {_join_names(picture.byes)}.")
-    if picture.in_bracket:
-        parts.append(f"In the bracket: {_join_names(picture.in_bracket)}.")
-    if picture.first_out:
-        parts.append(f"First team out: {picture.first_out}.")
+        parts.append(
+            _pick(_BYE_FRAMES, narration, "playoff", "byes").format(
+                n=_join_names(picture.byes), **_verbs(picture.byes)
+            )
+        )
+    byes = set(picture.byes)
+    rest = [name for name in picture.in_bracket if name not in byes]
+    if picture.byes and rest:
+        parts.append(
+            _pick(_REST_FRAMES, narration, "playoff", "rest").format(n=_join_names(rest), **_verbs(rest))
+        )
+    elif not picture.byes and picture.in_bracket:
+        parts.append(
+            _pick(_IN_FRAMES, narration, "playoff", "in").format(
+                n=_join_names(picture.in_bracket), **_verbs(picture.in_bracket)
+            )
+        )
     if picture.bubble:
-        parts.append(f"On the bubble: {_join_names(picture.bubble)}.")
+        parts.append(
+            _pick(_BUBBLE_FRAMES, narration, "playoff", "bubble").format(
+                n=_join_names(picture.bubble), **_verbs(picture.bubble)
+            )
+        )
+    if picture.first_out:
+        parts.append(_pick(_OUT_FRAMES, narration, "playoff", "out").format(n=picture.first_out))
     if picture.seeding_unconfirmed:
-        parts.append("Seeding unconfirmed — derived from the standings.")
+        parts.append(_SEEDING_NOTE)
     return " ".join(parts)
 
 
@@ -644,49 +816,94 @@ def cold_start_standings(rows: list[WeeklyNarrationStanding]) -> list[WeeklyNarr
 def _standings_section(
     narration: WeeklyNarration, *, cold_start: bool = False
 ) -> WeeklySection:
-    """The standings table, then the playoff picture.
+    """The standings in grouped sentences, then the playoff picture.
 
     ``cold_start=True`` (Week 1) drops the playoff block entirely and uses the
-    plain "Standings" heading — there is no bracket yet to describe, and the
+    plain "Standings" heading: there is no bracket yet to describe, and the
     heading is the cold-start set's own (Story 5.16)."""
     rows = cold_start_standings(narration.standings) if cold_start else narration.standings
-    blocks = [_standings_line(row) for row in rows]
+    blocks = _standings_blocks(rows, narration, cold_start=cold_start)
     if not blocks:
         blocks.append(_NO_STANDINGS)
     if not cold_start:
-        blocks.append(_playoff_block(narration.playoff_picture))
+        blocks.append(_playoff_block(narration.playoff_picture, narration))
     heading = heading_for("standings", cold_start=cold_start)
     return WeeklySection(heading=heading, blocks=blocks)
 
 
-def _power_line(row: WeeklyNarrationPower) -> str:
-    tail = f"{_label(row.team)} — {row.rec}, {row.avg_pf} points a week"
+_POWER_FRAMES = (
+    "{team} is {rec} and scores {avg} points a week.",
+    "{team} averages {avg} points a week at {rec}.",
+    "{team} ({rec}) puts up {avg} points a week.",
+    "{team} sits at {rec} on {avg} points a week.",
+)
+_ALL_PLAY_FRAMES = (" The all-play record is {ap}.", " In all-play, {ap}.", " All-play: {ap}.")
+
+
+def _power_line(row: WeeklyNarrationPower, narration: WeeklyNarration) -> str:
+    body = _pick(_POWER_FRAMES, narration, "power", row.roster_id).format(
+        team=_label(row.team), rec=row.rec, avg=row.avg_pf
+    )
+    if row.all_play:
+        body += _pick(_ALL_PLAY_FRAMES, narration, "power-ap", row.roster_id).format(ap=row.all_play)
     if row.model_rank is None:
-        return f"{tail}, unranked."
-    return f"{row.model_rank}. {tail}."
+        # No "N. " prefix: the web page's _power_notes leaves this one row as prose.
+        return f"{body} Unranked."
+    return f"{row.model_rank}. {body}"
 
 
 def _power_section(narration: WeeklyNarration) -> WeeklySection:
-    """Model rank only, best first — no delta arrows, no published rank."""
+    """Model rank only, best first: no delta arrows, no published rank."""
     rows = sorted(narration.power, key=lambda row: (row.model_rank is None, row.model_rank or 0))
-    blocks = [_power_line(row) for row in rows]
+    blocks = [_power_line(row, narration) for row in rows]
     if not blocks:
         blocks.append(_NO_POWER)
     return WeeklySection(heading=heading_for("power"), blocks=blocks)
 
 
-def _luck_line(row: WeeklyNarrationLuck) -> str:
-    line = f"{_label(row.team)} — {row.rec}"
+#: Luck in words. Positive ``luck`` is wins above what the scores earned (lucky),
+#: negative is below (unlucky), zero is even; the number keeps its printed sign.
+_LUCKY_FRAMES = (
+    "{team} is {rec} and has caught the breaks, luck {luck}.",
+    "{team} ({rec}) has been lucky, {luck} by the index.",
+    "Luck has favored {team} at {rec}, {luck}.",
+)
+_UNLUCKY_FRAMES = (
+    "{team} is {rec} and has been unlucky, luck {luck}.",
+    "{team} ({rec}) deserved better, {luck} by the index.",
+    "Luck has dodged {team} at {rec}, {luck}.",
+)
+_EVEN_FRAMES = (
+    "{team} is {rec} and exactly as lucky as the scores say, luck {luck}.",
+    "{team} ({rec}) has had no luck either way, {luck}.",
+)
+_EARNED_FRAMES = (" Earned wins by the scores: {ew}.", " Earned wins: {ew}.")
+
+
+def _luck_line(row: WeeklyNarrationLuck, narration: WeeklyNarration) -> str:
+    luck = (row.luck if row.luck is not None else 0.0) + 0.0  # + 0.0 turns -0.0 into 0.0
+    frames: tuple[str, ...]
+    if luck > 0:
+        frames = _LUCKY_FRAMES
+    elif luck < 0:
+        frames = _UNLUCKY_FRAMES
+    else:
+        frames = _EVEN_FRAMES
+    line = _pick(frames, narration, "luck", row.roster_id).format(
+        team=_label(row.team), rec=row.rec, luck=f"{luck:+}"
+    )
     if row.earned_wins is not None:
-        line += f", {row.earned_wins} wins earned"
-    return f"{line}, luck {row.luck:+}."
+        line += _pick(_EARNED_FRAMES, narration, "luck-ew", row.roster_id).format(ew=row.earned_wins)
+    if row.all_play:
+        line += _pick(_ALL_PLAY_FRAMES, narration, "luck-ap", row.roster_id).format(ap=row.all_play)
+    return line
 
 
 def _luck_section(narration: WeeklyNarration) -> WeeklySection:
     """The luck index. Rows whose ``luck`` is not yet measurable (below the
     games-played minimum) are skipped, so a cold start stands down rather than
     rendering a heading over nothing."""
-    blocks = [_luck_line(row) for row in narration.luck if row.luck is not None]
+    blocks = [_luck_line(row, narration) for row in narration.luck if row.luck is not None]
     if not blocks:
         blocks.append(_NO_LUCK)
     return WeeklySection(heading=heading_for("luck"), blocks=blocks)

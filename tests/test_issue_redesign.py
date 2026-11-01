@@ -703,8 +703,9 @@ def test_a_tied_game_names_both_teams_in_the_narration_projection() -> None:
         assert names[roster_id] in (game.loser or "")
     assert " and " in (game.loser or "")
     text = render_weekly_issue(facts.narration)
-    line = next(b for s in text.sections for b in s.blocks if "finished level" in b)
-    assert all(names[roster_id] in line for roster_id in sides)
+    around = next(s for s in text.sections if s.heading == "Around the League")
+    line = next(b for b in around.blocks if all(names[roster_id] in b for roster_id in sides))
+    assert "level" in line or "dead heat" in line
 
 
 def test_the_narrated_record_drops_a_zero_tie_and_keeps_a_real_one() -> None:
