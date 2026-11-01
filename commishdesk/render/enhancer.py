@@ -15,7 +15,8 @@ Whatever an enhancer supplies is validated at render time, twice:
   standard library's :mod:`html.parser` (real tags only; escaped text is never
   a tag): exactly one ``<script>`` with an enhancer and zero without, no
   ``on*`` attribute on any tag, and no ``src`` / ``href`` (bar a same-page ``<a href="#id">``) / ``<link>`` /
-  ``<iframe>`` / ``<img>`` sub-resource.
+  ``<iframe>`` / ``<img>`` sub-resource. Story 9.7 widens the ``href`` carve-out by exactly three
+fixed values (:data:`ALLOWED_CARD_LINKS`).
 
 Every refusal raises :class:`EnhancerRejected` naming the rule it broke.
 
@@ -30,7 +31,7 @@ import re
 from html.parser import HTMLParser
 from typing import Protocol, runtime_checkable
 
-__all__ = ["EnhancerRejected", "WebEnhancer", "validate_enhancer", "validate_page"]
+__all__ = ["ALLOWED_CARD_LINKS", "EnhancerRejected", "WebEnhancer", "validate_enhancer", "validate_page"]
 
 
 @runtime_checkable
@@ -82,6 +83,11 @@ _SUBRESOURCE_TAGS = frozenset({"link", "iframe", "img"})
 _SUBRESOURCE_ATTRS = frozenset({"src", "href", "srcset"})
 #: The one href the page may carry: ``<a href="#section-id">``, a same-page fragment (8.16c).
 _SAME_PAGE_FRAGMENT = re.compile(r"#[A-Za-z][A-Za-z0-9_-]*")
+#: Story 9.7: the three fixed ``<a href>`` values a trade card's source line may carry. They load
+#: nothing and run nothing; any other value is still refused.
+ALLOWED_CARD_LINKS = frozenset(
+    {"/docs/trade-grades/", "/docs/league-value/", "https://github.com/nflverse"}
+)
 
 
 def validate_enhancer(enhancer: object) -> tuple[str, str]:
@@ -128,6 +134,8 @@ class _PageScan(HTMLParser):
                 return
             if tag == "a" and name == "href" and _SAME_PAGE_FRAGMENT.fullmatch(value or ""):
                 continue  # Story 8.16c: a "Jump to" anchor loads nothing and runs nothing
+            if tag == "a" and name == "href" and value in ALLOWED_CARD_LINKS:
+                continue  # Story 9.7: the trade card's three fixed links
             if name in _SUBRESOURCE_ATTRS or name.rsplit(":", 1)[-1] == "href":
                 self.violation = ("page-subresource", f"<{tag} {name}>")
                 return

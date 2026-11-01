@@ -1368,17 +1368,164 @@ def _trade_card(ctx: _Ctx, trade: WeeklyTrade) -> str:
     )
 
 
-def _transactions_section(ctx: _Ctx) -> str:
+def _tags_html(tags: Sequence[str]) -> str:
+    return "".join(f' <span class="tg-tag">{_esc(tag)}</span>' for tag in tags)
+
+
+def _grade_item_li(item: wm.TradeItem) -> str:
+    pos = f' <span class="pos">{_esc(item.pos)}</span>' if item.pos else ""
+    cls = "" if item.kind == "player" else ' class="mono"'
+    return f"<li{cls}>{_esc(item.text)}{pos}{_tags_html(item.tags)}</li>"
+
+
+def _verdict_li(verdict: wm.TradeVerdictView) -> str:
+    if verdict.est:
+        kind = "est"
+    elif verdict.ahead is None:
+        kind = "even"
+    else:
+        kind = "ahead" if verdict.ahead else "behind"
+    est = f' <span class="tg-tag">{wm.EST_TAG}</span>' if verdict.est else ""
+    return (
+        f'<li class="tg-v"><span class="tg-h">{_esc(verdict.horizon_label)}</span>'
+        f'<span class="vchip vc-{kind}">{_esc(verdict.letter)}</span>'
+        f'<span class="tg-w">{_esc(verdict.word)}</span>{est}</li>'
+    )
+
+
+def _grade_side(ctx: _Ctx, side: wm.TradeSideView, *, graded: bool) -> str:
+    parts = [
+        f'<div class="tn">{ctx.text(side.label)}</div>',
+        f'<div class="lab">Receives</div><ul>{"".join(_grade_item_li(item) for item in side.items)}</ul>',
+    ]
+    if graded:
+        if side.verdicts:
+            parts.append(f'<ul class="tg-verdicts">{"".join(_verdict_li(v) for v in side.verdicts)}</ul>')
+        if side.lineup:
+            parts.append(f'<p class="tg-lineup">{_esc(side.lineup)}</p>')
+        if side.graded_without:
+            parts.append(f'<p class="tg-without">Graded without {_esc(wm.join_labels(side.graded_without))}.</p>')
+    return f'<div class="tg-side">{"".join(parts)}</div>'
+
+
+def _grade_details(card: wm.TradeCard) -> str:
+    lines: list[str] = []
+    for side in card.sides:
+        rows = []
+        for item in side.items:
+            if item.value is not None or item.future is not None:
+                bits = []
+                if item.value is not None:
+                    bits.append(f"{_esc(wm.HORIZON_LABELS['this_season'])} {wm.signed(item.value)} pts/wk")
+                if item.future is not None:
+                    bits.append(f"{_esc(wm.HORIZON_LABELS['future'])} {wm.signed(item.future)} pts/wk")
+                rows.append(f"<li>{_esc(item.text)}: {' · '.join(bits)}</li>")
+        for verdict in side.verdicts:
+            share = f"{verdict.share * 100:.1f}%"
+            rows.append(
+                f"<li>{_esc(verdict.horizon_label)}: received {verdict.total:.2f}, "
+                f"the rest {verdict.counter_total:.2f}, gap {share} of the total</li>"
+            )
+        if rows:
+            lines.append(
+                f'<div class="tg-d-side"><p class="d-team">{_esc(side.label)}</p><ul>{"".join(rows)}</ul></div>'
+            )
+    if not lines:
+        return ""
+    return (
+        '<details class="tg-details"><summary>Details</summary>'
+        '<p class="tg-d-note">League Value in points per week over replacement.</p>'
+        f'{"".join(lines)}</details>'
+    )
+
+
+def _grade_source(card: wm.TradeCard) -> str:
+    league_value = f'<a href="{wm.DOCS_LEAGUE_VALUE}">League Value</a>'
+    nflverse = f'<a href="{wm.NFLVERSE_URL}">nflverse</a>'
+    text = f"{league_value}, week {card.grade.week} · stats: {nflverse}, CC BY 4.0"
+    if card.sleeper_only:
+        text += f" · Sleeper data only ({_esc(f'Even is a wider band, +/-{card.band_pct or 10}%')})"
+    return (
+        f'<p class="tg-source">{text} · <a href="{wm.DOCS_TRADE_GRADES}">How trade grades work</a></p>'
+    )
+
+
+def _graded_trade_card(ctx: _Ctx, card: wm.TradeCard) -> str:
+    sides = "".join(_grade_side(ctx, side, graded=card.graded) for side in card.sides)
+    layout = "tg-sides tg-two" if len(card.sides) == 2 else "tg-sides tg-multi"
+    head = f'<span class="chip chip-plain">{_esc(card.kind_label)}</span>'
+    if card.mostly_est:
+        head += f'<span class="chip chip-plain tg-est-chip">{_esc(wm.MOSTLY_ESTIMATES)}</span>'
+    parts = [
+        f'<div class="tx-top"><span class="lab">{_esc(f"Trade · week {card.trade.week}")}</span>'
+        f'<span class="tg-chips">{head}</span></div>'
+    ]
+    if card.mostly_est:
+        parts.append(f'<p class="tg-banner">{_esc(wm.MOSTLY_ESTIMATES_NOTE)}</p>')
+    parts.append(f'<div class="{layout}">{sides}</div>')
+    if not card.graded:
+        parts.append(
+            '<p class="tg-ungraded"><span class="vchip vc-none" aria-hidden="true">&ndash;&nbsp;&ndash;</span>'
+            f"<b>Not graded.</b> {_esc(card.ungraded_reason or '')}</p>"
+        )
+    if card.picks_note:
+        parts.append(f'<p class="tg-note">{_esc(wm.PICKS_NOT_COUNTED)}</p>')
+    if card.context_line:
+        parts.append(f'<p class="tg-context">{ctx.text(card.context_line)}</p>')
+    if card.graded:
+        parts.append(_grade_details(card))
+    parts.append(_grade_source(card))
+    return (
+        f'<article class="card tx tx-trade tg" aria-label="{_esc(f"Trade, week {card.trade.week}")}">'
+        f'{"".join(part for part in parts if part)}</article>'
+    )
+
+
+def _locked_revisit(ctx: _Ctx) -> str:
+    """The locked "trade revisited" panel (only behind ``show_trade_revisited``): the question,
+    placeholder digits blurred and hidden from assistive tech (the real numbers are never in
+    the markup), and a disabled button. Empty when there is nothing to revisit."""
+    revisits = sorted(
+        ctx.facts.transactions.trade_revisits, key=lambda r: (-r.trade_week, r.transaction_id)
+    )
+    for revisit in revisits:
+        question = wm.revisit_question(ctx.facts, revisit)
+        if question is None:
+            continue
+        ghost = "".join(
+            f'<div class="tg-ghost-side"><span class="tg-ghost-name">{ctx.text(ctx.label(side.roster_id))}</span>'
+            '<span class="tg-ghost-num">00.0 pts/wk</span></div>'
+            for side in revisit.sides
+        )
+        return (
+            '<article class="card tx tg-locked" aria-label="Trade revisited, not available yet">'
+            '<div class="tx-top"><span class="lab">Trade revisited</span>'
+            '<span class="chip chip-plain">Locked</span></div>'
+            f'<h3 class="tg-q">{ctx.text(question)}</h3>'
+            f'<div class="tg-ghost" aria-hidden="true">{ghost}</div>'
+            '<button type="button" class="tg-btn" disabled>Not available yet</button></article>'
+        )
+    return ""
+
+
+def _transactions_section(ctx: _Ctx, *, show_trade_revisited: bool = False) -> str:
     moves = wm.week_moves(ctx.facts)
-    trades = wm.latest_trades(ctx.facts)
-    if not moves and not trades:
+    entries = wm.trade_entries(ctx.facts)
+    none_line = wm.no_trades_line(ctx.facts)
+    if not moves and not entries and not ctx.facts.transactions.recent_trades:
         return ""
     cards = [_move_card(ctx, move) for move in moves]
-    cards.extend(_trade_card(ctx, trade) for trade in trades)
+    for trade, card in entries:
+        cards.append(_graded_trade_card(ctx, card) if card is not None else _trade_card(ctx, trade))
+    if show_trade_revisited:
+        locked = _locked_revisit(ctx)
+        if locked:
+            cards.append(locked)
+    none_html = f'<p class="tg-none">{_esc(none_line)}</p>' if none_line is not None else ""
     return (
         f'<section {_sid("transactions")} aria-label="The transaction desk" data-reveal>'
         f'{_head(ctx, "The transaction desk", "What moved on the wire", "good")}'
-        f'<div class="grid3">{"".join(cards)}</div>'
+        f'<div class="grid3">{"".join(cards)}</div>{none_html}'
         f"{_prose(ctx, ctx.blocks(heading_for('transactions')))}</section>"
     )
 
@@ -1396,6 +1543,7 @@ def render_weekly_web(
     generated_at: str,
     enhancer: WebEnhancer | None = None,
     team_colors: Mapping[str, int] | None = None,
+    show_trade_revisited: bool = False,
 ) -> str:
     """Render one self-contained ``<!doctype html>`` weekly Issue page.
 
@@ -1409,6 +1557,11 @@ def render_weekly_web(
     rankings, luck index and transaction desk are omitted entirely, the standings
     section stands down its playoff picture, and the section set used to pick
     the narrated prose is the four-section cold-start set.
+
+    Story 9.7: each this-week trade draws as a trade-grade card (``facts.transactions.trade_grades``,
+    never recomputed). ``show_trade_revisited`` (default ``False``, the app flips it) adds the
+    locked "trade revisited" panel when revisit facts exist; off, the page is byte-identical to one
+    rendered without revisit data.
 
     Story 6.0c (AD-40): with ``enhancer=None`` the page is complete and static —
     zero ``<script>``, no motion, no control that does nothing. An
@@ -1435,7 +1588,10 @@ def render_weekly_web(
         ("power", _power_section(ctx) if not cold_start else ""),
         ("luck", _luck_section(ctx) if not cold_start else ""),
         ("next_week", _next_week_section(ctx)),
-        ("transactions", _transactions_section(ctx) if not cold_start else ""),
+        (
+            "transactions",
+            _transactions_section(ctx, show_trade_revisited=show_trade_revisited) if not cold_start else "",
+        ),
     ]
     rendered_ids = [section_id for section_id, html in body_sections if html]
     sections = [

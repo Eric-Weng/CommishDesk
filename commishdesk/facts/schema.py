@@ -128,6 +128,9 @@ __all__ = [
     "WeeklyNarrationPlayoff",
     "WeeklyNarrationPower",
     "WeeklyNarrationStanding",
+    "WeeklyNarrationTradeGrade",
+    "WeeklyNarrationTradeSide",
+    "WeeklyNarrationTradeVerdict",
     "WeeklyNarrationTransactions",
     "WeeklyNextWeekCard",
     "WeeklyPerformer",
@@ -159,7 +162,7 @@ __all__ = [
     "WeeklyWeekPoints",
 ]
 
-SCHEMA_VERSION = "0.11.0"
+SCHEMA_VERSION = "0.12.0"
 """Semver contract version. Additive key -> minor bump; shape change -> major.
 ``0.4.0`` -> ``0.5.0`` (Story 5.8): the empty ``WeeklyFacts`` placeholder becomes
 the real weekly document and its ``WeeklyNarration``; ``DraftRecapFacts.weekly``
@@ -173,7 +176,8 @@ adds ``StorylineCandidate.weeks_running`` additively. ``0.6.0`` -> ``0.7.0``
 (Story 5B.3) adds ``WeeklyHistoryRow.published_rank`` additively. ``0.9.0`` ->
 ``0.10.0`` (weekly voice v3) adds ``WeeklyNarrationGame.top_team`` and
 ``WeeklyNarration.printed_headline`` additively. ``0.10.0`` -> ``0.11.0`` (Story 9.6)
-adds ``WeeklyTransactions.trade_grades`` and ``WeeklyTransactions.trade_revisits`` additively."""
+adds ``WeeklyTransactions.trade_grades`` and ``WeeklyTransactions.trade_revisits`` additively.
+``0.11.0`` -> ``0.12.0`` (Story 9.7) adds ``WeeklyNarrationTransactions.trade_grades`` additively."""
 
 _ISSUE_TYPE: Literal["draft_recap"] = "draft_recap"
 _IssueType = Literal["draft_recap", "weekly"]
@@ -1389,6 +1393,42 @@ class WeeklyNarrationNextWeek(_Doc):
     game_of_week: bool = False
 
 
+class WeeklyNarrationTradeVerdict(_Doc):
+    """One side's narrated verdict for a horizon (Story 9.7): the letter and word from the
+    documented scale and the share behind them. Numbers and engine words only."""
+
+    horizon: Literal["this_season", "future"]
+    letter: str
+    word: str
+    share: float
+    ahead: bool | None = None
+    est: bool = False
+
+
+class WeeklyNarrationTradeSide(_Doc):
+    """One side of a narrated trade: the sanitized ``team`` label, the ``roster_id``, the
+    lineup impact in points per week, and the verdicts."""
+
+    team: str
+    roster_id: str
+    lineup_impact: float | None = None
+    verdicts: list[WeeklyNarrationTradeVerdict] = []
+
+
+class WeeklyNarrationTradeGrade(_Doc):
+    """One this-week trade as the narrator sees it: numbers, ids and sanitized team labels
+    only (AD-24). ``context`` is ``contender_vs_eliminated`` (a standings fact, never a
+    judgement) with the ``eliminated`` team labels; it never changes a grade."""
+
+    transaction_id: str
+    week: int
+    status: Literal["graded", "ungraded"]
+    dynasty: bool = False
+    context: str | None = None
+    eliminated: list[str] = []
+    sides: list[WeeklyNarrationTradeSide] = []
+
+
 class WeeklyNarrationTransactions(_Doc):
     """The narrated transactions glance."""
 
@@ -1397,6 +1437,7 @@ class WeeklyNarrationTransactions(_Doc):
     complete: bool = False
     this_week_count: int = 0
     recent_trade_count: int = 0
+    trade_grades: list[WeeklyNarrationTradeGrade] = []
 
 
 class WeeklyNarration(_Doc):

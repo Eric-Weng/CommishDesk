@@ -1,6 +1,6 @@
 {
   "_derived_from": "Story 5.16 oracle. build_weekly_facts() over week01-openers.json (the anonymized Week-1 fixture); generated_at pinned to '2026-09-07T00:00:00Z'; nfl_byes_next_week=None.",
-  "schema_version": "0.11.0",
+  "schema_version": "0.12.0",
   "generated_at": "2026-09-07T00:00:00Z",
   "provisional": true,
   "issue_type": "weekly",
@@ -8887,7 +8887,515 @@
       "weeks_since_last_trade": 0,
       "complete": true,
       "this_week_count": 136,
-      "recent_trade_count": 23
+      "recent_trade_count": 23,
+      "trade_grades": [
+        {
+          "transaction_id": "id_63h578wbfb",
+          "week": 1,
+          "status": "ungraded",
+          "dynasty": false,
+          "context": null,
+          "eliminated": [],
+          "sides": [
+            {
+              "team": "Two Minute Drill",
+              "roster_id": "2",
+              "lineup_impact": null,
+              "verdicts": []
+            },
+            {
+              "team": "Nickel Newts",
+              "roster_id": "5",
+              "lineup_impact": null,
+              "verdicts": []
+            }
+          ]
+        },
+        {
+          "transaction_id": "id_9i3saglz3b",
+          "week": 1,
+          "status": "ungraded",
+          "dynasty": false,
+          "context": null,
+          "eliminated": [],
+          "sides": [
+            {
+              "team": "Nickel Newts",
+              "roster_id": "5",
+              "lineup_impact": null,
+              "verdicts": []
+            },
+            {
+              "team": "Kneel-Down Koalas",
+              "roster_id": "7",
+              "lineup_impact": null,
+              "verdicts": []
+            }
+          ]
+        },
+        {
+          "transaction_id": "id_dm908n9a14",
+          "week": 1,
+          "status": "ungraded",
+          "dynasty": false,
+          "context": null,
+          "eliminated": [],
+          "sides": [
+            {
+              "team": "Overtime Otters",
+              "roster_id": "6",
+              "lineup_impact": null,
+              "verdicts": []
+            },
+            {
+              "team": "Screen Pass Syndicate",
+              "roster_id": "8",
+              "lineup_impact": null,
+              "verdicts": []
+            }
+          ]
+        },
+        {
+          "transaction_id": "id_ek6q8so2a7",
+          "week": 1,
+          "status": "ungraded",
+          "dynasty": false,
+          "context": null,
+          "eliminated": [],
+          "sides": [
+            {
+              "team": "Flea Flicker Union",
+              "roster_id": "1",
+              "lineup_impact": null,
+              "verdicts": []
+            },
+            {
+              "team": "Bubble-Screen Bobcats",
+              "roster_id": "11",
+              "lineup_impact": null,
+              "verdicts": []
+            }
+          ]
+        },
+        {
+          "transaction_id": "id_epcxqb37g6",
+          "week": 1,
+          "status": "ungraded",
+          "dynasty": false,
+          "context": null,
+          "eliminated": [],
+          "sides": [
+            {
+              "team": "Two Minute Drill",
+              "roster_id": "2",
+              "lineup_impact": null,
+              "verdicts": []
+            },
+            {
+              "team": "Stiff-Arm Stags",
+              "roster_id": "10",
+              "lineup_impact": null,
+              "verdicts": []
+            }
+          ]
+        },
+        {
+          "transaction_id": "id_etmpxu69oq",
+          "week": 1,
+          "status": "ungraded",
+          "dynasty": false,
+          "context": null,
+          "eliminated": [],
+          "sides": [
+            {
+              "team": "Flea Flicker Union",
+              "roster_id": "1",
+              "lineup_impact": null,
+              "verdicts": []
+            },
+            {
+              "team": "Bubble-Screen Bobcats",
+              "roster_id": "11",
+              "lineup_impact": null,
+              "verdicts": []
+            }
+          ]
+        },
+        {
+          "transaction_id": "id_ff34hqrzxc",
+          "week": 1,
+          "status": "ungraded",
+          "dynasty": false,
+          "context": null,
+          "eliminated": [],
+          "sides": [
+            {
+              "team": "Two Minute Drill",
+              "roster_id": "2",
+              "lineup_impact": null,
+              "verdicts": []
+            },
+            {
+              "team": "Backpedal Buffalo",
+              "roster_id": "3",
+              "lineup_impact": null,
+              "verdicts": []
+            }
+          ]
+        },
+        {
+          "transaction_id": "id_g62mq6vxr8",
+          "week": 1,
+          "status": "ungraded",
+          "dynasty": false,
+          "context": null,
+          "eliminated": [],
+          "sides": [
+            {
+              "team": "Two Minute Drill",
+              "roster_id": "2",
+              "lineup_impact": null,
+              "verdicts": []
+            },
+            {
+              "team": "Kneel-Down Koalas",
+              "roster_id": "7",
+              "lineup_impact": null,
+              "verdicts": []
+            }
+          ]
+        },
+        {
+          "transaction_id": "id_gdruqdii4p",
+          "week": 1,
+          "status": "ungraded",
+          "dynasty": false,
+          "context": null,
+          "eliminated": [],
+          "sides": [
+            {
+              "team": "Flea Flicker Union",
+              "roster_id": "1",
+              "lineup_impact": null,
+              "verdicts": []
+            },
+            {
+              "team": "Stiff-Arm Stags",
+              "roster_id": "10",
+              "lineup_impact": null,
+              "verdicts": []
+            }
+          ]
+        },
+        {
+          "transaction_id": "id_gkdf6s9k88",
+          "week": 1,
+          "status": "ungraded",
+          "dynasty": false,
+          "context": null,
+          "eliminated": [],
+          "sides": [
+            {
+              "team": "Two Minute Drill",
+              "roster_id": "2",
+              "lineup_impact": null,
+              "verdicts": []
+            },
+            {
+              "team": "No-Huddle Narwhals",
+              "roster_id": "9",
+              "lineup_impact": null,
+              "verdicts": []
+            }
+          ]
+        },
+        {
+          "transaction_id": "id_h69ubqcbrt",
+          "week": 1,
+          "status": "ungraded",
+          "dynasty": false,
+          "context": null,
+          "eliminated": [],
+          "sides": [
+            {
+              "team": "Flea Flicker Union",
+              "roster_id": "1",
+              "lineup_impact": null,
+              "verdicts": []
+            },
+            {
+              "team": "Two Minute Drill",
+              "roster_id": "2",
+              "lineup_impact": null,
+              "verdicts": []
+            }
+          ]
+        },
+        {
+          "transaction_id": "id_hi7l0pxxwu",
+          "week": 1,
+          "status": "ungraded",
+          "dynasty": false,
+          "context": null,
+          "eliminated": [],
+          "sides": [
+            {
+              "team": "Flea Flicker Union",
+              "roster_id": "1",
+              "lineup_impact": null,
+              "verdicts": []
+            },
+            {
+              "team": "Chip-Block Chinchillas",
+              "roster_id": "4",
+              "lineup_impact": null,
+              "verdicts": []
+            }
+          ]
+        },
+        {
+          "transaction_id": "id_jpvgl1e130",
+          "week": 1,
+          "status": "ungraded",
+          "dynasty": false,
+          "context": null,
+          "eliminated": [],
+          "sides": [
+            {
+              "team": "Flea Flicker Union",
+              "roster_id": "1",
+              "lineup_impact": null,
+              "verdicts": []
+            },
+            {
+              "team": "No-Huddle Narwhals",
+              "roster_id": "9",
+              "lineup_impact": null,
+              "verdicts": []
+            }
+          ]
+        },
+        {
+          "transaction_id": "id_pibb8uvime",
+          "week": 1,
+          "status": "ungraded",
+          "dynasty": false,
+          "context": null,
+          "eliminated": [],
+          "sides": [
+            {
+              "team": "Nickel Newts",
+              "roster_id": "5",
+              "lineup_impact": null,
+              "verdicts": []
+            },
+            {
+              "team": "Screen Pass Syndicate",
+              "roster_id": "8",
+              "lineup_impact": null,
+              "verdicts": []
+            }
+          ]
+        },
+        {
+          "transaction_id": "id_qfujz0ft94",
+          "week": 1,
+          "status": "ungraded",
+          "dynasty": false,
+          "context": null,
+          "eliminated": [],
+          "sides": [
+            {
+              "team": "Flea Flicker Union",
+              "roster_id": "1",
+              "lineup_impact": null,
+              "verdicts": []
+            },
+            {
+              "team": "Backpedal Buffalo",
+              "roster_id": "3",
+              "lineup_impact": null,
+              "verdicts": []
+            }
+          ]
+        },
+        {
+          "transaction_id": "id_r1q4zerqrv",
+          "week": 1,
+          "status": "ungraded",
+          "dynasty": false,
+          "context": null,
+          "eliminated": [],
+          "sides": [
+            {
+              "team": "Two Minute Drill",
+              "roster_id": "2",
+              "lineup_impact": null,
+              "verdicts": []
+            },
+            {
+              "team": "No-Huddle Narwhals",
+              "roster_id": "9",
+              "lineup_impact": null,
+              "verdicts": []
+            }
+          ]
+        },
+        {
+          "transaction_id": "id_trjqa4whel",
+          "week": 1,
+          "status": "ungraded",
+          "dynasty": false,
+          "context": null,
+          "eliminated": [],
+          "sides": [
+            {
+              "team": "Two Minute Drill",
+              "roster_id": "2",
+              "lineup_impact": null,
+              "verdicts": []
+            },
+            {
+              "team": "Kneel-Down Koalas",
+              "roster_id": "7",
+              "lineup_impact": null,
+              "verdicts": []
+            }
+          ]
+        },
+        {
+          "transaction_id": "id_v1ez6kv25w",
+          "week": 1,
+          "status": "ungraded",
+          "dynasty": false,
+          "context": null,
+          "eliminated": [],
+          "sides": [
+            {
+              "team": "Two Minute Drill",
+              "roster_id": "2",
+              "lineup_impact": null,
+              "verdicts": []
+            },
+            {
+              "team": "No-Huddle Narwhals",
+              "roster_id": "9",
+              "lineup_impact": null,
+              "verdicts": []
+            }
+          ]
+        },
+        {
+          "transaction_id": "id_w6myy0p5cs",
+          "week": 1,
+          "status": "ungraded",
+          "dynasty": false,
+          "context": null,
+          "eliminated": [],
+          "sides": [
+            {
+              "team": "Two Minute Drill",
+              "roster_id": "2",
+              "lineup_impact": null,
+              "verdicts": []
+            },
+            {
+              "team": "Bubble-Screen Bobcats",
+              "roster_id": "11",
+              "lineup_impact": null,
+              "verdicts": []
+            }
+          ]
+        },
+        {
+          "transaction_id": "id_w9gjzbeaiy",
+          "week": 1,
+          "status": "ungraded",
+          "dynasty": false,
+          "context": null,
+          "eliminated": [],
+          "sides": [
+            {
+              "team": "Two Minute Drill",
+              "roster_id": "2",
+              "lineup_impact": null,
+              "verdicts": []
+            },
+            {
+              "team": "Chip-Block Chinchillas",
+              "roster_id": "4",
+              "lineup_impact": null,
+              "verdicts": []
+            }
+          ]
+        },
+        {
+          "transaction_id": "id_xi4lzdsdgl",
+          "week": 1,
+          "status": "ungraded",
+          "dynasty": false,
+          "context": null,
+          "eliminated": [],
+          "sides": [
+            {
+              "team": "Two Minute Drill",
+              "roster_id": "2",
+              "lineup_impact": null,
+              "verdicts": []
+            },
+            {
+              "team": "Chip-Block Chinchillas",
+              "roster_id": "4",
+              "lineup_impact": null,
+              "verdicts": []
+            }
+          ]
+        },
+        {
+          "transaction_id": "id_xqvhcgfvz2",
+          "week": 1,
+          "status": "ungraded",
+          "dynasty": false,
+          "context": null,
+          "eliminated": [],
+          "sides": [
+            {
+              "team": "Flea Flicker Union",
+              "roster_id": "1",
+              "lineup_impact": null,
+              "verdicts": []
+            },
+            {
+              "team": "Nickel Newts",
+              "roster_id": "5",
+              "lineup_impact": null,
+              "verdicts": []
+            }
+          ]
+        },
+        {
+          "transaction_id": "id_xugvpwkcu4",
+          "week": 1,
+          "status": "ungraded",
+          "dynasty": false,
+          "context": null,
+          "eliminated": [],
+          "sides": [
+            {
+              "team": "Two Minute Drill",
+              "roster_id": "2",
+              "lineup_impact": null,
+              "verdicts": []
+            },
+            {
+              "team": "Bubble-Screen Bobcats",
+              "roster_id": "11",
+              "lineup_impact": null,
+              "verdicts": []
+            }
+          ]
+        }
+      ]
     },
     "printed_headline": "Kneel-Down Koalas lost by 4.25, and a perfect lineup adds 20.85, including Zach Ertz.",
     "lead_candidates": [

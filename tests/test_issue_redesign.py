@@ -627,6 +627,7 @@ def test_spacing_rounding_and_full_width_blurbs() -> None:
 def test_a_trade_takes_its_own_row_so_its_two_sides_do_not_wrap() -> None:
     raw = _raw()
     assert raw["transactions"]["recent_trades"], "the week-10 fixture carries a trade"
+    raw["transactions"]["recent_trades"][0]["week"] = raw["week"]  # Story 9.7: only this week's trades draw
     body = _body(_page(raw))
     trade = re.search(r'<article class="card tx tx-trade">(.*?)</article>', body, flags=re.DOTALL)
     assert trade is not None and 'class="trade"' in trade.group(1)

@@ -65,6 +65,7 @@ from commishdesk.facts.schema import (
     WeeklyNarrationPlayoff,
     WeeklyNarrationPower,
     WeeklyNarrationStanding,
+    WeeklyNarrationTradeGrade,
 )
 from commishdesk.sections import (
     COLD_START_SECTION_IDS,
@@ -237,6 +238,11 @@ _BLOWOUT_LOSER_RATIO = 0.65
 _CLOSE_GAME_MARGIN = 3.0
 
 _UNCLAIMED = "an unclaimed roster"
+
+#: Storyline kind of the transient lopsided-trade candidate (a copy of
+#: ``facts.weekly.TRADE_LOPSIDED_KIND``, which is out of reach here: AD-1). The transactions
+#: section states it as a fact line, so Around the League skips it.
+_TRADE_LOPSIDED_KIND = "trade_lopsided"
 
 _QUIET_WIRE = "A quiet week on the wire: no moves this week and no recent trades."
 _NO_LUCK = "Not enough games have been played to measure luck."
@@ -591,6 +597,8 @@ def _around_section(
     if include_storylines:
         for storyline in narration.storyline_candidates:
             hook = storyline.hook
+            if storyline.kind == _TRADE_LOPSIDED_KIND:
+                continue
             if hook and hook not in lead_hooks and hook not in blocks:
                 blocks.append(hook)
     if not blocks:
@@ -727,10 +735,42 @@ def _next_week_section(narration: WeeklyNarration) -> WeeklySection:
     return WeeklySection(heading=heading_for("next_week"), blocks=blocks)
 
 
+_HORIZON_WORDS = {"this_season": "this season", "future": "the future"}
+
+
+def _trade_grade_lines(grade: WeeklyNarrationTradeGrade) -> list[str]:
+    """Numbers-only fact lines for one graded trade: each side's letter and word per horizon,
+    then (when flagged) the standings context. Never a judgement, never veto wording."""
+    if grade.status != "graded":
+        return [f"The week {grade.week} trade could not be graded."]
+    parts: list[str] = []
+    for side in grade.sides:
+        verdicts = [
+            f"{v.letter}, {v.word.lower()}"
+            + (f" for {_HORIZON_WORDS[v.horizon]}" if grade.dynasty else "")
+            + (" (estimated)" if v.est else "")
+            for v in side.verdicts
+        ]
+        if verdicts:
+            parts.append(f"{_label(side.team)} {_join_names(verdicts)}")
+    if not parts:
+        return []
+    lines = [f"The week {grade.week} trade grades: {'; '.join(parts)}."]
+    if grade.context == "contender_vs_eliminated" and grade.eliminated:
+        out = set(grade.eliminated)
+        alive = [side.team for side in grade.sides if side.team not in out]
+        if alive:
+            lines.append(
+                f"{_join_names([_label(t) for t in grade.eliminated])} are out of the playoff race and "
+                f"{_join_names([_label(t) for t in alive])} are still in it. The grades are the same either way."
+            )
+    return lines
+
+
 def _transactions_section(narration: WeeklyNarration) -> WeeklySection:
     """A quiet week is one deliberate line, never an empty heading."""
     desk = narration.transactions
-    if desk.this_week_count == 0 and desk.recent_trade_count == 0:
+    if desk.this_week_count == 0 and desk.recent_trade_count == 0 and not desk.trade_grades:
         return WeeklySection(heading=heading_for("transactions"), blocks=[_QUIET_WIRE])
     blocks = [
         f"{_count(desk.this_week_count, 'move').capitalize()} this week.",
@@ -743,4 +783,6 @@ def _transactions_section(narration: WeeklyNarration) -> WeeklySection:
         blocks.append(line + ".")
     elif not desk.complete:
         blocks.append("The trade history is incomplete, so the market is hard to read.")
+    for grade in desk.trade_grades:
+        blocks.extend(_trade_grade_lines(grade))
     return WeeklySection(heading=heading_for("transactions"), blocks=blocks)

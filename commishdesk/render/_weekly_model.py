@@ -45,6 +45,11 @@ from commishdesk.facts.schema import (
     WeeklyNextWeekCard,
     WeeklyTeam,
     WeeklyTrade,
+    WeeklyTradeGrade,
+    WeeklyTradeRevisit,
+    WeeklyTradeSide,
+    WeeklyTradeSideGrade,
+    WeeklyTradeVerdict,
 )
 
 #: The real minus sign (U+2212) for signed numerals.
@@ -498,6 +503,251 @@ def wire_pick(facts: WeeklyFacts) -> WirePick | None:
     if trades:
         return WirePick(trade=trades[0])
     return None
+
+
+# --------------------------------------------------------------------------- #
+# Trade-grade cards (Story 9.7): one model, every surface
+# --------------------------------------------------------------------------- #
+
+HORIZON_LABELS = {"this_season": "This season", "future": "Future"}
+
+#: The three fixed link targets a card's source line may carry (the AD-40 carve-out).
+DOCS_TRADE_GRADES = "/docs/trade-grades/"
+DOCS_LEAGUE_VALUE = "/docs/league-value/"
+NFLVERSE_URL = "https://github.com/nflverse"
+
+PICKS_NOT_COUNTED = "Picks aren't counted in a redraft grade."
+MOSTLY_ESTIMATES = "Mostly estimates"
+MOSTLY_ESTIMATES_NOTE = (
+    "More than half of this grade rests on estimated values: picks, rookies or players with little history."
+)
+NOT_VALUED = "Not valued"
+EST_TAG = "est."
+
+#: Why a trade has no grade, as the card says it (one reason slot, never a letter).
+UNGRADED_REASONS = {
+    "no_snapshot": "League Value was not available for this week.",
+    "nothing_valued": "None of the players in this trade are in our player list.",
+    "fault": "This trade could not be read.",
+}
+
+
+class TradeItem(NamedTuple):
+    """One thing a side receives: its text, its tags (``est.`` / ``Not valued``) and, for the
+    details panel, its League Value per horizon (points per week over replacement)."""
+
+    text: str
+    pos: str | None
+    kind: str  # "player" | "pick" | "faab"
+    tags: tuple[str, ...]
+    value: float | None
+    future: float | None
+
+    @property
+    def not_valued(self) -> bool:
+        return NOT_VALUED in self.tags
+
+
+class TradeVerdictView(NamedTuple):
+    horizon: str
+    horizon_label: str
+    letter: str
+    word: str
+    est: bool
+    ahead: bool | None
+    total: float
+    counter_total: float
+    share: float
+
+    @property
+    def text(self) -> str:
+        """``"B+ · Slight edge"``, with the est. tag when the verdict rests on estimates."""
+        return f"{self.letter} · {self.word}" + (f" {EST_TAG}" if self.est else "")
+
+
+class TradeSideView(NamedTuple):
+    roster_id: str
+    label: str
+    items: list[TradeItem]
+    verdicts: list[TradeVerdictView]
+    lineup: str | None
+    graded_without: list[str]
+
+
+class TradeCard(NamedTuple):
+    trade: WeeklyTrade
+    grade: WeeklyTradeGrade
+    sides: list[TradeSideView]
+    ungraded_reason: str | None
+    mostly_est: bool
+    picks_note: bool
+    context_line: str | None
+    sleeper_only: bool
+    band_pct: int | None
+
+    @property
+    def graded(self) -> bool:
+        return self.grade.status == "graded"
+
+    @property
+    def kind_label(self) -> str:
+        return "Dynasty" if self.grade.dynasty else "Redraft"
+
+
+def source_line(card: TradeCard) -> str:
+    """The plain-text source line (surfaces that link it build their own markup)."""
+    text = f"League Value, week {card.grade.week} · stats: nflverse, CC BY 4.0"
+    if card.sleeper_only:
+        text += f" · Sleeper data only (Even is a wider band, +/-{card.band_pct or 10}%)"
+    return text
+
+
+def lineup_line(value: float) -> str:
+    return f"Starting lineup {signed(value)} pts/wk"
+
+
+def pick_text(season: str, round_: int) -> str:
+    return f"{season} round {round_} pick"
+
+
+def _items(side: WeeklyTradeSide, grade_side: WeeklyTradeSideGrade | None) -> list[TradeItem]:
+    graded_assets = grade_side.assets if grade_side else []
+    ungraded = grade_side.ungraded if grade_side else []
+    assets = {a.player_id: a for a in graded_assets if a.kind == "player"}
+    pick_assets = {(a.pick_season, a.pick_round, a.pick_from_roster_id): a for a in graded_assets if a.kind == "pick"}
+    unvalued_players = {u.player_id for u in ungraded if u.kind == "player"}
+    unvalued_picks = {
+        (u.pick_season, u.pick_round, u.pick_from_roster_id)
+        for u in ungraded
+        if u.kind == "pick" and u.reason != "redraft_pick"
+    }
+    items: list[TradeItem] = []
+    for p in side.players:
+        asset = assets.get(p.player_id)
+        tags: list[str] = []
+        if asset is not None and asset.est:
+            tags.append(EST_TAG)
+        if grade_side is not None and p.player_id in unvalued_players:
+            tags.append(NOT_VALUED)
+        items.append(
+            TradeItem(p.name, p.pos, "player", tuple(tags), asset.value if asset else None,
+                      asset.future if asset else None)
+        )
+    for ref in side.picks:
+        key = (ref.season, ref.round, ref.from_roster_id)
+        pick_asset = pick_assets.get(key)
+        tags = [EST_TAG]
+        if grade_side is not None and key in unvalued_picks:
+            tags.append(NOT_VALUED)
+        items.append(
+            TradeItem(pick_text(ref.season, ref.round), None, "pick", tuple(tags), None,
+                      pick_asset.future if pick_asset else None)
+        )
+    if side.faab:
+        items.append(TradeItem(f"FAAB ${side.faab}", None, "faab", (NOT_VALUED,), None, None))
+    return items
+
+
+def _verdict_view(v: WeeklyTradeVerdict) -> TradeVerdictView:
+    return TradeVerdictView(
+        v.horizon, HORIZON_LABELS.get(v.horizon, v.horizon), v.letter, v.word, v.est, v.ahead,
+        v.total, v.counter_total, v.share,
+    )
+
+
+def join_labels(names: Sequence[str]) -> str:
+    """``["a"]`` -> ``a``; two -> ``a and b``; more -> an Oxford list."""
+    if len(names) <= 1:
+        return "".join(names)
+    if len(names) == 2:
+        return f"{names[0]} and {names[1]}"
+    return f"{', '.join(names[:-1])}, and {names[-1]}"
+
+
+def trade_card(facts: WeeklyFacts, trade: WeeklyTrade, grade: WeeklyTradeGrade) -> TradeCard:
+    label = labeller(facts)
+    grade_sides = {side.roster_id: side for side in grade.sides}
+    sides: list[TradeSideView] = []
+    for side in trade.sides:
+        gs = grade_sides.get(side.roster_id)
+        items = _items(side, gs)
+        lineup = lineup_line(gs.lineup_impact) if gs is not None and gs.lineup_impact is not None else None
+        without = [item.text for item in items if item.not_valued] if grade.status == "graded" else []
+        sides.append(
+            TradeSideView(
+                side.roster_id,
+                label(side.roster_id),
+                items,
+                [_verdict_view(v) for v in gs.verdicts] if gs is not None else [],
+                lineup,
+                without,
+            )
+        )
+    context_line = None
+    if grade.status == "graded" and grade.context == "contender_vs_eliminated" and grade.eliminated_roster_ids:
+        out = list(dict.fromkeys(grade.eliminated_roster_ids))
+        alive = [s.roster_id for s in trade.sides if s.roster_id not in out]
+        if alive:
+            context_line = (
+                f"{join_labels([label(r) for r in out])} are out of the playoff race; "
+                f"{join_labels([label(r) for r in alive])} are still in it. "
+                "The grades are the same either way."
+            )
+    has_picks = any(side.picks for side in trade.sides)
+    sleeper_only = grade.source == "sleeper_only"
+    band = round(grade.fair_band * 100) if grade.fair_band is not None else (10 if sleeper_only else None)
+    reason = None
+    if grade.status != "graded":
+        reason = UNGRADED_REASONS.get(grade.reason or "", UNGRADED_REASONS["fault"])
+    return TradeCard(
+        trade=trade,
+        grade=grade,
+        sides=sides,
+        ungraded_reason=reason,
+        mostly_est=any(v.est for side in sides for v in side.verdicts),
+        picks_note=has_picks and not grade.dynasty,
+        context_line=context_line,
+        sleeper_only=sleeper_only,
+        band_pct=band,
+    )
+
+
+def this_week_trades(facts: WeeklyFacts) -> list[WeeklyTrade]:
+    """The trades settled in the issue week, in their Facts order."""
+    return [trade for trade in facts.transactions.recent_trades if trade.week == facts.week]
+
+
+def trade_entries(facts: WeeklyFacts) -> list[tuple[WeeklyTrade, TradeCard | None]]:
+    """Every this-week trade with its card model, or ``None`` when Facts carry no grade for it
+    (a pre-9.6 document: the surface then draws the plain Receives lists as before)."""
+    grades = {grade.transaction_id: grade for grade in facts.transactions.trade_grades}
+    return [
+        (trade, trade_card(facts, trade, grades[trade.transaction_id]) if trade.transaction_id in grades else None)
+        for trade in this_week_trades(facts)
+    ]
+
+
+def no_trades_line(facts: WeeklyFacts) -> str | None:
+    """The empty state when nothing traded this week but the league has traded before; ``None``
+    when this week had a trade or the league has never traded."""
+    if this_week_trades(facts):
+        return None
+    weeks = [trade.week for trade in facts.transactions.recent_trades]
+    week = max(weeks) if weeks else facts.transactions.market_note.last_trade_week
+    if week is None:
+        return None
+    return f"No trades this week. The last one was in week {week}."
+
+
+def revisit_question(facts: WeeklyFacts, revisit: WeeklyTradeRevisit) -> str | None:
+    """The locked "trade revisited" headline: the question, naming no leader. ``None`` when the
+    revisit has fewer than two sides to name."""
+    label = labeller(facts)
+    rids = [side.roster_id for side in revisit.sides]
+    if len(rids) < 2:
+        return None
+    names = join_labels([label(rid) for rid in rids])
+    return f"{spell(revisit.weeks_since).capitalize()} weeks on: who really won the {names} trade?"
 
 
 # --------------------------------------------------------------------------- #

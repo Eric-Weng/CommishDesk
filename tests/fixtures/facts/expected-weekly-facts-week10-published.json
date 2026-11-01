@@ -1,6 +1,6 @@
 {
   "_derived_from": "Story 5.13a overlay. expected-weekly-facts-week10.json with a hand-authored published-rank layer: the narrator swaps model ranks 7 and 8 (Chip-Block Chinchillas, Nickel Newts). Only teams[*].season.power and narration.power differ from the base. nudge = model_rank - published_rank (positive means moved up). The justification cites only numbers present in narration.power.",
-  "schema_version": "0.11.0",
+  "schema_version": "0.12.0",
   "generated_at": "2026-09-07T00:00:00Z",
   "provisional": true,
   "issue_type": "weekly",
@@ -7151,7 +7151,8 @@
       "weeks_since_last_trade": 1,
       "complete": true,
       "this_week_count": 1,
-      "recent_trade_count": 1
+      "recent_trade_count": 1,
+      "trade_grades": []
     },
     "printed_headline": "Kneel-Down Koalas lost by 6.06, and a perfect lineup adds 108.86, including TreVeyon Henderson.",
     "lead_candidates": [

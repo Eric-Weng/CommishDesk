@@ -1537,6 +1537,121 @@ svg .name {{ font-family: {WEEKLY_FONT_BODY}; font-size: 14px; font-weight: 700;
 }}
 .trade-multi .tn {{ font-size: 15px; margin-top: 0; }}
 
+/* Story 9.7 -- the trade-grade card. The letter and the word are text; the chip style
+   (filled = ahead, outlined = behind or even, dashed = mostly estimates, dotted = not graded)
+   is a second cue, never the only one. */
+.tg {{ display: flex; flex-direction: column; gap: 12px; }}
+.tg .tx-top {{ flex-wrap: wrap; }}
+.tg-chips {{ display: inline-flex; flex-wrap: wrap; gap: 6px; }}
+.tg-sides {{ display: grid; gap: 20px; }}
+.tg-two {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
+.tg-multi {{ grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }}
+.tg-side {{ min-width: 0; }}
+.tg-side .tn {{ font-size: 15px; margin-top: 0; }}
+.tg-tag {{
+  display: inline-block;
+  font-family: {FONT_MONO};
+  font-size: 11px;
+  line-height: 1.4;
+  padding: 0 6px;
+  border: 1px dashed var(--ink-2);
+  border-radius: 6px;
+  color: var(--ink-2);
+  vertical-align: baseline;
+}}
+.tg-verdicts {{ margin-top: 12px !important; gap: 8px !important; }}
+.tg-v {{ display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }}
+.tg-h {{
+  font-family: {FONT_MONO};
+  font-size: 11px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}}
+.tg-w {{ font-weight: 700; }}
+.vchip {{
+  display: inline-block;
+  min-width: 34px;
+  padding: 1px 9px;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  font-family: {WEEKLY_FONT_DISPLAY};
+  font-weight: 800;
+  font-size: 15px;
+  line-height: 1.3;
+  text-align: center;
+  color: var(--ink);
+  background: transparent;
+}}
+.vc-ahead {{ background: var(--emph); border-color: var(--emph); color: var(--on-emph); }}
+.vc-behind {{ border-style: solid; }}
+.vc-even {{ border-color: var(--ink-2); color: var(--ink); }}
+.vc-est {{ border-style: dashed; }}
+.vc-none {{ border-style: dotted; border-color: var(--ink-2); color: var(--ink-2); }}
+.tg-lineup {{ margin: 8px 0 0; font-family: {FONT_MONO}; font-size: 12.5px; color: var(--ink-2); }}
+.tg-without {{ margin: 6px 0 0; font-size: 13px; color: var(--ink-2); }}
+.tg-banner, .tg-note, .tg-context, .tg-ungraded {{ margin: 0; font-size: 14px; color: var(--ink); }}
+.tg-banner {{
+  padding: 8px 12px;
+  border: 1px dashed var(--ink-2);
+  border-radius: 8px;
+  background: var(--notable-wash);
+}}
+.tg-note {{ color: var(--ink-2); }}
+.tg-ungraded {{ display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }}
+.tg-context {{ padding-top: 10px; border-top: 1px solid var(--line); }}
+.tg-details summary {{
+  cursor: pointer;
+  font-family: {FONT_MONO};
+  font-size: 12px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}}
+.tg-details ul {{ list-style: none; margin: 4px 0 8px; padding: 0; font-size: 13px; color: var(--ink-2); }}
+.tg-d-note, .tg-d-side .d-team {{ margin: 6px 0 0; font-size: 13px; color: var(--ink-2); }}
+.tg-source {{
+  margin: 0;
+  font-family: {FONT_MONO};
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}}
+.tg-source a {{ color: var(--emph); text-decoration: underline; }}
+.tg-none {{ margin: 12px 0 0; font-size: 14px; color: var(--ink-2); }}
+.tg-locked {{ grid-column: 1 / -1; display: flex; flex-direction: column; gap: 12px; }}
+.tg-q {{
+  margin: 0;
+  font-family: {WEEKLY_FONT_DISPLAY};
+  font-weight: 800;
+  font-size: 20px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}}
+.tg-ghost {{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 32px;
+  filter: blur(7px);
+  user-select: none;
+  pointer-events: none;
+}}
+.tg-ghost-side {{ display: flex; flex-direction: column; }}
+.tg-ghost-name {{ font-weight: 700; font-size: 15px; }}
+.tg-ghost-num {{ font-family: {FONT_MONO}; font-size: 22px; }}
+.tg-btn {{
+  align-self: flex-start;
+  padding: 8px 16px;
+  border: 1px solid var(--ink-3);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 14px;
+  cursor: not-allowed;
+}}
+
 footer {{
   padding-top: 18px;
   border-top: 1px solid var(--line);
@@ -1561,6 +1676,7 @@ footer p {{ margin: 0; }}
   .grid3 {{ grid-template-columns: minmax(0, 1fr); grid-auto-rows: auto; }}
   .trade {{ grid-template-columns: minmax(0, 1fr); gap: 12px; }}
   .trade .swap {{ justify-self: center; transform: rotate(90deg); }}
+  .tg-two {{ grid-template-columns: minmax(0, 1fr); gap: 16px; }}
   .sec-head {{ flex-wrap: wrap; }}
   .st-row {{ grid-template-columns: 22px minmax(0, 1fr) 36px 42px auto; gap: 8px; }}
   .st-row .bar, .st-row .mg {{ display: none; }}

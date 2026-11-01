@@ -243,7 +243,7 @@
           "type": "boolean"
         },
         "schema_version": {
-          "default": "0.11.0",
+          "default": "0.12.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -2100,7 +2100,7 @@
           "type": "boolean"
         },
         "schema_version": {
-          "default": "0.11.0",
+          "default": "0.12.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -3356,6 +3356,156 @@
       "title": "WeeklyNarrationStanding",
       "type": "object"
     },
+    "WeeklyNarrationTradeGrade": {
+      "description": "One this-week trade as the narrator sees it: numbers, ids and sanitized team labels\nonly (AD-24). ``context`` is ``contender_vs_eliminated`` (a standings fact, never a\njudgement) with the ``eliminated`` team labels; it never changes a grade.",
+      "properties": {
+        "context": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Context"
+        },
+        "dynasty": {
+          "default": false,
+          "title": "Dynasty",
+          "type": "boolean"
+        },
+        "eliminated": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Eliminated",
+          "type": "array"
+        },
+        "sides": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WeeklyNarrationTradeSide"
+          },
+          "title": "Sides",
+          "type": "array"
+        },
+        "status": {
+          "enum": [
+            "graded",
+            "ungraded"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "transaction_id": {
+          "title": "Transaction Id",
+          "type": "string"
+        },
+        "week": {
+          "title": "Week",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "transaction_id",
+        "week",
+        "status"
+      ],
+      "title": "WeeklyNarrationTradeGrade",
+      "type": "object"
+    },
+    "WeeklyNarrationTradeSide": {
+      "description": "One side of a narrated trade: the sanitized ``team`` label, the ``roster_id``, the\nlineup impact in points per week, and the verdicts.",
+      "properties": {
+        "lineup_impact": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lineup Impact"
+        },
+        "roster_id": {
+          "title": "Roster Id",
+          "type": "string"
+        },
+        "team": {
+          "title": "Team",
+          "type": "string"
+        },
+        "verdicts": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WeeklyNarrationTradeVerdict"
+          },
+          "title": "Verdicts",
+          "type": "array"
+        }
+      },
+      "required": [
+        "team",
+        "roster_id"
+      ],
+      "title": "WeeklyNarrationTradeSide",
+      "type": "object"
+    },
+    "WeeklyNarrationTradeVerdict": {
+      "description": "One side's narrated verdict for a horizon (Story 9.7): the letter and word from the\ndocumented scale and the share behind them. Numbers and engine words only.",
+      "properties": {
+        "ahead": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ahead"
+        },
+        "est": {
+          "default": false,
+          "title": "Est",
+          "type": "boolean"
+        },
+        "horizon": {
+          "enum": [
+            "this_season",
+            "future"
+          ],
+          "title": "Horizon",
+          "type": "string"
+        },
+        "letter": {
+          "title": "Letter",
+          "type": "string"
+        },
+        "share": {
+          "title": "Share",
+          "type": "number"
+        },
+        "word": {
+          "title": "Word",
+          "type": "string"
+        }
+      },
+      "required": [
+        "horizon",
+        "letter",
+        "word",
+        "share"
+      ],
+      "title": "WeeklyNarrationTradeVerdict",
+      "type": "object"
+    },
     "WeeklyNarrationTransactions": {
       "description": "The narrated transactions glance.",
       "properties": {
@@ -3385,6 +3535,14 @@
           "default": 0,
           "title": "This Week Count",
           "type": "integer"
+        },
+        "trade_grades": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WeeklyNarrationTradeGrade"
+          },
+          "title": "Trade Grades",
+          "type": "array"
         },
         "weeks_since_last_trade": {
           "anyOf": [

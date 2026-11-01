@@ -45,6 +45,8 @@ D is the lowest letter and F is never given. One side's verdict mirrors the othe
 
 **Trade revisited is a different, later verdict.** For a trade of this season that is three or more weeks old, `trade_revisits` carries the numbers for a later look: the weeks since the trade, each side's received players' points per week in the league since the trade, and the leading side (`null` on a tie). A full revisited verdict is not part of this stat.
 
+**Where it appears.** Each trade settled in the Issue week is drawn as one card on the web Issue (and so the league page), the email, its plain-text part and the Discord post: what each side receives (estimated values tagged "est.", unvalued assets tagged "Not valued"), a letter and a word per horizon, the lineup line, the context line when flagged, and a source line crediting League Value and nflverse (CC BY 4.0). A letter is never the only cue: a filled chip is ahead, an outlined chip is behind, a dashed chip rests mostly on estimates. An ungraded trade shows "Not graded" and the reason, never a letter. The template narrator states the letters and words as numbers-only facts, and the contender-versus-eliminated flag only as a fact. The locked "trade revisited" panel is web-only and renders only when the page is rendered with `show_trade_revisited=True` (off by default, so output is byte-identical to a render without revisit data). Email, text and Discord never show it.
+
 **Where the numbers come from.** League Value is built from your league's own Sleeper points and, for weeks a player was not on a roster, from [nflverse](https://github.com/nflverse/nflverse-data) stats (CC BY 4.0). Only numbers and Sleeper ids reach the trade facts.
 
 ## Worked example

@@ -444,16 +444,17 @@ def test_luck_index_uses_block_bars_in_text_and_table_cells_in_html() -> None:
     assert we.luck_bar(-2.5, 2.5) == "█" * 11 and we.luck_bar(9.0, 0.0) == "█"
 
 
-def test_transactions_render_two_cards() -> None:
+def test_transactions_render_the_wire_card_and_the_no_trades_line() -> None:
     desk = _section(_parts(_raw()).html, "The transaction desk")
     assert "This week" in desk
-    assert "Latest trade · week 9 · 1 week ago" in desk
+    assert "No trades this week. The last one was in week 9." in desk  # Story 9.7 empty state
     assert "Add" in desk and "Drop" in desk
-    assert "receives" in desk
+    assert "receives" not in desk  # last week's trade is no longer drawn
 
 
 def test_a_trade_side_receiving_nothing_reads_the_same_in_both_parts() -> None:
     raw = _raw()
+    raw["transactions"]["recent_trades"][0]["week"] = raw["week"]  # a this-week trade (no grade: plain card)
     side = raw["transactions"]["recent_trades"][0]["sides"][0]
     side.update(players=[], picks=[], faab=0)
     parts = _parts(raw)
