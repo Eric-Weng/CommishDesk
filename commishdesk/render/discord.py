@@ -318,10 +318,54 @@ def _weekly_next(facts: WeeklyFacts) -> _Block | None:
     return _Block(f"👀 **Next week**  {text}", 2, _DROP_NEXT)
 
 
+def _trade_blocks(facts: WeeklyFacts) -> list[_Block]:
+    """One block per graded this-week trade (Story 9.7): a short line group per team (what it
+    gets, then letter + word per horizon, then the lineup line), the est. words bracketed, no
+    code-block table. Never trimmed: ``drop`` is ``None``, so every other block goes first."""
+    blocks: list[_Block] = []
+    for _trade, card in wm.trade_entries(facts):
+        if card is None:
+            continue
+        head = f"🔄 **Trade · week {card.trade.week} · {card.kind_label}**"
+        if card.mostly_est:
+            head += f" [{wm.MOSTLY_ESTIMATES}]"
+        lines = [head]
+        for side in card.sides:
+            items = ", ".join(
+                _md(item.text) + "".join(f" [{_md(tag)}]" for tag in item.tags) for item in side.items
+            )
+            lines.append(f"**{_md(side.label)}** gets {items or 'nothing listed'}")
+            if card.graded:
+                for verdict in side.verdicts:
+                    est = f" [{wm.EST_TAG}]" if verdict.est else ""
+                    lines.append(
+                        f"{_md(verdict.letter)} {_md(verdict.word)}{est} · {_md(verdict.horizon_label)}"
+                    )
+                if side.lineup:
+                    lines.append(_md(side.lineup))
+                if side.graded_without:
+                    lines.append(_md(f"Graded without {wm.join_labels(side.graded_without)}."))
+        if not card.graded:
+            lines.append(_md(f"Not graded. {card.ungraded_reason or ''}".strip()))
+        if card.picks_note:
+            lines.append(_md(wm.PICKS_NOT_COUNTED))
+        if card.context_line:
+            lines.append(_md(card.context_line))
+        lines.append(_md(wm.source_line(card)))
+        lines.append(_md(f"nflverse: {wm.NFLVERSE_URL} · How trade grades work: {wm.DOCS_TRADE_GRADES}"))
+        blocks.append(_Block("\n".join(lines), 2))
+    return blocks
+
+
 def _weekly_wire(facts: WeeklyFacts) -> _Block | None:
     pick = wm.wire_pick(facts)
     if pick is None:
         return None
+    if pick.trade is not None and any(
+        card is not None and trade.transaction_id == pick.trade.transaction_id
+        for trade, card in wm.trade_entries(facts)
+    ):
+        return None  # a graded trade already has its own card block
     label = wm.labeller(facts)
     if pick.move is not None and pick.player is not None:
         team = _md(label(pick.move.roster_ids[0] if pick.move.roster_ids else pick.player.roster_id))
@@ -396,6 +440,7 @@ def render_weekly_discord_post(facts: WeeklyFacts, issue: WeeklyIssue, *, issue_
         _weekly_power(facts) if not cold_start else None,
         _weekly_luck(facts) if not cold_start else None,
         _weekly_next(facts),
+        *(_trade_blocks(facts) if not cold_start else []),
         _weekly_wire(facts) if not cold_start else None,
         _weekly_awards(facts),
     ):

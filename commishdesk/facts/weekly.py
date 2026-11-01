@@ -119,6 +119,9 @@ from .schema import (
     WeeklyNarrationPlayoff,
     WeeklyNarrationPower,
     WeeklyNarrationStanding,
+    WeeklyNarrationTradeGrade,
+    WeeklyNarrationTradeSide,
+    WeeklyNarrationTradeVerdict,
     WeeklyNarrationTransactions,
     WeeklyNextWeekCard,
     WeeklyPerformer,
@@ -1353,6 +1356,7 @@ def _weekly_narration(
         )
 
     note = transactions_block.market_note
+    trade_narration, lopsided = _trade_grade_narration(transactions_block, labels)
     narration = WeeklyNarration(
         league=league_block,
         week_shape=_week_shape(week, weekly.period.type),  # type: ignore[attr-defined]
@@ -1369,12 +1373,107 @@ def _weekly_narration(
             complete=note.complete,
             this_week_count=len(transactions_block.this_week),
             recent_trade_count=len(transactions_block.recent_trades),
+            trade_grades=trade_narration,
         ),
         printed_headline=_printed_headline(lead_candidates),
         lead_candidates=lead_candidates,
-        storyline_candidates=storyline_candidates,
+        storyline_candidates=[*storyline_candidates, *lopsided],
     )
     return _apply_weekly_narration_cap(narration)
+
+
+#: Storyline kind of the transient, never-persisted lopsided-trade candidate (Story 9.7).
+TRADE_LOPSIDED_KIND = "trade_lopsided"
+
+
+def _trade_grade_narration(
+    transactions: WeeklyTransactions, labels: Mapping[str, str]
+) -> tuple[list[WeeklyNarrationTradeGrade], list[StorylineCandidate]]:
+    """The narrator's view of the week's trade grades (numbers, ids and sanitized team labels
+    only) and one transient ``trade_lopsided:<roster_id>`` storyline candidate per trade with a
+    horizon whose share is in the Lopsided tier (``weeks_running`` 1, never persisted)."""
+
+    def label(roster_id: str) -> str:
+        return labels.get(roster_id, roster_id)
+
+    grades: list[WeeklyNarrationTradeGrade] = []
+    candidates: list[StorylineCandidate] = []
+    for grade in transactions.trade_grades:
+        sides = [
+            WeeklyNarrationTradeSide(
+                team=label(side.roster_id),
+                roster_id=side.roster_id,
+                lineup_impact=side.lineup_impact,
+                verdicts=[
+                    WeeklyNarrationTradeVerdict(
+                        horizon=v.horizon,
+                        letter=v.letter,
+                        word=v.word,
+                        share=v.share,
+                        ahead=v.ahead,
+                        est=v.est,
+                    )
+                    for v in side.verdicts
+                ],
+            )
+            for side in grade.sides
+        ]
+        grades.append(
+            WeeklyNarrationTradeGrade(
+                transaction_id=grade.transaction_id,
+                week=grade.week,
+                status=grade.status,
+                dynasty=grade.dynasty,
+                context=grade.context,
+                eliminated=[label(rid) for rid in dict.fromkeys(grade.eliminated_roster_ids)],
+                sides=sides,
+            )
+        )
+        leader = _lopsided_leader(grade)
+        if leader is not None:
+            rid, horizon = leader
+            lead_verdict = next(
+                (v for side in grade.sides if side.roster_id == rid for v in side.verdicts if v.horizon == horizon),
+                None,
+            )
+            trailing = [
+                (label(side.roster_id), v)
+                for side in grade.sides
+                if side.roster_id != rid
+                for v in side.verdicts
+                if v.horizon == horizon
+            ]
+            if lead_verdict is None or not trailing:
+                continue
+            behind = " and ".join(f"{name} {v.letter}" for name, v in trailing)
+            hook = f"Week {grade.week} trade graded {lead_verdict.word}: {label(rid)} {lead_verdict.letter}, {behind}."
+            candidates.append(
+                StorylineCandidate(
+                    id=f"{TRADE_LOPSIDED_KIND}:{rid}:{grade.transaction_id}",
+                    kind=TRADE_LOPSIDED_KIND,
+                    roster_ids=[rid],
+                    hook=hook,
+                    weeks_running=1,
+                )
+            )
+    return grades, candidates
+
+
+def _lopsided_leader(grade: WeeklyTradeGrade) -> tuple[str, str] | None:
+    """The leading side and horizon of a graded trade with a Lopsided verdict (the highest
+    share; ties go to the lower roster id then ``this_season``), else ``None``."""
+    if grade.status != "graded":
+        return None
+    found = [
+        ((-verdict.share, _sort_key(side.roster_id), verdict.horizon != "this_season"), side.roster_id, verdict.horizon)
+        for side in grade.sides
+        for verdict in side.verdicts
+        if verdict.tier == "lopsided" and verdict.ahead is True
+    ]
+    if not found:
+        return None
+    _, roster_id, horizon = min(found, key=lambda item: item[0])
+    return roster_id, horizon
 
 
 def _printed_headline(lead_candidates: list[LeadCandidate]) -> str | None:
@@ -1391,6 +1490,8 @@ def _apply_weekly_narration_cap(narration: WeeklyNarration) -> WeeklyNarration:
     reduction ladder. Each tier is applied only while the projection is still
     over the cap:
 
+    0. (Story 9.7) drop ``transactions.trade_grades`` and the transient ``trade_lopsided``
+       storyline candidates;
     1. drop ``luck[]`` and every power row's ``all_play`` and ``luck``;
     2. keep only the game-of-the-week card in ``next_week[]`` (``transactions``
        already carries only a ``recent_trade_count`` int, never a list, so
@@ -1402,6 +1503,22 @@ def _apply_weekly_narration_cap(narration: WeeklyNarration) -> WeeklyNarration:
     :class:`~commishdesk.errors.SchemaValidationError` (retro item 33)."""
     if _within_cap(narration):
         return narration
+
+    # Story 9.7: the trade grades and the transient lopsided candidates go before anything else
+    # (never a lead entry).
+    if narration.transactions.trade_grades or any(
+        c.kind == TRADE_LOPSIDED_KIND for c in narration.storyline_candidates
+    ):
+        narration = narration.model_copy(
+            update={
+                "transactions": narration.transactions.model_copy(update={"trade_grades": []}),
+                "storyline_candidates": [
+                    c for c in narration.storyline_candidates if c.kind != TRADE_LOPSIDED_KIND
+                ],
+            }
+        )
+        if _within_cap(narration):
+            return narration
 
     narration = narration.model_copy(
         update={

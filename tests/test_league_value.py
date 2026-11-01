@@ -610,6 +610,9 @@ def test_the_weekly_build_attaches_the_snapshot_and_leaves_the_facts_unchanged(t
     # Story 9.6: the snapshot now feeds exactly one Facts key, the week's trade grades.
     assert all(g["status"] == "ungraded" for g in off_facts["transactions"].pop("trade_grades"))
     on_facts["transactions"].pop("trade_grades")
+    # Story 9.7: the narrator's projection carries the same grades.
+    off_facts["narration"]["transactions"].pop("trade_grades")
+    on_facts["narration"]["transactions"].pop("trade_grades")
     assert _canon(on_facts) == _canon(off_facts)  # nothing else in the Facts reads the snapshot
     from commishdesk import demo_season
 

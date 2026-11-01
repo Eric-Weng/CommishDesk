@@ -44,7 +44,7 @@ from commishdesk.render.email import EmailParts, _document
 from commishdesk.render.style import WEEKLY_DARK_TOKENS, WEEKLY_LIGHT_TOKENS
 from commishdesk.sections import heading_for
 
-__all__ = ["ISSUE_URL_MARKER", "TOP_LINKS_MARKER", "render_weekly_email"]
+__all__ = ["ISSUE_URL_MARKER", "SITE_URL_MARKER", "TOP_LINKS_MARKER", "render_weekly_email"]
 
 #: Story 6-11: an HTML comment right under the masthead. The per-Reader links (signed
 #: unsubscribe / report links) are built by the app after render, so the engine only
@@ -56,6 +56,11 @@ TOP_LINKS_MARKER = "<!--commishdesk:top-links-->"
 #: URL (the app uses ``{base}/l/{slug}/w/{NN}``); the stored render keeps the marker. Free of ``<``, ``>``, quotes and
 #: ``&`` so it sits in an ``href`` and in plain text untouched by escaping.
 ISSUE_URL_MARKER = "{{commishdesk:issue-url}}"
+
+#: Story 9.7: the base of the two docs links in a trade card's source line,
+#: ``{SITE_URL_MARKER}/docs/trade-grades/``. Same shape and rules as :data:`ISSUE_URL_MARKER`;
+#: the app replaces it with the site origin at send time (Story 9.8). Plain text never carries it.
+SITE_URL_MARKER = "{{commishdesk:site-url}}"
 
 # --------------------------------------------------------------------------- #
 # Palette — literal hex from Tuesday Morning light, with a dark enhancement
@@ -110,6 +115,12 @@ D_MAST_SUB = "#B2B4CE"
 D_EMPH_TEXT = "#A9B2FF"
 D_GOOD_LAB = "#4CC38D"
 D_BAD_LAB = "#FF7A7F"
+
+
+#: Text colour on a filled chip. It differs from plain white on purpose: the dark-mode map turns
+#: this one literal into the dark paper ink, so a filled chip keeps its contrast on the lightened
+#: dark fill.
+ON_CHIP = "#FEFEFE"
 
 
 def _blend(fg: str, alpha: float, bg: str) -> str:
@@ -268,6 +279,7 @@ def _text_map() -> dict[str, str]:
         BAD_LAB: D_BAD_LAB,
         ON_MAST: D_ON_MAST,
         MAST_SUB: D_MAST_SUB,
+        ON_CHIP: D_PAPER,
     }
 
 
@@ -327,7 +339,8 @@ def _dark_overrides() -> str:
         )
     for light, dark in _border_map().items():
         rules.append(
-            f'[style*="solid {light}"],[style*="dashed {light}"]{{border-color:{dark}!important;}}'
+            f'[style*="solid {light}"],[style*="dashed {light}"],[style*="dotted {light}"]'
+            f"{{border-color:{dark}!important;}}"
         )
     # Dark text on the amber game-of-the-week header keeps the board's on-emphasis ink.
     rules.append(
@@ -1396,6 +1409,115 @@ def _trades_table(facts: WeeklyFacts, trades: list[WeeklyTrade]) -> tuple[str, l
     return table, text, heading
 
 
+def _vchip(letter: str, kind: str) -> str:
+    """The letter chip: filled = ahead, solid outline = behind or Even, dashed = estimates,
+    dotted = not graded. The letter is text; the style is a second cue."""
+    if kind == "ahead":
+        style = f"background-color:{EMPH};color:{ON_CHIP};border:2px solid {EMPH};"
+    elif kind == "est":
+        style = f"color:{INK};border:2px dashed {CUT};"
+    elif kind == "none":
+        style = f"color:{INK2};border:2px dotted {CUT};"
+    else:
+        style = f"color:{INK};border:2px solid {CUT};"
+    return (
+        f'<span style="display:inline-block;{style}font-family:{_DISPLAY};font-size:14px;'
+        f'font-weight:bold;line-height:1.3;padding:0 8px;border-radius:999px;">{_esc(letter)}</span>'
+    )
+
+
+def _tag_text(tags: Sequence[str]) -> str:
+    return "".join(f" [{tag}]" for tag in tags)
+
+
+def _tag_html(tags: Sequence[str]) -> str:
+    return "".join(
+        f' <span style="font-family:{_MONO};font-size:11px;color:{INK2};">[{_esc(tag)}]</span>' for tag in tags
+    )
+
+
+def _card_links(card: wm.TradeCard) -> str:
+    link = f"color:{EMPH_TEXT};text-decoration:underline;"
+    league_value = f'<a href="{SITE_URL_MARKER}{wm.DOCS_LEAGUE_VALUE}" style="{link}">League Value</a>'
+    nflverse = f'<a href="{wm.NFLVERSE_URL}" style="{link}">nflverse</a>'
+    text = f"{league_value}, week {card.grade.week} · stats: {nflverse}, CC BY 4.0"
+    if card.sleeper_only:
+        text += f" · Sleeper data only ({_esc(f'Even is a wider band, +/-{card.band_pct or 10}%')})"
+    how = f'<a href="{SITE_URL_MARKER}{wm.DOCS_TRADE_GRADES}" style="{link}">How trade grades work</a>'
+    return (
+        f'<div style="font-family:{_MONO};font-size:11px;line-height:1.6;color:{INK2};padding-top:10px;">'
+        f"{text} · {how}</div>"
+    )
+
+
+def _graded_trade(card: wm.TradeCard) -> tuple[str, list[str], str]:
+    """One compact trade-grade card: ``(body html, text lines, card title)``."""
+    title = f"Trade · week {card.trade.week} · {card.kind_label}"
+    rows: list[str] = []
+    text: list[str] = [f"{title}:"]
+    if card.mostly_est:
+        rows.append(
+            f'<div style="font-family:{_SANS};font-size:13px;line-height:1.5;color:{INK};padding:8px 10px;'
+            f'margin-top:10px;border:1px dashed {CUT};border-radius:8px;">'
+            f"<b>{_esc(wm.MOSTLY_ESTIMATES)}.</b> {_esc(wm.MOSTLY_ESTIMATES_NOTE)}</div>"
+        )
+        text.append(f"  {wm.MOSTLY_ESTIMATES}. {wm.MOSTLY_ESTIMATES_NOTE}")
+    for side in card.sides:
+        items_html = ", ".join(
+            f"{_esc(_who(item.text, item.pos))}{_tag_html(item.tags)}" for item in side.items
+        ) or "nothing listed"
+        items_text = ", ".join(f"{_who(item.text, item.pos)}{_tag_text(item.tags)}" for item in side.items)
+        block = (
+            f'<div style="font-family:{_SANS};font-size:14px;line-height:1.5;color:{INK};">'
+            f"<b>{_esc(side.label)}</b> receives {items_html}</div>"
+        )
+        text.append(f"  {side.label} receives {items_text or 'nothing listed'}")
+        if card.graded:
+            for verdict in side.verdicts:
+                if verdict.est:
+                    kind = "est"
+                elif verdict.ahead is None:
+                    kind = "even"
+                else:
+                    kind = "ahead" if verdict.ahead else "behind"
+                est = _tag_html([wm.EST_TAG]) if verdict.est else ""
+                block += (
+                    f'<div style="font-family:{_SANS};font-size:13px;color:{INK2};padding-top:6px;">'
+                    f"{_esc(verdict.horizon_label)} {_vchip(verdict.letter, kind)} "
+                    f'<b style="color:{INK};">{_esc(verdict.word)}</b>{est}</div>'
+                )
+                text.append(f"    {verdict.horizon_label}: {verdict.text}")
+            if side.lineup:
+                block += _small(side.lineup, top=4)
+                text.append(f"    {side.lineup}")
+            if side.graded_without:
+                without = f"Graded without {wm.join_labels(side.graded_without)}."
+                block += _small(without, top=2)
+                text.append(f"    {without}")
+        rows.append(f'<div style="padding-top:12px;">{block}</div>')
+    if not card.graded:
+        reason = f"Not graded. {card.ungraded_reason or ''}".strip()
+        rows.append(
+            f'<div style="font-family:{_SANS};font-size:13px;color:{INK};padding-top:12px;">'
+            f"{_vchip(chr(8211) + ' ' + chr(8211), 'none')} {_esc(reason)}</div>"
+        )
+        text.append(f"  {reason}")
+    if card.picks_note:
+        rows.append(_small(wm.PICKS_NOT_COUNTED, top=10))
+        text.append(f"  {wm.PICKS_NOT_COUNTED}")
+    if card.context_line:
+        rows.append(_para(card.context_line, INK, 13, 10))
+        text.append(f"  {card.context_line}")
+    rows.append(_card_links(card))
+    source = wm.source_line(card)
+    text.append(f"  {source}")
+    text.append(
+        f"  League Value: {wm.DOCS_LEAGUE_VALUE} · nflverse: {wm.NFLVERSE_URL} · "
+        f"How trade grades work: {wm.DOCS_TRADE_GRADES}"
+    )
+    return "".join(rows), text, title
+
+
 def _tcard(title: str, body: str) -> str:
     return (
         f'<tr><td style="padding-bottom:14px;">'
@@ -1409,8 +1531,9 @@ def _tcard(title: str, body: str) -> str:
 
 def _transactions(facts: WeeklyFacts, blocks: list[str]) -> _Section | None:
     moves = wm.week_moves(facts)
-    trades = wm.latest_trades(facts)
-    if not moves and not trades:
+    entries = wm.trade_entries(facts)
+    none_line = wm.no_trades_line(facts)
+    if not moves and not entries and not facts.transactions.recent_trades:
         return None
     text: list[str] = []
     cards: list[str] = []
@@ -1418,10 +1541,16 @@ def _transactions(facts: WeeklyFacts, blocks: list[str]) -> _Section | None:
         body, lines = _moves_table(facts, moves)
         cards.append(_tcard("This week", body))
         text.extend(lines)
-    if trades:
-        body, lines, heading = _trades_table(facts, trades)
+    for trade, card in entries:
+        if card is not None:
+            body, lines, heading = _graded_trade(card)
+        else:
+            body, lines, heading = _trades_table(facts, [trade])
         cards.append(_tcard(heading, body))
         text.extend(lines)
+    if none_line is not None:
+        cards.append(f'<tr><td style="padding-bottom:14px;">{_small(none_line, top=0)}</td></tr>')
+        text.append(none_line)
 
     # Story 6-11: the trailing sentences are replaced by the counts in the subtitle.
     desk = facts.narration.transactions

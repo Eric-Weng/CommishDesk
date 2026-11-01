@@ -1105,12 +1105,19 @@ def _closed_world(text: str, narration: Narration | WeeklyNarration) -> list[str
     """
     payload = _payload_tokens(narration)
     payload_numbers = {form for token in payload if (form := _numeric_form(token)) is not None}
-    # A WeeklyNarration has no ``teams[].grade`` — the grade half of this check is
-    # draft-recap-only, so its awarded set is empty (the isinstance guards the
-    # attribute access, not just the value).
-    awarded: set[str] = (
-        {team.grade.upper() for team in narration.teams} if isinstance(narration, Narration) else set()
-    )
+    # A WeeklyNarration has no ``teams[].grade``; the only grades it awards are the trade
+    # verdict letters of Story 9.7 (``transactions.trade_grades``), so those are its awarded
+    # set (the isinstance guards the attribute access, not just the value).
+    awarded: set[str]
+    if isinstance(narration, Narration):
+        awarded = {team.grade.upper() for team in narration.teams}
+    else:
+        awarded = {
+            verdict.letter.upper()
+            for grade in narration.transactions.trade_grades
+            for side in grade.sides
+            for verdict in side.verdicts
+        }
     unknown: list[str] = []
 
     for match in _TOKEN.finditer(text):

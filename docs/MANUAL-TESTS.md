@@ -182,6 +182,22 @@ These are done once (or once per milestone), not on a schedule.
 
 ---
 
+## 9.7 Trade grades in the Issue (browser, Gmail light and dark, Discord)
+
+- **What to do:** run one local weekly build with a graded trade (the demo season's
+  week 3 or 6, or the author's league), then view the web page at 320 px and desktop in
+  light and dark, send the email to a real Gmail inbox and view it in light and dark, and post
+  the Discord text to a test channel.
+- **Expected:** one trade card per this-week trade; letter, word and "est." readable without
+  colour; sides stack at 320 px; no horizontal scroll; the source line links to League Value and
+  nflverse; the email chips keep their contrast in Gmail dark (the open question from the 9.1
+  canvas); the Discord post is under 2,000 units with the trade block intact. The locked
+  "trade revisited" panel appears on the web page only when rendered with
+  `show_trade_revisited=True`.
+- **Last run:** _never_ -- **open (needs a real Gmail send and a Discord channel).**
+
+---
+
 ## Change log
 
 - **2026-09-10** — file created. Seeded from the `**Manual checks:**` blocks of

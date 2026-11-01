@@ -236,6 +236,15 @@ _RULE_AROUND_THE_LEAGUE = """Around the League is discrete items: one short para
    about that game. One or two numbers per paragraph is plenty. Call a margin a
    margin or say "won by"; "spread" is betting talk."""
 
+_RULE_TRADE_GRADES = """Trade grades. When the JSON carries ``transactions.trade_grades``, a trade's letter
+   and word (for example "B+" and "Slight edge") are the engine's verdict on the
+   numbers, so quote them exactly and add no grade of your own. If you mention a
+   trade, say what each side received and how it graded, nothing more. A
+   contender-versus-eliminated pairing is a standings fact: you may state it
+   plainly, but it never changes a grade and never explains one. Never use the
+   words veto, collusion, collude, rigged, fixed, suspicious or tanking about a
+   trade, and never suggest a manager gave a trade away on purpose."""
+
 _RULE_POWER_RANKINGS = """Power Rankings is a numbered list, one line per ranked team, best first, in
    exactly this shape: "1. <team name exactly as the JSON gives it> — <one
    sentence>". The number is YOUR published rank. Each row of the JSON's power
@@ -363,6 +372,8 @@ def _weekly_prompt(*, cold_start: bool, suppressed: frozenset[str] = frozenset()
     rules = [closed_world, _RULE_NO_HUMAN_ROASTS, structure]
     if "around_league" in ids:
         rules.append(_RULE_AROUND_THE_LEAGUE)
+    if not cold_start and "transactions" in ids:
+        rules.append(_RULE_TRADE_GRADES)
     if cold_start and "standings" in ids:
         rules.append(_RULE_STANDINGS_COLD_START)
     if not cold_start and "power" in ids:
