@@ -357,9 +357,9 @@ def test_render_is_deterministic() -> None:
 #: these only with a deliberate design change to the page, and regenerate them
 #: by running this test once and copying the printed digests.
 _GOLDEN_SHA256 = {
-    ("week10", "static"): "81653860cc9b067331c3aed1a7cc2e4256de3b68ca4218c64f441f5e6726c800",
-    ("week10-published", "static"): "97f307afd0f79b3606ba0a6a4aa7fd98be590acfe073950578a4d5863b941251",
-    ("week01", "static"): "d81c5ac9d16915d9981d26814dd72b902efffd62d88c7bb6234f03e073f7fefa",
+    ("week10", "static"): "52a5e5e16ced9367d6e606b7b679d613823858dfbb98f744705ed3a18a5d68bf",
+    ("week10-published", "static"): "bc56abd10068c43f76897c81f9ec54d4730750db42808cc03c91f3853ee3ea55",
+    ("week01", "static"): "cb5f74a36b015a918d74a1092563d6cd13d66b358f043d4399f1737390a326d8",
 }
 
 

@@ -847,8 +847,8 @@ def test_luck_is_read_in_words_with_the_printed_sign() -> None:
     lucky = weekly_template._luck_line(row("1", 1.5), _narration())
     unlucky = weekly_template._luck_line(row("2", -1.5), _narration())
     even = weekly_template._luck_line(row("3", 0.0), _narration())
-    assert "+1.5" in lucky and re.search(r"lucky|favored|breaks", lucky) and "unlucky" not in lucky
-    assert "-1.5" in unlucky and re.search(r"unlucky|deserved|dodged", unlucky)
+    assert "+1.5" in lucky and re.search(r"lucky|favored|breaks|ahead of the scores", lucky) and "unlucky" not in lucky
+    assert "-1.5" in unlucky and re.search(r"unlucky|deserved|dodged|skipped|behind the scores", unlucky)
     assert "+0.0" in even and re.search(r"no luck|exactly as lucky", even)
     assert "Earned wins" in lucky and "2.0" in lucky
 
@@ -884,7 +884,7 @@ def test_frozen_week_snapshot_of_the_new_render(week10: WeeklyNarration) -> None
     )
 
 
-_WEEK10_TEMPLATE_SHA256 = "6f73e74f85e4fccdf5eb433b73c9900a2dafce1cc6632b9697968947c2c53da5"
+_WEEK10_TEMPLATE_SHA256 = "b0f237a40b733eebac413cea32d9449e58f582d3fda23f79b88ba15a593956cf"
 
 
 def _picture(**kw: object) -> WeeklyNarrationPlayoff:
@@ -957,3 +957,30 @@ def test_an_unranked_power_row_has_no_number_prefix() -> None:
     row = WeeklyNarrationPower(model_rank=None, team="A", roster_id="1", rec="1-0", avg_pf=1.5)
     line = weekly_template._power_line(row, _narration())
     assert line.endswith(" Unranked.") and "for now" not in line and not re.match(r"^\d", line)
+
+
+def test_a_game_line_never_repeats_a_team_label_in_its_clauses() -> None:
+    game = WeeklyNarrationGame(
+        matchup_id=7, winner="Alpha", winner_pts=120.0, loser="Beta", loser_pts=100.0,
+        margin=20.0, top="Ace Back", top_team="Alpha",
+    )
+    narration = _narration(
+        games=[game],
+        standings=[
+            WeeklyNarrationStanding(rank=1, team="Alpha", roster_id="1", rec="6-6", pf=1.0),
+            WeeklyNarrationStanding(rank=2, team="Beta", roster_id="2", rec="5-7", pf=1.0),
+        ],
+    )
+    line = _section(render_weekly_issue(narration, has_prior_week=True), "Around the League").blocks[0]
+    assert line.count("Alpha") == 1 and "6-6" in line and "Ace Back" in line
+    loser_side = game.model_copy(update={"top_team": "Beta"})
+    line = weekly_template._game_line(loser_side, narration, records={"Alpha": "6-6"})
+    assert line.count("Alpha") == 1 and line.count("Beta") == 1
+
+
+def test_a_trade_this_week_is_not_zero_weeks_ago() -> None:
+    desk = WeeklyNarrationTransactions(
+        last_trade_week=5, weeks_since_last_trade=0, complete=True, this_week_count=1, recent_trade_count=1
+    )
+    text = weekly_issue_to_text(render_weekly_issue(_narration(transactions=desk), has_prior_week=True))
+    assert "zero weeks" not in text and "The last trade landed this week." in text

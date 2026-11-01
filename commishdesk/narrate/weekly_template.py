@@ -613,10 +613,11 @@ _GAME_FRAMES: dict[str, tuple[str, ...]] = {
 }
 
 #: The winner's record movement; ``{rec}`` is the standings record after the week.
+#: The frames never repeat the winner's label: the game sentence just named it.
 _RECORD_FRAMES = (
-    "{w} moves to {rec}.",
-    "That puts {w} at {rec}.",
-    "The win lifts {w} to {rec}.",
+    "That makes it {rec}.",
+    "Now {rec} on the season.",
+    "The record reads {rec} after it.",
 )
 
 #: The top scorer, with and without the team that scorer plays for.
@@ -629,6 +630,18 @@ _TOP_TEAM_FRAMES = (
     "{top} topped the scoring for {tt}.",
     "{top} led all scorers for {tt}.",
     "{tt} got the game's best score from {top}.",
+)
+#: When the top scorer's team is the winner or the loser the game sentence already
+#: named it, so the clause says which side instead of repeating the label.
+_TOP_WINNER_FRAMES = (
+    "{top} led the way.",
+    "{top} had the game's best score.",
+    "{top} topped the scoring.",
+)
+_TOP_LOSER_FRAMES = (
+    "{top} led all scorers in defeat.",
+    "{top} had the game's best score in a losing effort.",
+    "{top} topped the scoring on the losing side.",
 )
 
 
@@ -657,7 +670,11 @@ def _game_line(
     if rec:
         line += " " + _pick(_RECORD_FRAMES, narration, "rec", anchor).format(rec=rec, **fields)
     if game.top:
-        if game.top_team:
+        if game.top_team and game.winner and game.top_team == game.winner:
+            frame = _pick(_TOP_WINNER_FRAMES, narration, "top", anchor)
+        elif game.top_team and game.loser and game.winner and game.top_team == game.loser:
+            frame = _pick(_TOP_LOSER_FRAMES, narration, "top", anchor)
+        elif game.top_team:
             frame = _pick(_TOP_TEAM_FRAMES, narration, "top", anchor)
         else:
             frame = _pick(_TOP_FRAMES, narration, "top", anchor)
@@ -867,11 +884,15 @@ _LUCKY_FRAMES = (
     "{team} is {rec} and has caught the breaks, luck {luck}.",
     "{team} ({rec}) has been lucky, {luck} by the index.",
     "Luck has favored {team} at {rec}, {luck}.",
+    "The breaks keep finding {team} ({rec}), {luck}.",
+    "{team} ({rec}) is ahead of the scores, {luck}.",
 )
 _UNLUCKY_FRAMES = (
     "{team} is {rec} and has been unlucky, luck {luck}.",
     "{team} ({rec}) deserved better, {luck} by the index.",
     "Luck has dodged {team} at {rec}, {luck}.",
+    "The breaks have skipped {team} ({rec}), {luck}.",
+    "{team} ({rec}) is behind the scores, {luck}.",
 )
 _EVEN_FRAMES = (
     "{team} is {rec} and exactly as lucky as the scores say, luck {luck}.",
@@ -995,7 +1016,9 @@ def _transactions_section(narration: WeeklyNarration) -> WeeklySection:
     ]
     if desk.last_trade_week is not None:
         line = f"The last trade landed in week {desk.last_trade_week}"
-        if desk.weeks_since_last_trade is not None:
+        if desk.weeks_since_last_trade == 0:
+            line = "The last trade landed this week"
+        elif desk.weeks_since_last_trade is not None:
             line += f", {_count(desk.weeks_since_last_trade, 'week')} ago"
         blocks.append(line + ".")
     elif not desk.complete:
