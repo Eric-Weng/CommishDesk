@@ -9,6 +9,8 @@ section deriving from ``superlatives`` + ``lead_candidates``.
 
 from __future__ import annotations
 
+import re
+
 import pytest
 
 from commishdesk import demo
@@ -110,8 +112,10 @@ def test_every_manager_grade_letter_is_present(narration: Narration) -> None:
     section = _section(render_draft_recap(narration), "Team Grades")
     for team in narration.teams:
         if team.manager:
-            line = next(b for b in section.blocks if team.manager in b)
-            assert team.grade in line
+            line = next(
+                b for b in section.blocks if team.manager in b and not b.startswith("Grades weigh")
+            )
+            assert re.search(rf"(?<![\w+-]){re.escape(team.grade)}(?![\w+-])", line), line
 
 
 def test_positional_read_uses_the_run_summaries(narration: Narration) -> None:
@@ -184,6 +188,45 @@ def test_frames_vary_across_board_rows_but_are_stable_per_league(narration: Narr
     shapes = {b.split(pick.board_label)[0] for b, pick in zip(board, narration.board_round1, strict=True)}
     assert len(shapes) > 1
     assert board == _section(render_draft_recap(narration), "The Board — Round 1").blocks
+
+
+@pytest.mark.parametrize(
+    "frames",
+    [
+        template._OPENER_ROUNDS,
+        template._OPENER_PLAIN,
+        template._R1_FRAMES,
+        template._SPREAD_FRAMES,
+        template._BOARD_FRAMES,
+        template._GRADE_FRAMES,
+    ],
+)
+def test_every_frame_formats_cleanly_with_no_dash(frames: tuple[str, ...]) -> None:
+    fields = dict(
+        total="five picks", Total="Five picks", rounds="two rounds", mix="two quarterbacks",
+        hi="A", hi_n="five", lo="B", lo_n="two", label="1.01", who="A", player="P", pos=" (QB)",
+        tail="T.", mgr="A", grade="B+", art="a", detail=", with 1 QB across one pick",
+    )
+    for frame in frames:
+        out = frame.format(**fields)
+        assert "{" not in out and "}" not in out and " — " not in out
+
+
+def test_even_pick_counts_do_not_claim_a_most_and_fewest(narration: Narration) -> None:
+    hn = narration.headline_numbers
+    even = hn.pick_count_leader.model_copy(update={"pick_count": 5})
+    flat = narration.model_copy(
+        update={
+            "headline_numbers": hn.model_copy(
+                update={
+                    "pick_count_leader": even,
+                    "pick_count_low": hn.pick_count_low.model_copy(update={"pick_count": 5}),
+                }
+            )
+        }
+    )
+    blob = " ".join(_section(render_draft_recap(flat), "The Lead").blocks)
+    assert "fewest" not in blob and "down to five" not in blob and "quietest" not in blob
 
 
 def test_grade_line_uses_the_right_article() -> None:

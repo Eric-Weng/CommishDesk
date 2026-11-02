@@ -239,7 +239,14 @@ def _lead_section(narration: Narration) -> Section:
     blocks.append(opener)
 
     leader, low = hn.pick_count_leader, hn.pick_count_low
-    if leader and low and leader.manager and low.manager and leader.manager != low.manager:
+    if (
+        leader
+        and low
+        and leader.manager
+        and low.manager
+        and leader.manager != low.manager
+        and leader.pick_count != low.pick_count
+    ):
         blocks.append(
             _pick(_SPREAD_FRAMES, narration, "spread").format(
                 hi=leader.manager,
@@ -380,7 +387,7 @@ def _grades_section(narration: Narration) -> Section:
             for pos in ("QB", "RB", "WR", "TE")
             if pos in team.positional_counts
         )
-        detail = f", on {counts} across {_count(team.pick_count, 'pick')}" if counts else ""
+        detail = f", with {counts} across {_count(team.pick_count, 'pick')}" if counts else ""
         line = _pick(_GRADE_FRAMES, narration, "grade", team.manager).format(
             mgr=team.manager, grade=team.grade, art=_article(team.grade), detail=detail
         )
