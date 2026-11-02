@@ -227,6 +227,7 @@ def _lead_section(narration: Narration) -> Section:
     blocks: list[str] = []
 
     total = _count(hn.picks_total, "pick")
+    frames: tuple[str, ...]
     if hn.rounds:
         rounds = _count(hn.rounds, "round")
         frames = _OPENER_ROUNDS
