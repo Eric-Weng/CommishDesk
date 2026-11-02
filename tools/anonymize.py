@@ -195,6 +195,7 @@ class Bundle(BaseModel):
     rosters: list[Any]
     matchups: dict[str, Any] = Field(default_factory=dict)
     next_matchups: list[Any] | None = None
+    remaining_matchups: dict[str, Any] | None = None
     transactions: dict[str, Any] = Field(default_factory=dict)
     draft: dict[str, Any] | None = None
     draft_picks: list[Any] = Field(default_factory=list)
@@ -531,6 +532,22 @@ class _Anonymizer:
             for m in [_require_dict(row, f"next_matchups[{j}]")]
         ]
 
+    def remaining_matchups(self) -> dict[str, list[dict[str, Any]]]:
+        """Every remaining regular-season week's pairings keyed by week (Story
+        9.2): ``roster_id`` and ``matchup_id`` only, exactly like
+        :meth:`next_matchups`. Anything else a row carries is dropped."""
+        section = self.src.get("remaining_matchups") or {}
+        if not isinstance(section, dict):
+            raise ValueError("remaining_matchups must be an object keyed by week")
+        return {
+            str(week): [
+                {k: m.get(k) for k in ("roster_id", "matchup_id") if k in m}
+                for j, row in enumerate(rows or [])
+                for m in [_require_dict(row, f"remaining_matchups[{week}][{j}]")]
+            ]
+            for week, rows in section.items()
+        }
+
     def _transaction(self, t: dict[str, Any]) -> dict[str, Any]:
         picks = t.get("draft_picks") or []
         return {
@@ -653,6 +670,8 @@ class _Anonymizer:
         # shape (no phantom empty section), one that carries it keeps it.
         if self.src.get("next_matchups") is not None:
             result["next_matchups"] = self.next_matchups()
+        if self.src.get("remaining_matchups") is not None:
+            result["remaining_matchups"] = self.remaining_matchups()
         # Safety net over the whole result: tokenize any id-typed key's value and
         # any 15+-digit run that a passthrough subtree (settings, adds/drops, a
         # contributor's schema drift) still carries. Roster ids, weeks, slots,

@@ -36,6 +36,12 @@ outcome — and only while ``week + 1`` is still regular season
 (``settings.playoff_week_start`` an int and ``week + 1 < playoff_week_start``);
 past that cutoff it is ``[]``, with no request made.
 
+Story 9.2 adds a ``"remaining_matchups"`` key (``{"<week>": [pairings]}``) for
+every regular-season week ``n+1 .. playoff_week_start - 1``, pairings only.
+Week ``n+1`` is fetched once and feeds both keys; a failed fetch for any later
+week is skipped (that week is absent) and logged by path, never raised. Empty
+(``{}``) with no request when ``n+1 >= playoff_week_start`` or none is declared.
+
 Story 5.11a adds one more, again inside the unchanged ``fetch_week``
 signature: a ``GET /state/nfl`` projected to ``{"week", "season_type"}`` under
 a new ``"nfl_state"`` key. That is Sleeper's own "which week is it" signal, and
@@ -64,6 +70,7 @@ and re-raised as an ``AdapterError`` chained from the original exception
 from __future__ import annotations
 
 import json
+import logging
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
@@ -74,6 +81,8 @@ from commishdesk import __version__
 from commishdesk.errors import AdapterError
 
 __all__ = ["SleeperAdapter", "load_players_file"]
+
+_log = logging.getLogger("commishdesk.adapters.sleeper")
 
 _DEFAULT_CONTACT_URL = "https://github.com/Eric-Weng/CommishDesk"
 _DEFAULT_TIMEOUT = 10.0
@@ -408,10 +417,26 @@ class SleeperAdapter:
 
         # Story 5.7: week n+1's pairings, while n+1 is still regular season.
         start = _playoff_week_start(league)
-        if start is None or week + 1 >= start:
-            next_matchups: list[dict[str, Any]] = []
-        else:
-            next_matchups = _project_pairings(self._get(f"/league/{league_id}/matchups/{week + 1}"))
+        # Story 9.2: and every later regular-season week n+2 .. p-1, pairings
+        # only. Week n+1 is fetched once and feeds both keys.
+        next_matchups: list[dict[str, Any]] = []
+        remaining_matchups: dict[str, list[dict[str, Any]]] = {}
+        if start is not None and week + 1 < start:
+            first = self._get(f"/league/{league_id}/matchups/{week + 1}")
+            next_matchups = _project_pairings(first)
+            if isinstance(first, list):
+                remaining_matchups[str(week + 1)] = next_matchups
+            for wk in range(week + 2, start):
+                path = f"/league/{league_id}/matchups/{wk}"
+                try:
+                    rows = self._get(path)
+                except AdapterError:
+                    # A failed late week is absent, never raised; the log
+                    # carries the path only, never a response body.
+                    _log.warning("Sleeper remaining-week fetch failed: GET %s", path)
+                    continue
+                if isinstance(rows, list):
+                    remaining_matchups[str(wk)] = _project_pairings(rows)
 
         if _in_playoff_period(league, week):
             winners_bracket = self._get(f"/league/{league_id}/winners_bracket")
@@ -433,6 +458,7 @@ class SleeperAdapter:
             "matchups": matchups,
             "transactions": transactions,
             "next_matchups": next_matchups,
+            "remaining_matchups": remaining_matchups,
             "winners_bracket": winners_bracket,
             "losers_bracket": losers_bracket,
             "players": players,

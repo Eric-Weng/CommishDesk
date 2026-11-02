@@ -86,6 +86,7 @@ def load_week_bundle(week: int) -> dict[str, Any]:
         "next_matchups": current["next_matchups"],
         "nfl_state": {"season_type": "regular", "week": week + 1},
         "players": {pid: record for pid, record in all_players.items() if pid in referenced},
+        "remaining_matchups": current["remaining_matchups"],
         "rosters": current["rosters"],
         "transactions": transactions,
         "winners_bracket": [],

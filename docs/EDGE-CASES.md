@@ -156,6 +156,24 @@ story's (5.15 / 5.16).
 `matchups.next_week` cards, and a week-17 run has none either. The transactions desk is
 unaffected — the market note still spans the whole season.
 
+## The remaining regular-season schedule can be partial or absent (Story 9.2)
+
+**What happens.** `fetch_week` also fills a `remaining_matchups` key (`{"<week>": [pairings]}`)
+for weeks `n + 1 .. playoff_week_start - 1`, pairings only (`roster_id` / `matchup_id`), and
+Facts carry it as `matchups.remaining {complete, weeks[{week, games[]}]}`. Week `n + 1` is
+fetched once and feeds both `next_matchups` and the remaining set. A failed fetch for any week
+after `n + 1` is skipped: that week is absent, the failure is logged by request path (never the
+body), and the run continues. A failed `n + 1` fetch still raises, as before. A row with a null
+`matchup_id`, or one with no partner, is omitted from that week's `games`.
+
+**`complete`** is true only when the league declares `playoff_week_start` and every week
+`n + 1 .. p - 1` is present. At the last regular-season week (`n + 1 >= p`) it is
+`weeks: []`, `complete: true`, with no request. With no declared `playoff_week_start`, or from a
+bundle that predates the key, it is `weeks: []`, `complete: false`. It is a fact about the list,
+not a prediction: the consumer (9.4 playoff odds) decides what an incomplete list means.
+
+**Cost.** `p - n - 2` extra Sleeper requests per mid-season week (3 at `n = 10`, `p = 15`).
+
 ## Week 1's transaction bucket also holds the offseason (Story 5.7)
 
 **What happens.** Sleeper files a league's offseason trades (and every other settled move

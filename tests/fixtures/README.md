@@ -26,6 +26,7 @@ renders as one full-line replacement.
   "rosters":  [ /* owner_id / co_owners tokenized; players / starters / settings verbatim */ ],
   "matchups": { "1": [ /* points, players, starters, matchup_id, players_points, starters_points */ ], "…": [] },
   "next_matchups": [ /* week n+1's pairings, {roster_id, matchup_id} ONLY — [] at/after playoff_week_start */ ],
+  "remaining_matchups": { "11": [ /* week n+1..playoff_week_start-1, {roster_id, matchup_id} ONLY — {} at/after the cutoff */ ] },
   "transactions": { "1": [ /* settled transactions only; ids tokenized; metadata dropped;
                              created / status_updated remapped onto a synthetic grid */ ], "…": [] },
   "draft":        { /* ids tokenized; settings verbatim; metadata → name + scoring_type only */ },
@@ -51,6 +52,11 @@ fixture cannot leak a future outcome. It is populated only while `n+1` is still
 regular season (`n + 1 < playoff_week_start`); at the cutoff and after, and for
 the pre-week-1 `rookie-draft.json`, it is `[]`. Only a `matchup_id` grouping
 exactly two distinct rosters is a real pairing.
+
+**`remaining_matchups`.** Story 9.2 extends the same projection to every remaining
+regular-season week, `n + 1 .. playoff_week_start - 1`, keyed by week: `{roster_id,
+matchup_id}` only, never a score, lineup or player list. Week `n + 1` repeats
+`next_matchups`. It is `{}` at the cutoff and after, and for `rookie-draft.json`.
 
 **Timestamps.** Every `created` / `status_updated` epoch-ms is replaced,
 order-preserving, by a point on a synthetic grid (`2025-01-01T00:00:00Z` +

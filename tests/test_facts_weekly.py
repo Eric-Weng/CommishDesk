@@ -201,12 +201,87 @@ def _synthetic(
 def test_week10_build_validates_and_has_twelve_teams() -> None:
     doc = _week10_facts()
     assert isinstance(doc, WeeklyFacts)
-    assert doc.schema_version == "0.13.0" == SCHEMA_VERSION
+    assert doc.schema_version == "0.14.0" == SCHEMA_VERSION
     assert doc.issue_type == "weekly"
     assert doc.week == 10
     assert len(doc.teams) == 12
     # every roster id is a string and the block is in numeric roster order
     assert [t.roster_id for t in doc.teams] == [str(i) for i in range(1, 13)]
+
+
+def _remaining_facts(**update: Any) -> WeeklyFacts:
+    bundle = _bundle(WEEK10)
+    week = build_week_model(bundle).model_copy(update=update)
+    return build_weekly_facts(
+        week,
+        build_league_model(bundle),
+        build_player_snapshot(bundle),
+        build_player_names(bundle),
+        generated_at=GENERATED_AT,
+        nfl_byes_next_week=BYES_NEXT_WEEK,
+    )
+
+
+def test_week10_remaining_schedule_carries_weeks_11_to_14_complete() -> None:
+    doc = _week10_facts()
+    remaining = doc.matchups.remaining
+    assert remaining.complete is True
+    assert [w.week for w in remaining.weeks] == [11, 12, 13, 14]
+    assert all(len(w.games) == 6 for w in remaining.weeks)
+    # week n+1 agrees with the next-week cards, pairing for pairing
+    cards = {(c.matchup_id, c.a_roster_id, c.b_roster_id) for c in doc.matchups.next_week}
+    first = {(g.matchup_id, g.a_roster_id, g.b_roster_id) for g in remaining.weeks[0].games}
+    assert first == cards
+    # pairings only: no point, lineup or player key anywhere in the block
+    dumped = json.dumps(remaining.model_dump(mode="json"))
+    assert set(remaining.weeks[0].games[0].model_dump()) == {"a_roster_id", "b_roster_id", "matchup_id"}
+    assert "point" not in dumped and "starter" not in dumped
+    # not part of the narration projection
+    assert "remaining" not in json.dumps(doc.narration.model_dump(mode="json"))
+
+
+def test_last_regular_week_has_an_empty_complete_schedule() -> None:
+    week = build_week_model(_bundle(WEEK10)).model_copy(update={"week": 14})
+    bundle = _bundle(WEEK10)
+    doc = build_weekly_facts(
+        week.model_copy(update={"remaining_matchups": {}, "next_matchups": []}),
+        build_league_model(bundle),
+        build_player_snapshot(bundle),
+        build_player_names(bundle),
+        generated_at=GENERATED_AT,
+    )
+    assert doc.matchups.remaining.weeks == []
+    assert doc.matchups.remaining.complete is True
+
+
+def test_undeclared_playoff_start_leaves_the_schedule_incomplete() -> None:
+    doc = _remaining_facts(playoff_week_start=None, remaining_matchups={})
+    assert doc.matchups.remaining.weeks == []
+    assert doc.matchups.remaining.complete is False
+
+
+def test_a_missing_late_week_is_absent_and_marks_the_schedule_incomplete() -> None:
+    week = build_week_model(_bundle(WEEK10))
+    partial = {wk: rows for wk, rows in week.remaining_matchups.items() if wk != 13}
+    doc = _remaining_facts(remaining_matchups=partial)
+    assert [w.week for w in doc.matchups.remaining.weeks] == [11, 12, 14]
+    assert doc.matchups.remaining.complete is False
+
+
+def test_an_older_bundle_has_an_empty_incomplete_schedule() -> None:
+    doc = _remaining_facts(remaining_matchups={})
+    assert doc.matchups.remaining.weeks == []
+    assert doc.matchups.remaining.complete is False
+
+
+def test_an_unpaired_roster_is_omitted_from_its_weeks_games() -> None:
+    week = build_week_model(_bundle(WEEK10))
+    rows = list(week.remaining_matchups[12])
+    rows[0] = rows[0].model_copy(update={"matchup_id": None})  # its partner is now alone
+    patched = {**week.remaining_matchups, 12: rows}
+    doc = _remaining_facts(remaining_matchups=patched)
+    wk12 = next(w for w in doc.matchups.remaining.weeks if w.week == 12)
+    assert len(wk12.games) == 5
 
 
 def test_week10_has_six_this_week_and_six_next_week_games() -> None:

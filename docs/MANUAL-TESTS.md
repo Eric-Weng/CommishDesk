@@ -198,6 +198,18 @@ These are done once (or once per milestone), not on a schedule.
 
 ---
 
+## 9.2 The facts carry the rest of the regular season (one live run)
+
+- **What to do:** run one weekly Issue for a real league at a mid-season week with the network up
+  (`commishdesk --league <sleeper-id> --week <n>`), counting Sleeper requests (for example with
+  `HTTPX_LOG_LEVEL=info` or a proxy).
+- **Expected:** the Facts carry `matchups.remaining` with weeks `n+1 .. playoff_week_start-1` and
+  `complete: true`; the run made `p - n - 2` more Sleeper requests than before (3 at `n = 10`,
+  `p = 15`). Record the number in the 9.2 spec's Implementation Notes (input to 9.8).
+- **Last run:** _never_ -- **open (needs a real league and network).**
+
+---
+
 ## 9.9 Draft recap ranks against League Value (one live run)
 
 - **What to do:** run one draft recap for a real startup or rookie league with the network up

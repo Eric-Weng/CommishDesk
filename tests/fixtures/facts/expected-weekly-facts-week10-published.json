@@ -1,6 +1,6 @@
 {
   "_derived_from": "Story 5.13a overlay. expected-weekly-facts-week10.json with a hand-authored published-rank layer: the narrator swaps model ranks 7 and 8 (Chip-Block Chinchillas, Nickel Newts). Only teams[*].season.power and narration.power differ from the base. nudge = model_rank - published_rank (positive means moved up). The justification cites only numbers present in narration.power.",
-  "schema_version": "0.13.0",
+  "schema_version": "0.14.0",
   "generated_at": "2026-09-07T00:00:00Z",
   "provisional": true,
   "issue_type": "weekly",
@@ -5574,7 +5574,152 @@
         ],
         "game_of_week": false
       }
-    ]
+    ],
+    "remaining": {
+      "complete": true,
+      "weeks": [
+        {
+          "week": 11,
+          "games": [
+            {
+              "a_roster_id": "1",
+              "b_roster_id": "11",
+              "matchup_id": 1
+            },
+            {
+              "a_roster_id": "5",
+              "b_roster_id": "8",
+              "matchup_id": 2
+            },
+            {
+              "a_roster_id": "4",
+              "b_roster_id": "6",
+              "matchup_id": 3
+            },
+            {
+              "a_roster_id": "3",
+              "b_roster_id": "9",
+              "matchup_id": 4
+            },
+            {
+              "a_roster_id": "2",
+              "b_roster_id": "12",
+              "matchup_id": 5
+            },
+            {
+              "a_roster_id": "7",
+              "b_roster_id": "10",
+              "matchup_id": 6
+            }
+          ]
+        },
+        {
+          "week": 12,
+          "games": [
+            {
+              "a_roster_id": "5",
+              "b_roster_id": "11",
+              "matchup_id": 1
+            },
+            {
+              "a_roster_id": "3",
+              "b_roster_id": "4",
+              "matchup_id": 2
+            },
+            {
+              "a_roster_id": "6",
+              "b_roster_id": "9",
+              "matchup_id": 3
+            },
+            {
+              "a_roster_id": "2",
+              "b_roster_id": "7",
+              "matchup_id": 4
+            },
+            {
+              "a_roster_id": "10",
+              "b_roster_id": "12",
+              "matchup_id": 5
+            },
+            {
+              "a_roster_id": "1",
+              "b_roster_id": "8",
+              "matchup_id": 6
+            }
+          ]
+        },
+        {
+          "week": 13,
+          "games": [
+            {
+              "a_roster_id": "4",
+              "b_roster_id": "11",
+              "matchup_id": 1
+            },
+            {
+              "a_roster_id": "3",
+              "b_roster_id": "5",
+              "matchup_id": 2
+            },
+            {
+              "a_roster_id": "2",
+              "b_roster_id": "9",
+              "matchup_id": 3
+            },
+            {
+              "a_roster_id": "6",
+              "b_roster_id": "7",
+              "matchup_id": 4
+            },
+            {
+              "a_roster_id": "8",
+              "b_roster_id": "10",
+              "matchup_id": 5
+            },
+            {
+              "a_roster_id": "1",
+              "b_roster_id": "12",
+              "matchup_id": 6
+            }
+          ]
+        },
+        {
+          "week": 14,
+          "games": [
+            {
+              "a_roster_id": "3",
+              "b_roster_id": "11",
+              "matchup_id": 1
+            },
+            {
+              "a_roster_id": "4",
+              "b_roster_id": "5",
+              "matchup_id": 2
+            },
+            {
+              "a_roster_id": "7",
+              "b_roster_id": "9",
+              "matchup_id": 3
+            },
+            {
+              "a_roster_id": "2",
+              "b_roster_id": "6",
+              "matchup_id": 4
+            },
+            {
+              "a_roster_id": "1",
+              "b_roster_id": "10",
+              "matchup_id": 5
+            },
+            {
+              "a_roster_id": "8",
+              "b_roster_id": "12",
+              "matchup_id": 6
+            }
+          ]
+        }
+      ]
+    }
   },
   "standings": {
     "overall": [

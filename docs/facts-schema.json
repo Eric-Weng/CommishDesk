@@ -255,7 +255,7 @@
           "type": "boolean"
         },
         "schema_version": {
-          "default": "0.13.0",
+          "default": "0.14.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -2124,7 +2124,7 @@
           "type": "boolean"
         },
         "schema_version": {
-          "default": "0.13.0",
+          "default": "0.14.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -2680,7 +2680,7 @@
       "type": "object"
     },
     "WeeklyMatchups": {
-      "description": "The target week's resolved pairings, and the next week's cards.",
+      "description": "The target week's resolved pairings, and the next week's cards.\n``remaining`` (``0.14.0``) carries every remaining regular-season pairing.",
       "properties": {
         "next_week": {
           "default": [],
@@ -2689,6 +2689,13 @@
           },
           "title": "Next Week",
           "type": "array"
+        },
+        "remaining": {
+          "$ref": "#/$defs/WeeklyRemainingSchedule",
+          "default": {
+            "complete": false,
+            "weeks": []
+          }
         },
         "this_week": {
           "default": [],
@@ -4052,6 +4059,72 @@
         "t"
       ],
       "title": "WeeklyRecord",
+      "type": "object"
+    },
+    "WeeklyRemainingGame": {
+      "description": "One remaining regular-season pairing: pairings only, never a point.\n``a_roster_id`` is the lower numeric roster id.",
+      "properties": {
+        "a_roster_id": {
+          "title": "A Roster Id",
+          "type": "string"
+        },
+        "b_roster_id": {
+          "title": "B Roster Id",
+          "type": "string"
+        },
+        "matchup_id": {
+          "title": "Matchup Id",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "a_roster_id",
+        "b_roster_id",
+        "matchup_id"
+      ],
+      "title": "WeeklyRemainingGame",
+      "type": "object"
+    },
+    "WeeklyRemainingSchedule": {
+      "description": "Every remaining regular-season pairing, weeks ``n+1 .. p-1`` (Story 9.2,\nAR-64). ``complete`` is true only when the league declares\n``playoff_week_start`` and every one of those weeks is present; a fetch\nthat failed leaves its week absent and ``complete`` false. Added at\n:data:`SCHEMA_VERSION` ``0.14.0``.",
+      "properties": {
+        "complete": {
+          "default": false,
+          "title": "Complete",
+          "type": "boolean"
+        },
+        "weeks": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WeeklyRemainingWeek"
+          },
+          "title": "Weeks",
+          "type": "array"
+        }
+      },
+      "title": "WeeklyRemainingSchedule",
+      "type": "object"
+    },
+    "WeeklyRemainingWeek": {
+      "description": "One remaining regular-season week's pairings.",
+      "properties": {
+        "games": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WeeklyRemainingGame"
+          },
+          "title": "Games",
+          "type": "array"
+        },
+        "week": {
+          "title": "Week",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "week"
+      ],
+      "title": "WeeklyRemainingWeek",
       "type": "object"
     },
     "WeeklyRevisitPlayer": {

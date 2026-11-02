@@ -1,6 +1,6 @@
 {
   "_derived_from": "Story 2.5 oracle. build_draft_recap_facts() over the anonymized rookie-draft.json board + compute_board_metrics / compute_consensus_metrics / compute_draft_grades, via the Story 2.4b _synthetic_slots() transform (Sleeper search_rank order of sleeper-players-nfl.json); generated_at pinned to '2026-09-03T00:00:00Z', fetched_at '2026-09-03', consensus_source name/as_of 'sleeper_search_rank' / '2025-05'. Values are synthetic - the test asserts the merge + board projections + self-validation round-trip, not the private phase-0 golden (real-player hand build). Regenerate with model_dump(mode='json') of tests/test_facts.py::_rookie_facts() when the builder or an upstream stage changes. Re-baselined for Story 9.9 (AR-71): the market-value fixture is removed and the board is now the Sleeper search_rank order of sleeper-players-nfl.json, whose ranks were re-derived from the retired board's order (its 11 unranked players are null), so the committed slots, deltas and grades carry over unchanged. Schema 0.13.0 adds consensus_source.attribution and narration.board_source, and the engine_note names League Value.",
-  "schema_version": "0.13.0",
+  "schema_version": "0.14.0",
   "generated_at": "2026-09-03T00:00:00Z",
   "provisional": true,
   "issue_type": "draft_recap",
