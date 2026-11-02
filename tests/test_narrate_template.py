@@ -9,6 +9,8 @@ section deriving from ``superlatives`` + ``lead_candidates``.
 
 from __future__ import annotations
 
+import re
+
 import pytest
 
 from commishdesk import demo
@@ -88,7 +90,8 @@ def test_board_round1_names_and_numbers_match_the_narration(narration: Narration
     board = _section(render_draft_recap(narration), "The Board — Round 1")
     assert len(board.blocks) == len(narration.board_round1)
     for block, pick in zip(board.blocks, narration.board_round1, strict=True):
-        assert block.startswith(f"{pick.board_label} — ")
+        assert pick.board_label in block
+        assert " — " not in block
         assert pick.player in block
         if pick.manager:
             assert pick.manager in block
@@ -107,10 +110,12 @@ def test_superlatives_name_the_right_picks(narration: Narration) -> None:
 
 def test_every_manager_grade_letter_is_present(narration: Narration) -> None:
     section = _section(render_draft_recap(narration), "Team Grades")
-    blob = "\n".join(section.blocks)
     for team in narration.teams:
         if team.manager:
-            assert f"{team.manager}: {team.grade}" in blob
+            line = next(
+                b for b in section.blocks if team.manager in b and not b.startswith("Grades weigh")
+            )
+            assert re.search(rf"(?<![\w+-]){re.escape(team.grade)}(?![\w+-])", line), line
 
 
 def test_positional_read_uses_the_run_summaries(narration: Narration) -> None:
@@ -161,6 +166,80 @@ def test_december_section_renders_the_storyline_hooks(narration: Narration) -> N
 
 def test_render_is_deterministic(narration: Narration) -> None:
     assert render_draft_recap(narration).model_dump() == render_draft_recap(narration).model_dump()
+
+
+def test_template_passes_the_safety_gate_with_no_allowlist_change(narration: Narration) -> None:
+    from commishdesk.narrate.safety import check_narration
+
+    assert check_narration(recap_to_text(render_draft_recap(narration)), narration).ok
+
+
+def test_each_section_has_at_most_one_template_em_dash(narration: Narration) -> None:
+    hooks = {c.hook for c in narration.lead_candidates} | {
+        s.hook for s in narration.storyline_candidates
+    }
+    for section in render_draft_recap(narration).sections:
+        own = [b for b in section.blocks if b not in hooks]
+        assert sum(b.count(" — ") for b in own) <= 1, section.heading
+
+
+def test_frames_vary_across_board_rows_but_are_stable_per_league(narration: Narration) -> None:
+    board = _section(render_draft_recap(narration), "The Board — Round 1").blocks
+    shapes = {b.split(pick.board_label)[0] for b, pick in zip(board, narration.board_round1, strict=True)}
+    assert len(shapes) > 1
+    assert board == _section(render_draft_recap(narration), "The Board — Round 1").blocks
+
+
+@pytest.mark.parametrize(
+    "frames",
+    [
+        template._OPENER_ROUNDS,
+        template._OPENER_PLAIN,
+        template._R1_FRAMES,
+        template._SPREAD_FRAMES,
+        template._BOARD_FRAMES,
+        template._GRADE_FRAMES,
+    ],
+)
+def test_every_frame_formats_cleanly_with_no_dash(frames: tuple[str, ...]) -> None:
+    fields = dict(
+        total="five picks", Total="Five picks", rounds="two rounds", mix="two quarterbacks",
+        hi="A", hi_n="five", lo="B", lo_n="two", label="1.01", who="A", player="P", pos=" (QB)",
+        tail="T.", mgr="A", grade="B+", art="a", detail=", with 1 QB across one pick",
+    )
+    for frame in frames:
+        out = frame.format(**fields)
+        assert "{" not in out and "}" not in out and " — " not in out
+
+
+def test_even_pick_counts_do_not_claim_a_most_and_fewest(narration: Narration) -> None:
+    hn = narration.headline_numbers
+    even = hn.pick_count_leader.model_copy(update={"pick_count": 5})
+    flat = narration.model_copy(
+        update={
+            "headline_numbers": hn.model_copy(
+                update={
+                    "pick_count_leader": even,
+                    "pick_count_low": hn.pick_count_low.model_copy(update={"pick_count": 5}),
+                }
+            )
+        }
+    )
+    blob = " ".join(_section(render_draft_recap(flat), "The Lead").blocks)
+    assert "fewest" not in blob and "down to five" not in blob and "quietest" not in blob
+
+
+def test_grade_line_uses_the_right_article() -> None:
+    assert template._article("A-") == "an"
+    assert template._article("F") == "an"
+    assert template._article("B+") == "a"
+
+
+def test_pick_without_a_board_slot_says_so_in_a_sentence(narration: Narration) -> None:
+    pick = narration.board_round1[0].model_copy(update={"consensus_label": None, "delta": None})
+    line = template._board_line(pick, "the League Value board", narration, 0)
+    assert "has no slot for this player" in line
+    assert " — " not in line
 
 
 def test_no_literal_none_in_the_prose(narration: Narration) -> None:
