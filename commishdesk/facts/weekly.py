@@ -131,6 +131,9 @@ from .schema import (
     WeeklyPlayoffRef,
     WeeklyPower,
     WeeklyRecord,
+    WeeklyRemainingGame,
+    WeeklyRemainingSchedule,
+    WeeklyRemainingWeek,
     WeeklySeason,
     WeeklyStandings,
     WeeklyStarter,
@@ -1036,7 +1039,30 @@ def _matchups_block(
             )
         )
 
-    return WeeklyMatchups(this_week=this_week, next_week=cards)
+    return WeeklyMatchups(this_week=this_week, next_week=cards, remaining=_remaining_schedule(week))
+
+
+def _remaining_schedule(week: WeekModel) -> WeeklyRemainingSchedule:
+    """Story 9.2: every carried remaining regular-season pairing, weeks ascending.
+    A fact about the list, not a prediction: ``complete`` is true only when the
+    league declares ``playoff_week_start`` and every week ``n+1 .. p-1`` is
+    present. An unpaired roster (no ``matchup_id`` or no partner) is omitted."""
+    weeks: list[WeeklyRemainingWeek] = []
+    for wk in sorted(week.remaining_matchups):
+        groups: dict[int, set[str]] = {}
+        for m in week.remaining_matchups[wk]:
+            if m.matchup_id is not None:
+                groups.setdefault(m.matchup_id, set()).add(m.roster_id)
+        games: list[WeeklyRemainingGame] = []
+        for mid in sorted(groups):
+            pair = sorted(groups[mid], key=_sort_key)
+            if len(pair) != 2:
+                continue
+            games.append(WeeklyRemainingGame(a_roster_id=pair[0], b_roster_id=pair[1], matchup_id=mid))
+        weeks.append(WeeklyRemainingWeek(week=wk, games=games))
+    start = week.playoff_week_start
+    complete = start is not None and all(wk in week.remaining_matchups for wk in range(week.week + 1, start))
+    return WeeklyRemainingSchedule(complete=complete, weeks=weeks)
 
 
 def _standings_block(standings: object, week: WeekModel) -> WeeklyStandings:

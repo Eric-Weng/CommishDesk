@@ -327,6 +327,9 @@ class WeekModel(_Frozen):
     winners_bracket: list[BracketMatch] = []
     losers_bracket: list[BracketMatch] = []
     next_matchups: list[Matchup] = []
+    # Story 9.2: every remaining regular-season week's pairings (weeks n+1 ..
+    # playoff_week_start - 1), keyed by week; {} for an older bundle.
+    remaining_matchups: dict[int, list[Matchup]] = {}
     past_transactions: dict[int, list[Transaction]] = {}
 
 

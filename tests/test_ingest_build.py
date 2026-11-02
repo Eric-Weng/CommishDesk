@@ -593,6 +593,38 @@ def test_a_null_earlier_week_body_becomes_an_empty_history_week() -> None:
     assert build_week_model(bundle).past_transactions == {1: []}
 
 
+def test_a_bundle_without_remaining_matchups_builds_an_empty_map() -> None:
+    bundle = _synthetic_bundle()
+    assert "remaining_matchups" not in bundle
+    assert build_week_model(bundle).remaining_matchups == {}
+
+
+def test_remaining_matchups_are_pairing_rows_per_week_and_skip_malformed_entries() -> None:
+    bundle = _synthetic_bundle()
+    bundle["remaining_matchups"] = {
+        "5": [{"roster_id": 2, "matchup_id": 1}, {"roster_id": 1, "matchup_id": 1}],
+        "4": [{"roster_id": 1, "matchup_id": 3}, {"roster_id": 2, "matchup_id": None}],
+        "x": [{"roster_id": 1, "matchup_id": 1}],  # non-int key
+        "6": {"not": "a list"},
+    }
+
+    model = build_week_model(bundle)
+
+    assert list(model.remaining_matchups) == [4, 5]
+    assert [(m.week, m.roster_id, m.opponent_roster_id, m.matchup_id) for m in model.remaining_matchups[5]] == [
+        (5, "1", "2", 1),
+        (5, "2", "1", 1),
+    ]
+    assert [(m.roster_id, m.opponent_roster_id) for m in model.remaining_matchups[4]] == [("1", None), ("2", None)]
+    assert all(m.points == 0.0 and m.starters == [] for rows in model.remaining_matchups.values() for m in rows)
+
+
+def test_a_non_mapping_remaining_matchups_section_is_ignored() -> None:
+    bundle = _synthetic_bundle()
+    bundle["remaining_matchups"] = [{"roster_id": 1, "matchup_id": 1}]
+    assert build_week_model(bundle).remaining_matchups == {}
+
+
 def test_a_committed_fixture_builds_the_full_history_and_the_next_weeks_pairings() -> None:
     model = build_week_model(_load_fixture("week10-blowout.json"))
 
@@ -600,6 +632,8 @@ def test_a_committed_fixture_builds_the_full_history_and_the_next_weeks_pairings
     assert len(model.next_matchups) == 12
     assert {m.week for m in model.next_matchups} == {11}
     assert all(m.opponent_roster_id is not None for m in model.next_matchups)
+    assert sorted(model.remaining_matchups) == [11, 12, 13, 14]
+    assert model.remaining_matchups[11] == model.next_matchups
 
 
 # --------------------------------------------------------------------------- #

@@ -109,3 +109,7 @@ reason = "Draft identity and settings (id, type, rounds, start and end times); i
 [[exclude]]
 path = "draft_recap.narration"
 reason = "Projection of the numbers above, trimmed and capped for the narrator; it adds no figures of its own."
+
+[[exclude]]
+path = "weekly.matchups.remaining"
+reason = "Every remaining regular-season pairing (weeks n+1 to the playoff start minus 1), carried from the schedule as input for later stats; a schedule, not a computed number."

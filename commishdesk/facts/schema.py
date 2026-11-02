@@ -118,6 +118,9 @@ __all__ = [
     "WeeklyMarketNote",
     "WeeklyMatchup",
     "WeeklyMatchups",
+    "WeeklyRemainingGame",
+    "WeeklyRemainingSchedule",
+    "WeeklyRemainingWeek",
     "WeeklyMove",
     "WeeklyMovePlayer",
     "WeeklyNarration",
@@ -162,7 +165,7 @@ __all__ = [
     "WeeklyWeekPoints",
 ]
 
-SCHEMA_VERSION = "0.13.0"
+SCHEMA_VERSION = "0.14.0"
 """Semver contract version. Additive key -> minor bump; shape change -> major.
 ``0.4.0`` -> ``0.5.0`` (Story 5.8): the empty ``WeeklyFacts`` placeholder becomes
 the real weekly document and its ``WeeklyNarration``; ``DraftRecapFacts.weekly``
@@ -180,7 +183,8 @@ adds ``WeeklyTransactions.trade_grades`` and ``WeeklyTransactions.trade_revisits
 ``0.11.0`` -> ``0.12.0`` (Story 9.7) adds ``WeeklyNarrationTransactions.trade_grades`` additively.
 ``0.12.0`` -> ``0.13.0`` (Story 9.9) adds ``ConsensusSource.attribution`` and ``Narration.board_source``
 additively (the draft board now ranks against League Value; ``consensus_source.name`` is
-``league_value`` or ``sleeper_search_rank``)."""
+``league_value`` or ``sleeper_search_rank``). ``0.13.0`` -> ``0.14.0`` (Story 9.2) adds
+``WeeklyMatchups.remaining`` (every remaining regular-season pairing) additively."""
 
 _ISSUE_TYPE: Literal["draft_recap"] = "draft_recap"
 _IssueType = Literal["draft_recap", "weekly"]
@@ -1072,11 +1076,40 @@ class WeeklyNextWeekCard(_Doc):
     game_of_week: bool = False
 
 
+class WeeklyRemainingGame(_Doc):
+    """One remaining regular-season pairing: pairings only, never a point.
+    ``a_roster_id`` is the lower numeric roster id."""
+
+    a_roster_id: str
+    b_roster_id: str
+    matchup_id: int
+
+
+class WeeklyRemainingWeek(_Doc):
+    """One remaining regular-season week's pairings."""
+
+    week: int
+    games: list[WeeklyRemainingGame] = []
+
+
+class WeeklyRemainingSchedule(_Doc):
+    """Every remaining regular-season pairing, weeks ``n+1 .. p-1`` (Story 9.2,
+    AR-64). ``complete`` is true only when the league declares
+    ``playoff_week_start`` and every one of those weeks is present; a fetch
+    that failed leaves its week absent and ``complete`` false. Added at
+    :data:`SCHEMA_VERSION` ``0.14.0``."""
+
+    complete: bool = False
+    weeks: list[WeeklyRemainingWeek] = []
+
+
 class WeeklyMatchups(_Doc):
-    """The target week's resolved pairings, and the next week's cards."""
+    """The target week's resolved pairings, and the next week's cards.
+    ``remaining`` (``0.14.0``) carries every remaining regular-season pairing."""
 
     this_week: list[WeeklyMatchup] = []
     next_week: list[WeeklyNextWeekCard] = []
+    remaining: WeeklyRemainingSchedule = WeeklyRemainingSchedule()
 
 
 class WeeklyPlayoffPicture(_Doc):

@@ -52,6 +52,7 @@ WEEK_BUNDLE_KEYS = {
     "winners_bracket",
     "losers_bracket",
     "next_matchups",
+    "remaining_matchups",
     "players",
     "nfl_state",
 }
@@ -149,6 +150,13 @@ def test_week_bundle_has_the_adapter_shape_and_is_cumulative(week: int) -> None:
     # next week's pairings, ids only (never a score), because week + 1 is still regular season
     assert len(bundle["next_matchups"]) == 12
     assert all(set(row) == {"roster_id", "matchup_id"} for row in bundle["next_matchups"])
+    # Story 9.2: every remaining regular-season week, pairings only
+    remaining = bundle["remaining_matchups"]
+    assert set(remaining) == {str(wk) for wk in range(week + 1, 15)}
+    assert remaining[str(week + 1)] == bundle["next_matchups"]
+    for rows in remaining.values():
+        assert len(rows) == 12
+        assert all(set(row) == {"roster_id", "matchup_id"} for row in rows)
     # the players blob holds exactly what the bundle references
     referenced: set[str] = set()
     for roster in bundle["rosters"]:

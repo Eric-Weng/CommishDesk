@@ -14,8 +14,8 @@ Layout written under ``commishdesk/demo_season/``:
   ``SleeperAdapter.fetch`` returns;
 * ``weeks/NN.json`` -- what changed in week ``NN``: that week's ``matchups`` and settled
   ``transactions``, the point-in-time ``rosters`` as of the end of the week, and the
-  ``next_matchups`` pairings. The loader folds weeks ``1..NN`` into the cumulative
-  bundle ``SleeperAdapter.fetch_week`` returns.
+  ``next_matchups`` and ``remaining_matchups`` pairings (Story 9.2). The loader folds weeks
+  ``1..NN`` into the cumulative bundle ``SleeperAdapter.fetch_week`` returns.
 
 The scenario the story needs is forced by construction, then asserted before anything is
 written: in week 12 a 9-3 team leads the standings and is the single luckiest team (it
@@ -758,6 +758,14 @@ def _build(sim: dict[str, Any]) -> dict[str, Any]:
                     for rid in pair
                 ]
             ),
+            "remaining_matchups": {
+                str(wk): [
+                    {"matchup_id": matchup_id, "roster_id": str(rid)}
+                    for matchup_id, pair in enumerate(sim["rounds"][(wk - 1) % len(sim["rounds"])], start=1)
+                    for rid in pair
+                ]
+                for wk in range(next_week, PLAYOFF_WEEK_START)
+            },
             "rosters": fold["rosters"],
             "transactions": transactions,
             "week": week,

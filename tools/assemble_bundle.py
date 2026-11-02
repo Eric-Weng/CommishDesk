@@ -15,6 +15,9 @@ script:
 * for a case whose ``target_week + 1`` is still regular season, add
   ``next_matchups`` -- that next week's pairings only (``roster_id`` and
   ``matchup_id``), never scores or lineups (Story 5.7);
+* likewise add ``remaining_matchups`` -- every regular-season week
+  ``target_week + 1 .. playoff_week_start - 1``, pairings only, keyed by week
+  (Story 9.2);
 * for a case whose ``target_week`` falls in the playoff period
   (``league.settings.playoff_week_start``), populate ``winners_bracket`` /
   ``losers_bracket`` from the raw export, and drop any curated set of roster
@@ -357,6 +360,24 @@ def assemble(raw_dir: str | Path, case_name: str) -> dict[str, Any]:
                     {"roster_id": row.get("roster_id"), "matchup_id": row.get("matchup_id")}
                 )
 
+    # Story 9.2: every remaining regular-season week n+1 .. p-1, pairings only,
+    # keyed by week. A week the raw export lacks is simply absent.
+    remaining_matchups: dict[str, list[dict[str, Any]]] = {}
+    if (
+        case.target_week is not None
+        and isinstance(playoff_week_start, int)
+        and case.target_week + 1 < playoff_week_start
+    ):
+        for wk in range(case.target_week + 1, playoff_week_start):
+            rows = raw["matchups"].get(str(wk))
+            if not isinstance(rows, list):
+                continue
+            remaining_matchups[str(wk)] = [
+                {"roster_id": row.get("roster_id"), "matchup_id": row.get("matchup_id")}
+                for row in rows
+                if isinstance(row, dict)
+            ]
+
     if case.drop_rosters_at_target and case.target_week is not None:
         tw = str(case.target_week)
         if tw in matchups:
@@ -407,6 +428,7 @@ def assemble(raw_dir: str | Path, case_name: str) -> dict[str, Any]:
         "rosters": raw["rosters"],
         "matchups": matchups,
         "next_matchups": next_matchups,
+        "remaining_matchups": remaining_matchups,
         "transactions": transactions,
         "draft": raw["draft"],
         "draft_picks": raw["draft_picks"],

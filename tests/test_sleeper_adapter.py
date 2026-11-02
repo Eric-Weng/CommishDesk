@@ -66,6 +66,7 @@ _WEEK_BUNDLE_KEYS = {
     "nfl_state",
     "matchups",
     "next_matchups",
+    "remaining_matchups",
     "transactions",
     "winners_bracket",
     "losers_bracket",
@@ -956,9 +957,19 @@ def test_fetch_week_regular_season_matchups_cumulative_transactions_single_week_
     assert UNREFERENCED_PLAYER_ID not in bundle["players"]
     assert set(bundle["players"]) <= set(PLAYERS)
 
+    # Story 9.2: weeks 11-14, pairings only, week 11 shared with next_matchups
+    assert set(bundle["remaining_matchups"]) == {"11", "12", "13", "14"}
+    assert bundle["remaining_matchups"]["11"] == bundle["next_matchups"]
+    for rows in bundle["remaining_matchups"].values():
+        assert rows
+        assert all(set(row) == {"roster_id", "matchup_id"} for row in rows)
+
     # exactly: league + rosters + nfl_state + `week` matchup calls + `week`
-    # transactions calls + 1 next-week pairings call + 1 players call
-    assert len(requests) == 3 + week + week + 1 + 1
+    # transactions calls + 1 next-week pairings call + (p - n - 2) later-week
+    # pairings calls + 1 players call
+    extra = PLAYOFF_WEEK_START - week - 2
+    assert extra == 3
+    assert len(requests) == 3 + week + week + 1 + extra + 1
 
 
 # Row: Playoff week
@@ -976,6 +987,7 @@ def test_fetch_week_playoff_week_populates_both_brackets() -> None:
     assert bundle["winners_bracket"] and bundle["losers_bracket"]
 
     assert bundle["next_matchups"] == []
+    assert bundle["remaining_matchups"] == {}
 
     # exactly: league + rosters + nfl_state + `week` matchup calls + `week`
     # transactions calls + winners_bracket + losers_bracket + 1 players call
@@ -992,6 +1004,7 @@ def test_fetch_week_final_regular_week_skips_the_next_week_request() -> None:
     bundle = adapter.fetch_week(LEAGUE["league_id"], week)
 
     assert bundle["next_matchups"] == []
+    assert bundle["remaining_matchups"] == {}
     league_id = LEAGUE["league_id"]
     assert not any(
         request.url.path == f"/v1/league/{league_id}/matchups/{week + 1}" for request in requests
@@ -1022,6 +1035,7 @@ def test_fetch_week_league_without_a_playoff_week_start_has_no_next_matchups() -
     bundle = adapter.fetch_week(LEAGUE["league_id"], 10)
 
     assert bundle["next_matchups"] == []
+    assert bundle["remaining_matchups"] == {}
     league_id = LEAGUE["league_id"]
     assert not any(request.url.path == f"/v1/league/{league_id}/matchups/11" for request in requests)
 
@@ -1061,6 +1075,55 @@ def test_fetch_week_next_week_response_is_projected_and_never_leaks_a_score(
     bundle = adapter.fetch_week(league_id, week)
 
     assert bundle["next_matchups"] == expected
+
+
+# Row: Story 9.2 -- remaining regular-season weeks
+def test_fetch_week_remaining_matchups_fetch_each_week_once_and_carry_no_points() -> None:
+    week = 10
+    requests: list[httpx.Request] = []
+    adapter = _adapter_for(_week_transport(requests=requests))
+
+    bundle = adapter.fetch_week(LEAGUE["league_id"], week)
+
+    league_id = LEAGUE["league_id"]
+    for wk in range(week + 1, PLAYOFF_WEEK_START):
+        assert (
+            sum(request.url.path == f"/v1/league/{league_id}/matchups/{wk}" for request in requests) == 1
+        )
+    assert set(bundle["remaining_matchups"]) == {str(wk) for wk in range(week + 1, PLAYOFF_WEEK_START)}
+    assert "points" not in json.dumps(bundle["remaining_matchups"])
+    assert "starters" not in json.dumps(bundle["remaining_matchups"])
+
+
+def test_fetch_week_a_failed_late_week_is_skipped_not_raised(caplog: pytest.LogCaptureFixture) -> None:
+    week = 10
+    league_id = LEAGUE["league_id"]
+    override = {
+        f"/v1/league/{league_id}/matchups/13": lambda request: httpx.Response(
+            500, content=b"SECRET-BODY"
+        )
+    }
+    adapter = _adapter_for(_week_transport(override=override))
+
+    with caplog.at_level("WARNING"):
+        bundle = adapter.fetch_week(league_id, week)
+
+    assert set(bundle["remaining_matchups"]) == {"11", "12", "14"}
+    assert bundle["next_matchups"]
+    assert "matchups/13" in caplog.text
+    assert "SECRET-BODY" not in caplog.text
+
+
+def test_fetch_week_a_failed_next_week_still_raises() -> None:
+    week = 10
+    league_id = LEAGUE["league_id"]
+    override = {
+        f"/v1/league/{league_id}/matchups/{week + 1}": lambda request: httpx.Response(500)
+    }
+    adapter = _adapter_for(_week_transport(override=override))
+
+    with pytest.raises(AdapterError):
+        adapter.fetch_week(league_id, week)
 
 
 # Row: Story 5.3b -- the "players" bundle key

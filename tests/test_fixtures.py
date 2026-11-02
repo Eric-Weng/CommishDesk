@@ -443,6 +443,39 @@ def test_next_matchups_is_projected_to_pairings_only() -> None:
     assert "999.9" not in json.dumps(out["next_matchups"])
 
 
+def test_remaining_matchups_is_projected_to_pairings_only() -> None:
+    raw = synthetic_raw()
+    raw["remaining_matchups"] = {
+        "9": [{"roster_id": 1, "matchup_id": 7, "points": 999.9, "starters": ["p"]}],
+    }
+    out = anonymize.anonymize_bundle(raw, seed=0)
+    assert out["remaining_matchups"] == {"9": [{"roster_id": 1, "matchup_id": 7}]}
+    assert "999.9" not in json.dumps(out["remaining_matchups"])
+
+
+def test_absent_remaining_matchups_stays_absent() -> None:
+    out = anonymize.anonymize_bundle(synthetic_raw(), seed=0)
+    assert "remaining_matchups" not in out
+
+
+@pytest.mark.parametrize("path", FIXTURES, ids=lambda p: p.name)
+def test_fixture_remaining_matchups_are_pairing_only_and_start_after_the_target(path: Path) -> None:
+    data = json.loads(path.read_text(encoding="utf-8"))
+    remaining = data.get("remaining_matchups")
+    assert isinstance(remaining, dict), f"{path.name} is missing remaining_matchups"
+    target = data["meta"]["target_week"]
+    start = data["league"]["settings"].get("playoff_week_start")
+    if target is None or start is None or target + 1 >= start:
+        assert remaining == {}
+        return
+    assert set(remaining) == {str(w) for w in range(target + 1, start)}
+    for rows in remaining.values():
+        assert rows
+        assert all(set(row) == {"roster_id", "matchup_id"} for row in rows)
+    next_rows = data["next_matchups"]
+    assert remaining[str(target + 1)] == next_rows
+
+
 def test_absent_next_matchups_stays_absent() -> None:
     """A bundle that predates the key keeps its shape -- the anonymizer emits
     no phantom empty section."""
@@ -1197,6 +1230,27 @@ def test_assemble_cutoff_is_next_week_strictly_before_playoff_week_start(
     bundle = mod.assemble(mini_raw, "week05-trade")  # target_week 5
 
     assert bool(bundle["next_matchups"]) is carries_pairings
+
+
+def test_assemble_carries_every_remaining_regular_week_as_pairings_only(mini_raw: Path) -> None:
+    _lower_mini_playoff_week_start(mini_raw, 8)
+    mod = _load_assemble()
+
+    bundle = mod.assemble(mini_raw, "week05-trade")  # target_week 5, p 8 -> weeks 6, 7
+
+    remaining = bundle["remaining_matchups"]
+    assert set(remaining) <= {"6", "7"}
+    assert "6" in remaining
+    assert remaining["6"] == bundle["next_matchups"]
+    for rows in remaining.values():
+        assert all(set(row) == {"roster_id", "matchup_id"} for row in rows)
+
+
+def test_assemble_remaining_is_empty_at_the_cutoff_and_before_week_one(mini_raw: Path) -> None:
+    mod = _load_assemble()
+    assert mod.assemble(mini_raw, "rookie-draft")["remaining_matchups"] == {}
+    _lower_mini_playoff_week_start(mini_raw, 6)
+    assert mod.assemble(mini_raw, "week05-trade")["remaining_matchups"] == {}
 
 
 def test_assemble_skips_a_pre_week_one_case_with_no_schedule(mini_raw: Path) -> None:

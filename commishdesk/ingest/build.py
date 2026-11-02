@@ -242,6 +242,7 @@ def build_week_model(bundle: Mapping[str, Any]) -> WeekModel:
         )
 
         next_matchups = _build_next_matchups(bundle.get("next_matchups"), week + 1)
+        remaining_matchups = _build_remaining_matchups(bundle.get("remaining_matchups"))
         past_transactions = _build_past_transactions(transactions_raw, week)
 
         league_settings = _mapping(_mapping(bundle.get("league")).get("settings"))
@@ -258,6 +259,7 @@ def build_week_model(bundle: Mapping[str, Any]) -> WeekModel:
             winners_bracket=winners_bracket,
             losers_bracket=losers_bracket,
             next_matchups=next_matchups,
+            remaining_matchups=remaining_matchups,
             past_transactions=past_transactions,
         )
     except _CAUGHT as exc:
@@ -682,6 +684,22 @@ def _build_next_matchups(rows: Any, week: int) -> list[Matchup]:
         )
     matchups.sort(key=lambda m: (m.week, _sort_key(m.roster_id)))
     return matchups
+
+
+def _build_remaining_matchups(section: Any) -> dict[int, list[Matchup]]:
+    """Story 9.2: the bundle's ``remaining_matchups`` (``{"<week>": [pairings]}``)
+    as ``{week: [Matchup]}``, each week built like ``next_matchups``. A missing
+    or non-mapping section (an older bundle) yields ``{}``; a non-int key or a
+    non-list value is skipped -- never a raise."""
+    if not isinstance(section, Mapping):
+        return {}
+    result: dict[int, list[Matchup]] = {}
+    for key, rows in section.items():
+        wk = _as_int(key)
+        if wk is None or not isinstance(rows, list):
+            continue
+        result[wk] = _build_next_matchups(rows, wk)
+    return dict(sorted(result.items()))
 
 
 def _build_past_transactions(
