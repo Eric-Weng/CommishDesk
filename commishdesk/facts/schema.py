@@ -162,7 +162,7 @@ __all__ = [
     "WeeklyWeekPoints",
 ]
 
-SCHEMA_VERSION = "0.12.0"
+SCHEMA_VERSION = "0.13.0"
 """Semver contract version. Additive key -> minor bump; shape change -> major.
 ``0.4.0`` -> ``0.5.0`` (Story 5.8): the empty ``WeeklyFacts`` placeholder becomes
 the real weekly document and its ``WeeklyNarration``; ``DraftRecapFacts.weekly``
@@ -177,7 +177,10 @@ adds ``StorylineCandidate.weeks_running`` additively. ``0.6.0`` -> ``0.7.0``
 ``0.10.0`` (weekly voice v3) adds ``WeeklyNarrationGame.top_team`` and
 ``WeeklyNarration.printed_headline`` additively. ``0.10.0`` -> ``0.11.0`` (Story 9.6)
 adds ``WeeklyTransactions.trade_grades`` and ``WeeklyTransactions.trade_revisits`` additively.
-``0.11.0`` -> ``0.12.0`` (Story 9.7) adds ``WeeklyNarrationTransactions.trade_grades`` additively."""
+``0.11.0`` -> ``0.12.0`` (Story 9.7) adds ``WeeklyNarrationTransactions.trade_grades`` additively.
+``0.12.0`` -> ``0.13.0`` (Story 9.9) adds ``ConsensusSource.attribution`` and ``Narration.board_source``
+additively (the draft board now ranks against League Value; ``consensus_source.name`` is
+``league_value`` or ``sleeper_search_rank``)."""
 
 _ISSUE_TYPE: Literal["draft_recap"] = "draft_recap"
 _IssueType = Literal["draft_recap", "weekly"]
@@ -223,14 +226,17 @@ class Source(_Doc):
 
 
 class ConsensusSource(_Doc):
-    """The pre-draft consensus board the picks were measured against.
-    ``name`` / ``as_of`` come from the caller's ``ConsensusRank``; ``engine_note``
-    is a constant of the engine."""
+    """The board the picks were measured against: ``league_value`` (the engine's League Value at
+    draft time) or ``sleeper_search_rank`` (Sleeper rank, est.). ``name`` / ``as_of`` come from the
+    caller's ``ConsensusRank``; ``engine_note`` is a constant of the engine. ``attribution`` is the
+    data credit the footer must carry ("stats: nflverse, CC BY 4.0") when nflverse stats were used,
+    else ``None`` (added at ``0.13.0``)."""
 
     name: str | None = None
     as_of: str | None = None
     provisional: bool = True
     engine_note: str
+    attribution: str | None = None
 
 
 # --------------------------------------------------------------------------- #
@@ -701,6 +707,9 @@ class Narration(_Doc):
     positional_runs: PositionalRunsSummary
     lead_candidates: list[LeadCandidate] = []
     storyline_candidates: list[StorylineCandidate] = []
+    #: ``ConsensusSource.name`` as the narrators need it: which board the ``delta`` / ``consensus_label``
+    #: figures are measured against (``league_value`` or ``sleeper_search_rank``). Added at ``0.13.0``.
+    board_source: str | None = None
 
 
 # --------------------------------------------------------------------------- #

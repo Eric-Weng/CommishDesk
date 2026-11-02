@@ -17,7 +17,7 @@ source: commishdesk/facts/build.py::_merge_teams
 ---
 ## Definition
 
-Each team gets one row that joins three results: the board (what the team drafted), the consensus comparison and the grade (see `draft-grade`).
+Each team gets one row that joins three results: the board (what the team drafted), the board comparison and the grade (see `draft-grade`).
 
 - `pick_count` and `pick_nos` are the number of picks and their overall pick numbers, in order;
 - `positional_counts` counts picks by position, always listing QB, RB, WR and TE in that order with zeros filled in, followed by any other position in sorted order;
@@ -153,7 +153,7 @@ def _merge_teams(
 ## Edge cases
 
 - **Ties for best or worst.** The earlier pick number wins.
-- **No ranked pick.** If none of a team's players has a consensus slot, both extremes are `null`.
+- **No ranked pick.** If none of a team's players has a board slot, both extremes are `null`.
 - **Unknown position.** A pick with no position counts as `UNK`. It still adds to `pick_count` and appears in `positional_counts` after the four standard positions.
 - **Team with no picks.** `pick_count` is 0, the lists are empty and the counts are all zero.
 - **Back to back** means consecutive overall pick numbers, which in a snake draft happens at the turn between rounds.

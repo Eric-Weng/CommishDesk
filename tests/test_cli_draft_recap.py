@@ -248,9 +248,15 @@ def test_real_league_branch_threads_the_mocked_consensus_source(tmp_path: Path, 
 
         def close(self) -> None: ...
 
-    fake_rank = ConsensusRank(source="fantasycalc", as_of="2099-07", slots=demo.demo_consensus_slots())
+    fake_rank = ConsensusRank(source="league_value", as_of="2099-07", slots=demo.demo_consensus_slots(), nflverse=True)
     monkeypatch.setattr("commishdesk.adapters.sleeper.SleeperAdapter", _FakeAdapter)
-    monkeypatch.setattr(consensus, "build_consensus_rank", lambda *a, **k: fake_rank)
+    rank_kwargs: dict[str, object] = {}
+
+    def _fake_build(*a: object, **k: object) -> ConsensusRank:
+        rank_kwargs.update(k)
+        return fake_rank
+
+    monkeypatch.setattr(consensus, "build_consensus_rank", _fake_build)
 
     seen: dict[str, object] = {}
     real_build = facts_pkg.build_draft_recap_facts
@@ -263,8 +269,10 @@ def test_real_league_branch_threads_the_mocked_consensus_source(tmp_path: Path, 
 
     result = runner.invoke(app, ["--league", "999", "--draft-recap", "--out-dir", str(tmp_path)])
     assert result.exit_code == 0, result.output
-    assert seen["consensus_source_name"] == "fantasycalc"
+    assert rank_kwargs["league_settings"] is bundle["league"]
+    assert seen["consensus_source_name"] == "league_value"
     assert seen["consensus_as_of"] == "2099-07"
+    assert seen["consensus_nflverse"] is True
     assert (tmp_path / "commishdesk-999-draft-recap.html").is_file()
 
 
@@ -293,7 +301,7 @@ def _fake_real_league(monkeypatch) -> None:
 
         def close(self) -> None: ...
 
-    fake_rank = ConsensusRank(source="fantasycalc", as_of="2099-07", slots=demo.demo_consensus_slots())
+    fake_rank = ConsensusRank(source="league_value", as_of="2099-07", slots=demo.demo_consensus_slots(), nflverse=True)
     monkeypatch.setattr("commishdesk.adapters.sleeper.SleeperAdapter", _FakeAdapter)
     monkeypatch.setattr(consensus, "build_consensus_rank", lambda *a, **k: fake_rank)
 
@@ -1776,7 +1784,7 @@ def test_cost_estimate_sums_primary_and_fallback_not_max(tmp_path: Path, monkeyp
         grades,
         generated_at=datetime.now(tz=UTC),
         draft_id=model.draft.id,
-        consensus_source_name="fantasycalc",
+        consensus_source_name="league_value",
         consensus_as_of="2099-07",
         previous_storylines=[],
     )
@@ -1847,7 +1855,7 @@ def test_cost_estimate_includes_the_voice_system_prompt(tmp_path: Path, monkeypa
         grades,
         generated_at=datetime.now(tz=UTC),
         draft_id=model.draft.id,
-        consensus_source_name="fantasycalc",
+        consensus_source_name="league_value",
         consensus_as_of="2099-07",
         previous_storylines=[],
     )

@@ -143,4 +143,4 @@ def _draft_summary(league: LeagueModel, board: BoardMetrics, pick_rows: list[Pic
 - **Tight-end window.** A gap only closes the early window once two tight ends precede it, so the "third tight end" can never be the second. The gap threshold is half the team count, with a minimum of one.
 - **Concentration** needs at least three picks in one round. If a manager ties across two rounds, the earlier round is reported.
 - **Most running backs.** Ties go to the team that comes first in league order.
-- **Consensus fields.** `delta` and `consensus_label` inside `round1_qbs` are `null` for a quarterback missing from the consensus ranking.
+- **Consensus fields.** `delta` and `consensus_label` inside `round1_qbs` are `null` for a quarterback missing from the board.

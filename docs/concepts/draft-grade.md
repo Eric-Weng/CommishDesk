@@ -18,7 +18,7 @@ source: commishdesk/stats/grades.py::compute_draft_grades
 The grade is editorial, not the raw pick delta, which would over-reward late-round picks. Each team gets four numbers and a letter:
 
 - `draft_score` is the tier-weighted sum of its pick deltas. Each delta is multiplied by `max(0.15, (60 - consensus_slot) / 60)`, so early slots weigh close to 1.0 and anything past about slot 51 weighs 0.15. Picks without a consensus slot add nothing.
-- `premium_picks` counts the team's picks with a consensus slot of 10 or better.
+- `premium_picks` counts the team's picks with a board slot of 10 or better.
 - `format_fit` adds league-format credit. In a superflex or two-QB league it is +2 for at least one QB and +2 more for at least two. In a tight-end-premium league it is +1 per drafted TE with consensus slot 12 or better.
 - `grade_input = draft_score + 3 * premium_picks + format_fit`, rounded to one decimal.
 
@@ -156,7 +156,7 @@ def compute_draft_grades(
 
 ## Edge cases
 
-- **No consensus picks.** A team whose every pick lacks a consensus slot has a `draft_score` of 0.0, no premium picks and no driving picks. Its `format_fit` still comes from the positions it drafted.
+- **No board picks.** A team whose every pick lacks a board slot has a `draft_score` of 0.0, no premium picks and no driving picks. Its `format_fit` still comes from the positions it drafted.
 - **Floor.** Two or more premium picks lift a C- or lower to a C. The floor never raises a grade above C.
 - **Negative side.** The scale is coarser below C. A team that reached on nearly every pick bottoms out near -7, so the D- and F cuts are rarely met.
 - **Driving picks.** The cutoff is on the absolute weighted value, the cap is four, and the list is returned in pick order. Ties in size go to the earlier pick.

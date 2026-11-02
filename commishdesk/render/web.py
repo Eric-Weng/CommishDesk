@@ -35,6 +35,8 @@ from commishdesk.facts.schema import (
 from commishdesk.narrate import Recap
 from commishdesk.render._body import (
     _at_a_glance_items,
+    _board_clause,
+    _data_credit,
     _effective_rounds,
     _esc,
     _footer_stamp,
@@ -290,7 +292,7 @@ def _draft_grid(facts: DraftRecapFacts) -> str:
         "The draft board",
         "Every pick, round by round; seats left to right, snake order followed. Cell tint "
         "is position; the left bar and corner dot mark value (green) or reach (red), sized "
-        "by the gap to the consensus board.",
+        "by the gap to the board rank.",
         "".join(parts),
         legend,
     )
@@ -421,8 +423,9 @@ def _positional_timeline(facts: DraftRecapFacts) -> str:
 
 
 def _footer(facts: DraftRecapFacts, team_count: int, rounds: int, generated_at: str) -> str:
-    consensus = facts.consensus_source.name
-    against = f" against {_esc(consensus)}" if consensus else ""
+    against = _board_clause(facts)
+    credit = _data_credit(facts)
+    credit_line = f'<p class="prov">{credit}</p>' if credit else ""
     # No output_id here — the page is built to be shared, and for a real league
     # output_id is the Sleeper league id (P10). Only league descriptors + the stamp.
     stamp = _footer_stamp(facts, team_count, rounds, generated_at)
@@ -430,6 +433,7 @@ def _footer(facts: DraftRecapFacts, team_count: int, rounds: int, generated_at: 
         [
             "<footer>",
             f'<p class="prov">{_provenance_sentence(against)}</p>',
+            *([credit_line] if credit_line else []),
             f'<p class="stamp">{stamp}</p>',
             "</footer>",
         ]

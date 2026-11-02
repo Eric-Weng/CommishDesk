@@ -323,7 +323,8 @@ def _download(client: httpx.Client, url: str) -> bytes:
 def _load_nflverse(store: Store, client: httpx.Client, season: int, week: int) -> _Nflverse:
     """Players table, this season's stats through ``week``, last season's stats. Each is fetched at
     most once and cached (the players table and the current season's stats keyed by season-week, last
-    season's by its season); a warm cache issues no request. Raises on any fetch/parse fault."""
+    season's by its season); a warm cache issues no request. At week 0 the current-season file is
+    skipped (not published before week 1). Raises on any fetch/parse fault."""
     fetched = 0
 
     def get(key: str, url: str, reduce: Any) -> dict[str, Any]:
@@ -337,8 +338,13 @@ def _load_nflverse(store: Store, client: httpx.Client, season: int, week: int) -
         return payload
 
     players = get(f"players-{season}-w{week}", NFLVERSE_PLAYERS_URL, lambda b: _reduce_players(b, season))
-    current_url = NFLVERSE_STATS_URL.format(season=season)
-    current = get(f"stats-{season}-w{week}", current_url, lambda b: _reduce_stats(b, week))
+    if week < 1:
+        # Week 0 (a draft before the season): this season's stats file is not published yet, so there is
+        # nothing to fetch. Last season's points still arrive through the prior below.
+        current: dict[str, Any] = {"through_week": 0, "rows": {}}
+    else:
+        current_url = NFLVERSE_STATS_URL.format(season=season)
+        current = get(f"stats-{season}-w{week}", current_url, lambda b: _reduce_stats(b, week))
     prior_url = NFLVERSE_STATS_URL.format(season=season - 1)
     prior = get(f"stats-{season - 1}-final", prior_url, lambda b: _reduce_stats(b, 30))
     return _Nflverse(_unpack_stats(current), _unpack_stats(prior), players["players"], fetched)

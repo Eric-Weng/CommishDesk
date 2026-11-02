@@ -1,5 +1,5 @@
 {
-  "_derived_from": "Story 2.4c oracle. compute_draft_grades() over the rookie-draft.json / week10-superflex.json board (identical 72-pick board, team_count 12, is_superflex_or_2qb=True, te_premium=False) against the synthetic fantasycalc-values.json via the Story 2.4b _synthetic_slots() transform. Values are synthetic - the tests assert the formula, not a real consensus board or the phase-0 golden numbers (anonymized fixture vs. real-player hand build). Regenerate when the algorithm changes.",
+  "_derived_from": "Story 2.4c oracle. compute_draft_grades() over the rookie-draft.json / week10-superflex.json board (identical 72-pick board, team_count 12, is_superflex_or_2qb=True, te_premium=False) against the Sleeper search_rank board of sleeper-players-nfl.json via the Story 2.4b _synthetic_slots() transform. Values are synthetic - the tests assert the formula, not a real board or the phase-0 golden numbers (anonymized fixture vs. real-player hand build). Regenerate when the algorithm changes. Re-baselined for Story 9.9 (AR-71): the market-value fixture is removed and the board is now the Sleeper search_rank order of sleeper-players-nfl.json, whose ranks were re-derived from the retired board's order (its 11 unranked players are null), so the committed slots, deltas and grades carry over unchanged.",
   "teams": [
     {
       "roster_id": "1",

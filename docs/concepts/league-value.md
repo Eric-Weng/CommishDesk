@@ -61,3 +61,9 @@ These are estimates, not measurements, and changing any of them changes the meth
 ## Where the data comes from
 
 The stats are from [nflverse](https://github.com/nflverse/nflverse-data), published under the [Creative Commons Attribution 4.0 licence](https://creativecommons.org/licenses/by/4.0/) (CC BY 4.0). The engine reads two release files, the weekly player stats and the players table, once per season-week (last season's stats once per season), and saves what it needs. Only numbers and ids are used. Names in the nflverse files are used only to match players and are kept only in the engine's private cache and never appear in a snapshot or an Issue. Every place that shows a League Value number credits nflverse.
+
+## The draft board
+
+A draft recap ranks the drafted set by League Value at draft time. That is the week 0 snapshot: no games this season, so a veteran is valued on last season's points, scored in your league's settings (TE premium included), and a dynasty league ranks by Future value. Ties go to Sleeper's search rank, then the player id. A new-season draft before week 1 reads last season's stats only and does not wait for this season's file. A player League Value cannot value (a kicker or defense with no points yet) is left off the board, never ranked at zero.
+
+When no drafted player has a value from real points, as in a rookie draft, ranking the estimates would shuffle players across positions. The board is Sleeper's search rank directly, and the recap says plainly that it is Sleeper rank (est.), not a stats-based board. The footer credits nflverse (CC BY 4.0) only when nflverse stats were used.

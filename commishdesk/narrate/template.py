@@ -126,7 +126,7 @@ def _join_names(names: list[str]) -> str:
 
 
 def _delta_phrase(delta: int) -> str:
-    """``delta = pick_no - consensus_slot``: positive = value (the player fell),
+    """``delta = pick_no - consensus_slot`` (the board slot): positive = value (the player fell),
     negative = reach (the picker jumped early). Renders it as readable prose."""
     if delta == 0:
         return "right on the number"
@@ -211,32 +211,51 @@ def _lead_section(narration: Narration) -> Section:
     return Section(heading="The Lead", blocks=blocks)
 
 
-def _board_line(pick: BoardPick) -> str:
+_LEAGUE_VALUE_BOARD = "the League Value board"
+_SLEEPER_RANK = "Sleeper rank (est.)"
+
+
+def _board_name(narration: Narration) -> str:
+    """The board's reader-facing name (Story 9.9): never "consensus"."""
+    if narration.board_source == "league_value":
+        return _LEAGUE_VALUE_BOARD
+    if narration.board_source == "sleeper_search_rank":
+        return _SLEEPER_RANK
+    return "the board"
+
+
+def _sentence_case(text: str) -> str:
+    return text[:1].upper() + text[1:]
+
+
+def _board_line(pick: BoardPick, board: str) -> str:
     who = pick.manager if pick.manager else "an unclaimed roster"
     line = f"{pick.board_label} — {who}: {pick.player}"
     if pick.position:
         line += f", {pick.position}"
     line += "."
     if pick.consensus_label is not None and pick.delta is not None:
-        line += f" Consensus had it at {pick.consensus_label} ({_delta_phrase(pick.delta)})."
+        line += f" {_sentence_case(board)} had it at {pick.consensus_label} ({_delta_phrase(pick.delta)})."
     else:
-        line += " No consensus slot for this player."
+        line += " No slot on the board for this player."
     return line
 
 
 def _board_section(narration: Narration) -> Section:
-    blocks = [_board_line(pick) for pick in narration.board_round1]
+    board = _board_name(narration)
+    blocks = [_board_line(pick, board) for pick in narration.board_round1]
     if not blocks:
         blocks.append("Round 1 has no picks on the board.")
     return Section(heading="The Board — Round 1", blocks=blocks)
 
 
-def _superlative_phrase(pick: SuperlativePick) -> str:
+def _superlative_phrase(pick: SuperlativePick, board: str) -> str:
     who = f" to {pick.manager}" if pick.manager else ""
     position = f", {pick.position}," if pick.position else ""
     tail = ""
     if pick.consensus_label is not None and pick.delta is not None:
-        tail = f" (consensus {pick.consensus_label}, {_delta_phrase(pick.delta)})"
+        short = "Sleeper rank" if board == _SLEEPER_RANK else board
+        tail = f" ({short} had it at {pick.consensus_label}, {_delta_phrase(pick.delta)})"
     return f"{pick.player}{position}{who} at {pick.board_label}{tail}."
 
 
@@ -257,39 +276,43 @@ def _swing_phrase(swing: BoldestSwing) -> str:
 
 def _superlatives_section(narration: Narration) -> Section:
     superlatives: Superlatives = narration.superlatives
+    board = _board_name(narration)
     blocks: list[str] = []
     if superlatives.best_value:
-        blocks.append("Best value — " + _superlative_phrase(superlatives.best_value))
+        blocks.append("Best value — " + _superlative_phrase(superlatives.best_value, board))
     if superlatives.best_value_runner_up:
         blocks.append(
             "Best value, runner-up — "
-            + _superlative_phrase(superlatives.best_value_runner_up)
+            + _superlative_phrase(superlatives.best_value_runner_up, board)
         )
     if superlatives.biggest_reach:
-        blocks.append("Biggest reach — " + _superlative_phrase(superlatives.biggest_reach))
+        blocks.append("Biggest reach — " + _superlative_phrase(superlatives.biggest_reach, board))
     if superlatives.biggest_reach_runner_up:
         blocks.append(
             "Biggest reach, runner-up — "
-            + _superlative_phrase(superlatives.biggest_reach_runner_up)
+            + _superlative_phrase(superlatives.biggest_reach_runner_up, board)
         )
     if superlatives.boldest_swing:
         blocks.append("Boldest swing — " + _swing_phrase(superlatives.boldest_swing))
     if not blocks:
         blocks.append(
-            "No pick landed against a consensus slot, so there are no superlatives."
+            "No pick landed against a slot on the board, so there are no superlatives."
         )
     return Section(heading="Superlatives", blocks=blocks)
 
 
-_GRADE_METHOD_BLOCK = (
-    "Grades weigh each pick against the consensus board, the premium-position "
-    "capital a roster spent, and how the roster fits the league's format; the "
-    "scale runs A to F with plus/minus."
-)
+def _grade_method_block(board: str) -> str:
+    # A rookie draft has no League Value history to rank on: say plainly it is Sleeper rank.
+    what = f"{board}, not a stats-based board" if board == _SLEEPER_RANK else board
+    return (
+        f"Grades weigh each pick against {what}, the premium-position "
+        "capital a roster spent, and how the roster fits the league's format; the "
+        "scale runs A to F with plus/minus."
+    )
 
 
 def _grades_section(narration: Narration) -> Section:
-    blocks: list[str] = [_GRADE_METHOD_BLOCK]
+    blocks: list[str] = [_grade_method_block(_board_name(narration))]
     for team in narration.teams:
         if not team.manager:  # orphan-safe: never attribute a grade to no one
             continue
@@ -369,7 +392,7 @@ def _december_section(narration: Narration) -> Section:
         who = f" by {reach.manager}" if reach.manager else ""
         blocks.append(
             f"The board's biggest reach{who}: {reach.player} at {reach.board_label}, "
-            f"{_count(abs(reach.delta), 'slot')} ahead of consensus."
+            f"{_count(abs(reach.delta), 'slot')} ahead of {_board_name(narration)}."
         )
 
     # Story 3.1: each active storyline thread's hook, as its own sentence —

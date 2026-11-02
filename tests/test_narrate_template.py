@@ -58,7 +58,7 @@ def narration() -> Narration:
         consensus,
         grades,
         generated_at=GENERATED_AT,
-        consensus_source_name="synthetic rookie board",
+        consensus_source_name="sleeper_search_rank",
         consensus_as_of="2025-05",
     )
     return doc.narration
@@ -206,14 +206,14 @@ def test_orphan_roster_is_skipped_never_rendered_as_none() -> None:
     assert "Unclaimed Selection" in text  # board line still renders, without a name
     grades = _section(recap, "Team Grades")
     assert grades.blocks == [
-        template._GRADE_METHOD_BLOCK,
+        template._grade_method_block("the board"),
         "No roster carried a manager name to grade.",
     ]
 
 
 def test_grade_method_block_anchors_the_letters(narration: Narration) -> None:
     grades = _section(render_draft_recap(narration), "Team Grades")
-    assert grades.blocks[0] == template._GRADE_METHOD_BLOCK
+    assert grades.blocks[0] == template._grade_method_block("Sleeper rank (est.)")
     assert "A to F" in grades.blocks[0]
 
 
@@ -231,7 +231,7 @@ def test_demo_consensus_slots_match_the_synthetic_slots() -> None:
 
 
 def test_demo_consensus_source_constants() -> None:
-    assert demo.DEMO_CONSENSUS_SOURCE_NAME == "synthetic rookie board"
+    assert demo.DEMO_CONSENSUS_SOURCE_NAME == "sleeper_search_rank"
     assert demo.DEMO_CONSENSUS_AS_OF == "2025-05"
 
 

@@ -1,9 +1,9 @@
 """The ``commishdesk`` console script — chains ``ingest → stats → facts → narrate(template) → render``.
 
 A draft recap for ``--league demo`` runs offline against the committed fixture; a
-real Sleeper id fetches the board from Sleeper and the consensus rank from
-FantasyCalc (``/values/current``), with the Sleeper players file as the offline
-fallback. A weekly recap (``--week``) chains the weekly ingest → stats → facts →
+real Sleeper id fetches the board from Sleeper and ranks it against the engine's League
+Value at draft time (nflverse stats), with Sleeper ``search_rank`` as the fallback. A weekly
+recap (``--week``) chains the weekly ingest → stats → facts →
 narrator (template, or the voiced LLM narrator once a key and a budget are
 available — Story 5.12) → deliver path to a local text Issue plus the Story 2.7
 generic HTML dump, and optionally posts an idempotent Discord summary. ``cli.py``
@@ -934,6 +934,7 @@ class _DraftRecapPhases(_RecapPhases):
             slots = demo_consensus_slots()
             consensus_source_name: str | None = self.demo_source_name
             consensus_as_of: str | None = self.demo_as_of
+            consensus_nflverse = False
             if self.post:
                 # --post needs a Store for the Send Ledger even on the demo path —
                 # this must NOT re-enable storyline persistence for demo (see the
@@ -950,14 +951,16 @@ class _DraftRecapPhases(_RecapPhases):
                 rank = build_consensus_rank(
                     model,
                     self.store,
+                    league_settings=self.bundle.get("league"),
                     players=load_players_file(self.players_file),
                     players_label=str(self.players_file),
                 )
             else:
-                rank = build_consensus_rank(model, self.store)
+                rank = build_consensus_rank(model, self.store, league_settings=self.bundle.get("league"))
             slots = rank.slots
             consensus_source_name = rank.source
             consensus_as_of = rank.as_of
+            consensus_nflverse = rank.nflverse
             self.previous_storylines = self.store.read_storylines(resolved)
 
         self.logger.debug("computing board / consensus / grades")
@@ -977,6 +980,7 @@ class _DraftRecapPhases(_RecapPhases):
                 draft_id=model.draft.id,
                 consensus_source_name=consensus_source_name,
                 consensus_as_of=consensus_as_of,
+                consensus_nflverse=consensus_nflverse,
                 previous_storylines=self.previous_storylines,
                 enforce_narration_cap=enforce_narration_cap,
             )

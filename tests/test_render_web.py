@@ -569,16 +569,31 @@ def test_footer_provenance_sentence_uses_the_typographic_apostrophe() -> None:
     """Retro item 60: web used a bare apostrophe (``engine's``) while email used
     ``&rsquo;``; both now render the shared, entity-encoded sentence."""
     facts = _facts()
-    consensus = facts.consensus_source.name
-    against = f" against {consensus}" if consensus else ""
+    assert facts.consensus_source.name == "sleeper_search_rank"
     page = _page(facts=facts)
     expected = (
         '<p class="prov">Every pick and board label is drawn straight from the '
-        "draft record; consensus deltas and grades are the engine&rsquo;s own, "
-        f"measured{against}.</p>"
+        "draft record; pick deltas and grades are the engine&rsquo;s own, measured "
+        "against Sleeper rank (est.), not a stats-based board.</p>"
     )
     assert expected in page
     assert "engine's own" not in page
+    assert "consensus" not in page.split("<footer>")[1]
+    assert "stats: nflverse" not in page  # no nflverse data in a Sleeper-rank board
+
+
+def test_footer_credits_nflverse_only_when_the_board_used_its_stats() -> None:
+    facts = _facts()
+    credited = facts.model_copy(
+        update={
+            "consensus_source": facts.consensus_source.model_copy(
+                update={"name": "league_value", "attribution": "stats: nflverse, CC BY 4.0"}
+            )
+        }
+    )
+    footer = _page(facts=credited).split("<footer>")[1]
+    assert "measured against the League Value board." in footer
+    assert "stats: nflverse, CC BY 4.0" in footer
 
 
 def test_timeline_note_does_not_overclaim_every_pick() -> None:
