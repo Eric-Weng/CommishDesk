@@ -312,11 +312,16 @@ def test_weekly_happy_path_prints_sections_and_writes_files(
     for heading in WEEKLY_SECTION_HEADINGS:
         assert heading in result.stdout, heading
 
-    # A sample factual claim taken from the fixture: one standings row per roster.
-    expected_teams = len(build_week_model(_load_fixture(_WEEK17)).rosters)
-    assert result.stdout.count("points for") == expected_teams
+    # A sample factual claim taken from the fixture: the power section narrates its top three
+    # rows (the tables carry the rest), and each of them is named in the standings.
+    assert len(build_week_model(_load_fixture(_WEEK17)).rosters) > 3
+    power = re.findall(r"^\d{1,2}\. ([^,(]+?)(?: is | sits at | averages |,| \()", result.stdout, re.MULTILINE)
+    assert len(power) == 3
+    standings = result.stdout.split("## Standings", 1)[1].split("\n## ", 1)[0]
+    assert all(team in standings for team in power)
     assert "Week 17 Recap" in result.stdout  # the masthead title
-    assert "Week 17:" in result.stdout  # the lead line
+    lead = result.stdout.split("## The Lead", 1)[1].split("\n## ", 1)[0]
+    assert lead.strip()  # the lead: a ranked hook (the printed headline sits above it, not in it)
 
     assert calls["fetch_week"] == [("77", 17)]
 
@@ -458,7 +463,7 @@ def test_weekly_without_a_provider_key_uses_the_template_narrator(
 
     result = runner.invoke(app, ["--league", "90", "--week", "17", "--out-dir", str(tmp_path)])
     assert result.exit_code == 0, result.output
-    assert "model rank" in result.stdout
+    assert re.search(r"^1\. ", result.stdout, re.MULTILINE)  # the numbered model-rank power list
 
 
 def test_weekly_with_a_key_and_a_budget_uses_the_voice_narrator(
@@ -1010,7 +1015,7 @@ def test_weekly_with_a_malformed_llm_config_degrades_to_the_template(
     result = runner.invoke(app, ["--league", "96", "--week", "17", "--out-dir", str(tmp_path)])
     assert result.exit_code == 0, result.output
     assert voice.calls == []
-    assert "model rank" in result.stdout
+    assert re.search(r"^1\. ", result.stdout, re.MULTILINE)  # the numbered model-rank power list
     assert (tmp_path / "commishdesk-96-weekly-week17.txt").is_file()
 
 

@@ -550,7 +550,9 @@ def test_the_power_table_has_one_header_and_the_narrators_notes_sit_under_their_
     assert section.count('class="pw-head"') == 1
     assert "Power score" in section and "Model score" not in section
     rows = re.findall(r'<div class="pw-item">.*?</div>(?:<p class="pw-why">.*?</p>)?', section)
-    assert len(rows) == 12 and all('class="pw-why"' in row for row in rows)
+    # the template narrates the top three rows; the other nine are table-only
+    assert len(rows) == 12 and sum('class="pw-why"' in row for row in rows) == 3
+    assert all('class="pw-why"' in row for row in rows[:3])
     # no second numbered list after the table
     tail = section.split('class="power"', 1)[1]
     assert not re.search(r'<div class="prose"><p>1\. ', tail)
@@ -703,8 +705,9 @@ def test_a_tied_game_names_both_teams_in_the_narration_projection() -> None:
         assert names[roster_id] in (game.loser or "")
     assert " and " in (game.loser or "")
     text = render_weekly_issue(facts.narration)
-    line = next(b for s in text.sections for b in s.blocks if "finished level" in b)
-    assert all(names[roster_id] in line for roster_id in sides)
+    around = next(s for s in text.sections if s.heading == "Around the League")
+    line = next(b for b in around.blocks if all(names[roster_id] in b for roster_id in sides))
+    assert "level" in line or "dead heat" in line
 
 
 def test_the_narrated_record_drops_a_zero_tie_and_keeps_a_real_one() -> None:

@@ -892,14 +892,15 @@ _POWER_KEY = (
 )
 
 _ITEM_SPLIT = re.compile(r"\n+|\s(?=\d{1,2}\. \S)")
-_ITEM = re.compile(r"^(\d{1,2})\. (.+?) \u2014 (.+)$", re.DOTALL)
+_ITEM = re.compile(r"^(\d{1,2})\. (.+)$", re.DOTALL)
 
 
 def _power_notes(ctx: _Ctx, blocks: Sequence[str]) -> tuple[dict[str, str], list[str]]:
-    """Split the narrator's numbered power list (``1. Team — note``) into one note per
-    team, so each sits under its table row; any block that is not entirely such a list
-    stays prose."""
-    labels = set(ctx.slot_of)
+    """Split the narrator's numbered power list (``1. Team — note``, or the template's
+    ``1. Team is 9-1 and scores ...``) into one note per team, so each sits under its
+    table row; any block that is not entirely such a list stays prose. A note after an
+    em dash drops the label; a template sentence keeps its own opening."""
+    labels = sorted(ctx.slot_of, key=len, reverse=True)
     notes: dict[str, str] = {}
     rest: list[str] = []
     for block in blocks:
@@ -908,10 +909,21 @@ def _power_notes(ctx: _Ctx, blocks: Sequence[str]) -> tuple[dict[str, str], list
             if not item:
                 continue
             match = _ITEM.match(item)
-            if match is None or match.group(2) not in labels:
+            label = next(
+                (
+                    name
+                    for name in labels
+                    if match
+                    and match.group(2).startswith(name)
+                    and match.group(2)[len(name) : len(name) + 1] in ("", " ")
+                ),
+                None,
+            )
+            if match is None or label is None:
                 found = []
                 break
-            found.append((match.group(2), match.group(3).strip()))
+            tail = match.group(2)[len(label) :]
+            found.append((label, tail[3:].strip() if tail.startswith(" \u2014 ") else match.group(2).strip()))
         if found:
             notes.update(found)
         else:

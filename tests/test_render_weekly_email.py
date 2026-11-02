@@ -19,6 +19,7 @@ from typing import Any
 import pytest
 
 from commishdesk.facts.schema import WeeklyFacts
+from commishdesk.narrate import weekly_template
 from commishdesk.narrate.weekly_template import WeeklyIssue, WeeklySection, render_weekly_issue
 from commishdesk.render import EmailParts, render_weekly_email
 from commishdesk.render import weekly_email as we
@@ -222,17 +223,19 @@ def test_text_part_carries_every_html_section_heading_prose_and_data() -> None:
     # it: the whole lead, the trend lines after the per-game sentences, and nothing of
     # the per-row / per-card sentences under the tables
     by_heading = {section.heading: section.blocks for section in issue.sections}
-    games = len(raw["matchups"]["this_week"])
-    kept = [*by_heading["The Lead"], *by_heading["Around the League"][games:]]
+    # the template narrates the notable games plus one roll-up sentence, not one block per game
+    leading = len(weekly_template._notable_games(facts.narration.games)) + 1
+    assert weekly_template.is_game_rollup(by_heading["Around the League"][leading - 1])
+    kept = [*by_heading["The Lead"], *by_heading["Around the League"][leading:]]
     dropped = [
-        *by_heading["Around the League"][:games],
+        *by_heading["Around the League"][:leading],
         *by_heading["Standings and the Playoff Picture"],
         *by_heading["Power Rankings"],
         *by_heading["The Luck Index"],
         *by_heading["Next Week"],
         *by_heading["The Transaction Desk"],
     ]
-    assert len(kept) > 5 and len(dropped) > 40
+    assert len(kept) > 5 and len(dropped) > 25  # the template now narrates highlights, not every row
     for block in kept:
         assert block in parts.text and _esc(block) in parts.html, block[:40]
     for block in dropped:
