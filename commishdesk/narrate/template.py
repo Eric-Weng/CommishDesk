@@ -23,6 +23,8 @@ already has its own sentence from ``superlatives`` in that section).
 
 from __future__ import annotations
 
+import hashlib
+
 from pydantic import BaseModel, ConfigDict
 
 from commishdesk.facts.schema import (
@@ -125,6 +127,20 @@ def _join_names(names: list[str]) -> str:
     return f"{', '.join(names[:-1])}, and {names[-1]}"
 
 
+def _pick(frames: tuple[str, ...], narration: Narration, *parts: object) -> str:
+    """One frame from *frames*, chosen by a stable hash of the league, season and
+    *parts* (never ``hash()``, which is salted per process), so one frozen input
+    renders byte-identically (I4)."""
+    league = narration.league
+    key = "|".join(str(part) for part in (league.name, league.season, "draft", *parts))
+    return frames[int(hashlib.sha256(key.encode("utf-8")).hexdigest(), 16) % len(frames)]
+
+
+def _article(grade: str) -> str:
+    """``a`` / ``an`` for a letter grade read aloud (an A, an F, a B+)."""
+    return "an" if grade[:1] in ("A", "F") else "a"
+
+
 def _delta_phrase(delta: int) -> str:
     """``delta = pick_no - consensus_slot`` (the board slot): positive = value (the player fell),
     negative = reach (the picker jumped early). Renders it as readable prose."""
@@ -185,21 +201,52 @@ def _r1_breakdown(r1_positional: dict[str, int]) -> str:
     return _join_names([_position_count(count, pos) for pos, count in ordered])
 
 
+_OPENER_ROUNDS = (
+    "{Total} over {rounds}.",
+    "The draft ran {rounds} and {total}.",
+    "{Total} went off the board across {rounds}.",
+)
+_OPENER_PLAIN = (
+    "{Total} went off the board.",
+    "The draft came to {total}.",
+)
+_R1_FRAMES = (
+    "Round 1 went {mix}.",
+    "The first round broke down as {mix}.",
+    "Up top, round 1 was {mix}.",
+)
+_SPREAD_FRAMES = (
+    "{hi} made the most picks with {hi_n}, and {lo} made the fewest with {lo_n}.",
+    "{hi} was busiest with {hi_n} picks, while {lo} sat quietest with {lo_n}.",
+    "The pick count ran from {hi_n} for {hi} down to {lo_n} for {lo}.",
+)
+
+
 def _lead_section(narration: Narration) -> Section:
     hn = narration.headline_numbers
     blocks: list[str] = []
 
-    rounds_txt = f" over {_count(hn.rounds, 'round')}" if hn.rounds else ""
-    opener = f"{_count(hn.picks_total, 'pick').capitalize()}{rounds_txt}."
+    total = _count(hn.picks_total, "pick")
+    if hn.rounds:
+        rounds = _count(hn.rounds, "round")
+        frames = _OPENER_ROUNDS
+    else:
+        rounds = ""
+        frames = _OPENER_PLAIN
+    opener = _pick(frames, narration, "opener").format(total=total, Total=total.capitalize(), rounds=rounds)
     if hn.r1_positional:
-        opener += f" Round 1 went {_r1_breakdown(hn.r1_positional)}."
+        opener += " " + _pick(_R1_FRAMES, narration, "r1").format(mix=_r1_breakdown(hn.r1_positional))
     blocks.append(opener)
 
     leader, low = hn.pick_count_leader, hn.pick_count_low
     if leader and low and leader.manager and low.manager and leader.manager != low.manager:
         blocks.append(
-            f"{leader.manager} made the most picks with {_spell(leader.pick_count)}; "
-            f"{low.manager} made the fewest with {_spell(low.pick_count)}."
+            _pick(_SPREAD_FRAMES, narration, "spread").format(
+                hi=leader.manager,
+                hi_n=_spell(leader.pick_count),
+                lo=low.manager,
+                lo_n=_spell(low.pick_count),
+            )
         )
 
     for candidate in narration.lead_candidates:
@@ -228,22 +275,27 @@ def _sentence_case(text: str) -> str:
     return text[:1].upper() + text[1:]
 
 
-def _board_line(pick: BoardPick, board: str) -> str:
+_BOARD_FRAMES = (
+    "At {label}, {who} took {player}{pos}. {tail}",
+    "{label} went to {who}: {player}{pos}. {tail}",
+    "{who} used {label} on {player}{pos}. {tail}",
+)
+
+
+def _board_line(pick: BoardPick, board: str, narration: Narration, index: int) -> str:
     who = pick.manager if pick.manager else "an unclaimed roster"
-    line = f"{pick.board_label} — {who}: {pick.player}"
-    if pick.position:
-        line += f", {pick.position}"
-    line += "."
+    pos = f" ({pick.position})" if pick.position else ""
     if pick.consensus_label is not None and pick.delta is not None:
-        line += f" {_sentence_case(board)} had it at {pick.consensus_label} ({_delta_phrase(pick.delta)})."
+        tail = f"{_sentence_case(board)} had it at {pick.consensus_label}, {_delta_phrase(pick.delta)}."
     else:
-        line += " No slot on the board for this player."
-    return line
+        tail = f"{_sentence_case(board)} has no slot for this player."
+    frame = _pick(_BOARD_FRAMES, narration, "board", index, pick.board_label)
+    return frame.format(label=pick.board_label, who=who, player=pick.player, pos=pos, tail=tail)
 
 
 def _board_section(narration: Narration) -> Section:
     board = _board_name(narration)
-    blocks = [_board_line(pick, board) for pick in narration.board_round1]
+    blocks = [_board_line(pick, board, narration, i) for i, pick in enumerate(narration.board_round1)]
     if not blocks:
         blocks.append("Round 1 has no picks on the board.")
     return Section(heading="The Board — Round 1", blocks=blocks)
@@ -279,21 +331,21 @@ def _superlatives_section(narration: Narration) -> Section:
     board = _board_name(narration)
     blocks: list[str] = []
     if superlatives.best_value:
-        blocks.append("Best value — " + _superlative_phrase(superlatives.best_value, board))
+        blocks.append("Best value: " + _superlative_phrase(superlatives.best_value, board))
     if superlatives.best_value_runner_up:
         blocks.append(
-            "Best value, runner-up — "
+            "Best value, runner-up: "
             + _superlative_phrase(superlatives.best_value_runner_up, board)
         )
     if superlatives.biggest_reach:
-        blocks.append("Biggest reach — " + _superlative_phrase(superlatives.biggest_reach, board))
+        blocks.append("Biggest reach: " + _superlative_phrase(superlatives.biggest_reach, board))
     if superlatives.biggest_reach_runner_up:
         blocks.append(
-            "Biggest reach, runner-up — "
+            "Biggest reach, runner-up: "
             + _superlative_phrase(superlatives.biggest_reach_runner_up, board)
         )
     if superlatives.boldest_swing:
-        blocks.append("Boldest swing — " + _swing_phrase(superlatives.boldest_swing))
+        blocks.append("Boldest swing: " + _swing_phrase(superlatives.boldest_swing))
     if not blocks:
         blocks.append(
             "No pick landed against a slot on the board, so there are no superlatives."
@@ -311,6 +363,13 @@ def _grade_method_block(board: str) -> str:
     )
 
 
+_GRADE_FRAMES = (
+    "{mgr} earns {art} {grade}{detail}.",
+    "{grade} for {mgr}{detail}.",
+    "{mgr} walks away with {art} {grade}{detail}.",
+)
+
+
 def _grades_section(narration: Narration) -> Section:
     blocks: list[str] = [_grade_method_block(_board_name(narration))]
     for team in narration.teams:
@@ -321,8 +380,10 @@ def _grades_section(narration: Narration) -> Section:
             for pos in ("QB", "RB", "WR", "TE")
             if pos in team.positional_counts
         )
-        detail = f" — {counts} across {_count(team.pick_count, 'pick')}" if counts else ""
-        line = f"{team.manager}: {team.grade}{detail}."
+        detail = f", on {counts} across {_count(team.pick_count, 'pick')}" if counts else ""
+        line = _pick(_GRADE_FRAMES, narration, "grade", team.manager).format(
+            mgr=team.manager, grade=team.grade, art=_article(team.grade), detail=detail
+        )
         if team.grade_rationale:
             line += f" {team.grade_rationale}"
         blocks.append(line)
@@ -363,7 +424,7 @@ def _positional_section(runs: PositionalRunsSummary) -> Section:
     if te.early_window_labels:
         te_line += f" Early window: {', '.join(te.early_window_labels)}."
     if te.third_te_label and te.third_te_player:
-        gap = f" — {_spell(te.gap_picks)} picks later" if te.gap_picks else ""
+        gap = f", {_spell(te.gap_picks)} picks later" if te.gap_picks else ""
         te_line += (
             f" The third ({te.third_te_player}) did not go until {te.third_te_label}{gap}."
         )
