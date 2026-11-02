@@ -150,14 +150,17 @@ A. Have a take, and put it first. Open every section with an opinion, not a
 B. Numbers are seasoning, not the meal. Use the one number that makes the point
    land and say what it means in words — how early, how far a player fell, how
    rare a grade was. No more than two numbers in a sentence. Never write the
-   word "delta," never write a parenthetical stat string such as "(consensus
+   word "delta," never write a parenthetical stat string such as "(board
    1.06, delta 1)," and never list every pick a team made — choose the two that
    tell its story.
 
 C. Get the direction right. In the JSON a negative delta is a reach (the player
-   went earlier than consensus) and a positive delta is a value (the player fell
-   later than consensus). Write a reach as "early" or "ahead of consensus" and a
-   value as "fell" or "slid past consensus." Check the sign before every one.
+   went earlier than the board has him) and a positive delta is a value (the
+   player fell later than the board has him). Write a reach as "early" or "ahead
+   of the board" and a value as "fell" or "slid past the board." The board is the
+   League Value board, or Sleeper rank (est.) when the JSON's board_source says
+   so; say "Sleeper rank" for a rookie draft and never call it a stats-based
+   board. Check the sign before every one.
 
 D. Give the league characters and running jokes. Coin one nickname of your own
    for a team's strategy — something this particular draft suggests, never a

@@ -198,6 +198,18 @@ These are done once (or once per milestone), not on a schedule.
 
 ---
 
+## 9.9 Draft recap ranks against League Value (one live run)
+
+- **What to do:** run one draft recap for a real startup or rookie league with the network up
+  (nflverse reachable): `commishdesk --league <sleeper-id> --draft-recap`.
+- **Expected:** a startup draft names `league_value` in the Facts `consensus_source.name`, reads
+  "the League Value board" in the recap and footer, and the footer carries "stats: nflverse,
+  CC BY 4.0". A rookie draft names `sleeper_search_rank`, says "Sleeper rank (est.), not a
+  stats-based board", and carries no nflverse credit. No reader-facing "consensus" anywhere.
+- **Last run:** _never_ -- **open (needs a real league and network).**
+
+---
+
 ## Change log
 
 - **2026-09-10** — file created. Seeded from the `**Manual checks:**` blocks of

@@ -17,7 +17,7 @@ The concept docs refer to fields by their path from the document root, with `[]`
 ## Reading values
 
 - **Rounding.** Scores are stored to two decimals, ratios such as `pct` to three, and `luck` and `expected_wins` to one. Values are rounded once, from the unrounded figure.
-- **Sign conventions.** `margin` is signed from the team's side, so a loss is negative. A positive `delta` is a draft value pick and a negative one a reach. A positive `week_delta` means a team moved up the power rank.
+- **Sign conventions.** `margin` is signed from the team's side, so a loss is negative. A positive `delta` is a draft value pick and a negative one a reach, measured against the League Value board or Sleeper rank (est.). A positive `week_delta` means a team moved up the power rank.
 - **Ids are strings.** Roster ids are strings such as `"1"`. They sort numerically where they parse as numbers.
 - **`null` has a meaning.** A `null` means the value does not exist yet or is unknown, and it is never a stand-in for zero. Week 1 has no all-play, luck or model rank. A `null` bye list means the caller gave no bye data, which is different from an empty list.
 - **Frozen after the regular season.** Season totals, standings, all-play, luck and the model rank stop moving when the playoffs begin. The issue-week blocks keep following the games.

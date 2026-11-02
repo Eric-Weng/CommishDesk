@@ -274,11 +274,12 @@ def test_output_ordering_contract() -> None:
 
 
 def _synthetic_slots() -> dict[str, int]:
-    board = json.loads(
-        (CONSENSUS_DIR / "fantasycalc-values.json").read_text(encoding="utf-8")
-    )
-    ordered = sorted(board, key=lambda e: -e["value"])
-    return {e["player"]["sleeperId"]: i for i, e in enumerate(ordered, start=1)}
+    """The board for the 72-pick fixture: Sleeper ``search_rank`` ascending (``null`` ignored), the
+    order ``consensus._rank_from_sleeper`` produces (Story 9.9; was a market-value fixture)."""
+    players = json.loads((CONSENSUS_DIR / "sleeper-players-nfl.json").read_text(encoding="utf-8"))
+    ranked = {pid: rec["search_rank"] for pid, rec in players.items() if rec.get("search_rank") is not None}
+    ordered = sorted(ranked, key=lambda pid: (ranked[pid], pid))
+    return {pid: slot for slot, pid in enumerate(ordered, start=1)}
 
 
 @pytest.mark.parametrize("name", FIXTURES)

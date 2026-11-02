@@ -32,6 +32,8 @@ from commishdesk.render.style import position_label
 
 __all__ = [
     "_at_a_glance_items",
+    "_board_clause",
+    "_data_credit",
     "_effective_rounds",
     "_esc",
     "_footer_stamp",
@@ -213,6 +215,34 @@ def _footer_stamp(
     )
 
 
+#: Reader-facing names for the ``consensus_source.name`` values (Story 9.9). Any other name (a
+#: caller-supplied label) is printed as given.
+_BOARD_LABELS = {
+    "league_value": "the League Value board",
+    "sleeper_search_rank": "Sleeper rank (est.)",
+}
+_SLEEPER_RANK_NOTE = ", not a stats-based board"
+
+
+def _board_clause(facts: DraftRecapFacts) -> str:
+    """The already-escaped ``" against {board}"`` clause for the footer provenance sentence (or
+    ``""``). A Sleeper-rank board says plainly that it is not a stats-based board."""
+    name = facts.consensus_source.name
+    if not name:
+        return ""
+    clause = f" against {_esc(_BOARD_LABELS.get(name, name))}"
+    if name == "sleeper_search_rank":
+        clause += _SLEEPER_RANK_NOTE
+    return clause
+
+
+def _data_credit(facts: DraftRecapFacts) -> str:
+    """The escaped data credit ("stats: nflverse, CC BY 4.0") when the board used nflverse stats,
+    else ``""``. Carried only when the snapshot's ``source`` was ``nflverse``."""
+    attribution = facts.consensus_source.attribution
+    return _esc(attribution) if attribution else ""
+
+
 def _provenance_sentence(against: str) -> str:
     """The footer provenance sentence — identical wording and the typographic
     apostrophe (``&rsquo;``) on both surfaces. ``against`` is the already-escaped
@@ -220,5 +250,5 @@ def _provenance_sentence(against: str) -> str:
     text in its own markup."""
     return (
         "Every pick and board label is drawn straight from the draft record; "
-        f"consensus deltas and grades are the engine&rsquo;s own, measured{against}."
+        f"pick deltas and grades are the engine&rsquo;s own, measured{against}."
     )

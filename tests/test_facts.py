@@ -245,9 +245,12 @@ def _bundle(name: str) -> dict[str, Any]:
 
 
 def _synthetic_slots() -> dict[str, int]:
-    board = json.loads((CONSENSUS_DIR / "fantasycalc-values.json").read_text(encoding="utf-8"))
-    ordered = sorted(board, key=lambda e: -e["value"])
-    return {e["player"]["sleeperId"]: i for i, e in enumerate(ordered, start=1)}
+    """The board for the 72-pick fixture: Sleeper ``search_rank`` ascending (``null`` ignored), the
+    order ``consensus._rank_from_sleeper`` produces (Story 9.9; was a market-value fixture)."""
+    players = json.loads((CONSENSUS_DIR / "sleeper-players-nfl.json").read_text(encoding="utf-8"))
+    ranked = {pid: rec["search_rank"] for pid, rec in players.items() if rec.get("search_rank") is not None}
+    ordered = sorted(ranked, key=lambda pid: (ranked[pid], pid))
+    return {pid: slot for slot, pid in enumerate(ordered, start=1)}
 
 
 def _rookie_facts() -> DraftRecapFacts:
@@ -263,7 +266,7 @@ def _rookie_facts() -> DraftRecapFacts:
         grades,
         generated_at=GENERATED_AT,
         fetched_at="2026-09-03",
-        consensus_source_name="synthetic rookie board",
+        consensus_source_name="sleeper_search_rank",
         consensus_as_of="2025-05",
     )
 
@@ -276,7 +279,7 @@ def _rookie_facts() -> DraftRecapFacts:
 def test_happy_path_shape() -> None:
     doc = _build_minimal()
     dump = doc.model_dump()
-    assert dump["schema_version"] == "0.12.0" == SCHEMA_VERSION
+    assert dump["schema_version"] == "0.13.0" == SCHEMA_VERSION
     assert dump["issue_type"] == "draft_recap"
     assert dump["week"] is None and dump["weekly"] is None
     assert [p["pick_no"] for p in dump["picks"]] == [1, 2]
@@ -361,7 +364,7 @@ def test_unknown_key_on_read_is_dropped() -> None:
     payload["narration"]["future_key"] = {"nested": True}
     doc = DraftRecapFacts.model_validate(payload)
     assert not hasattr(doc, "future_key")
-    assert doc.schema_version == "0.12.0"
+    assert doc.schema_version == "0.13.0"
 
 
 def test_schema_violation_raises_typed_chained_error() -> None:
@@ -485,7 +488,7 @@ def test_provisional_and_engine_note() -> None:
     assert doc.provisional is False
     assert doc.consensus_source.provisional is False
     note = doc.consensus_source.engine_note
-    assert "FantasyCalc" in note and "search_rank" in note
+    assert "League Value" in note and "search_rank" in note
     assert note == _EXPECTED_FACTS["consensus_source"]["engine_note"]
 
 
@@ -573,7 +576,7 @@ def test_reconciles_with_phase0_golden() -> None:
     # provenance + league / format shape + draft identity
     assert doc["source"]["platform"] == GOLDEN["source"]["platform"]
     assert doc["issue_type"] == GOLDEN["issue_type"]
-    assert doc["consensus_source"]["engine_note"] == GOLDEN["consensus_source"]["engine_note"]
+    # engine_note is skipped: the golden predates Story 9.9 (it names the removed market-value source).
     gfmt, dfmt = GOLDEN["league"]["format"], doc["league"]["format"]
     for key in ("team_count", "roster_slots", "flex_eligibility", "is_superflex_or_2qb"):
         assert dfmt[key] == gfmt[key], key
@@ -737,13 +740,13 @@ def test_builder_kwargs_land_in_document() -> None:
     doc = _build_minimal(
         draft_id="draft-override",
         fetched_at="2026-09-03",
-        consensus_source_name="synthetic rookie board",
+        consensus_source_name="sleeper_search_rank",
         consensus_as_of="2025-05",
     )
     assert doc.source.fetched_at == "2026-09-03"
     assert doc.source.draft_id == "draft-override"
     assert doc.draft.id == "draft-override"  # resolved once, used for both
-    assert doc.consensus_source.name == "synthetic rookie board"
+    assert doc.consensus_source.name == "sleeper_search_rank"
     assert doc.consensus_source.as_of == "2025-05"
 
 
@@ -1080,9 +1083,9 @@ def test_lead_kind_priority_covers_every_kind_a_detector_can_emit() -> None:
 
 
 def test_schema_version_bumped_additively_to_0_5_0() -> None:
-    assert SCHEMA_VERSION == "0.12.0"
+    assert SCHEMA_VERSION == "0.13.0"
     doc = _build_minimal()
-    assert doc.schema_version == "0.12.0"
+    assert doc.schema_version == "0.13.0"
     assert doc.week is None
     assert doc.weekly is None
 

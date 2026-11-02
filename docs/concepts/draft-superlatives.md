@@ -10,7 +10,7 @@ source: commishdesk/facts/build.py::_superlatives
 ---
 ## Definition
 
-Superlatives are the extremes of `delta` across the draft (see `pick-delta-and-consensus`). Only picks that have a consensus slot take part.
+Superlatives are the extremes of `delta` across the draft (see `pick-delta-and-consensus`). Only picks that have a board slot take part.
 
 - `best_value` and `best_value_runner_up` are the two largest deltas, and `biggest_reach` and `biggest_reach_runner_up` the two smallest. Ties go to the earlier pick.
 - `boldest_swing` is the manager whose own picks have the widest spread between their best and worst delta. It lists those two picks, in pick order. A manager needs at least two ranked picks to qualify.
@@ -92,4 +92,4 @@ def _superlatives(league: LeagueModel, pick_rows: list[PickRow]) -> Superlatives
 - **One ranked pick.** The runner-up fields are `null`.
 - **Swing ties.** If two managers have the same spread, the first in league order wins. A zero spread is no swing, so `boldest_swing` is `null`.
 - **Distinct picks.** The swing always shows two different picks. If the best and worst were the same pick, the manager's earliest and latest ranked picks are used.
-- **Players without consensus** never appear in a superlative, even if they were the most surprising pick in a human sense.
+- **Players the board does not rank** never appear in a superlative, even if they were the most surprising pick in a human sense.

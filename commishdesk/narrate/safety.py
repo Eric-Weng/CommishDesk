@@ -948,6 +948,9 @@ _ORDINARY_SINGLE_WORDS: frozenset[str] = frozenset(
         "biggest",
         "runner-up",
         "consensus",
+        # Story 9.9: the board is named "the League Value board" or "Sleeper rank (est.)"
+        "league",
+        "sleeper",
         "draft",
         "recap",
         "season",

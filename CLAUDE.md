@@ -105,7 +105,9 @@ is called out per-invariant below.
 
 - **I4 — Deterministic output requires no credentials and no paid resources.**
   `ingest → stats → facts → narrate(template) → render` runs with zero credentials and
-  no network beyond the Sleeper API. The onboarding sample is stats + templated prose
+  no network beyond the Sleeper API (`api.sleeper.app`) and the nflverse release assets
+  that League Value reads (`github.com`, which redirects to `release-assets.githubusercontent.com`;
+  CC BY 4.0, credited in the draft-recap footer). The onboarding sample is stats + templated prose
   only — no LLM. Two runs on one frozen input produce byte-identical output (modulo the
   generated-at timestamp). Directly engine-testable end to end against a fixture.
 

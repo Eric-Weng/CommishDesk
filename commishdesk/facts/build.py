@@ -92,11 +92,14 @@ from .storylines import DRAFT_RECAP_WEEK, advance_storylines, project_storyline_
 __all__ = ["build_draft_recap_facts"]
 
 _ENGINE_NOTE = (
-    "in production, FantasyCalc /values/current fetched once at generation and "
-    "cached; Sleeper search_rank offline fallback"
+    "ranked by the engine's League Value at draft time (nflverse stats, scored in the league's "
+    "own settings); a rookie draft or a player without history is ranked by Sleeper search_rank (est.)"
 )
-"""Mirror of the phase-0 golden's ``consensus_source.engine_note`` — a constant of
-the engine, not a per-league value."""
+"""``consensus_source.engine_note`` — a constant of the engine, not a per-league value."""
+
+_NFLVERSE_ATTRIBUTION = "stats: nflverse, CC BY 4.0"
+"""The data credit carried in ``consensus_source.attribution`` when the board used nflverse stats
+(the same text as the League Value snapshot's ``attribution``; ``facts/`` cannot import it)."""
 
 _EPOCH = datetime(1970, 1, 1, tzinfo=UTC)
 _CANON_POSITIONS = ("QB", "RB", "WR", "TE")
@@ -117,6 +120,7 @@ def build_draft_recap_facts(
     fetched_at: str | None = None,
     consensus_source_name: str | None = None,
     consensus_as_of: str | None = None,
+    consensus_nflverse: bool = False,
     provisional: bool = True,
     previous_storylines: Sequence[Storyline] = (),
     enforce_narration_cap: bool = True,
@@ -165,6 +169,7 @@ def build_draft_recap_facts(
             team_rows,
             lead_candidates,
             storyline_candidates,
+            board_source=consensus_source_name,
             enforce_cap=enforce_narration_cap,
         )
         doc = DraftRecapFacts(
@@ -181,6 +186,7 @@ def build_draft_recap_facts(
                 as_of=consensus_as_of,
                 provisional=provisional,
                 engine_note=_ENGINE_NOTE,
+                attribution=_NFLVERSE_ATTRIBUTION if consensus_nflverse else None,
             ),
             league=league_ref,
             draft=DraftRef(
@@ -630,6 +636,7 @@ def _narration(
     lead_candidates: list[LeadCandidate],
     storyline_candidates: list[StorylineCandidate],
     *,
+    board_source: str | None = None,
     enforce_cap: bool = True,
 ) -> Narration:
     ordered = sorted(pick_rows, key=lambda r: r.pick_no)
@@ -699,6 +706,7 @@ def _narration(
         positional_runs=draft_summary.positional_runs,
         lead_candidates=lead_candidates,
         storyline_candidates=storyline_candidates,
+        board_source=board_source,
     )
     return _apply_narration_cap(narration) if enforce_cap else narration
 

@@ -40,6 +40,8 @@ from commishdesk.facts.schema import DraftRecapFacts, PickRow
 from commishdesk.narrate import Recap, recap_to_text
 from commishdesk.render._body import (
     _at_a_glance_items,
+    _board_clause,
+    _data_credit,
     _effective_rounds,
     _esc,
     _footer_stamp,
@@ -315,8 +317,9 @@ def _pick_count_bars(facts: DraftRecapFacts) -> str:
 def _footer(
     facts: DraftRecapFacts, team_count: int, rounds: int, generated_at: str
 ) -> str:
-    consensus = facts.consensus_source.name
-    against = f" against {_esc(consensus)}" if consensus else ""
+    against = _board_clause(facts)
+    credit = _data_credit(facts)
+    credit_html = f'<div style="padding-top:6px;">{credit}</div>' if credit else ""
     stamp = _footer_stamp(facts, team_count, rounds, generated_at)
     return (
         '<tr><td class="px" style="padding:44px 48px 44px;">'
@@ -324,6 +327,7 @@ def _footer(
         f'<td style="border-top:1px solid {_LINE};padding-top:20px;font-family:{_MONO};'
         f'font-size:11px;line-height:1.7;color:{_INK3};">'
         f"{_provenance_sentence(against)}"
+        f"{credit_html}"
         f'<div style="color:{_INK2};padding-top:10px;">{stamp}</div>'
         f"</td></tr></table></td></tr>"
     )

@@ -157,9 +157,9 @@ def test_build_weekly_issue_with_a_bad_file_fails_before_any_fetch(tmp_path: Pat
 _PLAYERS_RANKS = {"500": {"search_rank": 5}, "900": {"search_rank": 9}}
 
 
-def test_consensus_uses_the_supplied_players_when_fantasycalc_fails(tmp_path: Path) -> None:
+def test_consensus_uses_the_supplied_players_and_makes_no_sleeper_request(tmp_path: Path) -> None:
     league = _mini_league([("500", "1"), ("900", "2")])
-    router = _Router(fantasycalc=_server_error)
+    router = _Router(sleeper=_server_error)
 
     rank = build_consensus_rank(
         league, FileStore(tmp_path), client=router.client(), players=_PLAYERS_RANKS, players_label="nfl.json"
@@ -171,27 +171,9 @@ def test_consensus_uses_the_supplied_players_when_fantasycalc_fails(tmp_path: Pa
     assert FileStore(tmp_path).read_cache("consensus", "sleeper-players-nfl") is None
 
 
-def test_consensus_prefers_fantasycalc_and_leaves_the_file_unused(tmp_path: Path) -> None:
-    league = _mini_league([("500", "1"), ("900", "2")])
-    router = _Router(
-        fantasycalc=[
-            {"player": {"sleeperId": "500"}, "value": 10},
-            {"player": {"sleeperId": "900"}, "value": 20},
-        ]
-    )
-
-    class _Boom(dict):  # type: ignore[type-arg]
-        def items(self) -> Any:
-            raise AssertionError("the players file must not be read when FantasyCalc works")
-
-    rank = build_consensus_rank(league, FileStore(tmp_path), client=router.client(), players=_Boom(_PLAYERS_RANKS))
-    assert rank.source == "fantasycalc"
-    assert rank.slots == {"900": 1, "500": 2}
-
-
 def test_consensus_file_that_ranks_none_raises_naming_the_file_with_no_sleeper_fetch(tmp_path: Path) -> None:
     league = _mini_league([("500", "1"), ("900", "2")])
-    router = _Router(fantasycalc=_server_error)
+    router = _Router(sleeper=_server_error)
 
     with pytest.raises(ConsensusError, match="elsewhere.json"):
         build_consensus_rank(
@@ -208,7 +190,7 @@ def test_consensus_ignores_a_warm_sleeper_cache_when_a_file_is_supplied(tmp_path
     league = _mini_league([("500", "1"), ("900", "2")])
     store = FileStore(tmp_path)
     store.write_cache("consensus", "sleeper-players-nfl", {"500": {"search_rank": 9}, "900": {"search_rank": 1}})
-    router = _Router(fantasycalc=_server_error)
+    router = _Router(sleeper=_server_error)
 
     rank = build_consensus_rank(league, store, client=router.client(), players=_PLAYERS_RANKS)
     assert rank.slots == {"500": 1, "900": 2}
@@ -300,7 +282,7 @@ def test_cli_draft_recap_passes_the_players_to_the_consensus(tmp_path: Path, mon
 
     def _fake(*args: object, **kwargs: object) -> ConsensusRank:
         captured.update(kwargs)
-        return ConsensusRank(source="fantasycalc", as_of="2099-07", slots=demo.demo_consensus_slots())
+        return ConsensusRank(source="sleeper_search_rank", as_of="2099-07", slots=demo.demo_consensus_slots())
 
     monkeypatch.setattr("commishdesk.adapters.sleeper.SleeperAdapter", _FakeAdapter)
     monkeypatch.setattr(consensus, "build_consensus_rank", _fake)

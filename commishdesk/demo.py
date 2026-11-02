@@ -7,9 +7,10 @@ contributor / CI convenience that runs **from a source checkout only**: CLAUDE.m
 and :func:`load_demo_bundle` / :func:`demo_consensus_slots` raise
 :class:`~commishdesk.errors.CommishDeskError`.
 
-The bundle reshape mirrors ``tests/test_facts.py::_bundle`` and the consensus
-transform mirrors ``tests/test_facts.py::_synthetic_slots`` — the built Facts JSON
-reconciles with ``tests/fixtures/facts/expected-draft-recap-facts.json``.
+The bundle reshape mirrors ``tests/test_facts.py::_bundle`` and the board ranking
+mirrors ``consensus._rank_from_sleeper`` over the committed Sleeper-shaped players
+fixture (the demo is a rookie draft, so it ranks by Sleeper ``search_rank``) — the
+built Facts JSON reconciles with ``tests/fixtures/facts/expected-draft-recap-facts.json``.
 """
 
 from __future__ import annotations
@@ -30,13 +31,13 @@ __all__ = [
 
 DEMO_LEAGUE_ID = "demo"
 
-#: What the demo Facts JSON records as its consensus source — the fixture's
-#: consensus slots are a hand reconstruction, not a live FantasyCalc fetch.
-DEMO_CONSENSUS_SOURCE_NAME = "synthetic rookie board"
+#: What the demo Facts JSON records as its consensus source — the demo is a rookie draft, so
+#: the board is Sleeper ``search_rank`` (est.), derived from a committed Sleeper-shaped fixture.
+DEMO_CONSENSUS_SOURCE_NAME = "sleeper_search_rank"
 DEMO_CONSENSUS_AS_OF = "2025-05"
 
 _DRAFT_FIXTURE = "tests/fixtures/rookie-draft.json"
-_CONSENSUS_FIXTURE = "tests/fixtures/consensus/fantasycalc-values.json"
+_CONSENSUS_FIXTURE = "tests/fixtures/consensus/sleeper-players-nfl.json"
 _ABSENT = "demo data is only available from a source checkout"
 
 
@@ -88,17 +89,19 @@ def load_demo_bundle() -> dict[str, Any]:
 
 
 def demo_consensus_slots() -> dict[str, int]:
-    """Read the committed FantasyCalc snapshot and rank it ``1..N`` by descending
-    trade value — a ``sleeper_id -> slot`` mapping for
-    ``compute_consensus_metrics``. When two entries share a ``sleeperId`` the
-    higher-valued one (first in the descending sort) wins, mirroring
-    ``consensus._rank_from_fantasycalc``."""
-    board = _read_fixture(_CONSENSUS_FIXTURE)
+    """Read the committed Sleeper-shaped players snapshot and rank it ``1..N`` by
+    ascending ``search_rank`` (``null`` ignored, ties by id) — a ``sleeper_id -> slot``
+    mapping for ``compute_consensus_metrics``, the same order as
+    ``consensus._rank_from_sleeper``."""
+    players = _read_fixture(_CONSENSUS_FIXTURE)
     try:
-        ordered = sorted(board, key=lambda entry: -entry["value"])
-        slots: dict[str, int] = {}
-        for slot, entry in enumerate(ordered, start=1):
-            slots.setdefault(str(entry["player"]["sleeperId"]), slot)
-        return slots
-    except (KeyError, TypeError) as exc:
+        ranked = {
+            str(sleeper_id): float(record["search_rank"])
+            for sleeper_id, record in players.items()
+            if isinstance(record.get("search_rank"), (int, float))
+            and not isinstance(record.get("search_rank"), bool)
+        }
+        ordered = sorted(ranked, key=lambda sid: (ranked[sid], sid))
+        return {sleeper_id: slot for slot, sleeper_id in enumerate(ordered, start=1)}
+    except (AttributeError, TypeError) as exc:
         raise CommishDeskError(f"demo fixture is corrupt: {_CONSENSUS_FIXTURE} ({type(exc).__name__})") from exc

@@ -569,7 +569,7 @@ def test_I4(monkeypatch: pytest.MonkeyPatch) -> None:
             consensus,
             grades,
             generated_at=datetime.now(tz=UTC),
-            consensus_source_name="synthetic rookie board",
+            consensus_source_name="sleeper_search_rank",
             consensus_as_of="2025-05",
         )
         recap = render_draft_recap(doc.narration)
