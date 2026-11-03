@@ -1,0 +1,93 @@
+{
+  "playoff_odds": {
+    "simulations": 10000,
+    "module_version": "1",
+    "through_week": 10,
+    "teams": [
+      {
+        "roster_id": "1",
+        "make_playoffs": 1.0,
+        "status": "in_race",
+        "bye": 0.8219,
+        "division": 0.9994
+      },
+      {
+        "roster_id": "2",
+        "make_playoffs": 1.0,
+        "status": "in_race",
+        "bye": 0.9775,
+        "division": 0.9802
+      },
+      {
+        "roster_id": "3",
+        "make_playoffs": 0.9977,
+        "status": "in_race",
+        "bye": 0.1014,
+        "division": 0.9063
+      },
+      {
+        "roster_id": "4",
+        "make_playoffs": 0.3248,
+        "status": "in_race",
+        "bye": 0.0,
+        "division": 0.0085
+      },
+      {
+        "roster_id": "5",
+        "make_playoffs": 0.7283,
+        "status": "in_race",
+        "bye": 0.0036,
+        "division": 0.0852
+      },
+      {
+        "roster_id": "6",
+        "make_playoffs": 0.4644,
+        "status": "in_race",
+        "bye": 0.0,
+        "division": 0.0
+      },
+      {
+        "roster_id": "7",
+        "make_playoffs": 0.0,
+        "status": "in_race",
+        "bye": 0.0,
+        "division": 0.0
+      },
+      {
+        "roster_id": "8",
+        "make_playoffs": 0.3836,
+        "status": "in_race",
+        "bye": 0.0,
+        "division": 0.0005
+      },
+      {
+        "roster_id": "9",
+        "make_playoffs": 0.9938,
+        "status": "in_race",
+        "bye": 0.0956,
+        "division": 0.0198
+      },
+      {
+        "roster_id": "10",
+        "make_playoffs": 0.0377,
+        "status": "in_race",
+        "bye": 0.0,
+        "division": 0.0
+      },
+      {
+        "roster_id": "11",
+        "make_playoffs": 0.0,
+        "status": "in_race",
+        "bye": 0.0,
+        "division": 0.0
+      },
+      {
+        "roster_id": "12",
+        "make_playoffs": 0.0697,
+        "status": "in_race",
+        "bye": 0.0,
+        "division": 0.0001
+      }
+    ]
+  }
+}

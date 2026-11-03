@@ -224,7 +224,7 @@ builds and a warning names the module.
 
 A listed directory is imported and run with the engine's own privileges and environment, so only list directories you trust.
 
-The reference `StatModule` (playoff odds) lands in Story 9.4.
+The reference `StatModule` is `playoff_odds` (`commishdesk/statmods/playoff_odds.py`, Story 9.4): 10,000 seeded simulations of the rest of the regular season, written to the `playoff_odds` key. Its method, worked example and edge cases are in [`docs/concepts/playoff-odds.md`](concepts/playoff-odds.md); copy its shape, not its method.
 
 A stat added to the engine's own `commishdesk/stats/` package and the Facts JSON ships its concept doc in the same PR; see "Concept docs" in [`CONTRIBUTING.md`](../CONTRIBUTING.md).
 
@@ -235,7 +235,7 @@ non-underscore-prefixed subpackage (a subdirectory with its own `__init__.py`) �
 under the zone package, other than the zone's own `__init__.py`.
 `tests/test_extension_zones.py` counts them per zone and asserts the count never exceeds
 one. Today `adapters/` holds `SleeperAdapter` (Epic 2) and `voices/` holds the beat-writer
-default (Epic 3); `themes/` and `statmods/` still hold zero — those land across Epics 4–5
+default (Epic 3) and `statmods/` holds `playoff_odds` (Story 9.4); `themes/` still holds zero — it lands across Epics 4–5
 and v1.
 
 **A second or alternative implementation does not go in this repository.** It lives in the

@@ -1,5 +1,5 @@
 """Extension zone: community stat modules (``statmods/``, distinct from the
-``stats/`` compute package). Protocol only, one reference impl max.
+``stats/`` compute package). Protocol plus one reference impl (``playoff_odds.py``, Story 9.4), one max.
 
 A module file (or subpackage) exposes a ``STAT_MODULE`` instance. The weekly facts builder
 loads modules from the engine's own ``statmods/`` or, when ``COMMISHDESK_STATMOD_DIRS`` is set,
