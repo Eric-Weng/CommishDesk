@@ -9,3 +9,9 @@ values out, keyed by the module's `module_id` and never touching a prompt or a r
 `tests/eval/statmods/`. This zone carries **at most one reference implementation**,
 enforced by [`tests/test_extension_zones.py`](../../tests/test_extension_zones.py) — today
 it carries none. Nothing here prescribes how to build a stat module.
+
+Protocol v1: a module supplies `module_id`, `module_version` and `compute`, which returns
+`{module_id: block}`. A module file exposes a `STAT_MODULE` instance; the loader in
+[`_loader.py`](_loader.py) reads the engine's own directory, or the directories listed in
+`COMMISHDESK_STATMOD_DIRS` (`os.pathsep`-separated) when set. A namespace clash raises
+`StatModuleError`; a module that raises only loses its own block.

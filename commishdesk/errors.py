@@ -140,6 +140,7 @@ __all__ = [
     "NarratorError",
     "OptimalLineupError",
     "SchemaValidationError",
+    "StatModuleError",
     "StoreError",
     "SuppressedRecipientError",
 ]
@@ -266,6 +267,16 @@ class OptimalLineupError(CommishDeskError):
 
 class SchemaValidationError(CommishDeskError):
     """The Facts JSON builder produced a document the schema rejects."""
+
+
+class StatModuleError(CommishDeskError):
+    """A stat module broke the namespace contract (Story 9.3, AD-2).
+
+    Raised by ``commishdesk/statmods/_loader.py`` when two modules share a ``module_id``, a
+    ``module_id`` equals a core Facts key, or ``compute`` returns a key other than its own
+    ``module_id``. The message names the module(s) involved. A module that merely raises is
+    not this error: its block is skipped and logged (NFR-18).
+    """
 
 
 class StoreError(CommishDeskError):

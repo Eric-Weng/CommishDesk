@@ -26,7 +26,7 @@ not tickets — see [`unclaimed-territory.md`](unclaimed-territory.md).
 | `commishdesk/adapters/` | `Adapter` | `fetch(self, league_id: str) -> Mapping[str, Any]`, `fetch_week(self, league_id: str, week: int) -> Mapping[str, Any]` | `tests/eval/adapters/` |
 | `commishdesk/voices/` | `Voice` | `system_prompt: str`, `banned_topics: frozenset[str]`, `voice_id: str` | `tests/eval/voices/` |
 | `commishdesk/themes/` | `Renderer` | `render(self, facts: FactsJSON) -> str` | `tests/eval/themes/` |
-| `commishdesk/statmods/` | `StatModule` | `module_id: str` and `compute(self, facts: FactsJSON) -> Mapping[str, object]` | `tests/eval/statmods/` |
+| `commishdesk/statmods/` | `StatModule` | `module_id: str`, `module_version: str` and `compute(self, facts: FactsJSON) -> Mapping[str, object]` | `tests/eval/statmods/` |
 
 ### `Adapter` — `commishdesk/adapters/`
 
@@ -202,12 +202,29 @@ Epic 4.
 
 ### `StatModule` — `commishdesk/statmods/`
 
-A `StatModule` supplies `module_id: str` and
-`compute(self, facts: FactsJSON) -> Mapping[str, object]`. Output is additive: keys are
-namespaced under `module_id`, and a stat module never touches a prompt or a renderer
-(AD-23). The zone is named `statmods/` so it does not shadow the `commishdesk/stats/`
-pipeline compute package. Evaluation material goes in `tests/eval/statmods/`. The
-reference `StatModule` (playoff odds) lands in v1.
+A `StatModule` (protocol v1) supplies `module_id: str`, `module_version: str` and
+`compute(self, facts: FactsJSON) -> Mapping[str, object]`. Output is additive: `compute`
+returns `{module_id: block}` and the block lands at the top level of the weekly Facts JSON
+under `module_id`. A stat module never touches a prompt or a renderer (AD-23), and the
+protocol prescribes no method for how a module computes. The zone is named `statmods/` so
+it does not shadow the `commishdesk/stats/` pipeline compute package. Evaluation material
+goes in `tests/eval/statmods/`.
+
+**Discovery.** A module file (a non-underscore `*.py`, or a subpackage) exposes a
+`STAT_MODULE` instance. The facts builder loads the engine's own `statmods/` directory, or
+the directories listed in `COMMISHDESK_STATMOD_DIRS` (separated by `os.pathsep`) when set
+(they replace the default), in order, files sorted by name. `compute` receives a deep copy of the
+Facts JSON, so mutating it changes nothing.
+
+**Failure behavior.** Two modules sharing a `module_id`, a `module_id` equal to a core Facts
+key (`teams`, `week`, ...), or a returned key other than `module_id` stop the build with a
+`StatModuleError` naming the module(s). A module that raises, returns a block that is not
+JSON-serializable, or whose file fails to import only loses its own block; the Issue still
+builds and a warning names the module.
+
+A listed directory is imported and run with the engine's own privileges and environment, so only list directories you trust.
+
+The reference `StatModule` (playoff odds) lands in Story 9.4.
 
 A stat added to the engine's own `commishdesk/stats/` package and the Facts JSON ships its concept doc in the same PR; see "Concept docs" in [`CONTRIBUTING.md`](../CONTRIBUTING.md).
 

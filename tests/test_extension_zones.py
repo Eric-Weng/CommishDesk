@@ -119,10 +119,12 @@ def test_zone_package_imports_and_exposes_a_runtime_checkable_protocol(
     isinstance(object(), proto)  # must not raise
 
 
-def test_v0_marker_present_in_each_zone_module() -> None:
+def test_version_marker_present_in_each_zone_module() -> None:
+    # statmods completed its protocol in Story 9.3 (v1); the other zones stay v0.
     for zone in ZONES:
+        marker = "# v1" if zone == "statmods" else "# v0"
         src = (PKG_ROOT / zone / "__init__.py").read_text(encoding="utf-8")
-        assert "# v0" in src, f"commishdesk/{zone}/__init__.py is missing the # v0 marker"
+        assert marker in src, f"commishdesk/{zone}/__init__.py is missing the {marker} marker"
 
 
 def test_facts_alias_exists_and_renderer_statmodule_reference_it() -> None:
@@ -155,7 +157,7 @@ def _protocol_members(cls: type) -> list[str]:
     return sorted(getattr(cls, "__protocol_attrs__", ()))
 
 
-def test_protocol_member_surfaces_match_the_v0_spec() -> None:
+def test_protocol_member_surfaces_match_the_spec() -> None:
     protos = _live_protocols()
     assert _protocol_members(protos["Adapter"]) == ["fetch", "fetch_week"]
     assert _protocol_members(protos["Renderer"]) == ["render"]
@@ -166,11 +168,12 @@ def test_protocol_member_surfaces_match_the_v0_spec() -> None:
         "system_prompt",
         "voice_id",
     ]
-    assert _protocol_members(protos["StatModule"]) == ["compute", "module_id"]
-    # "one or two members, no more" (frozen Always) — Voice is the lone exception
-    # at three; the other three zones stay bounded at two.
+    # StatModule gained module_version in Story 9.3 (protocol v1).
+    assert _protocol_members(protos["StatModule"]) == ["compute", "module_id", "module_version"]
+    # "one or two members, no more" (frozen Always) — Voice and StatModule are the
+    # exceptions at three; the other two zones stay bounded at two.
     for name, cls in protos.items():
-        upper = 3 if name == "Voice" else 2
+        upper = 3 if name in ("Voice", "StatModule") else 2
         assert 1 <= len(_protocol_members(cls)) <= upper, name
 
 
@@ -194,6 +197,7 @@ def test_protocol_annotations_match_the_spec() -> None:
     assert voice_hints["banned_topics"] == frozenset[str]
     assert voice_hints["voice_id"] is str
     assert get_type_hints(protos["StatModule"])["module_id"] is str
+    assert get_type_hints(protos["StatModule"])["module_version"] is str
 
 
 def test_extending_doc_lists_every_live_protocol_member() -> None:
@@ -274,6 +278,11 @@ def test_zone_reference_impl_counts_match_the_epics_landed_so_far() -> None:
 # --------------------------------------------------------------------------- #
 # Row: Stat-zone name
 # --------------------------------------------------------------------------- #
+
+
+def test_statmods_loader_file_does_not_count_as_a_reference_impl() -> None:
+    assert (PKG_ROOT / "statmods" / "_loader.py").is_file()
+    assert _count_impls(PKG_ROOT / "statmods") == 0
 
 
 def test_community_stat_zone_is_statmods_and_does_not_shadow_stats() -> None:
@@ -442,6 +451,7 @@ def test_zone_packages_ship_in_the_wheel_and_import_from_it(tmp_path: Path) -> N
         [sys.executable, "-I", "-c", prog, str(extract)],
         capture_output=True,
         text=True,
+        encoding="utf-8",
     )
     assert check.returncode == 0, check.stderr
     assert check.stdout.strip() == "ok"

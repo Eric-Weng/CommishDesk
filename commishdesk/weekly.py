@@ -833,13 +833,27 @@ def compute_weekly_facts(
         recent_lead_kinds=recent_lead_kinds(store, league_id, week),
         league_value=league_value,
     )
+    facts_json = doc.model_dump(mode="json")
+    facts_json.update(_run_stat_modules(facts_json, logger))
     return WeeklyFactsBuild(
         doc=doc,
-        facts_json=doc.model_dump(mode="json"),
+        facts_json=facts_json,
         previous_storylines=previous_storylines,
         cross_check_passed=cross_check_passed,
         league_value=league_value,
     )
+
+
+def _run_stat_modules(facts_json: Mapping[str, Any], logger: logging.Logger) -> dict[str, Any]:
+    """Story 9.3: each stat module's block, keyed by its ``module_id``. Directories come from
+    ``COMMISHDESK_STATMOD_DIRS`` (``os.pathsep``-separated); unset or empty means the engine's
+    own ``statmods/`` directory."""
+    from commishdesk.statmods._loader import default_statmod_dir, load_stat_modules, run_stat_modules
+
+    raw = os.environ.get("COMMISHDESK_STATMOD_DIRS", "")
+    dirs = [Path(part) for part in raw.split(os.pathsep) if part.strip()] or [default_statmod_dir()]
+    modules = load_stat_modules(dirs, logger)
+    return run_stat_modules(facts_json, modules, logger) if modules else {}
 
 
 def persist_weekly_storylines(store: Store, league_id: str, week: int, built: WeeklyFactsBuild) -> None:
@@ -1133,9 +1147,10 @@ def _replayed_facts(
             one_line(exc),
         )
         return None
-    return WeeklyFactsBuild(
-        doc=doc, facts_json=doc.model_dump(mode="json"), previous_storylines=[], cross_check_passed=True
-    )
+    facts_json = doc.model_dump(mode="json")
+    # Story 9.3: stat-module blocks sit outside the model, so carry the stored ones forward.
+    facts_json.update({k: v for k, v in snapshot.items() if k not in WeeklyFacts.model_fields})
+    return WeeklyFactsBuild(doc=doc, facts_json=facts_json, previous_storylines=[], cross_check_passed=True)
 
 
 def record_published_weekly(
