@@ -1148,8 +1148,9 @@ def _replayed_facts(
         )
         return None
     facts_json = doc.model_dump(mode="json")
-    # Story 9.3: stat-module blocks sit outside the model, so carry the stored ones forward.
-    facts_json.update({k: v for k, v in snapshot.items() if k not in WeeklyFacts.model_fields})
+    # Stories 9.3/9.4: stat-module blocks sit outside the dump (``playoff_odds`` is an excluded model
+    # field), so carry forward every stored key the dump does not already hold.
+    facts_json.update({k: v for k, v in snapshot.items() if k not in facts_json})
     return WeeklyFactsBuild(doc=doc, facts_json=facts_json, previous_storylines=[], cross_check_passed=True)
 
 

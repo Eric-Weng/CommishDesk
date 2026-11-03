@@ -139,6 +139,8 @@ __all__ = [
     "WeeklyPerformer",
     "WeeklyPeriod",
     "WeeklyPickRef",
+    "WeeklyPlayoffOdds",
+    "WeeklyPlayoffOddsTeam",
     "WeeklyPlayoffPicture",
     "WeeklyPlayoffRef",
     "WeeklyPower",
@@ -165,7 +167,7 @@ __all__ = [
     "WeeklyWeekPoints",
 ]
 
-SCHEMA_VERSION = "0.14.0"
+SCHEMA_VERSION = "0.15.0"
 """Semver contract version. Additive key -> minor bump; shape change -> major.
 ``0.4.0`` -> ``0.5.0`` (Story 5.8): the empty ``WeeklyFacts`` placeholder becomes
 the real weekly document and its ``WeeklyNarration``; ``DraftRecapFacts.weekly``
@@ -184,7 +186,10 @@ adds ``WeeklyTransactions.trade_grades`` and ``WeeklyTransactions.trade_revisits
 ``0.12.0`` -> ``0.13.0`` (Story 9.9) adds ``ConsensusSource.attribution`` and ``Narration.board_source``
 additively (the draft board now ranks against League Value; ``consensus_source.name`` is
 ``league_value`` or ``sleeper_search_rank``). ``0.13.0`` -> ``0.14.0`` (Story 9.2) adds
-``WeeklyMatchups.remaining`` (every remaining regular-season pairing) additively."""
+``WeeklyMatchups.remaining`` (every remaining regular-season pairing) additively.
+``0.14.0`` -> ``0.15.0`` (Story 9.4) adds
+``WeeklyFacts.playoff_odds`` (the ``playoff_odds`` stat module's block, written by the stat-module
+loader and never dumped by the model) additively."""
 
 _ISSUE_TYPE: Literal["draft_recap"] = "draft_recap"
 _IssueType = Literal["draft_recap", "weekly"]
@@ -1128,6 +1133,30 @@ class WeeklyPlayoffPicture(_Doc):
     consolation: list[str] = []
 
 
+class WeeklyPlayoffOddsTeam(_Doc):
+    """One roster's simulated odds, 0..1 to four places. ``bye`` is present only where the
+    league has first-round byes and ``division`` only where it declares divisions. ``status``
+    is ``clinched`` / ``eliminated`` from the standings flags, else ``in_race``."""
+
+    roster_id: str
+    make_playoffs: float
+    status: Literal["clinched", "eliminated", "in_race"]
+    bye: float | None = None
+    division: float | None = None
+
+
+class WeeklyPlayoffOdds(_Doc):
+    """The ``playoff_odds`` stat module's block (Story 9.4, ``0.15.0``): per-roster odds from
+    ``simulations`` seeded simulated seasons of the rest of the regular season. Absent, never
+    zero, when the league has no playoff format, the season has not started or is over, or the
+    remaining schedule is incomplete."""
+
+    simulations: int
+    module_version: str
+    through_week: int
+    teams: list[WeeklyPlayoffOddsTeam] = []
+
+
 class WeeklyStandings(_Doc):
     """The standings block: the overall order, the per-division order, the
     derived playoff picture, and how far the fold reached."""
@@ -1582,3 +1611,7 @@ class WeeklyFacts(_Doc):
     lead_candidates: list[LeadCandidate] = []
     storyline_candidates: list[StorylineCandidate] = []
     narration: WeeklyNarration
+    #: Written by the stat-module loader, not the builder: ``exclude=True`` keeps the key out of
+    #: ``model_dump`` (so the loader's core-key check never sees it) while the published schema
+    #: and the concept-doc coverage test still do.
+    playoff_odds: WeeklyPlayoffOdds | None = Field(default=None, exclude=True)

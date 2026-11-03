@@ -49,8 +49,9 @@ def test_happy_path_block_lands_under_module_id() -> None:
     assert _run([EVAL_DIR]) == {"echo": {"week": 3, "team_count": 2}}
 
 
-def test_zero_modules_in_the_engine_default_dir() -> None:
-    assert load_stat_modules([default_statmod_dir()], LOG) == []
+def test_engine_default_dir_holds_only_the_playoff_odds_reference_module() -> None:
+    loaded = load_stat_modules([default_statmod_dir()], LOG)
+    assert [m.module.module_id for m in loaded] == ["playoff_odds"]
 
 
 def test_duplicate_id_in_one_dir_names_both_files(tmp_path: Path) -> None:
@@ -146,7 +147,8 @@ def test_compute_weekly_facts_merges_blocks_and_default_is_unchanged(
 ) -> None:
     monkeypatch.delenv("COMMISHDESK_STATMOD_DIRS", raising=False)
     base = _demo_build(tmp_path / "a")
-    assert base.facts_json == base.doc.model_dump(mode="json")
+    # the engine's own reference module (Story 9.4) is the only thing the default adds
+    assert {k: v for k, v in base.facts_json.items() if k != "playoff_odds"} == base.doc.model_dump(mode="json")
 
     monkeypatch.setenv("COMMISHDESK_STATMOD_DIRS", str(EVAL_DIR))
     built = _demo_build(tmp_path / "b")
@@ -154,9 +156,10 @@ def test_compute_weekly_facts_merges_blocks_and_default_is_unchanged(
     assert built.facts_json["echo"]["team_count"] == len(built.doc.teams)
     # the core document is untouched (generated_at is a build timestamp, so compare the rest)
     core = {k: v for k, v in built.facts_json.items() if k != "echo"}
-    assert core.keys() == base.facts_json.keys()
+    base_core = {k: v for k, v in base.facts_json.items() if k != "playoff_odds"}
+    assert core.keys() == base_core.keys()
     assert {k: v for k, v in core.items() if k != "generated_at"} == {
-        k: v for k, v in base.facts_json.items() if k != "generated_at"
+        k: v for k, v in base_core.items() if k != "generated_at"
     }
 
 
@@ -170,7 +173,7 @@ def test_env_var_takes_several_dirs_and_blank_means_default(
     monkeypatch.setenv("COMMISHDESK_STATMOD_DIRS", f"{EVAL_DIR}{os.pathsep}{other}")
     assert set(_run_stat_modules(FACTS, LOG)) == {"echo", "extra"}
     monkeypatch.setenv("COMMISHDESK_STATMOD_DIRS", "  ")
-    assert _run_stat_modules(FACTS, LOG) == {}
+    assert _run_stat_modules(FACTS, LOG) == {}  # the default module skips Facts it cannot read
 
 
 def test_replay_keeps_stored_module_blocks(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

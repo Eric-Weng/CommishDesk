@@ -255,7 +255,7 @@
           "type": "boolean"
         },
         "schema_version": {
-          "default": "0.14.0",
+          "default": "0.15.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -2118,13 +2118,24 @@
         "period": {
           "$ref": "#/$defs/WeeklyPeriod"
         },
+        "playoff_odds": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WeeklyPlayoffOdds"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "provisional": {
           "default": true,
           "title": "Provisional",
           "type": "boolean"
         },
         "schema_version": {
-          "default": "0.14.0",
+          "default": "0.15.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -3840,6 +3851,91 @@
         "from_roster_id"
       ],
       "title": "WeeklyPickRef",
+      "type": "object"
+    },
+    "WeeklyPlayoffOdds": {
+      "description": "The ``playoff_odds`` stat module's block (Story 9.4, ``0.15.0``): per-roster odds from\n``simulations`` seeded simulated seasons of the rest of the regular season. Absent, never\nzero, when the league has no playoff format, the season has not started or is over, or the\nremaining schedule is incomplete.",
+      "properties": {
+        "module_version": {
+          "title": "Module Version",
+          "type": "string"
+        },
+        "simulations": {
+          "title": "Simulations",
+          "type": "integer"
+        },
+        "teams": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WeeklyPlayoffOddsTeam"
+          },
+          "title": "Teams",
+          "type": "array"
+        },
+        "through_week": {
+          "title": "Through Week",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "simulations",
+        "module_version",
+        "through_week"
+      ],
+      "title": "WeeklyPlayoffOdds",
+      "type": "object"
+    },
+    "WeeklyPlayoffOddsTeam": {
+      "description": "One roster's simulated odds, 0..1 to four places. ``bye`` is present only where the\nleague has first-round byes and ``division`` only where it declares divisions. ``status``\nis ``clinched`` / ``eliminated`` from the standings flags, else ``in_race``.",
+      "properties": {
+        "bye": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bye"
+        },
+        "division": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Division"
+        },
+        "make_playoffs": {
+          "title": "Make Playoffs",
+          "type": "number"
+        },
+        "roster_id": {
+          "title": "Roster Id",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "clinched",
+            "eliminated",
+            "in_race"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "roster_id",
+        "make_playoffs",
+        "status"
+      ],
+      "title": "WeeklyPlayoffOddsTeam",
       "type": "object"
     },
     "WeeklyPlayoffPicture": {

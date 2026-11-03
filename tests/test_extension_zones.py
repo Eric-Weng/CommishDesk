@@ -3,7 +3,7 @@
 One test per I/O & Edge-Case Matrix row, plus the ``_count_impls`` helper's own unit test.
 Story 1.6 shipped zero reference implementations; Story 2.2 (Epic 2) landed the first —
 `adapters/sleeper.py` — and Story 3.3 (Epic 3) landed `voices/beat_writer.py`, so
-`adapters` and `voices` each count 1 while `themes` / `statmods` stay at 0.
+`adapters`, `voices` and (Story 9.4) `statmods` each count 1 while `themes` stays at 0.
 """
 
 from __future__ import annotations
@@ -266,12 +266,12 @@ def test_zone_holds_at_most_one_reference_implementation(zone: str) -> None:
 def test_zone_reference_impl_counts_match_the_epics_landed_so_far() -> None:
     """``adapters`` landed its one impl in Epic 2 (Story 2.2); ``voices`` landed
     the beat-writer default in Epic 3 (Story 3.3); ``themes`` / ``statmods`` are
-    still to come (Epics 4-5 / v1)."""
+    still to come (Epics 4-5 / v1); ``statmods`` landed the playoff odds module in Story 9.4."""
     assert {zone: _count_impls(PKG_ROOT / zone) for zone in ZONES} == {
         "adapters": 1,
         "voices": 1,
         "themes": 0,
-        "statmods": 0,
+        "statmods": 1,
     }
 
 
@@ -282,7 +282,8 @@ def test_zone_reference_impl_counts_match_the_epics_landed_so_far() -> None:
 
 def test_statmods_loader_file_does_not_count_as_a_reference_impl() -> None:
     assert (PKG_ROOT / "statmods" / "_loader.py").is_file()
-    assert _count_impls(PKG_ROOT / "statmods") == 0
+    assert (PKG_ROOT / "statmods" / "playoff_odds.py").is_file()
+    assert _count_impls(PKG_ROOT / "statmods") == 1
 
 
 def test_community_stat_zone_is_statmods_and_does_not_shadow_stats() -> None:

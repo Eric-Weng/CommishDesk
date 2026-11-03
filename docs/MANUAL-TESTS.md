@@ -210,6 +210,16 @@ These are done once (or once per milestone), not on a schedule.
 
 ---
 
+## 9.4 Playoff odds timing on the sample container (Docker)
+
+- **What to do:** build the sample image from `commishdesk-app/container/Dockerfile` with the engine from this
+  worktree and run the sample build at `--cpus 0.25 --memory 1g`; read the `playoff_odds` step time.
+- **Expected:** the block is present for a mid-season week and the whole build stays inside the 60 s sample
+  budget; peak memory is well under 200 MB. Record the number in the 9.4 spec's Implementation Notes.
+- **Last run:** _never_ -- **open (see the 9.4 Implementation Notes for the local numbers).**
+
+---
+
 ## 9.9 Draft recap ranks against League Value (one live run)
 
 - **What to do:** run one draft recap for a real startup or rookie league with the network up
