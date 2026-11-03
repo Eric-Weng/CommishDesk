@@ -216,7 +216,7 @@ These are done once (or once per milestone), not on a schedule.
   worktree and run the sample build at `--cpus 0.25 --memory 1g`; read the `playoff_odds` step time.
 - **Expected:** the block is present for a mid-season week and the whole build stays inside the 60 s sample
   budget; peak memory is well under 200 MB. Record the number in the 9.4 spec's Implementation Notes.
-- **Last run:** _never_ -- **open (see the 9.4 Implementation Notes for the local numbers).**
+- **Last run:** 2026-11-03 -- **pass.** Sample image, engine mounted from main, `--cpus 0.25 --memory 1g`, a real 12-team league at week 8: full weekly build 11 s, `batch.sample` 13 s, no OOM. The block itself is not visible from outside (no facts file, odds unrendered until 9.5); the demo-season test covers presence.
 
 ---
 
