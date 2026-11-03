@@ -63,6 +63,8 @@ from commishdesk.facts.schema import (
     WeeklyNarrationGame,
     WeeklyNarrationLuck,
     WeeklyNarrationNextWeek,
+    WeeklyNarrationOdds,
+    WeeklyNarrationOddsTeam,
     WeeklyNarrationPlayoff,
     WeeklyNarrationPower,
     WeeklyNarrationStanding,
@@ -245,6 +247,10 @@ _UNCLAIMED = "an unclaimed roster"
 #: ``facts.weekly.TRADE_LOPSIDED_KIND``, which is out of reach here: AD-1). The transactions
 #: section states it as a fact line, so Around the League skips it.
 _TRADE_LOPSIDED_KIND = "trade_lopsided"
+#: Storyline kind of the transient playoff-odds mover candidate (a copy of
+#: ``facts.weekly.PLAYOFF_ODDS_KIND``). The standings section states it as a fact line, so Around
+#: the League skips it.
+_PLAYOFF_ODDS_KIND = "playoff_odds_mover"
 
 _QUIET_WIRE = "A quiet week on the wire: no moves this week and no recent trades."
 _NO_LUCK = "Not enough games have been played to measure luck."
@@ -803,7 +809,7 @@ def _around_section(
     if include_storylines:
         for storyline in narration.storyline_candidates:
             hook = storyline.hook
-            if storyline.kind == _TRADE_LOPSIDED_KIND:
+            if storyline.kind in (_TRADE_LOPSIDED_KIND, _PLAYOFF_ODDS_KIND):
                 continue
             if hook and hook not in lead_hooks and hook not in blocks:
                 blocks.append(hook)
@@ -915,6 +921,59 @@ def _playoff_block(picture: WeeklyNarrationPlayoff | None, narration: WeeklyNarr
     return " ".join(parts)
 
 
+_ODDS_UP_FRAMES = (
+    "{team} gained {n} points of playoff odds, and now sits at {pct}.",
+    "{team}'s odds of making the playoffs rose {n} points, to {pct}.",
+)
+_ODDS_DOWN_FRAMES = (
+    "{team} lost {n} points of playoff odds, and now sits at {pct}.",
+    "{team}'s odds of making the playoffs fell {n} points, to {pct}.",
+)
+_ODDS_CLOSE_FRAMES = ("{team} is the closest call, at {pct}.", "The closest call in the race is {team}, at {pct}.")
+
+
+def _odds_pct(team: WeeklyNarrationOddsTeam) -> str:
+    """A live team's odds as words: an integer percent from the payload, or a phrase for the
+    extremes (never ``0 percent`` for a team still alive)."""
+    if team.make_playoffs <= 0:
+        return "under one percent"
+    if team.make_playoffs >= 100:
+        return "all but certain"
+    return f"{team.make_playoffs} percent"
+
+
+def _odds_sentences(odds: WeeklyNarrationOdds | None, narration: WeeklyNarration) -> list[str]:
+    """Numbers-only playoff-odds sentences (Story 9.5): the biggest mover and the closest call,
+    every digit an integer straight from the ``playoff_odds`` payload. Empty with no odds."""
+    if odds is None or not odds.teams:
+        return []
+    out: list[str] = []
+    mover = next((t for t in odds.teams if t.roster_id == odds.mover_roster_id), None)
+    if mover is not None and mover.change:
+        n = abs(mover.change)
+        if mover.status == "clinched":
+            out.append(f"{_label(mover.team)} gained {n} points of playoff odds and has clinched a spot.")
+        elif mover.status == "eliminated":
+            out.append(f"{_label(mover.team)} lost {n} points of playoff odds and is eliminated.")
+        else:
+            frames = _ODDS_UP_FRAMES if mover.change > 0 else _ODDS_DOWN_FRAMES
+            out.append(
+                _pick(frames, narration, "odds-move", mover.roster_id).format(
+                    team=_label(mover.team), n=n, pct=_odds_pct(mover)
+                )
+            )
+    live = [t for t in odds.teams if t.status == "in_race" and 0 < t.make_playoffs < 100]
+    if live:
+        close = min(live, key=lambda t: (abs(t.make_playoffs - 50), t.roster_id.zfill(8)))
+        if close.roster_id != (mover.roster_id if mover is not None else None):
+            out.append(
+                _pick(_ODDS_CLOSE_FRAMES, narration, "odds-close", close.roster_id).format(
+                    team=_label(close.team), pct=_odds_pct(close)
+                )
+            )
+    return out
+
+
 def cold_start_standings(rows: list[WeeklyNarrationStanding]) -> list[WeeklyNarrationStanding]:
     """Week-1 standings "by points": ordered by points for, ranked by position.
 
@@ -937,7 +996,8 @@ def _standings_section(
     if not blocks:
         blocks.append(_NO_STANDINGS)
     if not cold_start:
-        blocks.append(_playoff_block(narration.playoff_picture, narration))
+        playoff_text = _playoff_block(narration.playoff_picture, narration)
+        blocks.append(" ".join([playoff_text, *_odds_sentences(narration.playoff_odds, narration)]))
     heading = heading_for("standings", cold_start=cold_start)
     return WeeklySection(heading=heading, blocks=blocks)
 

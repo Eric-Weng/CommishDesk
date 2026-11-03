@@ -751,6 +751,153 @@ def revisit_question(facts: WeeklyFacts, revisit: WeeklyTradeRevisit) -> str | N
 
 
 # --------------------------------------------------------------------------- #
+# Playoff odds (Story 9.5): one model, every surface. Reads only ``facts.playoff_odds`` (plus the
+# league format for the header); never recomputes an odd.
+# --------------------------------------------------------------------------- #
+
+#: The one docs target the odds block links to (the fourth fixed carve-out href).
+DOCS_PLAYOFF_ODDS = "/docs/playoff-odds/"
+ODDS_LINK_TEXT = "How playoff odds work"
+#: Plain-text and Discord cut for a big league: past this many teams, show the top 8 and a count.
+ODDS_TEXT_MAX_TEAMS = 12
+ODDS_TEXT_TOP = 8
+#: The email shows this many ranked rows (the first four at 320 px) plus the mover.
+ODDS_EMAIL_ROWS = 6
+ODDS_EMAIL_PHONE_ROWS = 4
+#: A move under this many percentage points is not "the biggest mover".
+ODDS_MIN_MOVE = 1.0
+
+
+class OddsRow(NamedTuple):
+    """One ranked row: the team, the odds as text and the sentence a screen reader gets."""
+
+    rank: int
+    roster_id: str
+    label: str
+    status: str  # "clinched" | "eliminated" | "in_race"
+    make: float
+    pct: str | None  # None for a clinched / eliminated row (a word pill, no percent)
+    bye: str | None
+    division: str | None
+    change: float | None
+    name: str  # the accessible name
+
+
+class OddsView(NamedTuple):
+    rows: list[OddsRow]
+    header: str
+    has_bye: bool
+    has_division: bool
+    mover: OddsRow | None
+
+    @property
+    def total(self) -> int:
+        return len(self.rows)
+
+
+def odds_percent(value: float, status: str = "in_race") -> str:
+    """A live chance as text: whole percent, ``<1%`` for any chance under half a point (never
+    ``0%``), ``>99%`` for a live chance just short of a certainty."""
+    if status == "in_race":
+        if value < 0.005:
+            return "<1%"
+        if 0.995 < value < 1:
+            return ">99%"
+    return f"{round(value * 100)}%"
+
+
+def _roster_key(roster_id: str) -> tuple[int, int | str]:
+    return (0, int(roster_id)) if roster_id.isdigit() else (1, roster_id)
+
+
+def _odds_name(label: str, status: str, make: float, bye: str | None, division: str | None,
+               change: float | None) -> str:
+    if status == "clinched":
+        parts = ["clinched a playoff spot"]
+    elif status == "eliminated":
+        parts = ["eliminated from the playoffs"]
+    else:
+        text = odds_percent(make, status)
+        parts = ["under 1% to make the playoffs" if text == "<1%" else
+                 "over 99% to make the playoffs" if text == ">99%" else f"{text} to make the playoffs"]
+    if bye is not None:
+        parts.append("under 1% for a bye" if bye == "<1%" else f"{bye} for a bye")
+    if division is not None:
+        parts.append("under 1% to win the division" if division == "<1%" else f"{division} to win the division")
+    if change is not None and round(change) != 0:
+        parts.append(f"{'up' if change > 0 else 'down'} {abs(round(change))} points since last week")
+    return f"{label}: {', '.join(parts)}"
+
+
+def odds_view(facts: WeeklyFacts) -> OddsView | None:
+    """The odds block as ranked rows, or ``None`` when the Facts carry no block (no heading, no
+    placeholder, no zero)."""
+    block = facts.playoff_odds
+    if block is None or not block.teams or not facts.period.has_prior_week:
+        return None  # week 1 is a cold start: no odds heading there on any surface
+    label = labeller(facts)
+    ranked = sorted(block.teams, key=lambda t: (-t.make_playoffs, _roster_key(t.roster_id)))
+    has_bye = any(t.bye is not None for t in ranked)
+    has_division = any(t.division is not None for t in ranked)
+    rows: list[OddsRow] = []
+    for index, t in enumerate(ranked, start=1):
+        pct = None if t.status != "in_race" else odds_percent(t.make_playoffs, t.status)
+        bye = odds_percent(t.bye, "in_race") if t.bye is not None and t.status != "eliminated" else None
+        division = (
+            odds_percent(t.division, "in_race") if t.division is not None and t.status != "eliminated" else None
+        )
+        name = label(t.roster_id)
+        rows.append(
+            OddsRow(index, t.roster_id, name, t.status, t.make_playoffs, pct, bye, division, t.change,
+                    _odds_name(name, t.status, t.make_playoffs, bye, division, t.change))
+        )
+    movers = [r for r in rows if r.change is not None and abs(r.change) >= ODDS_MIN_MOVE]
+    mover = min(movers, key=lambda r: (-abs(r.change or 0.0), _roster_key(r.roster_id))) if movers else None
+    parts: list[str] = []
+    playoff = facts.league.format.playoff
+    if playoff is not None:
+        parts.append(f"Top {playoff.bracket_teams} of {len(rows)} make it.")
+        if playoff.byes > 0:
+            parts.append(f"Top {playoff.byes} get a bye.")
+    if mover is not None:
+        parts.append(odds_mover_text(mover))
+    return OddsView(rows, " ".join(parts), has_bye, has_division, mover)
+
+
+def odds_mover_text(row: OddsRow) -> str:
+    move = round(row.change or 0.0)
+    return f"Biggest mover: {row.label}, {'up' if move > 0 else 'down'} {abs(move)} points."
+
+
+def odds_text_rows(view: OddsView) -> tuple[list[OddsRow], int]:
+    """The rows Discord and plain text show, and how many teams are left out ("and N more")."""
+    if view.total <= ODDS_TEXT_MAX_TEAMS:
+        return view.rows, 0
+    return view.rows[:ODDS_TEXT_TOP], view.total - ODDS_TEXT_TOP
+
+
+def odds_email_rows(view: OddsView) -> list[OddsRow]:
+    """The email's rows: the top six, plus the biggest mover when it sits below the cut."""
+    rows = list(view.rows[:ODDS_EMAIL_ROWS])
+    if view.mover is not None and view.mover not in rows:
+        rows.append(view.mover)
+    return rows
+
+
+def odds_row_line(row: OddsRow) -> str:
+    """One plain line for text and Discord: ``Team: 43% · Bye 20% · Division 12%`` or the word."""
+    head = row.pct if row.pct is not None else ("Clinched" if row.status == "clinched" else "Eliminated")
+    bits = [head]
+    if row.bye is not None:
+        bits.append(f"Bye {row.bye}")
+    if row.division is not None:
+        bits.append(f"Division {row.division}")
+    if row.change is not None and round(row.change) != 0:
+        bits.append(f"{'+' if row.change > 0 else MINUS}{abs(round(row.change))} pts")
+    return f"{row.label}: {' · '.join(bits)}"
+
+
+# --------------------------------------------------------------------------- #
 # Team identity (Story 8.16b): one monogram and one color slot per team
 # --------------------------------------------------------------------------- #
 

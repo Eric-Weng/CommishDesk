@@ -835,6 +835,7 @@ def compute_weekly_facts(
     )
     facts_json = doc.model_dump(mode="json")
     facts_json.update(_run_stat_modules(facts_json, logger))
+    doc, facts_json = _attach_playoff_odds(doc, facts_json, store, league_id, week, logger)
     return WeeklyFactsBuild(
         doc=doc,
         facts_json=facts_json,
@@ -842,6 +843,66 @@ def compute_weekly_facts(
         cross_check_passed=cross_check_passed,
         league_value=league_value,
     )
+
+
+def _attach_playoff_odds(
+    doc: WeeklyFacts,
+    facts_json: dict[str, Any],
+    store: Store,
+    league_id: str,
+    week: int,
+    logger: logging.Logger,
+) -> tuple[WeeklyFacts, dict[str, Any]]:
+    """Story 9.5: put the ``playoff_odds`` block on the document the renderers and the narrator
+    read (it used to reach ``facts_json`` only), with each team's ``change`` against the prior
+    week's stored block, and re-dump so the stored snapshot carries the odds-augmented narration.
+    A missing, invalid or unreadable block leaves *doc* and *facts_json* exactly as they were."""
+    from pydantic import ValidationError
+
+    from commishdesk.facts.schema import WeeklyPlayoffOdds
+    from commishdesk.facts.weekly import with_playoff_odds
+
+    raw = facts_json.get("playoff_odds")
+    if not isinstance(raw, Mapping) or not raw:
+        return doc, facts_json
+    try:
+        block = WeeklyPlayoffOdds.model_validate(raw)
+    except ValidationError as exc:
+        logger.warning(
+            "league %s: the playoff_odds block does not validate (%s); not rendered", league_id, one_line(exc)
+        )
+        return doc, facts_json
+    block = _with_odds_change(block, store, league_id, week)
+    updated = with_playoff_odds(doc, block)
+    out = updated.model_dump(mode="json")
+    out.update({k: v for k, v in facts_json.items() if k not in out and k != "playoff_odds"})
+    out["playoff_odds"] = block.model_dump(mode="json")
+    return updated, out
+
+
+def _with_odds_change(block: Any, store: Store, league_id: str, week: int) -> Any:
+    """*block* with each team's ``change`` (percentage points of ``make_playoffs``) against week
+    ``week - 1``'s stored block. No prior block, or a read that fails, leaves ``change`` unset."""
+    if week < 2:
+        return block
+    try:
+        snapshot = read_weekly_facts_snapshot(store, league_id, week - 1)
+        prior_raw = snapshot.get("playoff_odds") if snapshot else None
+        prior: dict[str, float] = {}
+        if isinstance(prior_raw, Mapping):
+            for team in prior_raw.get("teams") or []:
+                prior[str(team["roster_id"])] = float(team["make_playoffs"])
+    except Exception:  # noqa: BLE001 -- best-effort: any unreadable prior block just means no change
+        return block
+    if not prior:
+        return block
+    teams = [
+        t.model_copy(update={"change": round((t.make_playoffs - prior[t.roster_id]) * 100, 1)})
+        if t.roster_id in prior
+        else t
+        for t in block.teams
+    ]
+    return block.model_copy(update={"teams": teams})
 
 
 def _run_stat_modules(facts_json: Mapping[str, Any], logger: logging.Logger) -> dict[str, Any]:

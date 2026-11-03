@@ -124,6 +124,8 @@ __all__ = [
     "WeeklyMove",
     "WeeklyMovePlayer",
     "WeeklyNarration",
+    "WeeklyNarrationOdds",
+    "WeeklyNarrationOddsTeam",
     "WeeklyNarrationGame",
     "WeeklyNarrationLeague",
     "WeeklyNarrationLuck",
@@ -167,7 +169,7 @@ __all__ = [
     "WeeklyWeekPoints",
 ]
 
-SCHEMA_VERSION = "0.15.0"
+SCHEMA_VERSION = "0.16.0"
 """Semver contract version. Additive key -> minor bump; shape change -> major.
 ``0.4.0`` -> ``0.5.0`` (Story 5.8): the empty ``WeeklyFacts`` placeholder becomes
 the real weekly document and its ``WeeklyNarration``; ``DraftRecapFacts.weekly``
@@ -189,7 +191,9 @@ additively (the draft board now ranks against League Value; ``consensus_source.n
 ``WeeklyMatchups.remaining`` (every remaining regular-season pairing) additively.
 ``0.14.0`` -> ``0.15.0`` (Story 9.4) adds
 ``WeeklyFacts.playoff_odds`` (the ``playoff_odds`` stat module's block, written by the stat-module
-loader and never dumped by the model) additively."""
+loader and never dumped by the model) additively. ``0.15.0`` -> ``0.16.0`` (Story 9.5) adds
+``WeeklyPlayoffOddsTeam.change`` and ``WeeklyNarration.playoff_odds`` (a numbers-only odds projection)
+additively; the odds block now also reaches ``WeeklyFacts.playoff_odds`` on a fresh build."""
 
 _ISSUE_TYPE: Literal["draft_recap"] = "draft_recap"
 _IssueType = Literal["draft_recap", "weekly"]
@@ -1143,6 +1147,9 @@ class WeeklyPlayoffOddsTeam(_Doc):
     status: Literal["clinched", "eliminated", "in_race"]
     bye: float | None = None
     division: float | None = None
+    #: Percentage points of ``make_playoffs`` against the prior week's stored block (Story 9.5);
+    #: ``None`` on the first odds week or when that block cannot be read.
+    change: float | None = None
 
 
 class WeeklyPlayoffOdds(_Doc):
@@ -1500,6 +1507,28 @@ class WeeklyNarrationTradeGrade(_Doc):
     sides: list[WeeklyNarrationTradeSide] = []
 
 
+class WeeklyNarrationOddsTeam(_Doc):
+    """One narrated odds row (Story 9.5): integer percents only, never the 4-dp floats, so a
+    printed "43%" is always in the payload (AD-12, AD-24). ``change`` is whole points."""
+
+    team: str
+    roster_id: str
+    make_playoffs: int
+    status: Literal["clinched", "eliminated", "in_race"]
+    bye: int | None = None
+    division: int | None = None
+    change: int | None = None
+
+
+class WeeklyNarrationOdds(_Doc):
+    """The narrator's view of the playoff odds block: ranked rows plus the biggest mover's
+    ``roster_id`` (``None`` when nobody moved a point or there is no prior block). First thing
+    the narration cap ladder drops."""
+
+    teams: list[WeeklyNarrationOddsTeam] = []
+    mover_roster_id: str | None = None
+
+
 class WeeklyNarrationTransactions(_Doc):
     """The narrated transactions glance."""
 
@@ -1535,6 +1564,7 @@ class WeeklyNarration(_Doc):
     printed_headline: str | None = None
     lead_candidates: list[LeadCandidate] = []
     storyline_candidates: list[StorylineCandidate] = []
+    playoff_odds: WeeklyNarrationOdds | None = None
 
 
 # --------------------------------------------------------------------------- #

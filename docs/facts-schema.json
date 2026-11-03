@@ -255,7 +255,7 @@
           "type": "boolean"
         },
         "schema_version": {
-          "default": "0.15.0",
+          "default": "0.16.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -2135,7 +2135,7 @@
           "type": "boolean"
         },
         "schema_version": {
-          "default": "0.15.0",
+          "default": "0.16.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -2864,6 +2864,17 @@
           "default": null,
           "title": "Next Week Nfl Byes"
         },
+        "playoff_odds": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WeeklyNarrationOdds"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "playoff_picture": {
           "anyOf": [
             {
@@ -3194,6 +3205,103 @@
         "b_rec"
       ],
       "title": "WeeklyNarrationNextWeek",
+      "type": "object"
+    },
+    "WeeklyNarrationOdds": {
+      "description": "The narrator's view of the playoff odds block: ranked rows plus the biggest mover's\n``roster_id`` (``None`` when nobody moved a point or there is no prior block). First thing\nthe narration cap ladder drops.",
+      "properties": {
+        "mover_roster_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mover Roster Id"
+        },
+        "teams": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WeeklyNarrationOddsTeam"
+          },
+          "title": "Teams",
+          "type": "array"
+        }
+      },
+      "title": "WeeklyNarrationOdds",
+      "type": "object"
+    },
+    "WeeklyNarrationOddsTeam": {
+      "description": "One narrated odds row (Story 9.5): integer percents only, never the 4-dp floats, so a\nprinted \"43%\" is always in the payload (AD-12, AD-24). ``change`` is whole points.",
+      "properties": {
+        "bye": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bye"
+        },
+        "change": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Change"
+        },
+        "division": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Division"
+        },
+        "make_playoffs": {
+          "title": "Make Playoffs",
+          "type": "integer"
+        },
+        "roster_id": {
+          "title": "Roster Id",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "clinched",
+            "eliminated",
+            "in_race"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "team": {
+          "title": "Team",
+          "type": "string"
+        }
+      },
+      "required": [
+        "team",
+        "roster_id",
+        "make_playoffs",
+        "status"
+      ],
+      "title": "WeeklyNarrationOddsTeam",
       "type": "object"
     },
     "WeeklyNarrationPlayoff": {
@@ -3899,6 +4007,18 @@
           ],
           "default": null,
           "title": "Bye"
+        },
+        "change": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Change"
         },
         "division": {
           "anyOf": [

@@ -2,7 +2,7 @@
 doc_id: playoff-odds
 kind: stat
 title: Playoff odds
-schema_min: 0.15.0
+schema_min: 0.16.0
 facts_keys:
   - weekly.playoff_odds
 fixture: playoff_odds/worked-example.json
@@ -32,7 +32,11 @@ Playoff odds answer one question for every team: out of 10,000 ways the rest of 
 
 **Commissioner brackets.** When the commissioner has set the playoff field, the odds do not guess it: listed teams read 1.0 to make the playoffs and the rest read 0.0, and the same goes for listed byes.
 
-**When there are no odds.** The block is absent, never zero, when the league has no playoff format, before the first game has been played, after the regular season ends, or when the remaining schedule could not be fully fetched.
+**Week over week.** Each team's `change` is how many percentage points its make-playoffs odds moved since the previous week's issue, for example 4.5 for 0.3248 against 0.2798. It is left out in the first week the odds exist, or when last week's issue cannot be read. The Issue's header names the biggest mover (the largest move, a tie going to the lower roster id) and says nothing when no team moved a full point.
+
+**How the Issue shows them.** The web Issue (and the league page, which is the same page) lists every team, ranked by make-playoffs odds, with a bar and the percent as text. A Bye column appears only when the league has byes and a Division column only when it has divisions. A team that has clinched or is eliminated shows that word in a pill, with no bar or percent. A live team under one half of a percent reads "<1%", never 0%. The email shows the top six teams (four on a phone) plus the biggest mover and links to the full list; plain text and Discord show every team up to twelve, and past twelve teams the top eight and "and N more". The header reads "Top 6 of 12 make it. Top 2 get a bye." Colour never carries the odds: every row also has an accessible name that reads its numbers. The narrator is given whole percents only, so a printed "43%" is always a number the engine produced.
+
+**When there are no odds.** The block is absent, never zero, when the league has no playoff format, before the first game has been played, after the regular season ends, or when the remaining schedule could not be fully fetched. Week 1 is a cold start, so no surface shows odds there.
 
 ## Worked example
 

@@ -116,6 +116,8 @@ from .schema import (
     WeeklyNarrationLeague,
     WeeklyNarrationLuck,
     WeeklyNarrationNextWeek,
+    WeeklyNarrationOdds,
+    WeeklyNarrationOddsTeam,
     WeeklyNarrationPlayoff,
     WeeklyNarrationPower,
     WeeklyNarrationStanding,
@@ -127,6 +129,7 @@ from .schema import (
     WeeklyPerformer,
     WeeklyPeriod,
     WeeklyPickRef,
+    WeeklyPlayoffOdds,
     WeeklyPlayoffPicture,
     WeeklyPlayoffRef,
     WeeklyPower,
@@ -160,6 +163,7 @@ __all__ = [
     "TOP_PLAYERS",
     "WORST_STARTERS",
     "build_weekly_facts",
+    "with_playoff_odds",
 ]
 
 TOP_PERFORMERS = 3
@@ -1408,6 +1412,72 @@ def _weekly_narration(
     return _apply_weekly_narration_cap(narration)
 
 
+#: Storyline kind of the transient, never-persisted playoff-odds mover candidate (Story 9.5).
+PLAYOFF_ODDS_KIND = "playoff_odds_mover"
+
+#: A move smaller than this many percentage points is not a mover.
+_ODDS_MIN_MOVE = 1.0
+
+
+def odds_mover(block: WeeklyPlayoffOdds) -> str | None:
+    """The roster id with the largest absolute ``change`` (ties: lower roster id), or ``None``
+    when nobody moved a whole point or no row carries a ``change``."""
+    moved = [t for t in block.teams if t.change is not None and abs(t.change) >= _ODDS_MIN_MOVE]
+    if not moved:
+        return None
+    return min(moved, key=lambda t: (-abs(t.change or 0.0), _sort_key(t.roster_id))).roster_id
+
+
+def with_playoff_odds(doc: WeeklyFacts, block: WeeklyPlayoffOdds | None) -> WeeklyFacts:
+    """*doc* carrying the stat module's odds *block* (Story 9.5): ``playoff_odds`` set, and the
+    narration gaining the numbers-only odds projection plus one transient mover candidate, then
+    re-held under the token cap (odds drop first). Returns *doc* untouched when there is no block
+    or the narration has no standings (nothing to label). At cold start (week 1) the block rides
+    on the document but is never narrated."""
+    if block is None or not block.teams:
+        return doc
+    if not doc.period.has_prior_week:
+        # Cold start: the block stays on the document, but the narrator is told nothing of it.
+        return doc.model_copy(update={"playoff_odds": block})
+    narration = doc.narration
+    labels = {row.roster_id: row.team for row in narration.standings}
+    rows = sorted(block.teams, key=lambda t: (-t.make_playoffs, _sort_key(t.roster_id)))
+    mover = odds_mover(block)
+    projection = WeeklyNarrationOdds(
+        teams=[
+            WeeklyNarrationOddsTeam(
+                team=labels.get(t.roster_id, t.roster_id),
+                roster_id=t.roster_id,
+                make_playoffs=round(t.make_playoffs * 100),
+                status=t.status,
+                bye=round(t.bye * 100) if t.bye is not None else None,
+                division=round(t.division * 100) if t.division is not None else None,
+                change=round(t.change) if t.change is not None else None,
+            )
+            for t in rows
+        ],
+        mover_roster_id=mover,
+    )
+    candidates = list(narration.storyline_candidates)
+    if mover is not None:
+        row = next(t for t in projection.teams if t.roster_id == mover)
+        change = row.change or 0
+        move = f"up {abs(change)}" if change > 0 else f"down {abs(change)}"
+        candidates.append(
+            StorylineCandidate(
+                id=f"{PLAYOFF_ODDS_KIND}:{mover}",
+                kind=PLAYOFF_ODDS_KIND,
+                roster_ids=[mover],
+                hook=f"{row.team} playoff odds are {move} points to {row.make_playoffs} percent.",
+                weeks_running=1,
+            )
+        )
+    capped = _apply_weekly_narration_cap(
+        narration.model_copy(update={"playoff_odds": projection, "storyline_candidates": candidates})
+    )
+    return doc.model_copy(update={"playoff_odds": block, "narration": capped})
+
+
 #: Storyline kind of the transient, never-persisted lopsided-trade candidate (Story 9.7).
 TRADE_LOPSIDED_KIND = "trade_lopsided"
 
@@ -1516,7 +1586,9 @@ def _apply_weekly_narration_cap(narration: WeeklyNarration) -> WeeklyNarration:
     reduction ladder. Each tier is applied only while the projection is still
     over the cap:
 
-    0. (Story 9.7) drop ``transactions.trade_grades`` and the transient ``trade_lopsided``
+    0. (Story 9.5) drop ``playoff_odds`` and the transient ``playoff_odds_mover`` storyline
+       candidates;
+    0b. (Story 9.7) drop ``transactions.trade_grades`` and the transient ``trade_lopsided``
        storyline candidates;
     1. drop ``luck[]`` and every power row's ``all_play`` and ``luck``;
     2. keep only the game-of-the-week card in ``next_week[]`` (``transactions``
@@ -1530,7 +1602,22 @@ def _apply_weekly_narration_cap(narration: WeeklyNarration) -> WeeklyNarration:
     if _within_cap(narration):
         return narration
 
-    # Story 9.7: the trade grades and the transient lopsided candidates go before anything else
+    # Story 9.5: the odds projection and its transient candidates are the very first thing to go.
+    if narration.playoff_odds is not None or any(
+        c.kind == PLAYOFF_ODDS_KIND for c in narration.storyline_candidates
+    ):
+        narration = narration.model_copy(
+            update={
+                "playoff_odds": None,
+                "storyline_candidates": [
+                    c for c in narration.storyline_candidates if c.kind != PLAYOFF_ODDS_KIND
+                ],
+            }
+        )
+        if _within_cap(narration):
+            return narration
+
+    # Story 9.7: the trade grades and the transient lopsided candidates go next
     # (never a lead entry).
     if narration.transactions.trade_grades or any(
         c.kind == TRADE_LOPSIDED_KIND for c in narration.storyline_candidates
