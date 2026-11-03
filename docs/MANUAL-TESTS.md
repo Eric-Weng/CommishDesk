@@ -198,6 +198,22 @@ These are done once (or once per milestone), not on a schedule.
 
 ---
 
+## 9.5 Playoff odds in the Issue (browser, Gmail light and dark, Discord)
+
+- **What to do:** run one local weekly build at a mid-season week (the demo season's week 6, or the author's
+  league), then view the web page at 320 px and desktop in light and dark, send the email to a real Gmail inbox
+  and view it in light and dark, and post the Discord text to a test channel.
+- **Expected:** the odds block sits in the Standings card, ranked, with percent text beside each bar; Clinched and
+  Eliminated are word pills with no bar; no row reads 0%; Bye and Division columns only where the league has them;
+  at 320 px no horizontal scroll and since-last-week sits under a Details toggle; the email shows six rows (four at
+  320 px) plus the mover and its two links (the docs link carries the unfilled site marker until 9.8); Gmail dark
+  keeps the pill and bar contrast (open question from the 9.1 canvas); the Discord post is under 2,000 units and
+  the odds block is the first thing trimmed. A league with more than 12 teams shows the top 8 and "and N more" on
+  Discord and in text.
+- **Last run:** _never_ -- **open (needs a real Gmail send and a Discord channel).**
+
+---
+
 ## 9.2 The facts carry the rest of the regular season (one live run)
 
 - **What to do:** run one weekly Issue for a real league at a mid-season week with the network up

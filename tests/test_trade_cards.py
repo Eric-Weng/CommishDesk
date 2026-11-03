@@ -430,6 +430,7 @@ def test_the_cap_drops_trade_grades_and_lopsided_candidates_before_any_lead(
     facts = _facts(demo_raw[3])
     narration = facts.narration.model_copy(
         update={
+            "playoff_odds": None,  # the odds tier (Story 9.5) is exercised in test_odds_cards.py
             "storyline_candidates": [
                 *facts.narration.storyline_candidates,
                 facts.narration.storyline_candidates[0].model_copy(

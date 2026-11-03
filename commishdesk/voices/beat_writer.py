@@ -248,6 +248,15 @@ _RULE_TRADE_GRADES = """Trade grades. When the JSON carries ``transactions.trade
    words veto, collusion, collude, rigged, fixed, suspicious or tanking about a
    trade, and never suggest a manager gave a trade away on purpose."""
 
+_RULE_PLAYOFF_ODDS = """Playoff odds. When the JSON carries ``playoff_odds``, its percents are whole
+   numbers from the engine's simulation: quote them exactly, never round them
+   again and never work out odds of your own. ``clinched`` and ``eliminated``
+   are statuses, not percents, so say them as words. A team that is still alive
+   never has "0 percent" or "100 percent": say "under one percent" or "all but
+   certain". ``mover_roster_id`` names the biggest mover of the week; there is
+   none when it is null. The odds say what the numbers expect, not what will
+   happen."""
+
 _RULE_POWER_RANKINGS = """Power Rankings is a numbered list, one line per ranked team, best first, in
    exactly this shape: "1. <team name exactly as the JSON gives it> — <one
    sentence>". The number is YOUR published rank. Each row of the JSON's power
@@ -379,6 +388,8 @@ def _weekly_prompt(*, cold_start: bool, suppressed: frozenset[str] = frozenset()
         rules.append(_RULE_TRADE_GRADES)
     if cold_start and "standings" in ids:
         rules.append(_RULE_STANDINGS_COLD_START)
+    if not cold_start and "standings" in ids:
+        rules.append(_RULE_PLAYOFF_ODDS)
     if not cold_start and "power" in ids:
         rules.append(_RULE_POWER_RANKINGS)
     rules += [length, _rule_voice(cold_start=cold_start, ids=ids), _RULE_BANNED]

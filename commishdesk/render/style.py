@@ -1652,6 +1652,70 @@ svg .name {{ font-family: {WEEKLY_FONT_BODY}; font-size: 14px; font-weight: 700;
   cursor: not-allowed;
 }}
 
+/* Story 9.5 -- the playoff odds block inside the standings card. Clinched / Eliminated are words in a
+   pill (solid / outlined), never a percent or a bar; the row's accessible name carries the numbers. */
+.po {{ margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--line); }}
+.po-title {{ margin: 0 0 6px; }}
+.po-head {{ margin: 0 0 4px; font-size: 14.5px; color: var(--ink); overflow-wrap: anywhere; }}
+.po-legend {{
+  margin: 0 0 8px;
+  font-family: {FONT_MONO};
+  font-size: 11px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}}
+.po-list {{ list-style: none; margin: 0; padding: 0; }}
+.po-row {{
+  display: grid;
+  grid-template-columns: 26px 30px minmax(0, 190px) minmax(120px, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 40px;
+}}
+.po-row .rk {{ font-family: {WEEKLY_FONT_DISPLAY}; font-weight: 700; font-size: 18px; text-align: right; }}
+.po-row .tn {{ font-weight: 700; font-size: 15px; overflow-wrap: anywhere; }}
+.po-main {{ display: grid; grid-template-columns: minmax(48px, 1fr) 52px; align-items: center; gap: 10px; }}
+.po-bar {{ display: block; height: 10px; background: var(--hi); border-radius: 5px; overflow: hidden; }}
+.po-bar > i {{ display: block; height: 100%; border-radius: 5px; background: var(--emph); }}
+.po-pct {{ font-family: {FONT_MONO}; font-size: 13px; color: var(--ink); text-align: right; }}
+.po-pill {{
+  grid-column: 1 / -1;
+  justify-self: start;
+  display: inline-block;
+  padding: 1px 10px;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  font-family: {FONT_MONO};
+  font-size: 11px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  font-weight: 500;
+}}
+.po-clinched {{ background: var(--ink); color: var(--paper); }}
+.po-eliminated {{ background: transparent; color: var(--ink-2); border-color: var(--ink-2); }}
+.po-extra {{
+  display: inline-flex;
+  gap: 12px;
+  justify-content: flex-end;
+  font-family: {FONT_MONO};
+  font-size: 12.5px;
+  color: var(--ink-2);
+  white-space: nowrap;
+}}
+.po-chg {{ min-width: 26px; text-align: right; }}
+.po-details {{ display: none; margin-top: 8px; font-size: 13px; color: var(--ink-2); }}
+.po-details summary {{
+  cursor: pointer;
+  font-family: {FONT_MONO};
+  font-size: 12px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}}
+.po-details ul {{ list-style: none; margin: 4px 0 0; padding: 0; }}
+.po-src {{ margin: 10px 0 0; font-family: {FONT_MONO}; font-size: 11.5px; color: var(--ink-2); }}
+.po-src a {{ color: var(--emph); text-decoration: underline; }}
+
 footer {{
   padding-top: 18px;
   border-top: 1px solid var(--line);
@@ -1680,6 +1744,13 @@ footer p {{ margin: 0; }}
   .sec-head {{ flex-wrap: wrap; }}
   .st-row {{ grid-template-columns: 22px minmax(0, 1fr) 36px 42px auto; gap: 8px; }}
   .st-row .bar, .st-row .mg {{ display: none; }}
+  .po-row {{ grid-template-columns: 20px minmax(0, 1fr) auto; gap: 8px; }}
+  .po-row .mg {{ display: none; }}
+  .po-main {{ grid-template-columns: 48px 44px; }}
+  .po-chg {{ display: none; }}
+  .po-details {{ display: block; }}
+  .po-extra {{ grid-column: 2 / -1; justify-content: flex-start; gap: 12px; }}
+  .po-extra:empty {{ display: none; }}
   .pw-head, .pw-row {{ grid-template-columns: 26px minmax(0, 1fr) 40px 48px 30px; }}
   .pw-head .ms, .pw-row .ps {{ display: none; }}
   .nudge {{ margin-left: 0; }}

@@ -1,6 +1,6 @@
 {
   "_derived_from": "Story 5.8 oracle. build_weekly_facts() over week10-blowout.json (the anonymized week-10 fixture); generated_at pinned to '2026-09-07T00:00:00Z'; nfl_byes_next_week={IND, NO}.",
-  "schema_version": "0.15.0",
+  "schema_version": "0.16.0",
   "generated_at": "2026-09-07T00:00:00Z",
   "provisional": true,
   "issue_type": "weekly",
@@ -7364,6 +7364,7 @@
         "hook": "Bubble-Screen Bobcats has lost six straight.",
         "weeks_running": 1
       }
-    ]
+    ],
+    "playoff_odds": null
   }
 }

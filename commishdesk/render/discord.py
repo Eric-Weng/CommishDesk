@@ -122,6 +122,7 @@ _PLAYOFF_RULE = "── playoff line ──────────────"
 _FENCE = "```"
 
 # Trim order, first to go first (design-decisions "Discord rules").
+_DROP_ODDS = 0  # Story 9.5: the odds block goes before anything else, so the trade cards stay whole
 _DROP_AWARDS = 1
 _DROP_WIRE = 2
 _DROP_NEXT = 3
@@ -254,6 +255,24 @@ def _weekly_standings(facts: WeeklyFacts) -> list[_Block]:
             _Block("⚠️ Seeding unconfirmed — derived from the standings", 2)
         )
     return blocks
+
+
+def _weekly_odds(facts: WeeklyFacts) -> _Block | None:
+    """The playoff odds (Story 9.5): the header, one line per team (all rows up to 12 teams, else
+    the top eight and "and N more"), and the docs path as words. Absent when Facts carry no
+    block. First in the trim order (``_DROP_ODDS``)."""
+    view = wm.odds_view(facts)
+    if view is None:
+        return None
+    rows, left_out = wm.odds_text_rows(view)
+    lines = ["🎯 **Playoff odds**"]
+    if view.header:
+        lines.append(_md(view.header))
+    lines.extend(f"{row.rank}. {_md(wm.odds_row_line(row))}" for row in rows)
+    if left_out:
+        lines.append(f"and {left_out} more")
+    lines.append(_md(f"{wm.ODDS_LINK_TEXT}: {wm.DOCS_PLAYOFF_ODDS}"))
+    return _Block("\n".join(lines), 2, _DROP_ODDS)
 
 
 _REACTIONS = {"week_high": " 🔥", "closest": " 😬"}
@@ -436,6 +455,7 @@ def render_weekly_discord_post(facts: WeeklyFacts, issue: WeeklyIssue, *, issue_
     for block in (
         _weekly_lead(facts, issue),
         *_weekly_standings(facts),
+        _weekly_odds(facts),
         _weekly_results(facts),
         _weekly_power(facts) if not cold_start else None,
         _weekly_luck(facts) if not cold_start else None,

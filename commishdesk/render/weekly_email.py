@@ -365,6 +365,8 @@ _STYLE_BLOCK = (
     ".gap,.hide{display:none!important;}"
     ".lname{width:104px!important;}"
     "}"
+    # Story 9.5: at phone width the odds block keeps four ranked rows (plus the mover).
+    "@media only screen and (max-width:360px){.po-r5{display:none!important;}}"
 )
 
 
@@ -968,6 +970,97 @@ def _standings_title(facts: WeeklyFacts) -> str:
     return "The table"
 
 
+def _odds_row_html(row: wm.OddsRow, view: wm.OddsView, codes: dict[str, str], *, phone_hidden: bool) -> str:
+    cls = ' class="po-r5"' if phone_hidden else ""
+    cell = f"padding:9px 4px;border-top:1px solid {LINE};vertical-align:middle;"
+    if row.status == "in_race":
+        filled = max(1, min(100, round(row.make * 100)))
+        bar = _table() + "<tr>"
+        bar += (
+            f'<td width="{filled}%" height="8" bgcolor="{BAR}" style="background-color:{BAR};height:8px;'
+            f'font-size:0;line-height:8px;border-radius:4px;">&nbsp;</td>'
+        )
+        if filled < 100:
+            bar += '<td style="font-size:0;">&nbsp;</td>'
+        bar += "</tr></table>"
+        main = (
+            f'<td width="70" style="width:70px;{cell}">{bar}</td>'
+            f'<td width="44" align="right" style="width:44px;{cell}font-family:{_MONO};font-size:13px;'
+            f'color:{INK};">{_esc(row.pct or "")}</td>'
+        )
+    else:
+        if row.status == "clinched":
+            pill_style = f"background-color:{INK};color:{ON_MAST};border:2px solid {INK};"
+            word = "Clinched"
+        else:
+            pill_style = f"color:{INK2};border:2px solid {CUT};"
+            word = "Eliminated"
+        main = (
+            f'<td colspan="2" align="right" style="{cell}"><span style="display:inline-block;{pill_style}'
+            f'font-family:{_MONO};font-size:10px;font-weight:bold;letter-spacing:.08em;text-transform:uppercase;'
+            f'padding:1px 8px;border-radius:999px;">{word}</span></td>'
+        )
+    extra = []
+    if row.bye is not None:
+        extra.append(f"Bye {row.bye}")
+    if row.division is not None:
+        extra.append(f"Div. {row.division}")
+    sub = (
+        f'<div style="font-family:{_MONO};font-size:11px;color:{INK2};padding-top:2px;">{_esc(" · ".join(extra))}</div>'
+        if extra
+        else ""
+    )
+    return (
+        f'<tr{cls}>{_mono_cell(_code(codes, row.label), 24)}'
+        f'<td aria-label="{_esc(row.name)}" '
+        f'style="{cell}font-family:{_SANS};font-size:14px;font-weight:700;color:{INK};">'
+        f"{_esc(row.label)}{sub}</td>{main}</tr>"
+    )
+
+
+def _odds_section(facts: WeeklyFacts) -> tuple[str, list[str]]:
+    """The compact odds block for the standings section: ``(html rows, text lines)``, or two
+    empties when the Facts carry no block. HTML shows the top six (four at 320 px) plus the
+    biggest mover and links to the full list; the text part shows every row up to 12 teams, else
+    the top eight and a count."""
+    view = wm.odds_view(facts)
+    if view is None:
+        return "", []
+    codes = wm.monogram_codes([wm.team_label(team) for team in facts.teams])
+    shown = wm.odds_email_rows(view)
+    rows = "".join(
+        _odds_row_html(row, view, codes, phone_hidden=index >= wm.ODDS_EMAIL_PHONE_ROWS and row is not view.mover)
+        for index, row in enumerate(shown)
+    )
+    link = f"color:{EMPH_TEXT};text-decoration:underline;"
+    more = ""
+    if view.total > len(shown):
+        more = (
+            f'<a href="{ISSUE_URL_MARKER}#standings" style="{link}">All {view.total} teams in the web Issue</a> · '
+        )
+    docs = f'<a href="{SITE_URL_MARKER}{wm.DOCS_PLAYOFF_ODDS}" style="{link}">{wm.ODDS_LINK_TEXT}</a>'
+    html = _tr(
+        f'<div style="font-family:{_MONO};font-size:10px;letter-spacing:.1em;text-transform:uppercase;'
+        f'color:{INK2};padding-top:18px;">Playoff odds</div>'
+        + (_para(view.header, INK, 14, 6) if view.header else "")
+        + _table("border-collapse:separate;border-spacing:0;margin-top:8px;")
+        + rows
+        + "</table>"
+        + f'<div style="font-family:{_MONO};font-size:11px;line-height:1.6;color:{INK2};padding-top:8px;">'
+        f"{more}{docs}</div>",
+        "0 28px",
+    )
+    text_rows, left_out = wm.odds_text_rows(view)
+    text = ["", "Playoff odds"]
+    if view.header:
+        text.append(view.header)
+    text.extend(f"{row.rank:>2}. {wm.odds_row_line(row)}" for row in text_rows)
+    if left_out:
+        text.append(f"and {left_out} more")
+    text.append(f"{wm.ODDS_LINK_TEXT}: {wm.DOCS_PLAYOFF_ODDS}")
+    return html, text
+
+
 def _standings(facts: WeeklyFacts, blocks: list[str]) -> _Section | None:
     cold_start = not facts.period.has_prior_week
     order = wm.standings_order(facts)
@@ -1066,11 +1159,14 @@ def _standings(facts: WeeklyFacts, blocks: list[str]) -> _Section | None:
     # last block (the bracket summary) stays; at cold start there is none.
     kept = blocks[-1:] if window and picture is not None else []
     prose_html, prose_lines = _prose(kept)
+    odds_html, odds_text = _odds_section(facts)
+    text.extend(odds_text)
     _add_prose(text, prose_lines)
     html = _section_header("Standings", _standings_title(facts))
     if picture is not None and picture.seeding_unconfirmed:
         html += _tr(_para(unconfirmed_note), "0 28px")
     html += _tr(table, "2px 28px 0")
+    html += odds_html
     if prose_html:
         html += _tr(prose_html, "0 28px")
     return _Section("Standings", html, text)

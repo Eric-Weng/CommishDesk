@@ -345,7 +345,8 @@ def test_render_is_deterministic() -> None:
     assert _page(_raw(published=True)) == _page(_raw(published=True))
 
 
-#: SHA-256 of the static weekly page per committed fixture. History: Story 9.10 re-pinned all
+#: SHA-256 of the static weekly page per committed fixture. History: Story 9.5 re-pinned all three
+#: for the odds block's CSS only (these fixtures carry no odds block, so no markup changed); Story 9.10 re-pinned all
 #: three for the template narrator's new prose (lead de-duplication, varied game, standings,
 #: power and luck sentences); Story 9.7 re-pinned all
 #: three for the trade-card CSS and the "No trades this week" line (reviewed); Story
@@ -357,9 +358,9 @@ def test_render_is_deterministic() -> None:
 #: these only with a deliberate design change to the page, and regenerate them
 #: by running this test once and copying the printed digests.
 _GOLDEN_SHA256 = {
-    ("week10", "static"): "f8672d705478b8f5ea5f0e352e232b1e496d48cf5117cbb477fc5293c46d1265",
-    ("week10-published", "static"): "aae14530094c5b75c9a14a76cdf5b4851db63fca7ee8cf0bb86d9ed82b32cea9",
-    ("week01", "static"): "8edd2d4990031bf41faa2db9052ac068df25fbb912203df97b7a56a554d3c845",
+    ("week10", "static"): "f5e90e48378a562cc4e6d75160f8ea762ce4ade42ac09aeaf18f1888a497640d",
+    ("week10-published", "static"): "5b2fdfa9d4057b2baaf851d9faa052bb2a8635197b4f3e652ea5ef1650a391b3",
+    ("week01", "static"): "0ee7ad86a19e3d245756b40d823eb431fd6170c4c71efca93678237ee403dc18",
 }
 
 

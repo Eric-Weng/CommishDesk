@@ -1408,7 +1408,7 @@ def _week01_narration() -> WeeklyNarration:
     return WeeklyFacts.model_validate(raw).narration
 
 
-_COLD_START_OMITTED = ("playoff_picture", "transactions", "power", "luck", "storyline_candidates")
+_COLD_START_OMITTED = ("playoff_picture", "transactions", "power", "luck", "storyline_candidates", "playoff_odds")
 
 
 def test_weekly_cold_start_payload_omits_the_stood_down_sections() -> None:

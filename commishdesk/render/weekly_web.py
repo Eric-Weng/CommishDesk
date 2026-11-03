@@ -869,7 +869,69 @@ def _standings_section(ctx: _Ctx) -> str:
         f'<section {_sid("standings")} class="card table-card" data-standings aria-label="Standings" data-reveal>'
         f'{_head(ctx, "Standings", title, "good")}'
         f'{toggle_html}<div class="standings">{"".join(rows)}</div>{legend}{note}'
+        f"{_odds_block(ctx)}"
         f"{_prose(ctx, ctx.blocks(prose_heading))}</section>"
+    )
+
+
+# --------------------------------------------------------------------------- #
+# Playoff odds (Story 9.5) — folded into the standings section; absent, never zero
+# --------------------------------------------------------------------------- #
+
+
+def _odds_row(ctx: _Ctx, row: wm.OddsRow, view: wm.OddsView) -> str:
+    if row.status == "in_race":
+        pct = row.make * 100
+        main = (
+            f'<span class="po-bar" aria-hidden="true"><i style="width:{max(pct, 1.0):.1f}%"></i></span>'
+            f'<span class="po-pct">{_esc(row.pct or "")}</span>'
+        )
+    else:
+        word = "Clinched" if row.status == "clinched" else "Eliminated"
+        main = f'<span class="po-pill po-{row.status}">{word}</span>'
+    bye = ""
+    if view.has_bye:
+        bye = f'<span class="po-x">{_esc(f"Bye {row.bye}") if row.bye is not None else ""}</span>'
+    division = ""
+    if view.has_division:
+        division = f'<span class="po-x">{_esc(f"Div. {row.division}") if row.division is not None else ""}</span>'
+    change = ""
+    if row.change is not None and round(row.change) != 0:
+        move = round(row.change)
+        change = f'<span class="po-chg">{"+" if move > 0 else wm.MINUS}{abs(move)}</span>'
+    return (
+        f'<li class="po-row" aria-label="{_esc(row.name)}">'
+        f'<span class="rk" aria-hidden="true">{row.rank}</span>{ctx.mg(row.label)}'
+        f'<span class="tn" aria-hidden="true">{ctx.text(row.label)}</span>'
+        f'<span class="po-main" aria-hidden="true">{main}</span>'
+        f'<span class="po-extra" aria-hidden="true">{bye}{division}{change}</span></li>'
+    )
+
+
+def _odds_block(ctx: _Ctx) -> str:
+    view = wm.odds_view(ctx.facts)
+    if view is None:
+        return ""
+    rows = "".join(_odds_row(ctx, row, view) for row in view.rows)
+    moves = [row for row in view.rows if row.change is not None and round(row.change) != 0]
+    details = ""
+    if moves:
+        items = "".join(
+            f"<li>{_esc(row.label)}: {'+' if (row.change or 0) > 0 else wm.MINUS}"
+            f"{abs(round(row.change or 0))} points</li>"
+            for row in moves
+        )
+        details = (
+            f'<details class="po-details"><summary>Since last week</summary><ul>{items}</ul></details>'
+        )
+    labels = "Make playoffs" + (" · Bye" if view.has_bye else "") + (" · Division" if view.has_division else "")
+    header = f'<p class="po-head">{ctx.text(view.header)}</p>' if view.header else ""
+    return (
+        '<div class="po" role="group" aria-label="Playoff odds">'
+        '<p class="lab po-title">Playoff odds</p>'
+        f'{header}<p class="po-legend">{_esc(labels)}</p>'
+        f'<ul class="po-list">{rows}</ul>{details}'
+        f'<p class="po-src"><a href="{wm.DOCS_PLAYOFF_ODDS}">{wm.ODDS_LINK_TEXT}</a></p></div>'
     )
 
 
