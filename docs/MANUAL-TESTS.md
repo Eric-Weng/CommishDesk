@@ -210,7 +210,7 @@ These are done once (or once per milestone), not on a schedule.
   keeps the pill and bar contrast (open question from the 9.1 canvas); the Discord post is under 2,000 units and
   the odds block is the first thing trimmed. A league with more than 12 teams shows the top 8 and "and N more" on
   Discord and in text.
-- **Last run:** _never_ -- **open (needs a real Gmail send and a Discord channel).**
+- **Last run:** 2026-11-03 -- **pass, with gaps.** Back to Business, week 8, template narrator. Web at desktop, 320 px and dark: block correct; odds rows wrap awkwardly at 320 px (deferred-work). Email pasted into Gmail compose and sent to self: light and dark fine (a paste, not the raw HTML). Discord post to a test channel: posts cleanly at 1,352 units; the 12-team odds block was trimmed first, as designed, so it was not seen on Discord. Not run: a >12-team league (top 8 and "and N more"), the odds block on Discord.
 
 ---
 
