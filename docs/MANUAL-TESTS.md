@@ -194,7 +194,7 @@ These are done once (or once per milestone), not on a schedule.
   canvas); the Discord post is under 2,000 units with the trade block intact. The locked
   "trade revisited" panel appears on the web page only when rendered with
   `show_trade_revisited=True`.
-- **Last run:** _never_ -- **open (needs a real Gmail send and a Discord channel).**
+- **Last run:** 2026-11-04 -- **pass, with one gap.** Demo season week 6 (one graded trade), template narrator. Web at desktop, 320 px and dark, Gmail (pasted through compose, light and dark) and Discord (1,893 units, trade block intact, odds trimmed first) all fine. Trade card layout needs a UI pass (deferred-work). Not run: the locked "trade revisited" panel.
 
 ---
 
@@ -222,7 +222,7 @@ These are done once (or once per milestone), not on a schedule.
 - **Expected:** the Facts carry `matchups.remaining` with weeks `n+1 .. playoff_week_start-1` and
   `complete: true`; the run made `p - n - 2` more Sleeper requests than before (3 at `n = 10`,
   `p = 15`). Record the number in the 9.2 spec's Implementation Notes (input to 9.8).
-- **Last run:** _never_ -- **open (needs a real league and network).**
+- **Last run:** 2026-11-04 -- **pass.** Back to Business, week 8, p = 15: 33 Sleeper requests in the whole run, matchups fetched for weeks 1-14, so 5 more than the old weeks 1-9 (`p - n - 2` = 5). Note: the same run's cross-check failed on Sleeper's points_for (roster 3: computed 1184.97, Sleeper 1184.92), so the build held; that is a Sleeper data change since the 2026-11-03 run, not 9.2.
 
 ---
 
