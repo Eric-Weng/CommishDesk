@@ -85,17 +85,23 @@ section.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import ValidationError
 
 from commishdesk.errors import IngestError
 
 from .model import (
+    HISTORY_MODEL_VERSION,
     BracketMatch,
     Division,
     Draft,
     FaabTransfer,
+    History,
+    HistoryGame,
+    HistoryManager,
+    HistorySkip,
+    HistoryTeam,
     LeagueFormat,
     LeagueModel,
     Matchup,
@@ -104,6 +110,7 @@ from .model import (
     PlayerSnapshot,
     PlayoffFormat,
     Roster,
+    SeasonHistory,
     Team,
     TradedPick,
     Transaction,
@@ -120,6 +127,8 @@ if TYPE_CHECKING:
     from commishdesk.store import Store
 
 __all__ = [
+    "build_history",
+    "build_season_history",
     "build_league_model",
     "build_player_names",
     "build_player_snapshot",
@@ -957,3 +966,216 @@ def _as_float(value: Any) -> float | None:
         return float(value)
     except (TypeError, ValueError, OverflowError):
         return None
+
+
+# --------------------------------------------------------------------------- #
+# Story 9B.2 -- multi-season history
+# --------------------------------------------------------------------------- #
+
+
+def build_season_history(bundle: Mapping[str, Any]) -> SeasonHistory:
+    """One finished prior season from an adapter ``fetch_history_season`` bundle.
+
+    Managers are Sleeper user ids (a roster's ``owner_id``); co-owners are listed on
+    the team but never credited. An unowned roster is recorded with ``owner_id``
+    ``None`` and counts for no manager. Names pass :func:`sanitize`. The season's own
+    ``league_average_match`` adds median wins / losses to its standings only (never a
+    game); its own ``playoff_week_start`` splits regular weeks from playoff weeks
+    (absent or ``0`` -> no playoff / consolation games, no bracket)."""
+    league = _mapping(_section(bundle, "league", _MAPPING))
+    users = _section(bundle, "users", _LIST)
+    rosters = _section(bundle, "rosters", _LIST)
+    matchups = _mapping(bundle.get("matchups"))
+    settings = _mapping(league.get("settings"))
+
+    users_by_id = _index_users(users)
+    start_raw = _as_int(settings.get("playoff_week_start"))
+    start = start_raw if start_raw is not None and start_raw > 0 else None
+    median_rule = _as_int(settings.get("league_average_match")) == 1
+    season = _as_int(league.get("season"))
+    winners = _build_bracket(bundle.get("winners_bracket")) if start is not None else []
+
+    owner_by_roster: dict[str, str | None] = {}
+    teams: dict[str, dict[str, Any]] = {}
+    user_names: dict[str, str] = {}
+    for item in rosters:
+        roster = _object(item, "rosters")
+        if roster.get("roster_id") is None:
+            continue
+        rid = str(roster["roster_id"])
+        owner_raw = roster.get("owner_id")
+        owner = str(owner_raw) if owner_raw not in (None, "") else None
+        owner_by_roster[rid] = owner
+        user = users_by_id.get(owner) if owner is not None else None
+        name = _display_name(user)
+        if owner is not None and name:
+            user_names[owner] = name
+        teams[rid] = {
+            "roster_id": rid,
+            "owner_id": owner,
+            "co_owners": _co_owners(roster.get("co_owners")),
+            "team_name": _team_name(roster, user),
+            "wins": 0,
+            "losses": 0,
+            "ties": 0,
+            "median_wins": 0,
+            "median_losses": 0,
+            "points_for": 0.0,
+            "points_against": 0.0,
+        }
+
+    games: list[HistoryGame] = []
+    for week_key in sorted(matchups, key=_sort_key):
+        week = _as_int(week_key)
+        rows = matchups[week_key]
+        if week is None or not isinstance(rows, list):
+            continue
+        in_playoffs = start is not None and week >= start
+        paired = [
+            row
+            for row in rows
+            if isinstance(row, Mapping) and row.get("matchup_id") is not None and row.get("roster_id") is not None
+        ]
+        points_by_roster = {str(row["roster_id"]): _history_points(row) for row in paired}
+        if not points_by_roster or all(points == 0.0 for points in points_by_roster.values()):
+            continue  # an unplayed week
+        groups: dict[Any, list[str]] = {}
+        for row in paired:
+            groups.setdefault(row["matchup_id"], []).append(str(row["roster_id"]))
+        playoff_pairs = {
+            frozenset(match.roster_ids) for match in winners if start is not None and start + match.round - 1 == week
+        }
+        for rids in groups.values():
+            if len(rids) != 2 or rids[0] == rids[1]:
+                continue
+            a, b = sorted(rids, key=_sort_key)
+            pa, pb = points_by_roster[a], points_by_roster[b]
+            if not in_playoffs:
+                kind: Literal["regular", "playoff", "consolation"] = "regular"
+            elif frozenset((a, b)) in playoff_pairs:
+                kind = "playoff"
+            else:
+                kind = "consolation"
+            ma, mb = owner_by_roster.get(a), owner_by_roster.get(b)
+            winner = ma if pa > pb else mb if pb > pa else None
+            games.append(
+                HistoryGame(
+                    season=season or 0,
+                    week=week,
+                    kind=kind,
+                    roster_a=a,
+                    roster_b=b,
+                    manager_a=ma,
+                    manager_b=mb,
+                    points_a=pa,
+                    points_b=pb,
+                    winner=winner,
+                )
+            )
+            if kind == "regular":
+                for rid, mine, theirs in ((a, pa, pb), (b, pb, pa)):
+                    team = teams.get(rid)
+                    if team is None:
+                        continue
+                    team["points_for"] += mine
+                    team["points_against"] += theirs
+                    team["wins" if mine > theirs else "losses" if mine < theirs else "ties"] += 1
+        if median_rule and not in_playoffs:
+            ordered = sorted(points_by_roster.values())
+            mid = len(ordered) // 2
+            median = ordered[mid] if len(ordered) % 2 else (ordered[mid - 1] + ordered[mid]) / 2
+            for rid, points in points_by_roster.items():
+                team = teams.get(rid)
+                if team is not None and points != median:
+                    team["median_wins" if points > median else "median_losses"] += 1
+
+    champion = _history_champion(bundle.get("winners_bracket")) if start is not None else None
+    prev_raw = league.get("previous_league_id")
+    prev = str(prev_raw) if prev_raw not in (None, "", "0", 0) else None
+    return SeasonHistory(
+        season=season,
+        league_id=str(league.get("league_id", "")),
+        previous_league_id=prev,
+        status=sanitize(_text(league.get("status"))) or None,
+        median_rule=median_rule,
+        playoff_week_start=start,
+        playoffs=start is not None,
+        champion_roster_id=champion,
+        user_names=user_names,
+        teams=[HistoryTeam(**team) for team in sorted(teams.values(), key=lambda t: _sort_key(t["roster_id"]))],
+        games=games,
+    )
+
+
+def _history_points(row: Mapping[str, Any]) -> float:
+    custom = _as_float(row.get("custom_points"))
+    return custom if custom is not None else _as_float(row.get("points")) or 0.0
+
+
+def _history_champion(raw: Any) -> str | None:
+    """The winner of the bracket's first-place game (``p == 1``), when decided."""
+    if not isinstance(raw, list):
+        return None
+    for row in raw:
+        if isinstance(row, Mapping) and _as_int(row.get("p")) == 1 and row.get("w") is not None:
+            return str(row["w"])
+    return None
+
+
+def build_history(
+    seasons: list[SeasonHistory],
+    *,
+    current_bundle: Mapping[str, Any] | None = None,
+    partial: bool = False,
+    reason: str | None = None,
+    skipped: list[HistorySkip] | None = None,
+) -> History:
+    """The league's :class:`History` from its already-built seasons (any order; sorted
+    oldest first here). Managers are keyed by Sleeper user id: each season's roster
+    ``owner_id`` is its manager, so an owner change leaves the old owner's seasons
+    with them and starts the new owner's record. A manager still in *current_bundle*
+    (the current league's ``fetch`` bundle) shows the current display name; a
+    departed one shows the last name seen. ``partial`` / ``reason`` / ``skipped`` are
+    the caller's account of how the chain ended; nothing is guessed."""
+    ordered = sorted(seasons, key=lambda s: (s.season if s.season is not None else 0, s.league_id))
+    seasons_of: dict[str, list[int]] = {}
+    last_name: dict[str, str | None] = {}
+    for season in ordered:
+        for team in season.teams:
+            if team.owner_id is None:
+                continue
+            years = seasons_of.setdefault(team.owner_id, [])
+            if season.season is not None and season.season not in years:
+                years.append(season.season)
+            last_name[team.owner_id] = season.user_names.get(team.owner_id) or last_name.get(team.owner_id)
+
+    current_ids: set[str] = set()
+    current_names: dict[str, str] = {}
+    if current_bundle is not None:
+        for item in current_bundle.get("rosters") or []:
+            if isinstance(item, Mapping) and item.get("owner_id") not in (None, ""):
+                current_ids.add(str(item["owner_id"]))
+        users = current_bundle.get("users")
+        for user_id, user in _index_users(users if isinstance(users, list) else []).items():
+            name = _display_name(user)
+            if name:
+                current_names[user_id] = name
+
+    managers = [
+        HistoryManager(
+            user_id=user_id,
+            display_name=(current_names.get(user_id) if user_id in current_ids else None) or last_name.get(user_id),
+            current=user_id in current_ids,
+            seasons=sorted(seasons_of[user_id]),
+        )
+        for user_id in sorted(seasons_of, key=_sort_key)
+    ]
+    return History(
+        model_version=HISTORY_MODEL_VERSION,
+        partial=partial,
+        reason=reason,
+        seasons_covered=[s.season for s in ordered if s.season is not None],
+        skipped=list(skipped or []),
+        seasons=ordered,
+        managers=managers,
+    )

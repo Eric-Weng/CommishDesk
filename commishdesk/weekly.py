@@ -729,6 +729,35 @@ def fetch_weekly_bundles(adapter: Any, league_id: str, week: int) -> tuple[Mappi
     return week_bundle, adapter.fetch(league_id)
 
 
+def load_weekly_history(
+    adapter: Any,
+    league_bundle: Mapping[str, Any],
+    store: Store,
+    *,
+    max_seasons: int | None = None,
+    enabled: bool = True,
+    logger: logging.Logger | None = None,
+) -> Any:
+    """Story 9B.2: the league's multi-season :class:`~commishdesk.ingest.model.History`,
+    best-effort. Finished seasons come from the ``history`` cache namespace or one
+    ``adapter.fetch_history_season`` call each; ``max_seasons`` keeps the newest N and
+    ``enabled=False`` turns it off (no request). An adapter without the method, or any
+    failure, yields a partial or disabled history and never fails the run. Logs the
+    skipped seasons."""
+    from commishdesk.ingest import History, load_history
+
+    log = logger or logging.getLogger(f"{LOGGER_NAME}.history")
+    fetch_season = getattr(adapter, "fetch_history_season", None)
+    if not enabled or fetch_season is None:
+        return History(enabled=False)
+    history = load_history(league_bundle, fetch_season, store, max_seasons=max_seasons)
+    for skip in history.skipped:
+        log.info("history: skipped league %s (%s)", skip.league_id, skip.reason)
+    if history.partial:
+        log.info("history is partial: %s (seasons covered: %s)", history.reason, history.seasons_covered)
+    return history
+
+
 def compute_weekly_facts(
     store: Store,
     league_id: str,

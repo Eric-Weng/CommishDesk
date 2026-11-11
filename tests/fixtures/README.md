@@ -181,3 +181,13 @@ survives in any committed fixture.
 See [`CONTRIBUTING.md`](../../CONTRIBUTING.md). Assemble your own league export
 into the bundle shape above, run it through `tools/anonymize.py`, and open a PR
 with a one-line note on what it breaks. Never commit a raw, un-anonymized export.
+
+## `history/` (Story 9B.2)
+
+Hand-built, anonymized (`u1`..`u8`, invented first names) multi-season goldens for the history
+model: `season-2022.json`, `season-2023.json`, `season-2024.json` (the adapter's
+`fetch_history_season` shape) and `current.json` (the current league's `fetch` bundle, chain ids
+only). Scores are `100 + 10 * roster_id`, so the higher roster id wins every game. They cover an owner
+change (roster 4: u4 to u7 in 2024), a co-owner (roster 2 in 2023), a median rule on in 2023 only, a
+playoffs-off season (2024), an unowned roster (2024), and a renewal per season (new league id each year).
+`tests/test_history_ingest.py` serves them through `httpx.MockTransport`.

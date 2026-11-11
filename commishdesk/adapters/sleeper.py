@@ -92,6 +92,9 @@ _DEFAULT_TIMEOUT = 10.0
 # fetch. `_walk_history` enforces it (plus a repeated-id stop, retro finding C3);
 # pinned by a guard test in `tests/test_sleeper_adapter.py`.
 _MAX_HISTORY_HOPS = 10
+# Story 9B.2: the most weeks a finished season's matchups are read for (the NFL
+# regular season length); an empty week ends the read early.
+_MAX_HISTORY_WEEKS = 18
 _API_BASE = "https://api.sleeper.app/v1"
 
 # Keys normalized to `str` wherever they appear as a field in the returned
@@ -293,6 +296,9 @@ class SleeperAdapter:
         self._headers = {"User-Agent": f"CommishDesk/{__version__} (+{contact_url})"}
         self._client = client if client is not None else httpx.Client()
         self._owns_client = client is None
+        #: Story 9B.2: Sleeper requests made by :meth:`fetch_history_season` so far
+        #: (the measured input to the first-fetch budget); cached seasons add none.
+        self.history_calls = 0
 
     def close(self) -> None:
         """Close the underlying ``httpx.Client``, but only if this adapter
@@ -372,6 +378,53 @@ class SleeperAdapter:
             visited.append(current_id)
             current = hop_league.get("previous_league_id")
         return visited
+
+    def fetch_history_season(self, league_id: str) -> Mapping[str, Any]:
+        """Story 9B.2: one finished prior season's raw data -- the league, its users,
+        its rosters, every played week's matchups and (only when the season had
+        playoffs) the winners bracket -- all endpoints this adapter already calls.
+        Returns ``{"league", "users", "rosters", "matchups": {"<week>": rows},
+        "winners_bracket"}`` with ids normalized like :meth:`fetch`. Weeks are read
+        ``1..18`` and the read stops at the first week with no paired matchups.
+        Raises ``AdapterError`` (never a partial season) on any request or shape
+        failure; a 404 is a failure here (a hole in the chain, never guessed). Each
+        request adds one to :attr:`history_calls`. Not an ``Adapter`` protocol
+        member: ``fetch`` / ``fetch_week`` signatures are unchanged."""
+        league_id = str(league_id)
+        league = self._get_history(f"/league/{league_id}")
+        if not isinstance(league, Mapping):
+            raise AdapterError(f"Sleeper history season {league_id!r} returned a non-object league")
+        users = self._get_history(f"/league/{league_id}/users")
+        rosters = self._get_history(f"/league/{league_id}/rosters")
+        if not isinstance(users, list) or not isinstance(rosters, list):
+            raise AdapterError(f"Sleeper history season {league_id!r} returned a malformed users/rosters list")
+        matchups: dict[str, Any] = {}
+        for wk in range(1, _MAX_HISTORY_WEEKS + 1):
+            rows = self._get_history(f"/league/{league_id}/matchups/{wk}")
+            if not isinstance(rows, list):
+                raise AdapterError(f"Sleeper history season {league_id!r} week {wk} returned a non-list")
+            if not any(isinstance(r, Mapping) and r.get("matchup_id") is not None for r in rows):
+                break
+            matchups[str(wk)] = rows
+        start = _playoff_week_start(league)
+        winners_bracket: Any = []
+        if start is not None and start > 0:
+            winners_bracket = self._get_history(f"/league/{league_id}/winners_bracket")
+            if not isinstance(winners_bracket, list):
+                raise AdapterError(f"Sleeper history season {league_id!r} returned a non-list bracket")
+        return _stringify_ids(
+            {
+                "league": league,
+                "users": users,
+                "rosters": rosters,
+                "matchups": matchups,
+                "winners_bracket": winners_bracket,
+            }
+        )
+
+    def _get_history(self, path: str) -> Any:
+        self.history_calls += 1
+        return self._get(path)
 
     def fetch_week(self, league_id: str, week: int) -> Mapping[str, Any]:
         """Sequentially pull one league-week's raw Sleeper data: the league

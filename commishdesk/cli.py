@@ -42,6 +42,7 @@ from commishdesk.weekly import (
     assign_team_colors,
     compute_weekly_facts,
     fetch_weekly_bundles,
+    load_weekly_history,
     make_narration_record,
     parse_narration_record,
     persist_weekly_storylines,
@@ -207,6 +208,20 @@ def run(
             "(exit 1) and never falls back to the network."
         ),
     ),
+    history: bool = typer.Option(
+        True,
+        "--history/--no-history",
+        help=(
+            "Weekly runs: read the league's earlier Sleeper seasons (cached once per finished "
+            "season). --no-history makes no history request. History never fails the run."
+        ),
+    ),
+    history_seasons: int | None = typer.Option(
+        None,
+        "--history-seasons",
+        min=0,
+        help="Weekly runs: read at most this many of the newest earlier seasons; the rest are reported as skipped.",
+    ),
     verbose: bool = typer.Option(False, "--verbose", help="Increase output verbosity."),
     version: bool | None = typer.Option(
         None,
@@ -322,6 +337,8 @@ def run(
                     allow_content_hold=_allow_content_hold(allow_content_hold),
                     replay_narration=replay_narration,
                     players_file=players_file,
+                    history=history,
+                    history_seasons=history_seasons,
                 )
             except (CommishDeskError, OSError) as exc:
                 typer.echo(_one_line(exc), err=True)
@@ -543,6 +560,8 @@ def _run_weekly(
     allow_content_hold: bool = False,
     replay_narration: Path | None = None,
     players_file: Path | None = None,
+    history: bool = True,
+    history_seasons: int | None = None,
 ) -> int:
     """Derive the run list (the one Generation Set constructor) and build a weekly
     Issue for each activated league. Returns the process exit code: ``0`` when
@@ -603,6 +622,8 @@ def _run_weekly(
                 allow_content_hold=allow_content_hold,
                 replay_narration=replay_narration,
                 players_file=players_file,
+                history=history,
+                history_seasons=history_seasons,
             )
         except (CommishDeskError, OSError) as exc:
             logger.debug("league %s faulted: %s", resolved, _one_line(exc))
@@ -1186,9 +1207,14 @@ class _WeeklyRecapPhases(_RecapPhases):
         allow_content_hold: bool,
         replay_narration: Path | None = None,
         players_file: Path | None = None,
+        history: bool = True,
+        history_seasons: int | None = None,
     ) -> None:
         from commishdesk.store import FileStore
 
+        self.history_enabled = history
+        self.history_seasons = history_seasons
+        self.history: Any = None
         self.resolved = resolved
         self.week = week
         self.out_dir = out_dir
@@ -1211,6 +1237,17 @@ class _WeeklyRecapPhases(_RecapPhases):
         # Refuses before any stats work when Sleeper's own state says this week's
         # games are not final yet (or the season has not started).
         self.week_bundle, self.league_bundle = fetch_weekly_bundles(adapter, self.resolved, self.week)
+        # Story 9B.2: earlier seasons, best-effort -- a history fault never fails the run.
+        self.history = load_weekly_history(
+            adapter,
+            self.league_bundle,
+            self.ledger_store(),
+            max_seasons=self.history_seasons,
+            enabled=self.history_enabled,
+            logger=self.logger,
+        )
+        for skip in self.history.skipped:
+            typer.echo(f"history: skipped earlier season league {skip.league_id} ({skip.reason})", err=True)
 
     def build(self) -> None:
         # A --post run must not ship an Issue whose numbers disagree with Sleeper's
@@ -1369,6 +1406,8 @@ def _recap_one_league_weekly(
     allow_content_hold: bool = False,
     replay_narration: Path | None = None,
     players_file: Path | None = None,
+    history: bool = True,
+    history_seasons: int | None = None,
 ) -> None:
     """Story 5.11a: chain ingest → stats → facts → narrator → render for one
     league-week, writing the local text Issue plus the Story 2.7 generic HTML
@@ -1442,6 +1481,8 @@ def _recap_one_league_weekly(
             allow_content_hold=allow_content_hold,
             replay_narration=replay_narration,
             players_file=players_file,
+            history=history,
+            history_seasons=history_seasons,
         ),
     )
 
