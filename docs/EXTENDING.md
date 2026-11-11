@@ -70,6 +70,31 @@ recap's consensus fallback takes it too (`build_consensus_rank(players=...)`). A
 malformed, empty or stale file (none of the rostered ids is in it) fails with an `AdapterError` naming
 the file, never a network fallback; the caller owns the file's freshness.
 
+**Story 9B.2** adds the league's earlier Sleeper seasons without touching either protocol member.
+`SleeperAdapter.fetch_history_season(league_id)` is a plain method (not an `Adapter` protocol member):
+for one finished prior season it returns `{"league", "users", "rosters", "matchups", "winners_bracket"}`
+from endpoints the adapter already calls, reading matchup weeks `1..18` and stopping at the first week
+with no pairings; the bracket is requested only when the season had playoffs. `adapter.history_calls`
+counts its requests. The chain itself is still the bundle's `previous_league_ids` (the 10-season cap above
+is unchanged). `ingest/history.py::load_history(league_bundle, fetch_season, store, max_seasons=, enabled=)`
+walks that chain newest first, builds each season (`ingest/build.py::build_season_history`, then
+`build_history`) into a `History`, and never raises: a failure marks it `partial` with the seasons covered,
+a one-line `reason` and the `skipped` seasons, and the current Issue still renders. Managers are keyed by
+Sleeper user id (a roster's `owner_id`; co-owners are listed, never credited; an unowned roster counts for
+nobody), each season uses its own median rule and `playoff_week_start`, and median wins stay out of every
+head-to-head game. Finished seasons (`status == "complete"`) are cached once through the existing
+`Store.read_cache` / `write_cache` pair in namespace `history`, key = that season's own league id, each entry
+carrying `HISTORY_MODEL_VERSION` (another version is refetched); a fully cached league makes zero history
+requests. The CLI takes `--history-seasons N` (newest N; the rest are reported as skipped) and
+`--no-history`. The Facts JSON is unchanged.
+
+**Measured first-fetch cost (input to 9B.12).** A season costs 3 requests (league, users, rosters) + one per
+played matchup week + 1 empty-week probe + 1 winners bracket (playoff seasons only). The golden fixtures
+(5 played weeks + bracket, 5 weeks, no bracket / 4 weeks) cost 10 + 10 + 8 = 28 requests for 3 seasons. A real
+18-week-schedule season with 14 regular + 3 playoff weeks costs about 3 + 17 + 1 + 1 = 22, so a 10-season first
+fetch is about 220 requests (and the chain ids already come free with the league bundle). The author-league
+manual run is not recorded here; re-measure with `adapter.history_calls` against a real league.
+
 ### `Voice` — `commishdesk/voices/`
 
 A `Voice` supplies `system_prompt: str`, `banned_topics: frozenset[str]`, and

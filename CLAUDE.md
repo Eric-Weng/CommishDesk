@@ -167,6 +167,8 @@ self-hosters inherit them and CI enforces them.
   layers on top.
 - **Storage is a port (AD-5).** `Store` ABC + `FileStore` only. No cloud SDK in engine
   code. Every `Store` implementation guarantees read-after-write consistency.
+  Blob-cache namespaces in use include `history` (Story 9B.2: one finished prior Sleeper
+  season per league id, carrying `HISTORY_MODEL_VERSION`; no new port method).
 - **One paid LLM call per league-week (AD-8 / I3).** primary → fallback → template, then
   at most one fail-open claim-verification call before LLM prose ships.
 - **A fault skips one league, never the batch (AD-9).** Typed exceptions under

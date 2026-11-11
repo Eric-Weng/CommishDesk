@@ -2097,3 +2097,51 @@ def test_weekly_a_bad_suppress_sections_config_fails_naming_league_and_id(
     result = runner.invoke(app, ["--league", "612", "--week", "17", "--out-dir", str(tmp_path)])
     assert result.exit_code != 0
     assert "612" in result.output and "bogus" in result.output
+
+
+def _history_stub(monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    """Stub adapter with a chain of two earlier seasons whose fetch always fails
+    (Story 9B.2). Returns the league ids ``fetch_history_season`` was asked for."""
+    from commishdesk import demo
+    from commishdesk.errors import AdapterError
+
+    bundle = {**demo.load_demo_bundle(), "previous_league_ids": ["p1", "p2"]}
+    _stub_adapter(monkeypatch, league_bundle=bundle)
+    asked: list[str] = []
+
+    def _fetch_history_season(self: object, league_id: str) -> Any:
+        asked.append(league_id)
+        raise AdapterError("boom")
+
+    monkeypatch.setattr(
+        "commishdesk.adapters.sleeper.SleeperAdapter.fetch_history_season", _fetch_history_season, raising=False
+    )
+    return asked
+
+
+def test_weekly_history_failure_never_fails_the_run(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
+    asked = _history_stub(monkeypatch)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+    result = runner.invoke(app, ["--league", "77", "--week", "17", "--out-dir", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    assert asked == ["p1"]  # the first failure stops the walk
+    assert (tmp_path / "commishdesk-77-weekly-week17.txt").is_file()
+
+
+def test_weekly_no_history_makes_no_history_request(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
+    asked = _history_stub(monkeypatch)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+    result = runner.invoke(app, ["--league", "77", "--week", "17", "--out-dir", str(tmp_path), "--no-history"])
+    assert result.exit_code == 0, result.output
+    assert asked == []
+
+
+def test_weekly_history_seasons_caps_and_reports_the_skipped(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
+    asked = _history_stub(monkeypatch)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+    result = runner.invoke(
+        app, ["--league", "77", "--week", "17", "--out-dir", str(tmp_path), "--history-seasons", "1"]
+    )
+    assert result.exit_code == 0, result.output
+    assert asked == ["p1"]
+    assert "history: skipped earlier season league p2 (capped at 1 seasons)" in result.output

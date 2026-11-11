@@ -42,9 +42,18 @@ empty, so a bundle that predates the story still builds unchanged.
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field
 
 __all__ = [
+    "HISTORY_MODEL_VERSION",
+    "History",
+    "HistoryGame",
+    "HistoryManager",
+    "HistorySkip",
+    "HistoryTeam",
+    "SeasonHistory",
     "BracketMatch",
     "Division",
     "Draft",
@@ -355,3 +364,103 @@ class PlayerSnapshot(_Frozen):
     player_id: str
     position: str | None = None
     nfl_team: str | None = None
+
+
+# --------------------------------------------------------------------------- #
+# Story 9B.2 -- Sleeper-true multi-season history
+# --------------------------------------------------------------------------- #
+
+#: Bumped whenever the shape or meaning of a cached :class:`SeasonHistory`
+#: changes. A cached finished season carrying another version is refetched.
+HISTORY_MODEL_VERSION = 1
+
+
+class HistoryGame(_Frozen):
+    """One head-to-head game of one past season. ``manager_a`` / ``manager_b`` are
+    Sleeper user ids (the roster's ``owner_id``; co-owners are never credited),
+    ``None`` for an unowned roster. ``winner`` is the winning side's user id --
+    ``None`` for a tie or when the winning roster is unowned. Median wins are never
+    games: they live only in :class:`HistoryTeam`."""
+
+    season: int
+    week: int
+    kind: Literal["regular", "playoff", "consolation"]
+    roster_a: str
+    roster_b: str
+    manager_a: str | None = None
+    manager_b: str | None = None
+    points_a: float
+    points_b: float
+    winner: str | None = None
+
+
+class HistoryTeam(_Frozen):
+    """One roster's regular-season line in one past season. ``wins`` / ``losses`` /
+    ``ties`` are head-to-head only; ``median_wins`` / ``median_losses`` are the
+    extra record from that season's own median rule (``0`` when it was off)."""
+
+    roster_id: str
+    owner_id: str | None = None
+    co_owners: list[str] = Field(default_factory=list)
+    team_name: str | None = None
+    wins: int = 0
+    losses: int = 0
+    ties: int = 0
+    median_wins: int = 0
+    median_losses: int = 0
+    points_for: float = 0.0
+    points_against: float = 0.0
+
+
+class SeasonHistory(_Frozen):
+    """One finished prior Sleeper season. ``median_rule`` and ``playoff_week_start``
+    are that season's own settings; a playoffs-off season (``playoff_week_start``
+    absent or ``0``) has ``playoffs=False``, no playoff / consolation games and no
+    ``champion_roster_id``."""
+
+    season: int | None = None
+    league_id: str
+    previous_league_id: str | None = None
+    status: str | None = None
+    median_rule: bool = False
+    playoff_week_start: int | None = None
+    playoffs: bool = False
+    champion_roster_id: str | None = None
+    user_names: dict[str, str] = Field(default_factory=dict)
+    teams: list[HistoryTeam] = Field(default_factory=list)
+    games: list[HistoryGame] = Field(default_factory=list)
+
+
+class HistoryManager(_Frozen):
+    """One manager keyed by Sleeper user id. ``display_name`` is the current display
+    name when the user is still in the current league, else the last name seen.
+    ``seasons`` lists the seasons the user owned a roster (an owner change on a
+    roster starts a new manager record; it never moves a record between users)."""
+
+    user_id: str
+    display_name: str | None = None
+    current: bool = False
+    seasons: list[int] = Field(default_factory=list)
+
+
+class HistorySkip(_Frozen):
+    """A prior season not loaded, and why (``capped``, or a failure reason)."""
+
+    league_id: str
+    reason: str
+
+
+class History(_Frozen):
+    """A league's prior seasons, oldest first. ``partial`` is True when the chain
+    was cut short (a failure, a broken link, the 10-hop cap or a caller's season
+    cap); ``seasons_covered`` and ``reason`` say how far it reaches and why it
+    stops -- nothing missing is guessed. ``enabled=False`` is the off switch."""
+
+    model_version: int = HISTORY_MODEL_VERSION
+    enabled: bool = True
+    partial: bool = False
+    reason: str | None = None
+    seasons_covered: list[int] = Field(default_factory=list)
+    skipped: list[HistorySkip] = Field(default_factory=list)
+    seasons: list[SeasonHistory] = Field(default_factory=list)
+    managers: list[HistoryManager] = Field(default_factory=list)
