@@ -45,6 +45,7 @@ from commishdesk.errors import CommishDeskError, SchemaValidationError
 from commishdesk.facts import SCHEMA_VERSION, WeeklyFacts, build_weekly_facts
 from commishdesk.ingest import (
     Draft,
+    History,
     LeagueFormat,
     LeagueModel,
     Matchup,
@@ -107,6 +108,7 @@ def _week10_facts(*, nfl_byes_next_week: frozenset[str] | None = BYES_NEXT_WEEK)
         names,
         generated_at=GENERATED_AT,
         nfl_byes_next_week=nfl_byes_next_week,
+        history=History(),  # Story 9B.3: enabled, nothing earlier -> the one-season block
     )
 
 
@@ -201,7 +203,7 @@ def _synthetic(
 def test_week10_build_validates_and_has_twelve_teams() -> None:
     doc = _week10_facts()
     assert isinstance(doc, WeeklyFacts)
-    assert doc.schema_version == "0.16.0" == SCHEMA_VERSION
+    assert doc.schema_version == "0.17.0" == SCHEMA_VERSION
     assert doc.issue_type == "weekly"
     assert doc.week == 10
     assert len(doc.teams) == 12
@@ -869,6 +871,55 @@ def test_week10_matches_the_committed_oracle() -> None:
     expected = json.loads(EXPECTED_WEEKLY_PATH.read_text(encoding="utf-8"))
     expected = {k: v for k, v in expected.items() if not k.startswith("_")}
     assert built == expected
+
+
+# --------------------------------------------------------------------------- #
+# Story 9B.3: the history block
+# --------------------------------------------------------------------------- #
+
+
+def _week10_with(history: History | None) -> WeeklyFacts:
+    bundle = _bundle(WEEK10)
+    return build_weekly_facts(
+        build_week_model(bundle),
+        build_league_model(bundle),
+        build_player_snapshot(bundle),
+        build_player_names(bundle),
+        generated_at=GENERATED_AT,
+        nfl_byes_next_week=BYES_NEXT_WEEK,
+        history=history,
+    )
+
+
+def test_history_block_is_present_with_a_history_and_absent_without() -> None:
+    assert _week10_with(None).history is None
+    assert _week10_with(History(enabled=False)).history is None
+    block = _week10_with(History()).history
+    assert block is not None
+    assert block.all_time is False and block.wording == "this_season" and block.seasons_covered == [2025]
+    assert len(block.league_lines) <= 3
+    assert [m.when for m in block.matchups].count("this_week") == 6
+    assert [m.when for m in block.matchups].count("next_week") == 6
+    assert all(m.callback is None or m.callback.sources for m in block.matchups)
+    text = block.model_dump_json().lower()
+    assert "all-time" not in text and '"wording":"all_time"' not in text
+
+
+def test_history_block_survives_a_prior_season_nobody_in_the_league_played() -> None:
+    from commishdesk.ingest import SeasonHistory
+
+    prior = History(seasons=[SeasonHistory(season=2024, league_id="old")], seasons_covered=[2024])
+    block = _week10_with(prior).history
+    assert block is not None and block.all_time is True and block.seasons_covered == [2024, 2025]
+    assert all(m.callback is None or not m.callback.kind.startswith("first_") for m in block.matchups)
+
+
+def test_the_history_block_never_changes_anything_else_in_the_document() -> None:
+    with_history = _week10_with(History()).model_dump(mode="json")
+    without = _week10_with(None).model_dump(mode="json")
+    with_history.pop("history")
+    without.pop("history")
+    assert with_history == without
 
 
 # --------------------------------------------------------------------------- #

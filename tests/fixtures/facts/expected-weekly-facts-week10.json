@@ -1,6 +1,6 @@
 {
-  "_derived_from": "Story 5.8 oracle. build_weekly_facts() over week10-blowout.json (the anonymized week-10 fixture); generated_at pinned to '2026-09-07T00:00:00Z'; nfl_byes_next_week={IND, NO}.",
-  "schema_version": "0.16.0",
+  "_derived_from": "Story 5.8 oracle. build_weekly_facts() over week10-blowout.json (the anonymized week-10 fixture); generated_at pinned to '2026-09-07T00:00:00Z'; nfl_byes_next_week={IND, NO}. history=History() (Story 9B.3: enabled, nothing earlier, so the one-season history block).",
+  "schema_version": "0.17.0",
   "generated_at": "2026-09-07T00:00:00Z",
   "provisional": true,
   "issue_type": "weekly",
@@ -7366,5 +7366,584 @@
       }
     ],
     "playoff_odds": null
+  },
+  "history": {
+    "all_time": false,
+    "wording": "this_season",
+    "seasons_covered": [
+      2025
+    ],
+    "seasons_on_record": 1,
+    "partial": false,
+    "partial_reason": null,
+    "records": [
+      {
+        "metric": "highest_score",
+        "value": 263.99,
+        "manager_id": "id_1ugx9qsbx3",
+        "roster_id": "9",
+        "season": 2025,
+        "week": 5,
+        "sources": [
+          {
+            "season": 2025,
+            "weeks": [
+              5
+            ]
+          }
+        ]
+      },
+      {
+        "metric": "lowest_score",
+        "value": 68.39,
+        "manager_id": "id_w2l1zlh55w",
+        "roster_id": "11",
+        "season": 2025,
+        "week": 8,
+        "sources": [
+          {
+            "season": 2025,
+            "weeks": [
+              8
+            ]
+          }
+        ]
+      },
+      {
+        "metric": "biggest_margin",
+        "value": 138.19,
+        "manager_id": "id_s9a3queopr",
+        "roster_id": "1",
+        "season": 2025,
+        "week": 10,
+        "sources": [
+          {
+            "season": 2025,
+            "weeks": [
+              10
+            ]
+          }
+        ]
+      },
+      {
+        "metric": "win_streak",
+        "value": 7.0,
+        "manager_id": "id_jdetw9pdax",
+        "roster_id": "2",
+        "season": 2025,
+        "week": 7,
+        "sources": [
+          {
+            "season": 2025,
+            "weeks": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ]
+          }
+        ]
+      },
+      {
+        "metric": "loss_streak",
+        "value": 6.0,
+        "manager_id": "id_w2l1zlh55w",
+        "roster_id": "11",
+        "season": 2025,
+        "week": 10,
+        "sources": [
+          {
+            "season": 2025,
+            "weeks": [
+              5,
+              6,
+              7,
+              8,
+              9,
+              10
+            ]
+          }
+        ]
+      }
+    ],
+    "matchups": [
+      {
+        "when": "this_week",
+        "week": 10,
+        "matchup_id": 2,
+        "a_roster_id": "1",
+        "b_roster_id": "5",
+        "a_points": 229.96,
+        "b_points": 91.77,
+        "winner_roster_id": "1",
+        "h2h": {
+          "a_manager_id": "id_s9a3queopr",
+          "b_manager_id": "id_22ay41b2dk",
+          "a_wins": 1,
+          "b_wins": 0,
+          "ties": 0,
+          "playoff_a_wins": 0,
+          "playoff_b_wins": 0,
+          "playoff_ties": 0,
+          "meetings": 1,
+          "seasons": [
+            2025
+          ],
+          "last_meeting": null,
+          "streak": {
+            "roster_id": "1",
+            "manager_id": "id_s9a3queopr",
+            "count": 1
+          },
+          "sources": [
+            {
+              "season": 2025,
+              "weeks": [
+                10
+              ]
+            }
+          ]
+        },
+        "callback": {
+          "kind": "record_set",
+          "tier": 0,
+          "all_time": false,
+          "wording": "this_season",
+          "roster_id": "1",
+          "manager_id": "id_s9a3queopr",
+          "opponent_roster_id": null,
+          "metric": "biggest_margin",
+          "value": 138.19,
+          "since_season": null,
+          "record": {
+            "metric": "biggest_margin",
+            "value": 104.48,
+            "manager_id": "id_4upj3szyrw",
+            "roster_id": "10",
+            "season": 2025,
+            "week": 1,
+            "sources": [
+              {
+                "season": 2025,
+                "weeks": [
+                  1
+                ]
+              }
+            ]
+          },
+          "sources": [
+            {
+              "season": 2025,
+              "weeks": [
+                1,
+                10
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "when": "this_week",
+        "week": 10,
+        "matchup_id": 5,
+        "a_roster_id": "2",
+        "b_roster_id": "10",
+        "a_points": 242.03,
+        "b_points": 112.37,
+        "winner_roster_id": "2",
+        "h2h": {
+          "a_manager_id": "id_jdetw9pdax",
+          "b_manager_id": "id_4upj3szyrw",
+          "a_wins": 1,
+          "b_wins": 0,
+          "ties": 0,
+          "playoff_a_wins": 0,
+          "playoff_b_wins": 0,
+          "playoff_ties": 0,
+          "meetings": 1,
+          "seasons": [
+            2025
+          ],
+          "last_meeting": null,
+          "streak": {
+            "roster_id": "2",
+            "manager_id": "id_jdetw9pdax",
+            "count": 1
+          },
+          "sources": [
+            {
+              "season": 2025,
+              "weeks": [
+                10
+              ]
+            }
+          ]
+        },
+        "callback": null
+      },
+      {
+        "when": "this_week",
+        "week": 10,
+        "matchup_id": 4,
+        "a_roster_id": "3",
+        "b_roster_id": "6",
+        "a_points": 247.2,
+        "b_points": 114.69,
+        "winner_roster_id": "3",
+        "h2h": {
+          "a_manager_id": "id_buffkdafoj",
+          "b_manager_id": "id_zxb3twnxx0",
+          "a_wins": 1,
+          "b_wins": 0,
+          "ties": 0,
+          "playoff_a_wins": 0,
+          "playoff_b_wins": 0,
+          "playoff_ties": 0,
+          "meetings": 1,
+          "seasons": [
+            2025
+          ],
+          "last_meeting": null,
+          "streak": {
+            "roster_id": "3",
+            "manager_id": "id_buffkdafoj",
+            "count": 1
+          },
+          "sources": [
+            {
+              "season": 2025,
+              "weeks": [
+                10
+              ]
+            }
+          ]
+        },
+        "callback": null
+      },
+      {
+        "when": "this_week",
+        "week": 10,
+        "matchup_id": 3,
+        "a_roster_id": "4",
+        "b_roster_id": "9",
+        "a_points": 172.23,
+        "b_points": 117.13,
+        "winner_roster_id": "4",
+        "h2h": {
+          "a_manager_id": "id_zean76kf4f",
+          "b_manager_id": "id_1ugx9qsbx3",
+          "a_wins": 1,
+          "b_wins": 0,
+          "ties": 0,
+          "playoff_a_wins": 0,
+          "playoff_b_wins": 0,
+          "playoff_ties": 0,
+          "meetings": 1,
+          "seasons": [
+            2025
+          ],
+          "last_meeting": null,
+          "streak": {
+            "roster_id": "4",
+            "manager_id": "id_zean76kf4f",
+            "count": 1
+          },
+          "sources": [
+            {
+              "season": 2025,
+              "weeks": [
+                10
+              ]
+            }
+          ]
+        },
+        "callback": null
+      },
+      {
+        "when": "this_week",
+        "week": 10,
+        "matchup_id": 6,
+        "a_roster_id": "7",
+        "b_roster_id": "12",
+        "a_points": 119.97,
+        "b_points": 126.03,
+        "winner_roster_id": "12",
+        "h2h": {
+          "a_manager_id": "id_c5g5oj0jn6",
+          "b_manager_id": "id_zwi3yzjvgq",
+          "a_wins": 0,
+          "b_wins": 1,
+          "ties": 0,
+          "playoff_a_wins": 0,
+          "playoff_b_wins": 0,
+          "playoff_ties": 0,
+          "meetings": 1,
+          "seasons": [
+            2025
+          ],
+          "last_meeting": null,
+          "streak": {
+            "roster_id": "12",
+            "manager_id": "id_zwi3yzjvgq",
+            "count": 1
+          },
+          "sources": [
+            {
+              "season": 2025,
+              "weeks": [
+                10
+              ]
+            }
+          ]
+        },
+        "callback": null
+      },
+      {
+        "when": "this_week",
+        "week": 10,
+        "matchup_id": 1,
+        "a_roster_id": "8",
+        "b_roster_id": "11",
+        "a_points": 183.14,
+        "b_points": 154.38,
+        "winner_roster_id": "8",
+        "h2h": {
+          "a_manager_id": "id_roh4pg10wg",
+          "b_manager_id": "id_w2l1zlh55w",
+          "a_wins": 1,
+          "b_wins": 0,
+          "ties": 0,
+          "playoff_a_wins": 0,
+          "playoff_b_wins": 0,
+          "playoff_ties": 0,
+          "meetings": 1,
+          "seasons": [
+            2025
+          ],
+          "last_meeting": null,
+          "streak": {
+            "roster_id": "8",
+            "manager_id": "id_roh4pg10wg",
+            "count": 1
+          },
+          "sources": [
+            {
+              "season": 2025,
+              "weeks": [
+                10
+              ]
+            }
+          ]
+        },
+        "callback": {
+          "kind": "record_set",
+          "tier": 0,
+          "all_time": false,
+          "wording": "this_season",
+          "roster_id": "11",
+          "manager_id": "id_w2l1zlh55w",
+          "opponent_roster_id": null,
+          "metric": "loss_streak",
+          "value": 6.0,
+          "since_season": null,
+          "record": {
+            "metric": "loss_streak",
+            "value": 5.0,
+            "manager_id": "id_4upj3szyrw",
+            "roster_id": "10",
+            "season": 2025,
+            "week": 7,
+            "sources": [
+              {
+                "season": 2025,
+                "weeks": [
+                  3,
+                  4,
+                  5,
+                  6,
+                  7
+                ]
+              }
+            ]
+          },
+          "sources": [
+            {
+              "season": 2025,
+              "weeks": [
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "when": "next_week",
+        "week": 11,
+        "matchup_id": 1,
+        "a_roster_id": "1",
+        "b_roster_id": "11",
+        "a_points": null,
+        "b_points": null,
+        "winner_roster_id": null,
+        "h2h": null,
+        "callback": null
+      },
+      {
+        "when": "next_week",
+        "week": 11,
+        "matchup_id": 5,
+        "a_roster_id": "2",
+        "b_roster_id": "12",
+        "a_points": null,
+        "b_points": null,
+        "winner_roster_id": null,
+        "h2h": null,
+        "callback": null
+      },
+      {
+        "when": "next_week",
+        "week": 11,
+        "matchup_id": 4,
+        "a_roster_id": "3",
+        "b_roster_id": "9",
+        "a_points": null,
+        "b_points": null,
+        "winner_roster_id": null,
+        "h2h": null,
+        "callback": null
+      },
+      {
+        "when": "next_week",
+        "week": 11,
+        "matchup_id": 3,
+        "a_roster_id": "4",
+        "b_roster_id": "6",
+        "a_points": null,
+        "b_points": null,
+        "winner_roster_id": null,
+        "h2h": null,
+        "callback": null
+      },
+      {
+        "when": "next_week",
+        "week": 11,
+        "matchup_id": 2,
+        "a_roster_id": "5",
+        "b_roster_id": "8",
+        "a_points": null,
+        "b_points": null,
+        "winner_roster_id": null,
+        "h2h": null,
+        "callback": null
+      },
+      {
+        "when": "next_week",
+        "week": 11,
+        "matchup_id": 6,
+        "a_roster_id": "7",
+        "b_roster_id": "10",
+        "a_points": null,
+        "b_points": null,
+        "winner_roster_id": null,
+        "h2h": null,
+        "callback": null
+      }
+    ],
+    "league_lines": [
+      {
+        "kind": "record_set",
+        "tier": 0,
+        "all_time": false,
+        "wording": "this_season",
+        "roster_id": "1",
+        "manager_id": "id_s9a3queopr",
+        "opponent_roster_id": null,
+        "metric": "biggest_margin",
+        "value": 138.19,
+        "since_season": null,
+        "record": {
+          "metric": "biggest_margin",
+          "value": 104.48,
+          "manager_id": "id_4upj3szyrw",
+          "roster_id": "10",
+          "season": 2025,
+          "week": 1,
+          "sources": [
+            {
+              "season": 2025,
+              "weeks": [
+                1
+              ]
+            }
+          ]
+        },
+        "sources": [
+          {
+            "season": 2025,
+            "weeks": [
+              1,
+              10
+            ]
+          }
+        ]
+      },
+      {
+        "kind": "record_set",
+        "tier": 0,
+        "all_time": false,
+        "wording": "this_season",
+        "roster_id": "11",
+        "manager_id": "id_w2l1zlh55w",
+        "opponent_roster_id": null,
+        "metric": "loss_streak",
+        "value": 6.0,
+        "since_season": null,
+        "record": {
+          "metric": "loss_streak",
+          "value": 5.0,
+          "manager_id": "id_4upj3szyrw",
+          "roster_id": "10",
+          "season": 2025,
+          "week": 7,
+          "sources": [
+            {
+              "season": 2025,
+              "weeks": [
+                3,
+                4,
+                5,
+                6,
+                7
+              ]
+            }
+          ]
+        },
+        "sources": [
+          {
+            "season": 2025,
+            "weeks": [
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10
+            ]
+          }
+        ]
+      }
+    ]
   }
 }

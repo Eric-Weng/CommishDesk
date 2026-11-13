@@ -1263,6 +1263,7 @@ class _WeeklyRecapPhases(_RecapPhases):
             seeding=self.seeding,
             hold_on_cross_check=self.post,
             logger=self.logger,
+            history=self.history,
         )
         self.built = built
         self.cross_check_passed = built.cross_check_passed

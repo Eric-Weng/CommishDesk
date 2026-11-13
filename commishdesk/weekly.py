@@ -769,6 +769,7 @@ def compute_weekly_facts(
     hold_on_cross_check: bool,
     logger: logging.Logger,
     league_value_source: str | None = None,
+    history: Any = None,
 ) -> WeeklyFactsBuild:
     """Raw bundles to the weekly Facts JSON. A standings cross-check failure raises
     ``CrossCheckError`` when ``hold_on_cross_check`` (a posting or hosted run), and otherwise
@@ -777,7 +778,9 @@ def compute_weekly_facts(
     Story 9.6a: before the Facts are built, the week's League Value snapshot is read from the
     ``Store`` or built and cached there (best-effort, never fails the Issue) and returned on the
     build as ``league_value``; the Facts JSON is unchanged. ``league_value_source`` is
-    ``nflverse``, ``sleeper_only`` or ``off``; ``None`` reads ``COMMISHDESK_LEAGUE_VALUE_SOURCE``."""
+    ``nflverse``, ``sleeper_only`` or ``off``; ``None`` reads ``COMMISHDESK_LEAGUE_VALUE_SOURCE``.
+    ``history`` (Story 9B.3) is the optional 9B.2 :class:`~commishdesk.ingest.History`
+    the ``history`` callbacks block is built from."""
     from commishdesk.demo_season import DEMO_LEAGUE_ID
     from commishdesk.errors import CrossCheckError
     from commishdesk.facts.weekly import build_weekly_facts
@@ -861,6 +864,7 @@ def compute_weekly_facts(
         playoff_seeding=seeding,
         recent_lead_kinds=recent_lead_kinds(store, league_id, week),
         league_value=league_value,
+        history=history,
     )
     facts_json = doc.model_dump(mode="json")
     facts_json.update(_run_stat_modules(facts_json, logger))
