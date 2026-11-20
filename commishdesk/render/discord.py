@@ -123,12 +123,13 @@ _FENCE = "```"
 
 # Trim order, first to go first (design-decisions "Discord rules").
 _DROP_ODDS = 0  # Story 9.5: the odds block goes before anything else, so the trade cards stay whole
-_DROP_AWARDS = 1
-_DROP_WIRE = 2
-_DROP_NEXT = 3
-_DROP_LUCK = 4
-_DROP_POWER = 5
-_DROP_RESULTS = 6
+_DROP_HISTORY = 1  # Story 9B.4: the history lines are the next to go, well before the results
+_DROP_AWARDS = 2
+_DROP_WIRE = 3
+_DROP_NEXT = 4
+_DROP_LUCK = 5
+_DROP_POWER = 6
+_DROP_RESULTS = 7
 _DROP_STANDINGS_ROW = 100  # + distance from the bottom, so the last row goes first
 
 
@@ -273,6 +274,27 @@ def _weekly_odds(facts: WeeklyFacts) -> _Block | None:
         lines.append(f"and {left_out} more")
     lines.append(_md(f"{wm.ODDS_LINK_TEXT}: {wm.DOCS_PLAYOFF_ODDS}"))
     return _Block("\n".join(lines), 2, _DROP_ODDS)
+
+
+def _weekly_history(facts: WeeklyFacts) -> _Block | None:
+    """The history callbacks (Story 9B.4): each this-week game's one line, then the league lines,
+    from the shared wording, markdown-escaped. Its own trim tier (:data:`_DROP_HISTORY`), dropped
+    before the results. Absent when there is nothing to say (no heading, no gap)."""
+    view = wm.history_view(facts)
+    if view is None:
+        return None
+    lines: list[str] = []
+    for matchup in facts.matchups.this_week:
+        win_id, _, lose_id, _ = wm.winner_loser(matchup)
+        line = view.for_game(win_id, lose_id)
+        if line:
+            lines.append(f"• {_md(line)}")
+    lines.extend(f"• {_md(line)}" for line in view.league)
+    if view.note:
+        lines.append(_md(view.note))
+    if not lines:
+        return None
+    return _Block("\n".join(["📜 **History**", *lines]), 1, _DROP_HISTORY)
 
 
 _REACTIONS = {"week_high": " 🔥", "closest": " 😬"}
@@ -429,7 +451,7 @@ def render_weekly_discord_post(facts: WeeklyFacts, issue: WeeklyIssue, *, issue_
     its emoji.
 
     The body is trimmed to :data:`WEEKLY_BODY_BUDGET` UTF-16 units in the
-    approved order — awards, wire, next week, luck, power, results, then
+    approved order — odds, history (Story 9B.4), awards, wire, next week, luck, power, results, then
     standings rows from the bottom up to row 7 (or the playoff cut, when that
     sits lower). The title, correction, lead, rows 1–6 and the playoff line
     are never trimmed. The whole post is at most 2,000 UTF-16 units.
@@ -457,6 +479,7 @@ def render_weekly_discord_post(facts: WeeklyFacts, issue: WeeklyIssue, *, issue_
         *_weekly_standings(facts),
         _weekly_odds(facts),
         _weekly_results(facts),
+        _weekly_history(facts),
         _weekly_power(facts) if not cold_start else None,
         _weekly_luck(facts) if not cold_start else None,
         _weekly_next(facts),

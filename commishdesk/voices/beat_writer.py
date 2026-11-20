@@ -257,6 +257,16 @@ _RULE_PLAYOFF_ODDS = """Playoff odds. When the JSON carries ``playoff_odds``, it
    none when it is null. The odds say what the numbers expect, not what will
    happen."""
 
+_RULE_HISTORY = """League history. When the JSON carries ``history``, it is every history fact you may
+   use, and the Issue already prints its callback lines under the games and under a
+   "League history" heading, so do not restate them as a list. You may refer to one in
+   passing, but only with the numbers, seasons and team names it gives: never invent
+   a record, a season, a streak or a series score, never write "first since" or "first
+   ever" unless a ``first_*`` line says it, and say "all-time" only when ``wording`` is
+   ``all_time``. With ``wording`` ``this_season`` there is no all-time anything, and with
+   ``seasons_on_record`` say "in N seasons on record". If the JSON has no ``history``,
+   say nothing about league history."""
+
 _RULE_POWER_RANKINGS = """Power Rankings is a numbered list, one line per ranked team, best first, in
    exactly this shape: "1. <team name exactly as the JSON gives it> — <one
    sentence>". The number is YOUR published rank. Each row of the JSON's power
@@ -390,6 +400,8 @@ def _weekly_prompt(*, cold_start: bool, suppressed: frozenset[str] = frozenset()
         rules.append(_RULE_STANDINGS_COLD_START)
     if not cold_start and "standings" in ids:
         rules.append(_RULE_PLAYOFF_ODDS)
+    if not cold_start and "around_league" in ids:
+        rules.append(_RULE_HISTORY)
     if not cold_start and "power" in ids:
         rules.append(_RULE_POWER_RANKINGS)
     rules += [length, _rule_voice(cold_start=cold_start, ids=ids), _RULE_BANNED]

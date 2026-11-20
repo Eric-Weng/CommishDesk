@@ -248,6 +248,23 @@ These are done once (or once per milestone), not on a schedule.
 
 ---
 
+## 9B.4 History callbacks in the Issue (browser, Gmail light and dark, text, Discord)
+
+- **What to do:** run one local weekly build for the author's league at a mid-season week with history on (a
+  league with two or more Sleeper seasons), then view the web page at 320 px and desktop in light and dark, send the
+  email to a real Gmail inbox and view it in light and dark, read the `.txt` and `.email.txt` outputs, and post the
+  Discord text to a test channel. Spot-check every printed line against Sleeper (the head-to-head record, the
+  record's season and week, the "first since" season).
+- **Expected:** each game that has a callback shows one line under it, and up to three league lines follow the
+  results under "League history"; a game with no callback shows nothing (no empty box, no blank line); a league with
+  one season on record never says "all-time" and never "0-0"; a partial chain says "in N seasons on record" and
+  carries the "History covers ..." note; the same line text appears on every surface; no horizontal scroll at 320
+  px; the Discord post stays under 2,000 units, the history block sits after the results and is trimmed before them,
+  and a team name with markdown characters is escaped. Week 1 prints no history anywhere.
+- **Last run:** not run yet -- needs a league with history; hosted history stays off until 9B.12.
+
+---
+
 ## Change log
 
 - **2026-09-10** — file created. Seeded from the `**Manual checks:**` blocks of

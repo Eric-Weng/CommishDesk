@@ -868,6 +868,7 @@ def _results(facts: WeeklyFacts, blocks: list[str]) -> _Section | None:
     if not games:
         return None
     label = wm.labeller(facts)
+    history = wm.history_view(facts)
     # The same unique two-letter codes the web page prints (8.16b).
     codes = wm.monogram_codes([wm.team_label(team) for team in facts.teams])
     text: list[str] = []
@@ -902,10 +903,19 @@ def _results(facts: WeeklyFacts, blocks: list[str]) -> _Section | None:
             + tag_html
             + "</td></tr>"
         )
+        game_line = history.for_game(win_id, lose_id) if history is not None else None
+        history_row = (
+            f'<tr><td style="padding:10px 16px 12px;border-top:1px solid {LINE};'
+            f'font-family:{_SANS};font-size:13px;line-height:1.45;color:{INK2};">'
+            f'<span style="font-family:{_MONO};font-size:10px;letter-spacing:1px;text-transform:uppercase;'
+            f'color:{EMPH_TEXT};">History</span><br>{_esc(game_line)}</td></tr>'
+            if game_line
+            else ""
+        )
         cards.append(
             f'<tr><td bgcolor="{CARD}" style="background-color:{CARD};border:1px solid {LINE};'
             f'border-radius:12px;padding:0;"><table role="presentation" width="100%" '
-            f'cellpadding="0" cellspacing="0">{top}{bottom}</table></td></tr>'
+            f'cellpadding="0" cellspacing="0">{top}{bottom}{history_row}</table></td></tr>'
             '<tr><td height="12" style="height:12px;font-size:0;line-height:12px;">&nbsp;</td></tr>'
         )
 
@@ -919,6 +929,8 @@ def _results(facts: WeeklyFacts, blocks: list[str]) -> _Section | None:
                 f"{winner_name} {wm.pts(win_pts)} over {loser_name} {wm.pts(lose_pts)}"
                 + (f" [{tag[0]}]" if tag else "")
             )
+        if game_line:
+            text.append(f"  {game_line}")
 
     # Story 6-11: the per-game sentences (the leading blocks that name both teams of a
     # game, plus the template's "The other N ..." roll-up of the games it did not narrate)
@@ -930,10 +942,25 @@ def _results(facts: WeeklyFacts, blocks: list[str]) -> _Section | None:
             break
         leading += 1
     prose_html, prose_lines = _prose(blocks[leading:])
+    if history is not None and history.league:
+        text.extend(["", wm.HISTORY_HEADING, *(f"- {line}" for line in history.league)])
+    if history is not None and history.note:
+        text.append(history.note)
     _add_prose(text, prose_lines)
 
     html = _section_header("Around the league", _results_title(games))
     html += _tr(_table() + "".join(cards) + "</table>", "0 28px 0")
+    if history is not None and (history.league or history.note):
+        league_html = ""
+        if history.league:
+            league_html += (
+                f'<div style="font-family:{_SANS};font-size:18px;font-weight:bold;line-height:1.2;'
+                f'color:{INK};padding-top:4px;">{_esc(wm.HISTORY_HEADING)}</div>'
+            )
+            league_html += "".join(_para(line, INK2, 14, 6) for line in history.league)
+        if history.note:
+            league_html += _small(history.note)
+        html += _tr(league_html, "8px 28px 0")
     if prose_html:
         html += _tr(prose_html, "0 28px")
     return _Section("Around the league", html, text)

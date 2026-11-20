@@ -132,6 +132,9 @@ __all__ = [
     "WeeklyMove",
     "WeeklyMovePlayer",
     "WeeklyNarration",
+    "WeeklyNarrationHistory",
+    "WeeklyNarrationHistoryLine",
+    "WeeklyNarrationHistoryMatchup",
     "WeeklyNarrationOdds",
     "WeeklyNarrationOddsTeam",
     "WeeklyNarrationGame",
@@ -177,7 +180,7 @@ __all__ = [
     "WeeklyWeekPoints",
 ]
 
-SCHEMA_VERSION = "0.17.0"
+SCHEMA_VERSION = "0.18.0"
 """Semver contract version. Additive key -> minor bump; shape change -> major.
 ``0.4.0`` -> ``0.5.0`` (Story 5.8): the empty ``WeeklyFacts`` placeholder becomes
 the real weekly document and its ``WeeklyNarration``; ``DraftRecapFacts.weekly``
@@ -203,7 +206,9 @@ loader and never dumped by the model) additively. ``0.15.0`` -> ``0.16.0`` (Stor
 ``WeeklyPlayoffOddsTeam.change`` and ``WeeklyNarration.playoff_odds`` (a numbers-only odds projection)
 additively; the odds block now also reaches ``WeeklyFacts.playoff_odds`` on a fresh build. ``0.16.0`` -> ``0.17.0``
 (Story 9B.3) adds ``WeeklyFacts.history`` (:class:`WeeklyHistoryBlock`: head-to-head series, league
-records and first-time events, each citing its source seasons and weeks) additively."""
+records and first-time events, each citing its source seasons and weeks) additively. ``0.17.0`` -> ``0.18.0``
+(Story 9B.4) adds ``WeeklyNarration.history`` (:class:`WeeklyNarrationHistory`, the narrator's numbers-and-labels
+view of the history block, dropped first by the token-cap ladder) additively."""
 
 _ISSUE_TYPE: Literal["draft_recap"] = "draft_recap"
 _IssueType = Literal["draft_recap", "weekly"]
@@ -1647,6 +1652,59 @@ class WeeklyNarrationOdds(_Doc):
     mover_roster_id: str | None = None
 
 
+class WeeklyNarrationHistoryLine(_Doc):
+    """One narrated history callback (Story 9B.4): the callback's kind, its subject and opponent as
+    sanitized team labels, and the numbers and seasons it cites. No prose. ``record_*`` describe the
+    record a ``record_*`` callback beat, tied or sits one short of."""
+
+    kind: str
+    team: str | None = None
+    roster_id: str | None = None
+    opponent: str | None = None
+    opponent_roster_id: str | None = None
+    metric: str | None = None
+    value: float | None = None
+    since_season: int | None = None
+    record_value: float | None = None
+    record_season: int | None = None
+    record_week: int | None = None
+
+
+class WeeklyNarrationHistoryMatchup(_Doc):
+    """One pairing's series as the narrator sees it: wins, ties, meetings, the seasons met, the last
+    earlier meeting and the current head-to-head streak, plus the pairing's one callback."""
+
+    when: Literal["this_week", "next_week"]
+    a: str
+    a_roster_id: str
+    b: str
+    b_roster_id: str
+    a_wins: int = 0
+    b_wins: int = 0
+    ties: int = 0
+    meetings: int = 0
+    seasons: list[int] = []
+    last_meeting_season: int | None = None
+    last_meeting_week: int | None = None
+    streak_team: str | None = None
+    streak_count: int | None = None
+    callback: WeeklyNarrationHistoryLine | None = None
+
+
+class WeeklyNarrationHistory(_Doc):
+    """The narrator's view of the ``history`` block (Story 9B.4): numbers and labels only, so every
+    figure a callback prints is in the payload (AD-12). ``wording`` says how a callback may be
+    scoped (``all_time`` / ``seasons_on_record`` / ``this_season``). First thing the narration cap
+    ladder drops; omitted at cold start (week 1)."""
+
+    wording: Literal["all_time", "seasons_on_record", "this_season"]
+    all_time: bool
+    seasons_on_record: int
+    seasons_covered: list[int] = []
+    matchups: list[WeeklyNarrationHistoryMatchup] = []
+    league_lines: list[WeeklyNarrationHistoryLine] = []
+
+
 class WeeklyNarrationTransactions(_Doc):
     """The narrated transactions glance."""
 
@@ -1683,6 +1741,7 @@ class WeeklyNarration(_Doc):
     lead_candidates: list[LeadCandidate] = []
     storyline_candidates: list[StorylineCandidate] = []
     playoff_odds: WeeklyNarrationOdds | None = None
+    history: WeeklyNarrationHistory | None = None
 
 
 # --------------------------------------------------------------------------- #

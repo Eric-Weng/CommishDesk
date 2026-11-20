@@ -181,8 +181,8 @@ def build_weekly_payload(
     cost estimate is priced against is *byte-identical* to the one
     :func:`narrate_weekly_issue` actually sends.
 
-    Story 5.16: ``cold_start=True`` omits ``playoff_odds`` (Story 9.5), ``playoff_picture``, ``transactions``,
-    ``power``, ``luck`` and ``storyline_candidates`` from the model payload and
+    Story 5.16: ``cold_start=True`` omits ``playoff_odds`` (Story 9.5), ``history`` (Story 9B.4),
+    ``playoff_picture``, ``transactions``, ``power``, ``luck`` and ``storyline_candidates`` from the model payload and
     orders ``standings`` by points with positional ranks. Warm payload bytes stay
     unchanged.
 
@@ -198,9 +198,17 @@ def build_weekly_payload(
     if not cold_start:
         return narration.model_dump_json(exclude=dropped) if dropped else narration.model_dump_json()
     cold = narration.model_copy(update={"standings": cold_start_standings(narration.standings)})
-    # Cold start (Week 1) has no odds to narrate: the key is excluded outright (Story 9.5).
+    # Cold start (Week 1) has no odds or history to narrate: the keys are excluded outright (Stories 9.5, 9B.4).
     return cold.model_dump_json(
-        exclude={"playoff_picture", "transactions", "power", "luck", "storyline_candidates", "playoff_odds"}
+        exclude={
+            "playoff_picture",
+            "transactions",
+            "power",
+            "luck",
+            "storyline_candidates",
+            "playoff_odds",
+            "history",
+        }
     )
 
 

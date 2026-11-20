@@ -255,7 +255,7 @@
           "type": "boolean"
         },
         "schema_version": {
-          "default": "0.17.0",
+          "default": "0.18.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -2146,7 +2146,7 @@
           "type": "boolean"
         },
         "schema_version": {
-          "default": "0.17.0",
+          "default": "0.18.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -3383,6 +3383,17 @@
           "title": "Games",
           "type": "array"
         },
+        "history": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WeeklyNarrationHistory"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "lead_candidates": {
           "default": [],
           "items": {
@@ -3581,6 +3592,318 @@
         "margin"
       ],
       "title": "WeeklyNarrationGame",
+      "type": "object"
+    },
+    "WeeklyNarrationHistory": {
+      "description": "The narrator's view of the ``history`` block (Story 9B.4): numbers and labels only, so every\nfigure a callback prints is in the payload (AD-12). ``wording`` says how a callback may be\nscoped (``all_time`` / ``seasons_on_record`` / ``this_season``). First thing the narration cap\nladder drops; omitted at cold start (week 1).",
+      "properties": {
+        "all_time": {
+          "title": "All Time",
+          "type": "boolean"
+        },
+        "league_lines": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WeeklyNarrationHistoryLine"
+          },
+          "title": "League Lines",
+          "type": "array"
+        },
+        "matchups": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WeeklyNarrationHistoryMatchup"
+          },
+          "title": "Matchups",
+          "type": "array"
+        },
+        "seasons_covered": {
+          "default": [],
+          "items": {
+            "type": "integer"
+          },
+          "title": "Seasons Covered",
+          "type": "array"
+        },
+        "seasons_on_record": {
+          "title": "Seasons On Record",
+          "type": "integer"
+        },
+        "wording": {
+          "enum": [
+            "all_time",
+            "seasons_on_record",
+            "this_season"
+          ],
+          "title": "Wording",
+          "type": "string"
+        }
+      },
+      "required": [
+        "wording",
+        "all_time",
+        "seasons_on_record"
+      ],
+      "title": "WeeklyNarrationHistory",
+      "type": "object"
+    },
+    "WeeklyNarrationHistoryLine": {
+      "description": "One narrated history callback (Story 9B.4): the callback's kind, its subject and opponent as\nsanitized team labels, and the numbers and seasons it cites. No prose. ``record_*`` describe the\nrecord a ``record_*`` callback beat, tied or sits one short of.",
+      "properties": {
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "metric": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Metric"
+        },
+        "opponent": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Opponent"
+        },
+        "opponent_roster_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Opponent Roster Id"
+        },
+        "record_season": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Record Season"
+        },
+        "record_value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Record Value"
+        },
+        "record_week": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Record Week"
+        },
+        "roster_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Roster Id"
+        },
+        "since_season": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Since Season"
+        },
+        "team": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Team"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "title": "WeeklyNarrationHistoryLine",
+      "type": "object"
+    },
+    "WeeklyNarrationHistoryMatchup": {
+      "description": "One pairing's series as the narrator sees it: wins, ties, meetings, the seasons met, the last\nearlier meeting and the current head-to-head streak, plus the pairing's one callback.",
+      "properties": {
+        "a": {
+          "title": "A",
+          "type": "string"
+        },
+        "a_roster_id": {
+          "title": "A Roster Id",
+          "type": "string"
+        },
+        "a_wins": {
+          "default": 0,
+          "title": "A Wins",
+          "type": "integer"
+        },
+        "b": {
+          "title": "B",
+          "type": "string"
+        },
+        "b_roster_id": {
+          "title": "B Roster Id",
+          "type": "string"
+        },
+        "b_wins": {
+          "default": 0,
+          "title": "B Wins",
+          "type": "integer"
+        },
+        "callback": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WeeklyNarrationHistoryLine"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "last_meeting_season": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Meeting Season"
+        },
+        "last_meeting_week": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Meeting Week"
+        },
+        "meetings": {
+          "default": 0,
+          "title": "Meetings",
+          "type": "integer"
+        },
+        "seasons": {
+          "default": [],
+          "items": {
+            "type": "integer"
+          },
+          "title": "Seasons",
+          "type": "array"
+        },
+        "streak_count": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Streak Count"
+        },
+        "streak_team": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Streak Team"
+        },
+        "ties": {
+          "default": 0,
+          "title": "Ties",
+          "type": "integer"
+        },
+        "when": {
+          "enum": [
+            "this_week",
+            "next_week"
+          ],
+          "title": "When",
+          "type": "string"
+        }
+      },
+      "required": [
+        "when",
+        "a",
+        "a_roster_id",
+        "b",
+        "b_roster_id"
+      ],
+      "title": "WeeklyNarrationHistoryMatchup",
       "type": "object"
     },
     "WeeklyNarrationLeague": {

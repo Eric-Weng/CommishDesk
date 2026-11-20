@@ -24,6 +24,12 @@ source: commishdesk/stats/history_callbacks.py::_h2h
 
 **What is kept.** At most one callback per pairing (`matchups[].callback`) and three league lines (`league_lines`). Candidates rank by tier (records set or tied, then first-time events, then a head-to-head streak of at least 3 straight meetings or a streak within reach, then a series lead), then the most recent cited season first, then roster id, then kind and metric. No randomness and no clock, so the same input gives the same lines.
 
+**In the Issue (Story 9B.4).** One wording module, `commishdesk/facts/history_wording.py`, turns each callback into a line from Facts keys only; every surface calls it, so no surface words a callback itself and the same Facts give the same line everywhere. Lines use digits, never spelled numbers. "all-time" appears only when `wording` is `all_time`; `seasons_on_record` says "in N seasons on record"; `this_season` says "this season"; a series is never worded "0-0" (no meeting, no `h2h`, no line). A line never uses a verb that must agree with a team name. The placement is the 9B.1 canvas's G2-3: at most one line under its game, and up to three league lines after the results under a "League history" heading, with a one-line note under a partial chain. Nothing to say means nothing printed: no heading, no empty box, no blank lines. The web Issue, the email (light and dark, and its plain-text part), the weekly text and the Discord post all print it; the Discord post holds it in its own block, trimmed right after the playoff odds and before the results, and escapes team names like the rest of the post. Week 1 (a cold start) prints no history on any surface. A league line that duplicates a game's line is printed once.
+
+**For the narrator.** `narration.history` is a numbers-and-labels view of the block (team labels beside roster ids, wins, ties, meetings, seasons, streaks and each kept callback's record and `since_season`); the token-cap ladder drops it before every other tier, before the playoff odds, and never touches the lead. A week-1 projection omits it. The template narrator states only the projection and prints no history prose of its own: the callback lines come from the renderers. For LLM prose, `narrate/verify.py::history_claim_findings` is a deterministic check (no model call) that turns an unsupported history claim into a `hallucination` finding: a season not on record, "all-time" when `wording` is not `all_time`, a "first ... since/ever" with no matching first-time callback or with the wrong season, a league record with no record callback (or another metric's), a head-to-head streak or series score the projection does not carry, or "N seasons on record" with the wrong N. The existing response then regenerates once and degrades to the template.
+
+**As a lead.** A record set this week (strictly beaten, never merely tied and never "within reach") is a `record_set` lead candidate. It ranks second, after `lineup_loss` and before `biggest_blowout`, and fires only when the Facts carry a `history` block.
+
 ## Worked example
 
 Fixture: `tests/fixtures/facts/expected-weekly-facts-week10.json` (the anonymized league "Trench Warfare", one season on record).
@@ -157,4 +163,8 @@ def _h2h(series: list[_Game], a: str, b: str, ma: str, mb: str, now_last: Pos | 
 - **Within reach.** A current win or loss streak exactly one short of a record of at least 3 games is `record_within_reach`, citing the record held.
 - **No earlier games.** Nothing is "set" or "tied" in a league's very first week on record.
 - **Many candidates.** Six pairings and eight league lines still give at most one callback each and three league lines, ranked as described above.
-- **No history.** `history` is `null` and the Issue renders as before.
+- **No history.** `history` is `null` and the Issue renders as before: no history line on any surface, no `record_set` lead, no `narration.history`.
+- **No callback.** A block with no callback prints nothing: no heading, no empty box.
+- **Cap pressure.** The narrator's history view is dropped first; the lead, standings and games are intact, and `SchemaValidationError` is raised only if the projection is still over the cap after the final tier.
+- **The model invents a history claim.** "First win since 2019" when the Facts say 2022 is a `hallucination` finding on LLM prose; template prose is exempt because it states only the projection.
+- **Markdown in a name.** The Discord post escapes the team name inside a history line like every other value outside a code block.

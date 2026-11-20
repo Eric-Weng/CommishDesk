@@ -1590,11 +1590,16 @@ def _render_and_write_weekly_issue(
     whose narration carries them and their cited reasons. This runs after
     :func:`_produce_weekly_issue`, so ``check_narration`` has already seen the
     ranks-only payload; stamping the reasons here cannot make them in-world."""
-    from commishdesk.narrate.weekly_template import weekly_issue_to_text
-    from commishdesk.render import render_weekly_email, render_weekly_web, write_html_file, write_text_file
+    from commishdesk.render import (
+        render_weekly_email,
+        render_weekly_text,
+        render_weekly_web,
+        write_html_file,
+        write_text_file,
+    )
 
     stem = _issue_filename_stem(week, "weekly")
-    text = weekly_issue_to_text(issue)
+    text = render_weekly_text(doc, issue)
     typer.echo(text)
 
     render_doc = _weekly_render_doc(doc, published_ranks, nudge_justifications)

@@ -42,6 +42,7 @@ from commishdesk.render.email import EmailParts, render_email
 from commishdesk.render.enhancer import EnhancerRejected, WebEnhancer
 from commishdesk.render.web import render_web
 from commishdesk.render.weekly_email import render_weekly_email
+from commishdesk.render.weekly_text import render_weekly_text
 from commishdesk.render.weekly_web import render_weekly_web
 
 __all__ = [
@@ -55,6 +56,7 @@ __all__ = [
     "render_web",
     "render_weekly_discord_post",
     "render_weekly_email",
+    "render_weekly_text",
     "render_weekly_web",
     "utf16_len",
     "write_draft_recap",

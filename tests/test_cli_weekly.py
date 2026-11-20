@@ -222,8 +222,17 @@ class _WeeklyVoiceClient:
     ``POWER_NUDGE_CAP``.
     """
 
-    def __init__(self, nudge: int = 0, *, invent_fact: bool = False, hold: bool = False, tight: bool = False) -> None:
+    def __init__(
+        self,
+        nudge: int = 0,
+        *,
+        invent_fact: bool = False,
+        hold: bool = False,
+        tight: bool = False,
+        invent_history: bool = False,
+    ) -> None:
         self.nudge = nudge
+        self.invent_history = invent_history
         self.hold = hold
         self.tight = tight
         self.invent_fact = invent_fact
@@ -255,6 +264,14 @@ class _WeeklyVoiceClient:
                 else s
                 for s in sections
             ]
+        if self.invent_history:
+            # Story 9B.4: a history claim the Facts do not carry (no history was supplied at all).
+            sections = [
+                s.model_copy(update={"blocks": [*s.blocks, "It was their first win since 2019 against this side."]})
+                if s.heading == "The Lead"
+                else s
+                for s in sections
+            ]
         if self.invent_fact:
             # The matrix's "nudge cites an absent fact" row: a number that
             # appears nowhere in the narration payload — the closed-world scan
@@ -282,11 +299,14 @@ def _stub_weekly_voice(
     invent_fact: bool = False,
     hold: bool = False,
     tight: bool = False,
+    invent_history: bool = False,
     ceiling: str = "100",
 ) -> _WeeklyVoiceClient:
     """Point the CLI at a fake weekly Voice, and set the key + ceiling that let it
     run at all. Returns the client so a test can count its calls."""
-    client = _WeeklyVoiceClient(nudge=nudge, invent_fact=invent_fact, hold=hold, tight=tight)
+    client = _WeeklyVoiceClient(
+        nudge=nudge, invent_fact=invent_fact, hold=hold, tight=tight, invent_history=invent_history
+    )
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
     monkeypatch.setenv("COMMISHDESK_COST_CEILING_USD", ceiling)
     monkeypatch.setattr("commishdesk.narrate.llm.build_client", lambda cfg: client)

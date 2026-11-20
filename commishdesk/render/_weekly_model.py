@@ -35,6 +35,7 @@ import re
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from typing import NamedTuple
 
+from commishdesk.facts import history_wording as hw
 from commishdesk.facts.schema import (
     LeadCandidate,
     WeeklyAllPlay,
@@ -862,6 +863,38 @@ def odds_view(facts: WeeklyFacts) -> OddsView | None:
     if mover is not None:
         parts.append(odds_mover_text(mover))
     return OddsView(rows, " ".join(parts), has_bye, has_division, mover)
+
+
+class HistoryView(NamedTuple):
+    """The history lines to print (Story 9B.4), every one from ``facts/history_wording.py``: a line per
+    pairing (keyed by its two roster ids) and up to three league lines. Only built when there is at
+    least one line; the placement is the 9B.1 canvas's G2-3."""
+
+    by_pair: dict[frozenset[str], str]
+    league: list[str]
+    note: str | None
+
+    def for_game(self, *roster_ids: str | None) -> str | None:
+        return self.by_pair.get(frozenset(r for r in roster_ids if r))
+
+
+def history_view(facts: WeeklyFacts) -> HistoryView | None:
+    """The history callbacks as printable lines, or ``None`` when there is nothing true to say: no
+    block, no callback, or week 1 (a cold start prints no history, like the odds). Nothing renders
+    then: no heading, no empty box, no blank lines."""
+    if facts.history is None or not facts.period.has_prior_week:
+        return None
+    label = labeller(facts)
+    by_pair = hw.matchup_lines(facts.history, label)
+    printed = set(by_pair.values())
+    league = [line for line in hw.league_lines(facts.history, label) if line not in printed]  # never twice
+    if not by_pair and not league:
+        return None
+    return HistoryView(by_pair, league, hw.partial_note(facts.history))
+
+
+#: The heading above the league-level lines, on every surface.
+HISTORY_HEADING = "League history"
 
 
 def odds_mover_text(row: OddsRow) -> str:

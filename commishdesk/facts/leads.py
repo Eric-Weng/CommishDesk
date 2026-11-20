@@ -36,10 +36,13 @@ from collections.abc import Sequence
 from commishdesk.ingest import LeagueModel
 from commishdesk.stats import BoardMetrics, ConsensusMetrics, DraftGrades
 
+from .history_wording import callback_line
 from .schema import (
     DraftSummary,
     LeadCandidate,
     Superlatives,
+    WeeklyHistoryBlock,
+    WeeklyHistoryCallback,
     WeeklyPeriod,
     WeeklyTeam,
     WeekMarginRef,
@@ -263,6 +266,7 @@ def _biggest_score(league: LeagueModel) -> LeadCandidate | None:
 
 WEEKLY_LEAD_KIND_PRIORITY: tuple[str, ...] = (
     "lineup_loss",
+    "record_set",
     "biggest_blowout",
     "closest_game",
     "week_high_score",
@@ -270,7 +274,18 @@ WEEKLY_LEAD_KIND_PRIORITY: tuple[str, ...] = (
 """Editorial priority order for the weekly lead angles (FR-14). The team that
 lost a game it should have won leads; the week's shape (its biggest blowout, its
 closest game) follows; the week's high score is the floor, never the default.
-Every ``kind`` a detector below emits must appear here."""
+Every ``kind`` a detector below emits must appear here.
+
+Story 9B.4 adds ``record_set`` in second place: a league record broken this week (strictly
+beaten, never merely tied and never "within reach") is rarer and more shareable than any single
+week's shape, but it does not outrank a lineup loss, which FR-14 reserves the lead for. It only
+fires when the Facts carry a ``history`` block, so a league with no history leads exactly as
+before. One candidate per week: the record kinds rank highest score, biggest margin, win streak,
+loss streak, lowest score, then the lower roster id. The hook is the shared
+``facts/history_wording.py`` line, so the lead and the matchup callback never word a record twice."""
+
+#: Which broken record leads when several fall in one week.
+_RECORD_METRIC_ORDER = ("highest_score", "biggest_margin", "win_streak", "loss_streak", "lowest_score")
 
 
 def build_weekly_lead_candidates(
@@ -278,6 +293,7 @@ def build_weekly_lead_candidates(
     period: WeeklyPeriod,
     *,
     recent_kinds: Sequence[str] = (),
+    history: WeeklyHistoryBlock | None = None,
 ) -> list[LeadCandidate]:
     """Ranked lead angles for the weekly recap (Story 5.9).
 
@@ -292,9 +308,13 @@ def build_weekly_lead_candidates(
     group), so a season rotates its leads instead of opening on the same story
     every week; when every fired angle is recent, or none is, the plain priority
     order stands. ``lineup_loss`` still leads any week that has not just used it.
+
+    ``history`` (Story 9B.4) is the Facts ``history`` block; a record set this week becomes a
+    ``record_set`` candidate (see :data:`WEEKLY_LEAD_KIND_PRIORITY`).
     """
     angles = [
         _lineup_loss(teams),
+        _record_set(teams, history),
         _biggest_blowout(teams, period),
         _closest_game(teams, period),
         _week_high_score(teams),
@@ -339,6 +359,34 @@ def _lineup_loss(teams: list[WeeklyTeam]) -> LeadCandidate | None:
     )
     hook = f"{lead_in}, including {regret.name}." if regret is not None else f"{lead_in}."
     return _candidate("lineup_loss", [best.roster_id], hook)
+
+
+def _record_set(teams: list[WeeklyTeam], history: WeeklyHistoryBlock | None) -> LeadCandidate | None:
+    """A league record broken this week, off the history block's ``record_set`` callbacks (a tied
+    record or a streak one short of it is not a lead). ``None`` without history or a broken record."""
+    if history is None:
+        return None
+    by_roster = {team.roster_id: team for team in teams}
+    found: dict[tuple[str | None, str | None], WeeklyHistoryCallback] = {}
+    pool = [m.callback for m in history.matchups if m.when == "this_week" and m.callback is not None]
+    for cb in [*pool, *history.league_lines]:
+        if cb.kind == "record_set" and cb.roster_id in by_roster:
+            found.setdefault((cb.roster_id, cb.metric), cb)
+
+    def order(cb: WeeklyHistoryCallback) -> tuple[int, tuple[int, object], str]:
+        metric = cb.metric or ""
+        rank = _RECORD_METRIC_ORDER.index(metric) if metric in _RECORD_METRIC_ORDER else len(_RECORD_METRIC_ORDER)
+        return rank, _roster_key(cb.roster_id or ""), metric
+
+    def label(roster_id: str | None) -> str:
+        team = by_roster.get(roster_id or "")
+        return _team_label(team) if team is not None else f"Roster {roster_id}"
+
+    for cb in sorted(found.values(), key=order):
+        hook = callback_line(history, cb, label)
+        if hook and cb.roster_id:
+            return _candidate("record_set", [cb.roster_id], hook)
+    return None
 
 
 def _biggest_blowout(teams: list[WeeklyTeam], period: WeeklyPeriod) -> LeadCandidate | None:

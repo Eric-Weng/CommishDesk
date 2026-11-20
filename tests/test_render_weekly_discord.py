@@ -21,7 +21,15 @@ from tests.conftest import REPO_ROOT
 FACTS_DIR = REPO_ROOT / "tests" / "fixtures" / "facts"
 
 #: The optional lines, first trimmed first (design-decisions "Discord rules").
-_TRIM_MARKERS = ("🏆 Coach", "🔄 **Wire**", "👀 **Next week**", "🍀 **Luck**", "📈 **Power", "🏈 **Results**")
+_TRIM_MARKERS = (
+    "📜 **History**",
+    "🏆 Coach",
+    "🔄 **Wire**",
+    "👀 **Next week**",
+    "🍀 **Luck**",
+    "📈 **Power",
+    "🏈 **Results**",
+)
 
 
 def _raw(published: bool = False) -> dict[str, Any]:
@@ -89,17 +97,20 @@ def test_week10_follows_the_boards_line_order_within_budget_and_no_link() -> Non
     assert lines[20] == "• **Screen Pass Syndicate** 183.14 def. Bubble-Screen Bobcats 154.38"
     assert lines[23].endswith("247.20 def. Overtime Otters 114.69 🔥")
     assert lines[25].endswith("119.97 😬")
-    assert lines[26] == ""
-    assert lines[27] == (
+    assert lines[26] == "📜 **History**"
+    assert lines[27] == "• Bubble-Screen Bobcats' 6-game losing streak is the league's longest, this season."
+    assert lines[28] == "• Flea Flicker Union's 138.19-point margin is the league's biggest, this season."
+    assert lines[29] == ""
+    assert lines[30] == (
         "📈 **Power top 5**  1. Two Minute Drill · 2. Flea Flicker Union · 3. No-Huddle Narwhals · "
         "4. Backpedal Buffalo · 5. Screen Pass Syndicate"
     )
-    assert lines[28].startswith("🍀 **Luck**  luckiest Yardage Yaks (+2.5), unluckiest No-Huddle Narwhals (−1.8)")
-    assert lines[29].startswith("👀 **Next week**  Game of the week: Backpedal Buffalo vs No-Huddle Narwhals")
-    assert lines[30] == "🔄 **Wire**  Flea Flicker Union claimed Jalen Nailor ($25)"
-    assert lines[31] == ""
-    assert lines[32] == "🏆 Coach of the week: Two Minute Drill (99.2%)  ·  🥚 Goose egg: Dak Prescott (0.00)"
-    assert len(lines) == 33
+    assert lines[31].startswith("🍀 **Luck**  luckiest Yardage Yaks (+2.5), unluckiest No-Huddle Narwhals (−1.8)")
+    assert lines[32].startswith("👀 **Next week**  Game of the week: Backpedal Buffalo vs No-Huddle Narwhals")
+    assert lines[33] == "🔄 **Wire**  Flea Flicker Union claimed Jalen Nailor ($25)"
+    assert lines[34] == ""
+    assert lines[35] == "🏆 Coach of the week: Two Minute Drill (99.2%)  ·  🥚 Goose egg: Dak Prescott (0.00)"
+    assert len(lines) == 36
 
 
 def test_with_a_url_the_link_line_comes_last_within_2000() -> None:

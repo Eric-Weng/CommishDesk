@@ -203,7 +203,7 @@ def _synthetic(
 def test_week10_build_validates_and_has_twelve_teams() -> None:
     doc = _week10_facts()
     assert isinstance(doc, WeeklyFacts)
-    assert doc.schema_version == "0.17.0" == SCHEMA_VERSION
+    assert doc.schema_version == "0.18.0" == SCHEMA_VERSION
     assert doc.issue_type == "weekly"
     assert doc.week == 10
     assert len(doc.teams) == 12
@@ -538,12 +538,13 @@ def test_week10_lead_candidates_open_on_the_lineup_loss_angle() -> None:
     doc = _week10_facts()
     assert [c.kind for c in doc.lead_candidates] == [
         "lineup_loss",
+        "record_set",  # Story 9B.4: the week's 138.19 margin broke the season's biggest
         "biggest_blowout",
         "closest_game",
         "week_high_score",
     ]
     assert doc.lead_candidates[0].roster_ids == ["7"]
-    assert [c.rank for c in doc.lead_candidates] == [1, 2, 3, 4]
+    assert [c.rank for c in doc.lead_candidates] == [1, 2, 3, 4, 5]
     assert all(c.hook for c in doc.lead_candidates)
     assert doc.lead_candidates == _week10_facts().lead_candidates  # deterministic
 
@@ -919,6 +920,13 @@ def test_the_history_block_never_changes_anything_else_in_the_document() -> None
     without = _week10_with(None).model_dump(mode="json")
     with_history.pop("history")
     without.pop("history")
+    # Story 9B.4: history now also feeds the narrator's projection and a record-set lead candidate;
+    # everything else in the document is unchanged.
+    for doc in (with_history, without):
+        doc["narration"].pop("history")
+        doc.pop("lead_candidates")
+        doc["narration"].pop("lead_candidates")
+        doc["narration"].pop("printed_headline")
     assert with_history == without
 
 
