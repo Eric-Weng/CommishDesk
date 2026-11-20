@@ -80,7 +80,7 @@ def test_fake_valid_enhancer_lands_its_css_last_and_its_js_in_the_one_script() -
     fake = _Fake()
     page = _render(fake)
     css = page.split("<style>\n", 1)[1].split("\n</style>", 1)[0]
-    assert css == style_mod.build_weekly_style() + "\n" + fake.css()
+    assert css == style_mod.build_weekly_style(history=True) + "\n" + fake.css()  # the fixture prints history
     assert page.count("<script") == 1
     assert page.endswith("</main>\n<script>\n" + fake.js() + "\n</script>\n</body>\n</html>\n")
     assert "js-reveal" not in page  # nothing of the old built-in leaks in

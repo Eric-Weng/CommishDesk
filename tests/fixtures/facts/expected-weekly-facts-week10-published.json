@@ -1,6 +1,6 @@
 {
   "_derived_from": "Story 5.13a overlay. expected-weekly-facts-week10.json with a hand-authored published-rank layer: the narrator swaps model ranks 7 and 8 (Chip-Block Chinchillas, Nickel Newts). Only teams[*].season.power and narration.power differ from the base. nudge = model_rank - published_rank (positive means moved up). The justification cites only numbers present in narration.power.",
-  "schema_version": "0.17.0",
+  "schema_version": "0.18.0",
   "generated_at": "2026-09-07T00:00:00Z",
   "provisional": true,
   "issue_type": "weekly",
@@ -6693,6 +6693,14 @@
     },
     {
       "rank": 2,
+      "kind": "record_set",
+      "roster_ids": [
+        "1"
+      ],
+      "hook": "Flea Flicker Union's 138.19-point margin is the league's biggest, this season."
+    },
+    {
+      "rank": 3,
       "kind": "biggest_blowout",
       "roster_ids": [
         "1",
@@ -6701,7 +6709,7 @@
       "hook": "Flea Flicker Union beat Nickel Newts by 138.19, the week's biggest blowout."
     },
     {
-      "rank": 3,
+      "rank": 4,
       "kind": "closest_game",
       "roster_ids": [
         "12",
@@ -6710,7 +6718,7 @@
       "hook": "Yardage Yaks edged Kneel-Down Koalas by 6.06, the week's closest game."
     },
     {
-      "rank": 4,
+      "rank": 5,
       "kind": "week_high_score",
       "roster_ids": [
         "3"
@@ -7311,6 +7319,14 @@
       },
       {
         "rank": 2,
+        "kind": "record_set",
+        "roster_ids": [
+          "1"
+        ],
+        "hook": "Flea Flicker Union's 138.19-point margin is the league's biggest, this season."
+      },
+      {
+        "rank": 3,
         "kind": "biggest_blowout",
         "roster_ids": [
           "1",
@@ -7319,7 +7335,7 @@
         "hook": "Flea Flicker Union beat Nickel Newts by 138.19, the week's biggest blowout."
       },
       {
-        "rank": 3,
+        "rank": 4,
         "kind": "closest_game",
         "roster_ids": [
           "12",
@@ -7328,7 +7344,7 @@
         "hook": "Yardage Yaks edged Kneel-Down Koalas by 6.06, the week's closest game."
       },
       {
-        "rank": 4,
+        "rank": 5,
         "kind": "week_high_score",
         "roster_ids": [
           "3"
@@ -7365,7 +7381,183 @@
         "weeks_running": 1
       }
     ],
-    "playoff_odds": null
+    "playoff_odds": null,
+    "history": {
+      "wording": "this_season",
+      "all_time": false,
+      "seasons_on_record": 1,
+      "seasons_covered": [
+        2025
+      ],
+      "matchups": [
+        {
+          "when": "this_week",
+          "a": "Flea Flicker Union",
+          "a_roster_id": "1",
+          "b": "Nickel Newts",
+          "b_roster_id": "5",
+          "a_wins": 1,
+          "b_wins": 0,
+          "ties": 0,
+          "meetings": 1,
+          "seasons": [
+            2025
+          ],
+          "last_meeting_season": null,
+          "last_meeting_week": null,
+          "streak_team": "Flea Flicker Union",
+          "streak_count": 1,
+          "callback": {
+            "kind": "record_set",
+            "team": "Flea Flicker Union",
+            "roster_id": "1",
+            "opponent": null,
+            "opponent_roster_id": null,
+            "metric": "biggest_margin",
+            "value": 138.19,
+            "since_season": null,
+            "record_value": 104.48,
+            "record_season": 2025,
+            "record_week": 1
+          }
+        },
+        {
+          "when": "this_week",
+          "a": "Two Minute Drill",
+          "a_roster_id": "2",
+          "b": "Stiff-Arm Stags",
+          "b_roster_id": "10",
+          "a_wins": 1,
+          "b_wins": 0,
+          "ties": 0,
+          "meetings": 1,
+          "seasons": [
+            2025
+          ],
+          "last_meeting_season": null,
+          "last_meeting_week": null,
+          "streak_team": "Two Minute Drill",
+          "streak_count": 1,
+          "callback": null
+        },
+        {
+          "when": "this_week",
+          "a": "Backpedal Buffalo",
+          "a_roster_id": "3",
+          "b": "Overtime Otters",
+          "b_roster_id": "6",
+          "a_wins": 1,
+          "b_wins": 0,
+          "ties": 0,
+          "meetings": 1,
+          "seasons": [
+            2025
+          ],
+          "last_meeting_season": null,
+          "last_meeting_week": null,
+          "streak_team": "Backpedal Buffalo",
+          "streak_count": 1,
+          "callback": null
+        },
+        {
+          "when": "this_week",
+          "a": "Chip-Block Chinchillas",
+          "a_roster_id": "4",
+          "b": "No-Huddle Narwhals",
+          "b_roster_id": "9",
+          "a_wins": 1,
+          "b_wins": 0,
+          "ties": 0,
+          "meetings": 1,
+          "seasons": [
+            2025
+          ],
+          "last_meeting_season": null,
+          "last_meeting_week": null,
+          "streak_team": "Chip-Block Chinchillas",
+          "streak_count": 1,
+          "callback": null
+        },
+        {
+          "when": "this_week",
+          "a": "Kneel-Down Koalas",
+          "a_roster_id": "7",
+          "b": "Yardage Yaks",
+          "b_roster_id": "12",
+          "a_wins": 0,
+          "b_wins": 1,
+          "ties": 0,
+          "meetings": 1,
+          "seasons": [
+            2025
+          ],
+          "last_meeting_season": null,
+          "last_meeting_week": null,
+          "streak_team": "Yardage Yaks",
+          "streak_count": 1,
+          "callback": null
+        },
+        {
+          "when": "this_week",
+          "a": "Screen Pass Syndicate",
+          "a_roster_id": "8",
+          "b": "Bubble-Screen Bobcats",
+          "b_roster_id": "11",
+          "a_wins": 1,
+          "b_wins": 0,
+          "ties": 0,
+          "meetings": 1,
+          "seasons": [
+            2025
+          ],
+          "last_meeting_season": null,
+          "last_meeting_week": null,
+          "streak_team": "Screen Pass Syndicate",
+          "streak_count": 1,
+          "callback": {
+            "kind": "record_set",
+            "team": "Bubble-Screen Bobcats",
+            "roster_id": "11",
+            "opponent": null,
+            "opponent_roster_id": null,
+            "metric": "loss_streak",
+            "value": 6.0,
+            "since_season": null,
+            "record_value": 5.0,
+            "record_season": 2025,
+            "record_week": 7
+          }
+        }
+      ],
+      "league_lines": [
+        {
+          "kind": "record_set",
+          "team": "Flea Flicker Union",
+          "roster_id": "1",
+          "opponent": null,
+          "opponent_roster_id": null,
+          "metric": "biggest_margin",
+          "value": 138.19,
+          "since_season": null,
+          "record_value": 104.48,
+          "record_season": 2025,
+          "record_week": 1
+        },
+        {
+          "kind": "record_set",
+          "team": "Bubble-Screen Bobcats",
+          "roster_id": "11",
+          "opponent": null,
+          "opponent_roster_id": null,
+          "metric": "loss_streak",
+          "value": 6.0,
+          "since_season": null,
+          "record_value": 5.0,
+          "record_season": 2025,
+          "record_week": 7
+        }
+      ]
+    }
   },
   "history": {
     "all_time": false,

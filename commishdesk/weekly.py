@@ -562,6 +562,7 @@ def produce_weekly_issue(
     # can swap the factory on ``commishdesk.narrate.llm`` and have it take effect.
     from commishdesk.narrate.llm import build_client, narrate_weekly_issue
     from commishdesk.narrate.published_rank import published_rank_findings
+    from commishdesk.narrate.verify import history_claim_findings
 
     for attempt in (1, 2):
         result = narrate_weekly_issue(
@@ -603,6 +604,11 @@ def produce_weekly_issue(
         deviation = published_rank_findings(stamped, ranks)
         if deviation:
             report = report.model_copy(update={"findings": report.findings + deviation})
+        # Story 9B.4: a history claim (a record, a season, "first since", "all-time", a streak or series
+        # score) the history projection does not carry is a hallucination, on LLM prose only.
+        history_claims = history_claim_findings(weekly_issue_to_text(issue), stamped)
+        if history_claims:
+            report = report.model_copy(update={"findings": report.findings + history_claims})
         decision = classify(report, narrator_is_template=False)
 
         # A hold is never shipped as an *LLM* Issue: degrade to the deterministic

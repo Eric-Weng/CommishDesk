@@ -1758,15 +1758,45 @@ footer p {{ margin: 0; }}
 """.strip()
 
 
-def build_weekly_style() -> str:
+#: Story 9B.4: the history lines under each game card and the league-history block. Added to the page
+#: only when it prints a history line, so a page with no history is byte-identical to before.
+WEEKLY_HISTORY_CSS = """
+.game-hist {
+  margin: 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  color: var(--ink-2);
+  font-size: 13px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.game-hist .hk {
+  display: block;
+  margin-bottom: 2px;
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 10px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--emph);
+}
+.hist-league { margin-top: 18px; }
+.hist-league h3 { margin: 0 0 6px; font-size: 20px; line-height: 1.2; }
+.hist-league ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; color: var(--ink-2); font-size: 15px; }
+.hist-note { margin: 6px 0 0; color: var(--ink-2); font-size: 12px; }
+""".strip()
+
+
+def build_weekly_style(*, history: bool = False) -> str:
     """The weekly Issue's inline stylesheet (CSS text, no ``<style>`` tags):
     the embedded ``@font-face`` rules, the Tuesday Morning tokens in the same
     three-block light / dark pattern as :func:`build_style`, then the page CSS.
-    Themes are values only — every rule reads a ``var(--…)`` token."""
+    Themes are values only — every rule reads a ``var(--…)`` token. ``history`` (Story 9B.4)
+    appends the history-line rules, and only then."""
     return "\n".join(
         [
             weekly_font_faces(),
             _themed_tokens(WEEKLY_LIGHT_TOKENS, WEEKLY_DARK_TOKENS),
             _WEEKLY_CSS,
+            *([WEEKLY_HISTORY_CSS] if history else []),
         ]
     )

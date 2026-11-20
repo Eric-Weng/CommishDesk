@@ -56,7 +56,7 @@ from commishdesk.narrate.safety import (
 )
 
 if TYPE_CHECKING:
-    from commishdesk.facts.schema import Narration, NarrationPlayer, NarrationTeam
+    from commishdesk.facts.schema import Narration, NarrationPlayer, NarrationTeam, WeeklyNarration
     from commishdesk.llmconfig import LLMModelConfig
     from commishdesk.narrate.llm import LLMClient
     from commishdesk.voices import Voice
@@ -71,6 +71,7 @@ __all__ = [
     "ExtractedClaim",
     "VerificationResult",
     "adjudicate",
+    "history_claim_findings",
     "number_sentences",
     "parse_claims",
     "verify_narration",
@@ -1170,3 +1171,180 @@ def verify_narration(
     seen = {_claim_key(claim) for claim in claims}
     extra = tuple(claim for claim in _pattern_claims(prose, narration) if _claim_key(claim) not in seen)
     return VerificationResult(ran=True, verdicts=adjudicate(claims + extra, prose, narration), unparsed=unparsed)
+
+
+# --------------------------------------------------------------------------- #
+# Story 9B.4 -- history claims in weekly LLM prose (deterministic, no model call)
+# --------------------------------------------------------------------------- #
+
+_NUMBER_WORDS = {
+    word: index
+    for index, word in enumerate(
+        (
+            "zero one two three four five six seven eight nine ten eleven twelve "
+            "thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty"
+        ).split()
+    )
+}
+_NUM = r"(\d{1,2}|" + "|".join(_NUMBER_WORDS) + r")"
+_YEAR_RE = re.compile(r"(?<![\d,.$])(?:19|20)\d{2}(?![\d,]|\.\d)")
+_ALL_TIME_RE = re.compile(r"\ball[- ]time\b", re.IGNORECASE)
+_ON_RECORD_RE = re.compile(r"\b" + _NUM + r"\s+seasons?\s+on\s+record\b", re.IGNORECASE)
+_FIRST_RE = re.compile(
+    r"\bfirst\b[^.!?;]{0,40}?\b(?:since\s+(?:19|20)\d{2}|ever)\b|\bfirst\s+time\s+in\s+" + _NUM + r"\s+seasons\b",
+    re.IGNORECASE,
+)
+_SINCE_YEAR_RE = re.compile(r"\bsince\s+((?:19|20)\d{2})\b", re.IGNORECASE)
+_RECORD_RE = re.compile(
+    r"\b(?:league|franchise|all-time|single-game|scoring|new)\s+record\b"
+    r"|\brecord[- ](?:high|low|setting|breaking|score|margin|streak)\b"
+    r"|\b(?:set|sets|setting|broke|breaks|breaking|tied|ties|tying|shatter\w*)\s+(?:the\s+|a\s+)?(?:\w+\s+)?record\b",
+    re.IGNORECASE,
+)
+_RECORD_METRICS = (
+    (re.compile(r"\bhighest\s+(?:single-game\s+)?scor", re.IGNORECASE), "highest_score"),
+    (re.compile(r"\blowest\s+(?:single-game\s+)?scor", re.IGNORECASE), "lowest_score"),
+    (re.compile(r"\bbiggest\s+(?:margin|blowout)|\blargest\s+margin", re.IGNORECASE), "biggest_margin"),
+    (re.compile(r"\b(?:win|winning)\s+streak", re.IGNORECASE), "win_streak"),
+    (re.compile(r"\b(?:loss|losing)\s+streak", re.IGNORECASE), "loss_streak"),
+)
+_MEETINGS_RE = re.compile(
+    r"\b(?:last|past)\s+" + _NUM + r"\s+meetings\b|\b" + _NUM + r"\s+(?:straight|consecutive)\s+meetings\b"
+    r"|\ball\s+" + _NUM + r"\s+meetings\b|\b" + _NUM + r"\s+meetings\s+in\s+a\s+row\b",
+    re.IGNORECASE,
+)
+_SERIES_CUE_RE = re.compile(r"\bseries\b|\bhead-to-head\b|\bmeetings?\b", re.IGNORECASE)
+_SERIES_PAIR_RE = re.compile(r"(?<![\d.-])(\d{1,2})-(\d{1,2})(?:-(\d{1,2}))?(?![\d.])")
+
+
+def _word_or_int(token: str) -> int | None:
+    token = token.lower()
+    return int(token) if token.isdigit() else _NUMBER_WORDS.get(token)
+
+
+_FIRST_N_RE = re.compile(r"\bfirst\s+time\s+in\s+" + _NUM + r"\s+seasons\b", re.IGNORECASE)
+
+
+def _first_n_seasons(text: str) -> int | None:
+    """N in a "first time in N seasons" claim, or ``None`` when the text makes no such claim."""
+    match = _FIRST_N_RE.search(text)
+    return _word_or_int(match.group(1)) if match else None
+
+
+def _history_finding(message: str, sentence: str, matched: str) -> SafetyFinding:
+    return SafetyFinding(
+        category="hallucination",
+        severity=CATEGORY_SEVERITY["hallucination"],
+        message=f"history claim not in the history projection: {message}",
+        sentence=sentence,
+        matched=matched,
+    )
+
+
+def history_claim_findings(prose: str, narration: WeeklyNarration) -> tuple[SafetyFinding, ...]:
+    """One ``hallucination`` finding per history claim in weekly LLM *prose* that the ``narration.history``
+    projection does not back (Story 9B.4): a season not in the projection, "all-time" when the projection
+    is not all-time, a "first ... since/ever" with no matching first-time callback or a wrong season, a
+    league record with no record callback (or for another metric), a head-to-head streak or series score
+    the projection does not carry, or "N seasons on record" with the wrong N. Pure and deterministic; no
+    model call (I3). Template prose is exempt (the caller applies this to LLM prose only): it states only
+    the projection. The draft-recap verification is untouched.
+
+    Claim detection is by phrase, so it only fires on sentences that make one of these claims; a
+    sentence about anything else, or a plain win-loss record, is never read as a history claim."""
+    history = narration.history
+    matchups = list(history.matchups) if history is not None else []
+    lines = [m.callback for m in matchups if m.callback is not None]
+    if history is not None:
+        lines += list(history.league_lines)
+
+    years: set[int] = set()
+    if narration.league.season.isdigit():
+        years.add(int(narration.league.season))
+    if history is not None:
+        years.update(history.seasons_covered)
+    for m in matchups:
+        years.update(m.seasons)
+        if m.last_meeting_season is not None:
+            years.add(m.last_meeting_season)
+    for line in lines:
+        for year in (line.since_season, line.record_season):
+            if year is not None:
+                years.add(year)
+
+    # The lead hooks and the printed headline are in the payload too (a ``record_set`` hook says "all-time"
+    # and may cite a season), so a claim they carry is backed even when the cap dropped the projection.
+    hooks = " ".join([narration.printed_headline or "", *(c.hook or "" for c in narration.lead_candidates)])
+    years.update(int(y) for y in _YEAR_RE.findall(hooks))
+    hooks_say_all_time = _ALL_TIME_RE.search(hooks) is not None
+
+    first_kinds = {line.kind for line in lines if line.kind.startswith("first_")}
+    since_years = {line.since_season for line in lines if line.kind.startswith("first_") and line.since_season}
+    # A within-reach callback says a record is one game away, never that one was set or tied.
+    backing = [line for line in lines if line.kind in ("record_set", "record_tied")]
+    record_metrics = {line.metric for line in backing if line.metric}
+    has_record = bool(backing)
+    meeting_counts = {m.meetings for m in matchups} | {m.streak_count for m in matchups if m.streak_count}
+    series_keys = {(m.a_wins, m.b_wins) for m in matchups} | {(m.b_wins, m.a_wins) for m in matchups}
+
+    found: list[SafetyFinding] = []
+    seen: set[tuple[str, str]] = set()
+
+    def add(message: str, sentence: str, matched: str) -> None:
+        if (sentence, message) not in seen:
+            seen.add((sentence, message))
+            found.append(_history_finding(message, sentence, matched))
+
+    for sentence in _sentences(_normalize(prose)):
+        for match in _YEAR_RE.finditer(sentence):
+            if int(match.group()) not in years:
+                add(f"season {match.group()} is not a season on record", sentence, match.group())
+        if (
+            _ALL_TIME_RE.search(sentence)
+            and (history is None or history.wording != "all_time")
+            and not hooks_say_all_time
+        ):
+            add('"all-time" when the projection is not all-time', sentence, "all-time")
+        for match in _ON_RECORD_RE.finditer(sentence):
+            count = _word_or_int(match.group(1)) if match.group(1) else None
+            if history is None:
+                add('"on record" with no history', sentence, match.group())
+            elif count is not None and count != history.seasons_on_record:
+                add(
+                    f"{count} seasons on record, the projection has {history.seasons_on_record}",
+                    sentence,
+                    match.group(),
+                )
+        first = _FIRST_RE.search(sentence)
+        if first is not None:
+            text = first.group().lower()
+            since = _SINCE_YEAR_RE.search(text)
+            if not first_kinds:
+                add("a first-time claim with no first-time callback", sentence, first.group())
+            elif since is not None and int(since.group(1)) not in since_years:
+                add(f"first since {since.group(1)}, not the season the projection carries", sentence, first.group())
+            elif (n_seasons := _first_n_seasons(text)) is not None and (
+                history is None or n_seasons != history.seasons_on_record
+            ):
+                add(f"first time in {n_seasons} seasons, not the seasons on record", sentence, first.group())
+            elif "ever" in text and not first_kinds & {"first_win_ever", "first_top_ever"}:
+                add('a "first ever" claim with no first-ever callback', sentence, first.group())
+        if _RECORD_RE.search(sentence):
+            if not has_record:
+                add("a league-record claim with no record callback", sentence, "record")
+            else:
+                for pattern, metric in _RECORD_METRICS:
+                    hit = pattern.search(sentence)
+                    if hit is not None and metric not in record_metrics:
+                        add(f"a {metric.replace('_', ' ')} record the projection does not carry", sentence, hit.group())
+        for match in _MEETINGS_RE.finditer(sentence):
+            token = next((g for g in match.groups() if g), "")
+            count = _word_or_int(token)
+            if count is not None and count not in meeting_counts:
+                add(f"{count} meetings, the projection carries no such series or streak", sentence, match.group())
+        if _SERIES_CUE_RE.search(sentence):
+            for pair in _SERIES_PAIR_RE.finditer(sentence):
+                wins = (int(pair.group(1)), int(pair.group(2)))
+                if wins not in series_keys:
+                    add(f"a {wins[0]}-{wins[1]} series the projection does not carry", sentence, pair.group())
+    return tuple(found)

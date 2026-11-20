@@ -103,6 +103,7 @@ from .schema import (
     WeeklyHeadlinePlayer,
     WeeklyHistory,
     WeeklyHistoryBlock,
+    WeeklyHistoryCallback,
     WeeklyHistoryRow,
     WeeklyLeaderPlayer,
     WeeklyLeaderRef,
@@ -115,6 +116,9 @@ from .schema import (
     WeeklyMovePlayer,
     WeeklyNarration,
     WeeklyNarrationGame,
+    WeeklyNarrationHistory,
+    WeeklyNarrationHistoryLine,
+    WeeklyNarrationHistoryMatchup,
     WeeklyNarrationLeague,
     WeeklyNarrationLuck,
     WeeklyNarrationNextWeek,
@@ -497,7 +501,10 @@ def _build(
 
     # Story 5.9: the weekly lead angles, and the weekly-kind storyline lifecycle
     # advanced from the league's persisted narrative memory.
-    lead_candidates = build_weekly_lead_candidates(teams_block, period_block, recent_kinds=recent_lead_kinds)
+    history_block = _history_block(week, league, standings, history_input)
+    lead_candidates = build_weekly_lead_candidates(
+        teams_block, period_block, recent_kinds=recent_lead_kinds, history=history_block
+    )
     storyline_candidates = project_storyline_candidates(
         advance_storylines(
             previous_storylines,
@@ -523,6 +530,7 @@ def _build(
         period_block.nfl_byes_next_week,
         lead_candidates=lead_candidates,
         storyline_candidates=storyline_candidates,
+        history=history_block,
     )
 
     doc = WeeklyFacts(
@@ -544,7 +552,7 @@ def _build(
         lead_candidates=lead_candidates,
         storyline_candidates=storyline_candidates,
         narration=narration,
-        history=_history_block(week, league, standings, history_input),
+        history=history_block,
     )
     WeeklyFacts.model_validate(doc.model_dump())
     return doc
@@ -1276,6 +1284,7 @@ def _weekly_narration(
     *,
     lead_candidates: list[LeadCandidate],
     storyline_candidates: list[StorylineCandidate],
+    history: WeeklyHistoryBlock | None = None,
 ) -> WeeklyNarration:
     by_roster = {t.roster_id: t for t in teams_block}
 
@@ -1424,6 +1433,8 @@ def _weekly_narration(
         printed_headline=_printed_headline(lead_candidates),
         lead_candidates=lead_candidates,
         storyline_candidates=[*storyline_candidates, *lopsided],
+        # Story 9B.4: the history projection rides the narration (cold start omits it).
+        history=_history_narration(history, labels) if weekly.period.has_prior_week else None,  # type: ignore[attr-defined]
     )
     return _apply_weekly_narration_cap(narration)
 
@@ -1588,6 +1599,70 @@ def _lopsided_leader(grade: WeeklyTradeGrade) -> tuple[str, str] | None:
     return roster_id, horizon
 
 
+def _history_line(callback: WeeklyHistoryCallback, labels: Mapping[str, str]) -> WeeklyNarrationHistoryLine:
+    rec = callback.record
+    return WeeklyNarrationHistoryLine(
+        kind=callback.kind,
+        team=labels.get(callback.roster_id, callback.roster_id) if callback.roster_id else None,
+        roster_id=callback.roster_id,
+        opponent=(
+            labels.get(callback.opponent_roster_id, callback.opponent_roster_id)
+            if callback.opponent_roster_id
+            else None
+        ),
+        opponent_roster_id=callback.opponent_roster_id,
+        metric=callback.metric,
+        value=callback.value,
+        since_season=callback.since_season,
+        record_value=rec.value if rec is not None else None,
+        record_season=rec.season if rec is not None else None,
+        record_week=rec.week if rec is not None else None,
+    )
+
+
+def _history_narration(
+    block: WeeklyHistoryBlock | None, labels: Mapping[str, str]
+) -> WeeklyNarrationHistory | None:
+    """Story 9B.4: the numbers-and-labels view of the ``history`` block the narrator reads, or ``None``
+    without a block. Only pairings that carry a series or a callback are kept."""
+    if block is None:
+        return None
+    matchups: list[WeeklyNarrationHistoryMatchup] = []
+    for m in block.matchups:
+        if m.h2h is None and m.callback is None:
+            continue
+        h = m.h2h
+        last = h.last_meeting if h is not None else None
+        streak = h.streak if h is not None else None
+        matchups.append(
+            WeeklyNarrationHistoryMatchup(
+                when=m.when,
+                a=labels.get(m.a_roster_id, m.a_roster_id),
+                a_roster_id=m.a_roster_id,
+                b=labels.get(m.b_roster_id, m.b_roster_id),
+                b_roster_id=m.b_roster_id,
+                a_wins=h.a_wins if h is not None else 0,
+                b_wins=h.b_wins if h is not None else 0,
+                ties=h.ties if h is not None else 0,
+                meetings=h.meetings if h is not None else 0,
+                seasons=list(h.seasons) if h is not None else [],
+                last_meeting_season=last.season if last is not None else None,
+                last_meeting_week=last.week if last is not None else None,
+                streak_team=labels.get(streak.roster_id, streak.roster_id) if streak is not None else None,
+                streak_count=streak.count if streak is not None else None,
+                callback=_history_line(m.callback, labels) if m.callback is not None else None,
+            )
+        )
+    return WeeklyNarrationHistory(
+        wording=block.wording,
+        all_time=block.all_time,
+        seasons_on_record=block.seasons_on_record,
+        seasons_covered=list(block.seasons_covered),
+        matchups=matchups,
+        league_lines=[_history_line(c, labels) for c in block.league_lines],
+    )
+
+
 def _printed_headline(lead_candidates: list[LeadCandidate]) -> str | None:
     """The hook the renderer prints above The Lead: the lowest-``rank`` candidate
     with a non-empty hook, else ``None``. This inlines
@@ -1602,6 +1677,7 @@ def _apply_weekly_narration_cap(narration: WeeklyNarration) -> WeeklyNarration:
     reduction ladder. Each tier is applied only while the projection is still
     over the cap:
 
+    00. (Story 9B.4) drop ``history``, the narrator's history projection, before anything else;
     0. (Story 9.5) drop ``playoff_odds`` and the transient ``playoff_odds_mover`` storyline
        candidates;
     0b. (Story 9.7) drop ``transactions.trade_grades`` and the transient ``trade_lopsided``
@@ -1617,6 +1693,12 @@ def _apply_weekly_narration_cap(narration: WeeklyNarration) -> WeeklyNarration:
     :class:`~commishdesk.errors.SchemaValidationError` (retro item 33)."""
     if _within_cap(narration):
         return narration
+
+    # Story 9B.4: the history projection is the very first thing to go (never the lead).
+    if narration.history is not None:
+        narration = narration.model_copy(update={"history": None})
+        if _within_cap(narration):
+            return narration
 
     # Story 9.5: the odds projection and its transient candidates are the very first thing to go.
     if narration.playoff_odds is not None or any(

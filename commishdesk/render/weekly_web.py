@@ -166,6 +166,7 @@ class _Ctx:
         self, facts: WeeklyFacts, issue: WeeklyIssue, team_colors: Mapping[str, int] | None = None
     ) -> None:
         self.facts = facts
+        self.history = wm.history_view(facts)
         self.teams = wm.team_index(facts)
         self.sections = section_headings_for_has_prior_week(facts.period.has_prior_week)
         self.prose = {
@@ -717,12 +718,14 @@ def _game_card(ctx: _Ctx, matchup: WeeklyMatchup) -> str:
     win_name, lose_name = ctx.label(win_id), ctx.label(lose_id)
     win_cls = "side" if tied else "side win"
     detail = _game_detail(ctx, win_id, lose_id)
+    line = ctx.history.for_game(win_id, lose_id) if ctx.history is not None else None
+    history = f'<p class="game-hist"><span class="hk">History</span>{ctx.text(line)}</p>' if line else ""
     return (
         f'<article class="card game"><div class="game-top"><span class="by">{_esc(by)}</span>{tag}</div>'
         f'<div class="{win_cls}">{ctx.mg(win_name, "mg-l")}<span class="tn">{ctx.text(win_name)}</span>'
         f'<span class="sc">{_esc(_pts(win_pts))}</span></div>'
         f'<div class="side">{ctx.mg(lose_name, "mg-l")}<span class="tn">{ctx.text(lose_name)}</span>'
-        f'<span class="sc">{_esc(_pts(lose_pts))}</span></div>{detail}</article>'
+        f'<span class="sc">{_esc(_pts(lose_pts))}</span></div>{history}{detail}</article>'
     )
 
 
@@ -743,8 +746,22 @@ def _around_section(ctx: _Ctx) -> str:
     return (
         f'<section {_sid("around_league")} aria-label="Around the league" data-reveal>'
         f'{_head(ctx, "Around the league", "Results", "emph", actions=_DETAIL_ALL)}'
-        f'<div class="grid3">{cards}</div>{_prose(ctx, blocks)}</section>'
+        f'<div class="grid3">{cards}</div>{_history_league(ctx)}{_prose(ctx, blocks)}</section>'
     )
+
+
+def _history_league(ctx: _Ctx) -> str:
+    """The league-level history lines after the results (at most three), under their own heading, plus
+    the partial-chain note. Empty (no heading, no box) with nothing to say."""
+    view = ctx.history
+    if view is None or not (view.league or view.note):
+        return ""
+    items = "".join(f"<li>{ctx.text(line)}</li>" for line in view.league)
+    heading = f"<h3>{_esc(wm.HISTORY_HEADING)}</h3>" if items else ""
+    listing = f"<ul>{items}</ul>" if items else ""
+    note = f'<p class="hist-note">{_esc(view.note)}</p>' if view.note else ""
+    return f'<div class="hist-league">{heading}{listing}{note}</div>'
+
 
 
 # --------------------------------------------------------------------------- #
@@ -1683,7 +1700,7 @@ def render_weekly_web(
         '<meta name="viewport" content="width=device-width, initial-scale=1">',
         f"<title>{_esc(issue.title)}</title>",
         "<style>",
-        build_weekly_style(),
+        build_weekly_style(history=ctx.history is not None),
         *([enhancement[0]] if enhancement is not None and enhancement[0] else []),
         "</style>",
         "</head>",
