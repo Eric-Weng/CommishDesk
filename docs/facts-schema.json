@@ -255,7 +255,7 @@
           "type": "boolean"
         },
         "schema_version": {
-          "default": "0.16.0",
+          "default": "0.17.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -2089,6 +2089,17 @@
           "title": "Generated At",
           "type": "string"
         },
+        "history": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WeeklyHistoryBlock"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "issue_type": {
           "const": "weekly",
           "default": "weekly",
@@ -2135,7 +2146,7 @@
           "type": "boolean"
         },
         "schema_version": {
-          "default": "0.16.0",
+          "default": "0.17.0",
           "title": "Schema Version",
           "type": "string"
         },
@@ -2321,6 +2332,532 @@
       "title": "WeeklyHistory",
       "type": "object"
     },
+    "WeeklyHistoryBlock": {
+      "description": "The history callbacks (Story 9B.3, ``0.17.0``). ``seasons_covered`` includes this season; a\nsingle season on record gives ``all_time`` false and ``wording`` ``this_season``; a partial\nchain is worded ``seasons_on_record``. At most one callback per pairing and three league lines.",
+      "properties": {
+        "all_time": {
+          "title": "All Time",
+          "type": "boolean"
+        },
+        "league_lines": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WeeklyHistoryCallback"
+          },
+          "title": "League Lines",
+          "type": "array"
+        },
+        "matchups": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WeeklyHistoryMatchup"
+          },
+          "title": "Matchups",
+          "type": "array"
+        },
+        "partial": {
+          "default": false,
+          "title": "Partial",
+          "type": "boolean"
+        },
+        "partial_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Partial Reason"
+        },
+        "records": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WeeklyHistoryRecord"
+          },
+          "title": "Records",
+          "type": "array"
+        },
+        "seasons_covered": {
+          "items": {
+            "type": "integer"
+          },
+          "title": "Seasons Covered",
+          "type": "array"
+        },
+        "seasons_on_record": {
+          "title": "Seasons On Record",
+          "type": "integer"
+        },
+        "wording": {
+          "enum": [
+            "all_time",
+            "seasons_on_record",
+            "this_season"
+          ],
+          "title": "Wording",
+          "type": "string"
+        }
+      },
+      "required": [
+        "all_time",
+        "wording",
+        "seasons_covered",
+        "seasons_on_record"
+      ],
+      "title": "WeeklyHistoryBlock",
+      "type": "object"
+    },
+    "WeeklyHistoryCallback": {
+      "description": "One callback with the seasons and weeks it cites. ``record`` is the record set, tied or\nheld; ``since_season`` the season of the last time for a \"first since\"; ``tier`` its ranking\ntier. ``all_time`` is false with one season on record and ``wording`` says how to word it.",
+      "properties": {
+        "all_time": {
+          "title": "All Time",
+          "type": "boolean"
+        },
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "manager_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Manager Id"
+        },
+        "metric": {
+          "anyOf": [
+            {
+              "enum": [
+                "highest_score",
+                "lowest_score",
+                "biggest_margin",
+                "win_streak",
+                "loss_streak"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Metric"
+        },
+        "opponent_roster_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Opponent Roster Id"
+        },
+        "record": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WeeklyHistoryRecord"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "roster_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Roster Id"
+        },
+        "since_season": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Since Season"
+        },
+        "sources": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WeeklyHistoryCite"
+          },
+          "title": "Sources",
+          "type": "array"
+        },
+        "tier": {
+          "title": "Tier",
+          "type": "integer"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        },
+        "wording": {
+          "enum": [
+            "all_time",
+            "seasons_on_record",
+            "this_season"
+          ],
+          "title": "Wording",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "tier",
+        "all_time",
+        "wording"
+      ],
+      "title": "WeeklyHistoryCallback",
+      "type": "object"
+    },
+    "WeeklyHistoryCite": {
+      "description": "One season and the weeks of it a history callback draws on.",
+      "properties": {
+        "season": {
+          "title": "Season",
+          "type": "integer"
+        },
+        "weeks": {
+          "items": {
+            "type": "integer"
+          },
+          "title": "Weeks",
+          "type": "array"
+        }
+      },
+      "required": [
+        "season",
+        "weeks"
+      ],
+      "title": "WeeklyHistoryCite",
+      "type": "object"
+    },
+    "WeeklyHistoryH2H": {
+      "description": "The head-to-head series of one pairing through the issue week: regular season and\nplayoffs counted apart (median wins never count), ``meetings`` both together.\n``last_meeting`` is the meeting before the game in question.",
+      "properties": {
+        "a_manager_id": {
+          "title": "A Manager Id",
+          "type": "string"
+        },
+        "a_wins": {
+          "title": "A Wins",
+          "type": "integer"
+        },
+        "b_manager_id": {
+          "title": "B Manager Id",
+          "type": "string"
+        },
+        "b_wins": {
+          "title": "B Wins",
+          "type": "integer"
+        },
+        "last_meeting": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WeeklyHistoryMeeting"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "meetings": {
+          "title": "Meetings",
+          "type": "integer"
+        },
+        "playoff_a_wins": {
+          "title": "Playoff A Wins",
+          "type": "integer"
+        },
+        "playoff_b_wins": {
+          "title": "Playoff B Wins",
+          "type": "integer"
+        },
+        "playoff_ties": {
+          "title": "Playoff Ties",
+          "type": "integer"
+        },
+        "seasons": {
+          "items": {
+            "type": "integer"
+          },
+          "title": "Seasons",
+          "type": "array"
+        },
+        "sources": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WeeklyHistoryCite"
+          },
+          "title": "Sources",
+          "type": "array"
+        },
+        "streak": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WeeklyHistorySeriesStreak"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "ties": {
+          "title": "Ties",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "a_manager_id",
+        "b_manager_id",
+        "a_wins",
+        "b_wins",
+        "ties",
+        "playoff_a_wins",
+        "playoff_b_wins",
+        "playoff_ties",
+        "meetings",
+        "seasons"
+      ],
+      "title": "WeeklyHistoryH2H",
+      "type": "object"
+    },
+    "WeeklyHistoryMatchup": {
+      "description": "One pairing (``a`` is the lower roster id), its series and its one kept callback.",
+      "properties": {
+        "a_points": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "A Points"
+        },
+        "a_roster_id": {
+          "title": "A Roster Id",
+          "type": "string"
+        },
+        "b_points": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "B Points"
+        },
+        "b_roster_id": {
+          "title": "B Roster Id",
+          "type": "string"
+        },
+        "callback": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WeeklyHistoryCallback"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "h2h": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WeeklyHistoryH2H"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "matchup_id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Matchup Id"
+        },
+        "week": {
+          "title": "Week",
+          "type": "integer"
+        },
+        "when": {
+          "enum": [
+            "this_week",
+            "next_week"
+          ],
+          "title": "When",
+          "type": "string"
+        },
+        "winner_roster_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Winner Roster Id"
+        }
+      },
+      "required": [
+        "when",
+        "week",
+        "a_roster_id",
+        "b_roster_id"
+      ],
+      "title": "WeeklyHistoryMatchup",
+      "type": "object"
+    },
+    "WeeklyHistoryMeeting": {
+      "description": "One meeting of a series, points oriented to the pairing's ``a`` / ``b`` rosters.",
+      "properties": {
+        "a_points": {
+          "title": "A Points",
+          "type": "number"
+        },
+        "b_points": {
+          "title": "B Points",
+          "type": "number"
+        },
+        "kind": {
+          "enum": [
+            "regular",
+            "playoff"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "season": {
+          "title": "Season",
+          "type": "integer"
+        },
+        "week": {
+          "title": "Week",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "season",
+        "week",
+        "kind",
+        "a_points",
+        "b_points"
+      ],
+      "title": "WeeklyHistoryMeeting",
+      "type": "object"
+    },
+    "WeeklyHistoryRecord": {
+      "description": "A league record through the issue week and its earliest holder; ``roster_id`` is the\nholder's roster this season (``None`` when not in the league now).",
+      "properties": {
+        "manager_id": {
+          "title": "Manager Id",
+          "type": "string"
+        },
+        "metric": {
+          "enum": [
+            "highest_score",
+            "lowest_score",
+            "biggest_margin",
+            "win_streak",
+            "loss_streak"
+          ],
+          "title": "Metric",
+          "type": "string"
+        },
+        "roster_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Roster Id"
+        },
+        "season": {
+          "title": "Season",
+          "type": "integer"
+        },
+        "sources": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/WeeklyHistoryCite"
+          },
+          "title": "Sources",
+          "type": "array"
+        },
+        "value": {
+          "title": "Value",
+          "type": "number"
+        },
+        "week": {
+          "title": "Week",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "metric",
+        "value",
+        "manager_id",
+        "season",
+        "week"
+      ],
+      "title": "WeeklyHistoryRecord",
+      "type": "object"
+    },
     "WeeklyHistoryRow": {
       "description": "One week of a roster's season, with the cumulative picture as of that\nweek. ``power_rank`` / ``published_rank`` / ``all_play`` / ``luck`` are\n``None`` before ``MEANINGFUL_FROM_WEEK`` and past the regular season.\n\n``published_rank`` (Story 5B.3, ``0.9.0``) is the rank a **prior confirmed\nweek** persisted for this roster — read from the caller-supplied\n``previous_published_ranks`` mapping keyed by week — so the power-rank bump\nchart can plot the desk's overrules of the model week over week. It is a\ndifferent axis from ``power_rank`` (the model's own rank as of week ``k``)\nand is ``None`` for any week with no persisted published rank.",
       "properties": {
@@ -2425,6 +2962,30 @@
         "cum_record"
       ],
       "title": "WeeklyHistoryRow",
+      "type": "object"
+    },
+    "WeeklyHistorySeriesStreak": {
+      "description": "``roster_id`` (Sleeper user ``manager_id``) won the last ``count`` meetings in a row.",
+      "properties": {
+        "count": {
+          "title": "Count",
+          "type": "integer"
+        },
+        "manager_id": {
+          "title": "Manager Id",
+          "type": "string"
+        },
+        "roster_id": {
+          "title": "Roster Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "roster_id",
+        "manager_id",
+        "count"
+      ],
+      "title": "WeeklyHistorySeriesStreak",
       "type": "object"
     },
     "WeeklyLeaderPlayer": {

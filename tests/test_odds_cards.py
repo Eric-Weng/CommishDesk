@@ -132,7 +132,7 @@ def test_the_fresh_build_carries_the_block_on_the_document_and_in_facts_json(bui
     assert built.facts_json["playoff_odds"] == built.doc.playoff_odds.model_dump(mode="json")
     assert built.doc.narration.playoff_odds is not None
     assert built.facts_json["narration"]["playoff_odds"] is not None
-    assert built.facts_json["schema_version"] == "0.16.0"
+    assert built.facts_json["schema_version"] == "0.17.0"
 
 
 def test_fresh_and_replay_agree_on_the_block_the_narration_and_every_surface(

@@ -64,7 +64,8 @@ from typing import Any, cast
 from pydantic import ValidationError
 
 from commishdesk.errors import SchemaValidationError
-from commishdesk.ingest import LeagueModel, Matchup, PlayerSnapshot, WeekModel
+from commishdesk.ingest import History, LeagueModel, Matchup, PlayerSnapshot, WeekModel
+from commishdesk.stats.history_callbacks import compute_history_callbacks
 from commishdesk.stats.lineup import TeamLineup, compute_weekly_lineups
 from commishdesk.stats.power import compute_power_ranks
 from commishdesk.stats.stakes import compute_next_week
@@ -101,6 +102,7 @@ from .schema import (
     WeeklyFormatRef,
     WeeklyHeadlinePlayer,
     WeeklyHistory,
+    WeeklyHistoryBlock,
     WeeklyHistoryRow,
     WeeklyLeaderPlayer,
     WeeklyLeaderRef,
@@ -291,6 +293,7 @@ def build_weekly_facts(
     playoff_seeding: PlayoffSeeding | None = None,
     recent_lead_kinds: Sequence[str] = (),
     league_value: Mapping[str, Any] | None = None,
+    history: History | None = None,
 ) -> WeeklyFacts:
     """Merge the weekly stats modules into a validated :class:`WeeklyFacts`.
 
@@ -309,7 +312,9 @@ def build_weekly_facts(
     :func:`~commishdesk.facts.leads.build_weekly_lead_candidates`. ``league_value``
     (Story 9.6) is the week's cached League Value snapshot as a plain mapping, or ``None``
     when unavailable; the builder only *reads* it (no fetch), grading the issue week's trades
-    into ``transactions.trade_grades``.
+    into ``transactions.trade_grades``. ``history`` (Story 9B.3) is the 9B.2 multi-season
+    :class:`~commishdesk.ingest.History`; with it the ``history`` block carries the callbacks
+    (``None`` or disabled leaves the block ``None``, never an error).
 
     Raises
     :class:`~commishdesk.errors.SchemaValidationError` (chained from the
@@ -334,6 +339,7 @@ def build_weekly_facts(
             playoff_seeding=playoff_seeding,
             recent_lead_kinds=recent_lead_kinds,
             league_value=league_value,
+            history_input=history,
         )
     except (ValidationError, KeyError, AttributeError, TypeError, ValueError) as exc:
         raise SchemaValidationError(_violation_message(exc, document="weekly")) from exc
@@ -355,6 +361,7 @@ def _build(
     playoff_seeding: PlayoffSeeding | None,
     recent_lead_kinds: Sequence[str],
     league_value: Mapping[str, Any] | None = None,
+    history_input: History | None = None,
 ) -> WeeklyFacts:
     weekly = compute_weekly_stats(week)
     lineups = compute_weekly_lineups(week, league, players, nfl_byes)
@@ -537,9 +544,18 @@ def _build(
         lead_candidates=lead_candidates,
         storyline_candidates=storyline_candidates,
         narration=narration,
+        history=_history_block(week, league, standings, history_input),
     )
     WeeklyFacts.model_validate(doc.model_dump())
     return doc
+
+
+def _history_block(
+    week: WeekModel, league: LeagueModel, standings: Any, history: History | None
+) -> WeeklyHistoryBlock | None:
+    """Story 9B.3: the history callbacks block, ``None`` without an enabled history."""
+    result = compute_history_callbacks(week, league, history, standings=standings)
+    return None if result is None else WeeklyHistoryBlock.model_validate(result.model_dump())
 
 
 def _season_coaching(

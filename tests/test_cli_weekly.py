@@ -2145,3 +2145,46 @@ def test_weekly_history_seasons_caps_and_reports_the_skipped(tmp_path, monkeypat
     assert result.exit_code == 0, result.output
     assert asked == ["p1"]
     assert "history: skipped earlier season league p2 (capped at 1 seasons)" in result.output
+
+
+def _spy_facts(monkeypatch: pytest.MonkeyPatch) -> list[Any]:
+    """Record every ``compute_weekly_facts`` build the CLI makes (Story 9B.3)."""
+    import commishdesk.cli as cli_module
+
+    builds: list[Any] = []
+    real = cli_module.compute_weekly_facts
+
+    def spy(*args: Any, **kwargs: Any) -> Any:
+        built = real(*args, **kwargs)
+        builds.append(built)
+        return built
+
+    monkeypatch.setattr(cli_module, "compute_weekly_facts", spy)
+    return builds
+
+
+def test_weekly_facts_carry_the_one_season_history_block_when_history_is_on(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _history_stub(monkeypatch)  # the earlier seasons fail to load: a partial, one-season-on-record history
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+    builds = _spy_facts(monkeypatch)
+    result = runner.invoke(app, ["--league", "77", "--week", "17", "--out-dir", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    block = builds[0].facts_json["history"]
+    assert block["all_time"] is False and block["wording"] == "this_season" and block["partial"] is True
+    assert len(block["seasons_covered"]) == 1
+    assert "all-time" not in json.dumps(block).lower()
+    assert "all-time" not in (tmp_path / "commishdesk-77-weekly-week17.txt").read_text(encoding="utf-8").lower()
+
+
+def test_weekly_facts_have_no_history_block_with_no_history_and_the_run_still_renders(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _stub_adapter(monkeypatch)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+    builds = _spy_facts(monkeypatch)
+    result = runner.invoke(app, ["--league", "77", "--week", "17", "--out-dir", str(tmp_path), "--no-history"])
+    assert result.exit_code == 0, result.output
+    assert builds[0].facts_json["history"] is None
+    assert (tmp_path / "commishdesk-77-weekly-week17.txt").is_file()

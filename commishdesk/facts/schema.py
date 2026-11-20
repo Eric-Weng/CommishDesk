@@ -110,6 +110,14 @@ __all__ = [
     "WeeklyFormatRef",
     "WeeklyHeadlinePlayer",
     "WeeklyHistory",
+    "WeeklyHistoryBlock",
+    "WeeklyHistoryCallback",
+    "WeeklyHistoryCite",
+    "WeeklyHistoryH2H",
+    "WeeklyHistoryMatchup",
+    "WeeklyHistoryMeeting",
+    "WeeklyHistoryRecord",
+    "WeeklyHistorySeriesStreak",
     "WeeklyHistoryRow",  # noqa: E501
     "WeeklyLeaderPlayer",
     "WeeklyLeaderRef",
@@ -169,7 +177,7 @@ __all__ = [
     "WeeklyWeekPoints",
 ]
 
-SCHEMA_VERSION = "0.16.0"
+SCHEMA_VERSION = "0.17.0"
 """Semver contract version. Additive key -> minor bump; shape change -> major.
 ``0.4.0`` -> ``0.5.0`` (Story 5.8): the empty ``WeeklyFacts`` placeholder becomes
 the real weekly document and its ``WeeklyNarration``; ``DraftRecapFacts.weekly``
@@ -193,7 +201,9 @@ additively (the draft board now ranks against League Value; ``consensus_source.n
 ``WeeklyFacts.playoff_odds`` (the ``playoff_odds`` stat module's block, written by the stat-module
 loader and never dumped by the model) additively. ``0.15.0`` -> ``0.16.0`` (Story 9.5) adds
 ``WeeklyPlayoffOddsTeam.change`` and ``WeeklyNarration.playoff_odds`` (a numbers-only odds projection)
-additively; the odds block now also reaches ``WeeklyFacts.playoff_odds`` on a fresh build."""
+additively; the odds block now also reaches ``WeeklyFacts.playoff_odds`` on a fresh build. ``0.16.0`` -> ``0.17.0``
+(Story 9B.3) adds ``WeeklyFacts.history`` (:class:`WeeklyHistoryBlock`: head-to-head series, league
+records and first-time events, each citing its source seasons and weeks) additively."""
 
 _ISSUE_TYPE: Literal["draft_recap"] = "draft_recap"
 _IssueType = Literal["draft_recap", "weekly"]
@@ -1121,6 +1131,114 @@ class WeeklyMatchups(_Doc):
     remaining: WeeklyRemainingSchedule = WeeklyRemainingSchedule()
 
 
+class WeeklyHistoryCite(_Doc):
+    """One season and the weeks of it a history callback draws on."""
+
+    season: int
+    weeks: list[int]
+
+
+class WeeklyHistoryMeeting(_Doc):
+    """One meeting of a series, points oriented to the pairing's ``a`` / ``b`` rosters."""
+
+    season: int
+    week: int
+    kind: Literal["regular", "playoff"]
+    a_points: float
+    b_points: float
+
+
+class WeeklyHistorySeriesStreak(_Doc):
+    """``roster_id`` (Sleeper user ``manager_id``) won the last ``count`` meetings in a row."""
+
+    roster_id: str
+    manager_id: str
+    count: int
+
+
+class WeeklyHistoryH2H(_Doc):
+    """The head-to-head series of one pairing through the issue week: regular season and
+    playoffs counted apart (median wins never count), ``meetings`` both together.
+    ``last_meeting`` is the meeting before the game in question."""
+
+    a_manager_id: str
+    b_manager_id: str
+    a_wins: int
+    b_wins: int
+    ties: int
+    playoff_a_wins: int
+    playoff_b_wins: int
+    playoff_ties: int
+    meetings: int
+    seasons: list[int]
+    last_meeting: WeeklyHistoryMeeting | None = None
+    streak: WeeklyHistorySeriesStreak | None = None
+    sources: list[WeeklyHistoryCite] = []
+
+
+class WeeklyHistoryRecord(_Doc):
+    """A league record through the issue week and its earliest holder; ``roster_id`` is the
+    holder's roster this season (``None`` when not in the league now)."""
+
+    metric: Literal["highest_score", "lowest_score", "biggest_margin", "win_streak", "loss_streak"]
+    value: float
+    manager_id: str
+    roster_id: str | None = None
+    season: int
+    week: int
+    sources: list[WeeklyHistoryCite] = []
+
+
+class WeeklyHistoryCallback(_Doc):
+    """One callback with the seasons and weeks it cites. ``record`` is the record set, tied or
+    held; ``since_season`` the season of the last time for a "first since"; ``tier`` its ranking
+    tier. ``all_time`` is false with one season on record and ``wording`` says how to word it."""
+
+    kind: str
+    tier: int
+    all_time: bool
+    wording: Literal["all_time", "seasons_on_record", "this_season"]
+    roster_id: str | None = None
+    manager_id: str | None = None
+    opponent_roster_id: str | None = None
+    metric: Literal["highest_score", "lowest_score", "biggest_margin", "win_streak", "loss_streak"] | None = None
+    value: float | None = None
+    since_season: int | None = None
+    record: WeeklyHistoryRecord | None = None
+    sources: list[WeeklyHistoryCite] = []
+
+
+class WeeklyHistoryMatchup(_Doc):
+    """One pairing (``a`` is the lower roster id), its series and its one kept callback."""
+
+    when: Literal["this_week", "next_week"]
+    week: int
+    matchup_id: int | None = None
+    a_roster_id: str
+    b_roster_id: str
+    a_points: float | None = None
+    b_points: float | None = None
+    winner_roster_id: str | None = None
+    h2h: WeeklyHistoryH2H | None = None
+    callback: WeeklyHistoryCallback | None = None
+
+
+class WeeklyHistoryBlock(_Doc):
+    """The history callbacks (Story 9B.3, ``0.17.0``). ``seasons_covered`` includes this season; a
+    single season on record gives ``all_time`` false and ``wording`` ``this_season``; a partial
+    chain is worded ``seasons_on_record``. At most one callback per pairing and three league lines."""
+
+    all_time: bool
+    wording: Literal["all_time", "seasons_on_record", "this_season"]
+    seasons_covered: list[int]
+    seasons_on_record: int
+    partial: bool = False
+    partial_reason: str | None = None
+    records: list[WeeklyHistoryRecord] = []
+    matchups: list[WeeklyHistoryMatchup] = []
+    league_lines: list[WeeklyHistoryCallback] = []
+
+
 class WeeklyPlayoffPicture(_Doc):
     """The playoff picture, mirrored from
     ``stats/standings.py::PlayoffPicture``. ``seeding_unconfirmed`` is true only
@@ -1645,3 +1763,5 @@ class WeeklyFacts(_Doc):
     #: ``model_dump`` (so the loader's core-key check never sees it) while the published schema
     #: and the concept-doc coverage test still do.
     playoff_odds: WeeklyPlayoffOdds | None = Field(default=None, exclude=True)
+    #: Story 9B.3: history callbacks; ``None`` when no history was supplied (or it is switched off).
+    history: WeeklyHistoryBlock | None = None
