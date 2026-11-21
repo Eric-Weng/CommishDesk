@@ -265,6 +265,20 @@ These are done once (or once per milestone), not on a schedule.
 
 ---
 
+## 9B.5 The accuracy line (browser, Gmail light and dark, text, Discord)
+
+- **What to do:** run one local weekly build and one draft recap build, view the web Issue at 320 px and desktop in
+  light and dark, send the email to a real Gmail inbox and view it in light and dark, read the `.txt` and
+  `.email.txt` outputs, and post the weekly text and the draft summary to a test channel.
+- **Expected:** every surface carries "Real numbers from your league, every week." once, last (above the nflverse
+  credit on the draft recap); the web and email footers also carry a "How we compute" link that opens the docs
+  index (in the email the link is rewritten to the site URL); the footers no longer say "computed from the league's
+  own Sleeper record"; the Discord weekly post shows the line as small subtext above the `Full Issue` link and stays
+  under 2,000 units; no horizontal scroll at 320 px; the email footer stays readable in dark mode.
+- **Last run:** not run yet.
+
+---
+
 ## Change log
 
 - **2026-09-10** — file created. Seeded from the `**Manual checks:**` blocks of

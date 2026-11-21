@@ -239,7 +239,7 @@ def test_web_shows_every_team_ranked_with_accessible_names_and_the_docs_link(bar
     validate_page(page, enhanced=False)  # the fixed href is inside the carve-out
 
 
-def test_the_href_fence_is_exactly_four_fixed_values() -> None:
+def test_the_href_fence_is_exactly_five_fixed_values() -> None:
     from commishdesk.render.enhancer import ALLOWED_CARD_LINKS
 
     assert ALLOWED_CARD_LINKS == {
@@ -247,8 +247,9 @@ def test_the_href_fence_is_exactly_four_fixed_values() -> None:
         "/docs/league-value/",
         "https://github.com/nflverse",
         "/docs/playoff-odds/",
+        "/docs/",
     }
-    for bad in ("/docs/other/", "https://example.com/docs/playoff-odds/", "/docs/playoff-odds"):
+    for bad in ("/docs/other/", "https://example.com/docs/playoff-odds/", "/docs/playoff-odds", "/docs", "/docs/x/"):
         with pytest.raises(EnhancerRejected):
             validate_page(f'<a href="{bad}">x</a>', enhanced=False)
 

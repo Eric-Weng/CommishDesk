@@ -4,7 +4,8 @@
 history callbacks after the "Around the league" section: one line per game that has one, then a
 "League history" block of up to three lines. Every line is the shared
 ``facts/history_wording.py`` wording, so it reads exactly like the web, email and chat lines. With no
-history line the output is byte-identical to ``weekly_issue_to_text``.
+history line the output is ``weekly_issue_to_text`` plus the accuracy line (``facts/accuracy_line.py``) as the
+last line.
 
 The history lines are not part of the narrated prose, so they never reach the safety scan or the
 claim check, which read the prose only.
@@ -12,6 +13,7 @@ claim check, which read the prose only.
 
 from __future__ import annotations
 
+from commishdesk.facts.accuracy_line import ACCURACY_LINE
 from commishdesk.facts.schema import WeeklyFacts
 from commishdesk.narrate.weekly_template import WeeklyIssue, weekly_issue_to_text
 from commishdesk.render import _weekly_model as wm
@@ -21,6 +23,11 @@ __all__ = ["render_weekly_text"]
 
 
 def render_weekly_text(facts: WeeklyFacts, issue: WeeklyIssue) -> str:
+    """The text Issue with the history lines and, last, the accuracy line (Story 9B.5)."""
+    return _issue_text(facts, issue) + "\n" + ACCURACY_LINE + "\n"
+
+
+def _issue_text(facts: WeeklyFacts, issue: WeeklyIssue) -> str:
     view = wm.history_view(facts)
     if view is None:
         return weekly_issue_to_text(issue)

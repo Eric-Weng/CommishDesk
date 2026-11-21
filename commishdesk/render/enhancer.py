@@ -83,11 +83,17 @@ _SUBRESOURCE_TAGS = frozenset({"link", "iframe", "img"})
 _SUBRESOURCE_ATTRS = frozenset({"src", "href", "srcset"})
 #: The one href the page may carry: ``<a href="#section-id">``, a same-page fragment (8.16c).
 _SAME_PAGE_FRAGMENT = re.compile(r"#[A-Za-z][A-Za-z0-9_-]*")
-#: Stories 9.7/9.5: the four fixed ``<a href>`` values a card's source line may carry (the trade
-#: card's three and the odds block's docs link). They load nothing and run nothing; any other
-#: value is still refused.
+#: Stories 9.7/9.5/9B.5: the five fixed ``<a href>`` values a card's source line or footer may carry
+#: (the trade card's three, the odds block's docs link and the accuracy line's "How we compute"
+#: link). They load nothing and run nothing; any other value is still refused.
 ALLOWED_CARD_LINKS = frozenset(
-    {"/docs/trade-grades/", "/docs/league-value/", "https://github.com/nflverse", "/docs/playoff-odds/"}
+    {
+        "/docs/trade-grades/",
+        "/docs/league-value/",
+        "https://github.com/nflverse",
+        "/docs/playoff-odds/",
+        "/docs/",
+    }
 )
 
 

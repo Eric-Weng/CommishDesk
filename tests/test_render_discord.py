@@ -17,6 +17,7 @@ import sys
 
 import pytest
 
+from commishdesk.facts.accuracy_line import ACCURACY_LINE
 from commishdesk.facts.schema import DraftRecapFacts
 from commishdesk.narrate import Recap, Section, render_draft_recap
 from commishdesk.render import render_discord_summary
@@ -130,7 +131,7 @@ def test_recap_with_an_empty_lead_section_falls_back_to_the_title_only() -> None
         sections=[Section(heading="The Lead", blocks=[]), Section(heading="X", blocks=["y"])],
     )
     out = render_discord_summary(facts, recap=recap)
-    assert out == f"{facts.league.name} — {facts.league.season} Draft Recap"
+    assert out == f"{facts.league.name} — {facts.league.season} Draft Recap\n\n{ACCURACY_LINE}"
 
 
 def test_long_lead_is_truncated_at_a_word_boundary() -> None:
@@ -143,7 +144,7 @@ def test_long_lead_is_truncated_at_a_word_boundary() -> None:
     )
     out = render_discord_summary(facts, recap=recap)
     assert len(out) < 2000
-    assert out.endswith("…")
+    assert out.endswith(f"…\n\n{ACCURACY_LINE}")
     assert "word word" in out
 
 
@@ -156,7 +157,8 @@ def test_newline_in_league_name_still_yields_a_single_first_line() -> None:
     assert "\r" not in out
     first = out.split("\n", 1)[0]
     assert first == f"Trench Warfare — {facts.league.season} Draft Recap"
-    assert out.count("\n") == 2  # exactly the one blank-line separator
+    body = out.removesuffix(f"\n\n{ACCURACY_LINE}")
+    assert body.count("\n") == 2  # exactly the one blank-line separator, then the accuracy line
 
 
 def test_pathologically_long_title_is_clamped_under_2000_with_an_ellipsis() -> None:
@@ -166,7 +168,7 @@ def test_pathologically_long_title_is_clamped_under_2000_with_an_ellipsis() -> N
     )
     out = render_discord_summary(facts, recap=render_draft_recap(facts.narration))
     assert len(out) < 2000
-    assert out.endswith("…")
+    assert out.endswith(f"…\n\n{ACCURACY_LINE}")
     assert "\r" not in out
 
 
