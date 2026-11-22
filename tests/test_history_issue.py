@@ -17,6 +17,7 @@ from typing import Any
 import pytest
 
 from commishdesk.facts import history_wording as hw
+from commishdesk.facts.accuracy_line import ACCURACY_LINE
 from commishdesk.facts.leads import WEEKLY_LEAD_KIND_PRIORITY, build_weekly_lead_candidates
 from commishdesk.facts.schema import (
     SCHEMA_VERSION,
@@ -322,7 +323,9 @@ def test_no_callback_renders_no_heading_no_box_no_gap() -> None:
     # a block with nothing to say renders exactly like no block at all, on every surface
     assert _web(empty) == _web(none)
     assert _email(empty) == _email(none)
-    assert _text(empty) == _text(none) == weekly_issue_to_text(render_weekly_issue(none.narration))
+    # with no history lines the text is the narrated text plus the accuracy line, nothing else
+    plain = weekly_issue_to_text(render_weekly_issue(none.narration))
+    assert _text(empty) == _text(none) == f"{plain}\n{ACCURACY_LINE}\n"
     assert _discord(empty) == _discord(none)
     assert "game-hist" not in _web(none) and "League history" not in _web(none)
     assert "📜" not in _discord(none)

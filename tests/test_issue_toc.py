@@ -97,7 +97,7 @@ def test_email_html_and_text_pin_the_link_targets() -> None:
     parts = _email(_raw())
     marker = we.ISSUE_URL_MARKER
     assert marker == "{{commishdesk:issue-url}}"
-    targets = [f"{marker}#{i}" for i in SECTION_IDS]
+    targets = [f"{marker}#{i}" for i in SECTION_IDS] + [f"{we.SITE_URL_MARKER}/docs/"]  # + the footer link
     assert re.findall(r'<a href="([^"]+)"', parts.html) == targets
     assert "In this issue" in parts.html
     assert parts.html.index("Trench Warfare") < parts.html.index("In this issue") < parts.html.index(">The Lead<")

@@ -63,6 +63,7 @@ import math
 import re
 from collections.abc import Mapping, Sequence
 
+from commishdesk.facts.accuracy_line import ACCURACY_LINE, ACCURACY_LINK_TEXT, DOCS_INDEX
 from commishdesk.facts.schema import (
     LeadCandidate,
     WeeklyByeImpact,
@@ -1669,8 +1670,8 @@ def render_weekly_web(
     footer = (
         f'<footer data-reveal><p>{_esc(facts.league.name)} · {_esc(facts.league.season)} · Week {facts.week} · '
         f"generated {_esc(generated_at)}</p>"
-        "<p>Every number is computed from the league&rsquo;s own Sleeper record; "
-        "the prose is the narrator&rsquo;s.</p></footer>"
+        "<p>The prose is the narrator&rsquo;s.</p>"
+        f'<p>{ACCURACY_LINE} <a href="{DOCS_INDEX}">{ACCURACY_LINK_TEXT}</a></p></footer>'
     )
     body_sections = [
         ("lead", _lead_section(ctx)),

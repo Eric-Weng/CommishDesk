@@ -302,7 +302,7 @@ def test_the_unenhanced_card_page_has_no_script_and_only_fixed_links(demo_raw: d
     web = _web(demo_raw[3])
     assert "<script" not in web
     hrefs = set(re.findall(r'href="([^"]*)"', web.split("</style>", 1)[1]))
-    assert hrefs <= {"/docs/trade-grades/", "/docs/league-value/", "https://github.com/nflverse"} | {
+    assert hrefs <= {"/docs/trade-grades/", "/docs/league-value/", "https://github.com/nflverse", "/docs/"} | {
         h for h in hrefs if h.startswith("#")
     }
 

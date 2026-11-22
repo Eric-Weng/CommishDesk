@@ -12,6 +12,7 @@ import json
 import re
 from typing import Any
 
+from commishdesk.facts.accuracy_line import ACCURACY_LINE
 from commishdesk.facts.schema import WeeklyFacts
 from commishdesk.narrate.weekly_template import WeeklyIssue, WeeklySection, render_weekly_issue
 from commishdesk.render import render_weekly_discord_post, utf16_len
@@ -80,7 +81,7 @@ def _grow(raw: dict[str, Any], teams: int = 16, name_len: int = 30) -> dict[str,
 
 def test_week10_follows_the_boards_line_order_within_budget_and_no_link() -> None:
     post = _post(_raw())
-    assert utf16_len(post) <= WEEKLY_BODY_BUDGET
+    assert utf16_len(post) <= 2000
     assert "Full Issue" not in post and not post.endswith("\n")
     lines = post.split("\n")
     assert lines[0] == "## 🏈 Trench Warfare · Week 10"
@@ -110,13 +111,14 @@ def test_week10_follows_the_boards_line_order_within_budget_and_no_link() -> Non
     assert lines[33] == "🔄 **Wire**  Flea Flicker Union claimed Jalen Nailor ($25)"
     assert lines[34] == ""
     assert lines[35] == "🏆 Coach of the week: Two Minute Drill (99.2%)  ·  🥚 Goose egg: Dak Prescott (0.00)"
-    assert len(lines) == 36
+    assert lines[36] == "" and lines[37] == f"-# {ACCURACY_LINE}"  # the accuracy subtext closes the post
+    assert len(lines) == 38
 
 
 def test_with_a_url_the_link_line_comes_last_within_2000() -> None:
     post = _post(_raw(), issue_url="https://x/y")
     assert utf16_len(post) <= 2000
-    assert post.endswith("\n\nFull Issue → https://x/y")
+    assert post.endswith(f"\n\n-# {ACCURACY_LINE}\n\nFull Issue → https://x/y")
     assert _post(_raw(), issue_url=None) == post.rsplit("\n\n", 1)[0]
 
 
@@ -153,7 +155,8 @@ def test_a_reissue_puts_the_correction_under_the_title_and_never_trims_it() -> N
         update={"sections": [WeeklySection(heading="Correction", blocks=[correction]), *issue.sections]}
     )
     post = render_weekly_discord_post(facts, issue)
-    assert utf16_len(post) <= WEEKLY_BODY_BUDGET
+    assert utf16_len(post) <= 2000
+    assert utf16_len(post.removesuffix(f"\n\n-# {ACCURACY_LINE}")) <= WEEKLY_BODY_BUDGET
     lines = post.split("\n")
     assert lines[1] == correction.replace(">", "\\>")  # escaped like every league-derived value
     assert lines[2].startswith("**")
@@ -169,7 +172,20 @@ def test_an_oversized_markdown_heavy_correction_is_clipped_to_2000() -> None:
     )
     post = render_weekly_discord_post(facts, issue, issue_url="https://x/y")
     assert utf16_len(post) <= 2000
-    assert post.endswith("…")
+    assert "…\n\n-# " + ACCURACY_LINE + "\n\nFull Issue → https://x/y" in post
+    assert post.endswith("Full Issue → https://x/y")
+
+
+def test_the_accuracy_line_survives_a_long_league_name_and_the_trim() -> None:
+    raw = _grow(_raw())
+    raw["league"]["name"] = "Long League Name " * 20
+    facts = WeeklyFacts.model_validate(raw)
+    issue = render_weekly_issue(facts.narration)
+    url = "https://example.com/i/" + "x" * 60
+    post = render_weekly_discord_post(facts, issue, issue_url=url)
+    assert utf16_len(post) <= 2000
+    assert post.endswith(f"\n\n-# {ACCURACY_LINE}\n\nFull Issue → {url}")
+    assert post.count(ACCURACY_LINE) == 1
 
 
 def test_with_no_hooked_lead_the_post_leads_with_the_narrated_lead() -> None:

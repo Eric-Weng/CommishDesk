@@ -36,6 +36,7 @@ import re
 from collections.abc import Sequence
 from typing import NamedTuple
 
+from commishdesk.facts.accuracy_line import ACCURACY_LINE, ACCURACY_LINK_TEXT, DOCS_INDEX
 from commishdesk.facts.schema import LeadCandidate, WeeklyFacts, WeeklyMove, WeeklyNarrationGame, WeeklyTrade
 from commishdesk.narrate.weekly_template import (
     WeeklyIssue,
@@ -1761,9 +1762,11 @@ def render_weekly_email(facts: WeeklyFacts, issue: WeeklyIssue, *, generated_at:
     footer = _tr(
         f'<div style="border-top:1px solid {LINE};padding-top:12px;font-family:{_MONO};'
         f'font-size:11px;line-height:1.5;color:{INK2};">'
-        "Every number is computed from the league&rsquo;s own Sleeper record; "
-        "the prose is the narrator&rsquo;s.<br>Also as plain text."
-        f'<div style="color:{INK2};padding-top:6px;">{_esc(footer_stamp)}</div></div>',
+        "The prose is the narrator&rsquo;s.<br>Also as plain text."
+        f'<div style="color:{INK2};padding-top:6px;">{_esc(footer_stamp)}</div>'
+        f'<div style="color:{INK2};padding-top:6px;">{ACCURACY_LINE} '
+        f'<a href="{SITE_URL_MARKER}{DOCS_INDEX}" style="color:{EMPH_TEXT};text-decoration:underline;">'
+        f"{ACCURACY_LINK_TEXT}</a></div></div>",
         "24px 28px 30px 28px",
     )
 
@@ -1797,7 +1800,6 @@ def render_weekly_email(facts: WeeklyFacts, issue: WeeklyIssue, *, generated_at:
         parts.append("\n".join(["IN THIS ISSUE", *toc_lines]))
     for section in sections:
         parts.append("\n".join([section.label.upper(), *section.text]))
-    parts.append(
-        "Every number is computed from the league's own Sleeper record; the prose is the narrator's."
-    )
+    parts.append("The prose is the narrator's.")
+    parts.append(ACCURACY_LINE)
     return EmailParts(html_doc, _plain("\n\n".join(parts) + "\n"))

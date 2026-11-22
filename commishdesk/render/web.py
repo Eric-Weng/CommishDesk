@@ -25,6 +25,7 @@ controls stripped first.
 
 from __future__ import annotations
 
+from commishdesk.facts.accuracy_line import ACCURACY_LINE
 from commishdesk.facts.schema import (
     DraftRecapFacts,
     PickRow,
@@ -433,6 +434,7 @@ def _footer(facts: DraftRecapFacts, team_count: int, rounds: int, generated_at: 
         [
             "<footer>",
             f'<p class="prov">{_provenance_sentence(against)}</p>',
+            f'<p class="prov">{ACCURACY_LINE}</p>',
             *([credit_line] if credit_line else []),
             f'<p class="stamp">{stamp}</p>',
             "</footer>",

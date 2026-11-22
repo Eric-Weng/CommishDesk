@@ -36,6 +36,7 @@ from __future__ import annotations
 
 from typing import NamedTuple
 
+from commishdesk.facts.accuracy_line import ACCURACY_LINE
 from commishdesk.facts.schema import DraftRecapFacts, PickRow
 from commishdesk.narrate import Recap, recap_to_text
 from commishdesk.render._body import (
@@ -327,6 +328,7 @@ def _footer(
         f'<td style="border-top:1px solid {_LINE};padding-top:20px;font-family:{_MONO};'
         f'font-size:11px;line-height:1.7;color:{_INK3};">'
         f"{_provenance_sentence(against)}"
+        f'<div style="padding-top:6px;">{ACCURACY_LINE}</div>'
         f"{credit_html}"
         f'<div style="color:{_INK2};padding-top:10px;">{stamp}</div>'
         f"</td></tr></table></td></tr>"
@@ -498,7 +500,7 @@ def render_email(
         + _plain_board(facts)
         + "\n\n"
         + _plain_counts(facts)
-        + "\n"
+        + f"\n\n{ACCURACY_LINE}\n"
     )
 
     return EmailParts(html_doc, text)

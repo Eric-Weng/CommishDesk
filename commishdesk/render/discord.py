@@ -39,6 +39,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import NamedTuple
 
+from commishdesk.facts.accuracy_line import ACCURACY_LINE
 from commishdesk.facts.schema import DraftRecapFacts, WeeklyFacts
 from commishdesk.narrate import Recap
 from commishdesk.narrate.weekly_template import WeeklyIssue, section_headings_for_has_prior_week
@@ -99,11 +100,14 @@ def render_discord_summary(
     )
     lead = _lead_sentence(sections)
 
+    # The accuracy line (Story 9B.5) is never clipped: the title and lead share what is left.
+    tail = f"\n\n{ACCURACY_LINE}"
+    room = _MAX - len(tail)
     summary = _plain(f"{title}\n\n{lead}" if lead else title)
-    if len(summary) >= _MAX:
-        clipped = summary[: _MAX - 2].rsplit(" ", 1)[0].rstrip() or summary[: _MAX - 2]
+    if len(summary) >= room:
+        clipped = summary[: room - 2].rsplit(" ", 1)[0].rstrip() or summary[: room - 2]
         summary = f"{clipped}…"
-    return summary
+    return summary + tail
 
 
 # --------------------------------------------------------------------------- #
@@ -454,7 +458,8 @@ def render_weekly_discord_post(facts: WeeklyFacts, issue: WeeklyIssue, *, issue_
     approved order — odds, history (Story 9B.4), awards, wire, next week, luck, power, results, then
     standings rows from the bottom up to row 7 (or the playoff cut, when that
     sits lower). The title, correction, lead, rows 1–6 and the playoff line
-    are never trimmed. The whole post is at most 2,000 UTF-16 units.
+    are never trimmed. The accuracy line (Story 9B.5) follows as ``-# subtext`` above the link line,
+    its units reserved so it is never trimmed. The whole post is at most 2,000 UTF-16 units.
 
     League-supplied values outside the code block are markdown-escaped; inside
     it, names are unescaped but backtick-free and capped at 22 characters.
@@ -493,13 +498,14 @@ def render_weekly_discord_post(facts: WeeklyFacts, issue: WeeklyIssue, *, issue_
     link = ""
     if issue_url is not None and issue_url.strip():
         link = f"Full Issue → {''.join(_plain(issue_url).split())}"
-    link_units = utf16_len("\n\n" + link) if link else 0
-    budget = min(WEEKLY_BODY_BUDGET, _MAX - link_units) if link else WEEKLY_BODY_BUDGET
+    # The accuracy line (Story 9B.5, G2-4) is subtext above the link line; its units are reserved
+    # like the link's, so it is never trimmed.
+    tail = f"\n\n-# {ACCURACY_LINE}" + (f"\n\n{link}" if link else "")
+    tail_units = utf16_len(tail)
+    budget = min(WEEKLY_BODY_BUDGET, _MAX - tail_units)
     body = _join(_trim(blocks, budget))
-    if link and utf16_len(body) + link_units <= _MAX:
-        body = f"{body}\n\n{link}"
     # Last resort only (a pathological title or correction): never exceed the limit.
-    return _clip_text(body, _MAX)
+    return _clip_text(body, _MAX - tail_units) + tail
 
 
 def _escape_discord_markdown(text: str) -> str:
